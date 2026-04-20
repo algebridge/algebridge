@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algebridge</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#fff;color:#111;line-height:1.6;}
+
+/* ── NAV ── */
+nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:100;padding:1.1rem 3rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.logo{display:flex;align-items:center;gap:0.6rem;flex-shrink:0;}
+.logo-img{width:44px;height:44px;object-fit:contain;display:block;}
+.logo-name{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:600;color:#111;}
+.nav-links{display:flex;gap:2.2rem;flex-wrap:wrap;}
+.nav-links a{text-decoration:none;color:#374151;font-size:0.9rem;font-weight:500;cursor:pointer;position:relative;padding-bottom:2px;white-space:nowrap;}
+.nav-links a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:#1d4ed8;transition:width .2s;}
+.nav-links a:hover::after{width:100%;}
+.nav-cta{padding:0.6rem 1.5rem;background:#111;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+
+/* Hamburger */
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;background:none;border:none;}
+.hamburger span{display:block;width:24px;height:2px;background:#111;border-radius:2px;transition:all .25s;}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+.mobile-menu{display:none;flex-direction:column;background:#fff;border-top:1px solid #e5e7eb;padding:1.2rem 2rem 1.5rem;gap:1.1rem;}
+.mobile-menu a{text-decoration:none;color:#374151;font-size:1rem;font-weight:500;cursor:pointer;}
+.mobile-menu .mobile-cta{padding:0.75rem 1.5rem;background:#111;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.9rem;cursor:pointer;text-align:center;margin-top:0.5rem;}
+.mobile-menu.open{display:flex;}
+
+/* ── HERO ── */
+.hero{background:#0a0a0a;color:#fff;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:0;position:relative;overflow:hidden;}
+.hero-left{padding:4rem 3rem;z-index:2;}
+.hero-pill{display:inline-flex;align-items:center;gap:0.5rem;padding:0.3rem 1rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:9999px;font-size:0.72rem;letter-spacing:0.12em;margin-bottom:1.8rem;}
+.hero-dot{width:7px;height:7px;background:#2563eb;border-radius:50%;display:inline-block;flex-shrink:0;}
+.hero h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(2.4rem,5vw,4.2rem);font-weight:700;line-height:1.02;letter-spacing:-0.03em;margin-bottom:1.4rem;}
+.hero p{font-size:clamp(0.95rem,2vw,1.1rem);color:#9ca3af;max-width:380px;margin-bottom:2rem;}
+.hero-btns{display:flex;gap:1rem;flex-wrap:wrap;}
+.btn-primary{padding:0.9rem 1.8rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.95rem;cursor:pointer;}
+.btn-outline{padding:0.9rem 1.8rem;background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.45);border-radius:9999px;font-weight:500;font-size:0.95rem;cursor:pointer;}
+.hero-right{height:100vh;position:relative;}
+.hero-right img{width:100%;height:100%;object-fit:cover;opacity:0.45;display:block;}
+.hero-right::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,#0a0a0a 0%,transparent 40%);}
+.scroll-hint{position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);text-align:center;color:rgba(255,255,255,0.35);font-size:0.65rem;letter-spacing:0.18em;z-index:3;white-space:nowrap;}
+
+/* ── TAGLINE BAND ── */
+.tagline-band{background:#2563eb;color:#fff;padding:1.2rem 2rem;text-align:center;}
+.tagline-band p{font-size:clamp(0.9rem,2vw,1.05rem);font-weight:500;font-family:'Space Grotesk',sans-serif;letter-spacing:0.01em;}
+
+/* ── SECTIONS ── */
+.section{max-width:1200px;margin:0 auto;padding:6rem 2rem;}
+.chapter-label{font-size:0.72rem;font-weight:600;letter-spacing:0.16em;color:#2563eb;display:block;margin-bottom:1.2rem;}
+.section-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(1.9rem,4vw,2.8rem);font-weight:700;line-height:1.08;letter-spacing:-0.02em;position:relative;display:inline-block;}
+.section-title::after{content:'';position:absolute;bottom:-8px;left:0;width:44px;height:4px;background:#2563eb;border-radius:9999px;}
+.section-2col{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;}
+.body-text{font-size:1.05rem;color:#4b5563;line-height:1.8;}
+.body-text p+p{margin-top:1rem;}
+
+/* ── DARK SECTION ── */
+.dark-section{background:#0a0a0a;color:#fff;padding:6rem 0;}
+.dark-section .section{padding-top:0;padding-bottom:0;}
+.dark-section .chapter-label{color:#93c5fd;}
+.dark-section .section-title{color:#fff;}
+.dark-section .section-title::after{background:#2563eb;}
+.dark-section .body-text{color:#9ca3af;}
+
+/* ── WHY CARDS ── */
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
+.why-card{border:1px solid #e5e7eb;border-radius:1.25rem;overflow:hidden;}
+.why-card-img{height:200px;width:100%;object-fit:cover;display:block;filter:grayscale(20%);}
+.why-card-body{padding:1.5rem;}
+.why-card-body h3{font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;}
+.why-card-body p{font-size:0.9rem;color:#6b7280;line-height:1.65;}
+.why-card-accent{width:32px;height:3px;background:#2563eb;border-radius:9999px;margin-bottom:1rem;}
+
+/* ── WORK ── */
+.work-section{background:#f9fafb;padding:6rem 0;}
+.work-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem;}
+.work-card{background:#fff;border:1px solid #e5e7eb;border-radius:1.25rem;overflow:hidden;transition:transform .2s;}
+.work-card:hover{transform:translateY(-6px);}
+.work-card img{width:100%;height:220px;object-fit:cover;display:block;filter:grayscale(15%);}
+.work-card-body{padding:1.5rem;}
+.work-card-body h4{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;}
+.work-card-body p{font-size:0.875rem;color:#6b7280;line-height:1.65;}
+
+/* ── TEAM ── */
+.team-grid{display:grid;grid-template-columns:1fr;gap:2rem;margin-top:3rem;max-width:380px;margin-left:auto;margin-right:auto;}
+.team-card{text-align:center;}
+.team-avatar{width:140px;height:140px;border-radius:1rem;object-fit:cover;object-position:center 20%;margin:0 auto 1rem;display:block;border:none;}
+.team-card h4{font-weight:600;font-size:1.05rem;margin-bottom:0.2rem;}
+.team-card .role{font-size:0.85rem;color:#2563eb;font-weight:500;margin-bottom:0.4rem;}
+.team-card .bio{font-size:0.82rem;color:#9ca3af;line-height:1.6;max-width:300px;margin:0 auto;}
+
+/* ── JOIN THE TEAM ── */
+.join-section{background:#f0f6ff;padding:6rem 0;}
+.join-inner{max-width:680px;margin:0 auto;padding:0 2rem;text-align:center;}
+.join-label{font-size:0.72rem;font-weight:600;letter-spacing:0.16em;color:#2563eb;display:block;margin-bottom:1.2rem;}
+.join-heading{font-family:'Space Grotesk',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:#111;margin-bottom:2.5rem;}
+.join-card{background:#fff;border:1px solid #dbeafe;border-radius:1.5rem;padding:2.5rem 2.5rem 2.2rem;box-shadow:0 4px 28px rgba(37,99,235,0.08);}
+.join-avatar-row{display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:1.4rem;}
+.join-avatar{width:120px;height:120px;border-radius:0.85rem;object-fit:cover;object-position:center 20%;display:block;}
+.join-avatar-name{text-align:left;}
+.join-avatar-name strong{display:block;font-size:0.9rem;font-weight:600;color:#111;}
+.join-avatar-name span{font-size:0.78rem;color:#2563eb;font-weight:500;}
+.join-quote-text{font-size:1.05rem;color:#374151;line-height:1.85;font-style:italic;margin-bottom:2rem;position:relative;}
+.join-quote-text::before{content:'\201C';font-size:2.5rem;color:#bfdbfe;font-family:'Space Grotesk',sans-serif;line-height:0;vertical-align:-0.6rem;margin-right:0.2rem;}
+.join-quote-text::after{content:'\201D';font-size:2.5rem;color:#bfdbfe;font-family:'Space Grotesk',sans-serif;line-height:0;vertical-align:-0.6rem;margin-left:0.2rem;}
+.join-btn{display:inline-block;padding:0.9rem 2.2rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.95rem;cursor:pointer;text-decoration:none;transition:background .2s;}
+.join-btn:hover{background:#1d4ed8;}
+
+/* ── FOOTER ── */
+.footer{background:#0a0a0a;color:#fff;padding:5rem 0 2rem;}
+.footer-inner{max-width:1200px;margin:0 auto;padding:0 2rem;}
+.footer-grid{display:grid;grid-template-columns:5fr 7fr;gap:4rem;margin-bottom:4rem;}
+.footer-logo{display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;}
+.footer-logo-img{width:40px;height:40px;object-fit:contain;}
+.footer-logo-name{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:600;}
+.footer-desc{color:#6b7280;font-size:0.95rem;max-width:340px;margin-bottom:2rem;line-height:1.7;}
+.footer-email-label{font-size:0.7rem;letter-spacing:0.15em;color:#4b5563;margin-bottom:0.4rem;}
+.footer-email a{font-size:1.1rem;color:#93c5fd;text-decoration:none;word-break:break-all;}
+.support-box{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:1.25rem;padding:2rem;}
+.support-box h3{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:600;margin-bottom:0.75rem;}
+.support-box p{color:#9ca3af;font-size:0.9rem;margin-bottom:1.5rem;line-height:1.7;}
+.support-btns{display:flex;gap:1rem;flex-wrap:wrap;}
+.support-btn-primary{flex:1;min-width:120px;padding:1rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.9rem;cursor:pointer;}
+.support-btn-outline{flex:1;min-width:120px;padding:1rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:9999px;font-weight:500;font-size:0.9rem;cursor:pointer;}
+.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding-top:1.5rem;text-align:center;color:#4b5563;font-size:0.8rem;}
+
+/* ══════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+══════════════════════════════════ */
+
+@media(max-width:1024px){
+  nav{padding:1rem 2rem;}
+  .hero-left{padding:3rem 2rem;}
+  .section-2col{gap:3rem;}
+  .cards-grid{grid-template-columns:repeat(2,1fr);}
+  .work-grid{grid-template-columns:repeat(2,1fr);}
+  .footer-grid{grid-template-columns:1fr;gap:2.5rem;}
+}
+
+@media(max-width:768px){
+  .nav-links,.nav-cta{display:none;}
+  .hamburger{display:flex;}
+  nav{padding:1rem 1.5rem;}
+  .hero{grid-template-columns:1fr;min-height:auto;}
+  .hero-left{padding:5rem 1.5rem 3rem;}
+  .hero-right{height:280px;}
+  .hero-right::after{background:linear-gradient(to bottom,#0a0a0a 0%,transparent 50%);}
+  .scroll-hint{display:none;}
+  .section-2col{grid-template-columns:1fr;gap:2.5rem;}
+  .section{padding:4rem 1.5rem;}
+  .cards-grid{grid-template-columns:1fr;}
+  .work-grid{grid-template-columns:1fr;}
+  .work-section{padding:4rem 0;}
+  .dark-section{padding:4rem 0;}
+  .join-section{padding:4rem 0;}
+  .join-card{padding:2rem 1.5rem;}
+  .footer-grid{grid-template-columns:1fr;gap:2rem;}
+  .footer{padding:3rem 0 1.5rem;}
+}
+
+@media(max-width:480px){
+  .hero-left{padding:4rem 1.2rem 2.5rem;}
+  .hero-btns{flex-direction:column;}
+  .btn-primary,.btn-outline{width:100%;text-align:center;}
+  .section{padding:3rem 1.2rem;}
+  .support-btns{flex-direction:column;}
+  .support-btn-primary,.support-btn-outline{width:100%;}
+  .tagline-band{padding:1rem 1.2rem;}
+  .join-btn{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <img class="logo-img" src="algebridge logo.png" alt="Algebridge Logo">
+    <span class="logo-name">Algebridge</span>
+  </div>
+  <div class="nav-links">
+    <a onclick="document.getElementById('home').scrollIntoView({behavior:'smooth'})">Home</a>
+    <a onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">About Us</a>
+    <a onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</a>
+    <a onclick="document.getElementById('why').scrollIntoView({behavior:'smooth'})">Why It Matters</a>
+    <a onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">Our Work</a>
+    <a onclick="document.getElementById('team').scrollIntoView({behavior:'smooth'})">Our Team</a>
+  </div>
+  <button class="nav-cta" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Get Involved</button>
+  <button class="hamburger" id="hamburger" aria-label="Open menu" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a onclick="navTo('home')">Home</a>
+  <a onclick="navTo('about')">About Us</a>
+  <a onclick="navTo('mission')">Our Mission</a>
+  <a onclick="navTo('why')">Why It Matters</a>
+  <a onclick="navTo('projects')">Our Work</a>
+  <a onclick="navTo('team')">Our Team</a>
+  <button class="mobile-cta" onclick="navTo('contact')">Get Involved</button>
+</div>
+
+<!-- HERO -->
+<section id="home" class="hero">
+  <div class="hero-left">
+    <div class="hero-pill"><span class="hero-dot"></span>STUDENT-LED NONPROFIT · EST. 2026</div>
+    <h1>Every student deserves to master Algebra 1.</h1>
+    <p>We've seen students struggle. That's why we built Algebridge - so no one gets left behind</p>
+    <div class="hero-btns">
+      <button class="btn-primary" onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</button>
+      <button class="btn-outline" onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">See Our Work</button>
+    </div>
+  </div>
+  <div class="hero-right">
+    <img src="algebra1.webp" alt="Students learning together">
+  </div>
+  <div class="scroll-hint">SCROLL TO LEARN MORE ↓</div>
+</section>
+
+<!-- TAGLINE BAND -->
+<div class="tagline-band">
+  <p>Algebridge is a student-led nonprofit initiative that helps students overcome struggles in Algebra 1 using interactive tools, resources, and support.</p>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section">
+    <div class="section-2col">
+      <div>
+        <span class="chapter-label">CHAPTER 01</span>
+        <h2 class="section-title">Algebridge is a student-led nonprofit that helps students overcome struggles in Algebra</h2>
+      </div>
+      <div class="body-text" style="margin-top:0.5rem;">
+        <p>Algebridge was founded in 2026 by Ivan Dubovyi, who saw firsthand how many peers fall behind when Algebra 1 begins - and felt driven to change that</p>
+        <p>We focus on Algebra 1 because it's the critical turning point where students either build a strong foundation or begin to lose confidence. Our mission is to make sure every student makes it across that bridge</p>
+        <div style="margin-top:2rem;border-radius:1rem;overflow:hidden;border:1px solid #e5e7eb;">
+          <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=900&q=85" alt="Student working through algebra at a whiteboard" style="width:100%;height:260px;object-fit:cover;display:block;filter:grayscale(10%);">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MISSION -->
+<section id="mission">
+  <div class="dark-section">
+    <div class="section">
+      <div class="section-2col" style="gap:4rem;">
+        <div>
+          <span class="chapter-label">CHAPTER 02</span>
+          <h2 class="section-title" style="color:#fff;">Our mission: ensure every kid truly understands Algebra</h2>
+          <p class="body-text" style="margin-top:2rem;">Algebra 1 is more than just a subject - it's the foundation for everything that comes next. Fractions, equations, functions, and variables form the language of advanced math, science, and technology</p>
+          <p class="body-text" style="margin-top:1rem;">Our mission is to make sure no student falls behind at this critical stage - because understanding Algebra 1 means understanding the beginning of it all</p>
+        </div>
+        <div style="border-radius:1.25rem;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+          <img src="https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800&q=85" alt="Algebra equations written clearly on paper" style="width:100%;height:340px;object-fit:cover;display:block;filter:grayscale(20%) brightness(0.85);">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY IT MATTERS -->
+<section id="why">
+  <div class="section">
+    <div style="text-align:center;margin-bottom:0.5rem;">
+      <span class="chapter-label" style="display:block;text-align:center;">CHAPTER 03</span>
+      <h2 class="section-title" style="display:inline-block;position:relative;">Why we do this — and why it matters</h2>
+    </div>
+    <div class="cards-grid">
+      <div class="why-card">
+        <img class="why-card-img" src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=700&q=85" alt="Student studying hard at a desk">
+        <div class="why-card-body">
+          <div class="why-card-accent"></div>
+          <h3>We've Seen the Struggle</h3>
+          <p>Our founder saw how quickly students begin to lose confidence when Algebra 1 starts. That moment sparked a decision to act — and Algebridge was built from that experience</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <img class="why-card-img" src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=700&q=85" alt="Math equations representing Algebra foundation">
+        <div class="why-card-body">
+          <div class="why-card-accent"></div>
+          <h3>Algebra 1 Is the Foundation</h3>
+          <p>Every advanced math course, from geometry to calculus, builds on Algebra 1. Getting it right here isn't optional. It's the foundation for everything that follows</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <img class="why-card-img" src="https://images.unsplash.com/photo-1529390079861-591de354faf5?w=700&q=85" alt="Students succeeding and celebrating learning">
+        <div class="why-card-body">
+          <div class="why-card-accent"></div>
+          <h3>Every Kid Deserves to Succeed</h3>
+          <p>No student should fall behind simply because they didn't have the right support at the right time. We're here to make sure they don't</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OUR WORK -->
+<section id="projects" class="work-section">
+  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
+    <span class="chapter-label">CHAPTER 04</span>
+    <h2 class="section-title">How We Help</h2>
+    <div class="work-grid">
+      <div class="work-card">
+        <img src="https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=700&q=85" alt="Student using an interactive learning platform on a laptop">
+        <div class="work-card-body">
+          <h4>Interactive Learning Platform</h4>
+          <p>We're building a simple, interactive platform that helps students understand Algebra 1 through step by step guidance, practice, and clear explanations</p>
+        </div>
+      </div>
+      <div class="work-card">
+        <img src="algebra2.jpg" alt="Tutor working one-on-one with a student">
+        <div class="work-card-body">
+          <h4>Guided Support</h4>
+          <p>We provide support for students who get stuck - helping them work through problems and understand concepts, not just memorize them</p>
+        </div>
+      </div>
+      <div class="work-card">
+        <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?w=700&q=85" alt="Students in a group learning program">
+        <div class="work-card-body">
+          <h4>Growing Support System</h4>
+          <p>As we grow, we aim to expand access through tutoring and structured programs for students who need extra help in Algebra 1</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JOIN / OUR TEAM -->
+<section id="team" class="join-section">
+  <div class="join-inner">
+    <span class="join-label">CHAPTER 05 · LOOKING FOR THE TEAM</span>
+    <h2 class="join-heading">Our Team</h2>
+    <div class="join-card">
+      <div class="join-avatar-row">
+        <img class="join-avatar" src="ivandubovyi.jpeg" alt="Ivan Dubovyi"
+          onerror="this.style.display='none';">
+        <div class="join-avatar-name">
+          <strong>Ivan Dubovyi</strong>
+          <span>Founder &amp; The CEO of Algebridge</span>
+        </div>
+      </div>
+      <p class="join-quote-text">Algebridge is still in its earliest days, and right now it's just me. But I know this mission is bigger than one person. I'm looking for people who genuinely care about students — people who've seen the same struggles and feel that same pull to do something about it. If you're passionate about helping kids understand Algebra 1 and want to be part of building something meaningful from the ground up, I'd love to hear from you.</p>
+      <a class="join-btn" href="YOUR_FORM_LINK_HERE" target="_blank">Join the Team</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<section id="contact">
+  <div class="footer">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-logo">
+            <img class="footer-logo-img" src="algebridge logo b.png" alt="Algebridge Logo">
+            <span class="footer-logo-name">algebridge</span>
+          </div>
+          <p class="footer-desc">A student-led nonprofit initiative dedicated to helping every student understand and succeed in Algebra. Founded 2026.</p>
+          <div class="footer-email-label">CONTACT</div>
+          <div class="footer-email"><a href="mailto:ivan.malchugan@gmail.com">ivan.malchugan@gmail.com</a></div>
+        </div>
+        <div class="support-box">
+          <h3>Support our work</h3>
+          <p>Help us reach more students who are struggling with Algebra 1. Your support funds our practice platform, tutoring, and student programs.</p>
+          <div class="support-btns">
+            <button class="support-btn-primary" onclick="alert('Thank you! This would open a donation page.')">Donate Now</button>
+            <button class="support-btn-outline" onclick="alert('Thank you for wanting to help!')">Get Involved</button>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">&#169; 2026 Algebridge. All rights reserved. Student-led nonprofit initiative.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+function toggleMenu(){
+  const btn=document.getElementById('hamburger');
+  const menu=document.getElementById('mobileMenu');
+  btn.classList.toggle('open');
+  menu.classList.toggle('open');
+}
+function navTo(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+  document.getElementById('hamburger').classList.remove('open');
+  document.getElementById('mobileMenu').classList.remove('open');
+}
+</script>
+</body>
+</html>
