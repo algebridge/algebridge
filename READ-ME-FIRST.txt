@@ -1,0 +1,37 @@
+GITHUB UPLOAD — 2 BATCHES (under 100 files each)
+================================================
+
+GitHub only lets you upload 100 files at a time. Do TWO uploads:
+
+────────────────────────────────────────
+BATCH 1 (93 files)
+────────────────────────────────────────
+1. Open: https://github.com/algebridge/algebridge
+2. Add file → Upload files
+3. Open folder: BATCH-1-of-2
+4. Drag EVERYTHING inside BATCH-1-of-2 into GitHub:
+   - app (folder)
+   - .gitignore
+   - DEPLOY.md
+   - index.html
+5. Commit message: Add AlgeBridge app batch 1
+6. Click Commit changes
+7. WAIT until it finishes
+
+────────────────────────────────────────
+BATCH 2 (53 files)
+────────────────────────────────────────
+1. Same repo page → Add file → Upload files AGAIN
+2. Open folder: BATCH-2-of-2
+3. Drag EVERYTHING inside BATCH-2-of-2 into GitHub
+   (mostly more app/ files — merges into same app folder)
+4. Commit message: Add AlgeBridge app batch 2
+5. Click Commit changes
+
+────────────────────────────────────────
+CHECK
+────────────────────────────────────────
+Open: https://github.com/algebridge/algebridge/tree/main/app
+You should see package.json and src/
+
+Then Vercel → Root Directory: app → Deploy
