@@ -1,0 +1,42 @@
+VERCEL 404 FIX — READ THIS
+==========================
+
+Your code builds fine. The 404 means Vercel project settings are wrong.
+
+MOST COMMON FIX — Output Directory
+----------------------------------
+In Vercel → Project → Settings → Build and Deployment:
+
+  Framework Preset:     Next.js
+  Root Directory:       (LEAVE EMPTY — do not type anything)
+  Build Command:        (leave default / empty)
+  Output Directory:     (MUST BE EMPTY — delete anything here!)
+  Install Command:      (leave default / empty)
+
+If Output Directory says ".next" or "out" or "public" — DELETE IT.
+That alone causes 404 on every URL.
+
+STEP 2 — Upload vercel.json
+---------------------------
+On GitHub, Add file → Create new file → name it: vercel.json
+
+Paste the contents from vercel.json in this folder. Commit.
+
+STEP 3 — Redeploy
+-----------------
+Vercel → Deployments → Redeploy latest (uncheck "Use existing build cache")
+
+STEP 4 — Open the Visit link
+----------------------------
+Do NOT type the URL manually. Click "Visit" on the green deployment row.
+Copy THAT exact URL for learning/index.html
+
+If still broken — NEW PROJECT
+-----------------------------
+1. Vercel → Add New Project → import algebridge/algebridge
+2. Before Deploy, click Root Directory → leave as ./
+3. After import, Settings → Output Directory → MUST BE EMPTY
+4. Settings → Deployment Protection → OFF
+5. Deploy → click Visit
+
+Send a screenshot of Settings → Build and Deployment if it still fails.
