@@ -4,7 +4,7 @@
 
 AlgeBridge is a free Algebra 1 learning platform for grades 7–10. It combines curated YouTube videos, research-backed teaching methods, and interactive practice with mastery tracking.
 
-## Phase 2 Features
+## Phase 2 Features 
 
 - **Verified YouTube videos** — all 46 skills use validated video IDs
 - **Bridge Review** — spaced repetition at 1/3/7/14/30 day intervals (`/review`)
