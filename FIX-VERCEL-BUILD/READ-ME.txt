@@ -1,0 +1,21 @@
+VERCEL BUILD FIX (updated)
+==========================
+
+The build still fails because tsconfig checks ALL .ts files including BATCH folders.
+
+FIX: Replace the whole tsconfig.json on GitHub.
+
+1. Open:
+   https://github.com/algebridge/algebridge/edit/main/tsconfig.json
+
+2. DELETE everything in the editor.
+
+3. Copy/paste the ENTIRE contents of tsconfig.json from this folder
+   (on your Desktop in FIX-VERCEL-BUILD)
+
+4. Click "Commit changes"
+
+5. Vercel → Deployments → Redeploy (must redeploy after commit!)
+
+The key change is the "include" line now only checks src/ files,
+not the broken BATCH-1-of-2 folder.
