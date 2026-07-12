@@ -88,27 +88,27 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
 .work-card-body p{font-size:0.875rem;color:#6b7280;line-height:1.65;}
 
 /* ── TEAM ── */
-.team-grid{display:grid;grid-template-columns:1fr;gap:2rem;margin-top:3rem;max-width:380px;margin-left:auto;margin-right:auto;}
-.team-card{text-align:center;}
-.team-avatar{width:140px;height:140px;border-radius:1rem;object-fit:cover;object-position:center 20%;margin:0 auto 1rem;display:block;border:none;}
-.team-card h4{font-weight:600;font-size:1.05rem;margin-bottom:0.2rem;}
-.team-card .role{font-size:0.85rem;color:#2563eb;font-weight:500;margin-bottom:0.4rem;}
-.team-card .bio{font-size:0.82rem;color:#9ca3af;line-height:1.6;max-width:300px;margin:0 auto;}
-
-/* ── JOIN THE TEAM ── */
 .join-section{background:#f0f6ff;padding:6rem 0;}
-.join-inner{max-width:680px;margin:0 auto;padding:0 2rem;text-align:center;}
+.join-inner{max-width:1200px;margin:0 auto;padding:0 2rem;text-align:center;}
 .join-label{font-size:0.72rem;font-weight:600;letter-spacing:0.16em;color:#2563eb;display:block;margin-bottom:1.2rem;}
 .join-heading{font-family:'Space Grotesk',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:#111;margin-bottom:2.5rem;}
-.join-card{background:#fff;border:1px solid #dbeafe;border-radius:1.5rem;padding:2.5rem 2.5rem 2.2rem;box-shadow:0 4px 28px rgba(37,99,235,0.08);}
-.join-avatar-row{display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:1.4rem;}
-.join-avatar{width:120px;height:120px;border-radius:0.85rem;object-fit:cover;object-position:center 20%;display:block;}
-.join-avatar-name{text-align:left;}
-.join-avatar-name strong{display:block;font-size:0.9rem;font-weight:600;color:#111;}
-.join-avatar-name span{font-size:0.78rem;color:#2563eb;font-weight:500;}
-.join-quote-text{font-size:1.05rem;color:#374151;line-height:1.85;font-style:italic;margin-bottom:2rem;position:relative;}
-.join-quote-text::before{content:'\201C';font-size:2.5rem;color:#bfdbfe;font-family:'Space Grotesk',sans-serif;line-height:0;vertical-align:-0.6rem;margin-right:0.2rem;}
-.join-quote-text::after{content:'\201D';font-size:2.5rem;color:#bfdbfe;font-family:'Space Grotesk',sans-serif;line-height:0;vertical-align:-0.6rem;margin-left:0.2rem;}
+.team-row{display:grid;grid-template-columns:repeat(7,1fr);gap:1rem;align-items:start;margin-bottom:2.5rem;}
+.team-card{text-align:center;padding:0.5rem 0.25rem;}
+.team-avatar{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;object-fit:cover;object-position:center 20%;margin:0 auto 0.85rem;display:block;background:#e5e7eb;}
+.team-avatar-placeholder{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;margin:0 auto 0.85rem;display:flex;align-items:center;justify-content:center;background:#e8eef9;border:1.5px dashed #93c5fd;color:#93c5fd;font-size:1.6rem;font-weight:300;}
+.team-card h4{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.92rem;margin-bottom:0.15rem;color:#111;}
+.team-card .role{font-size:0.75rem;color:#2563eb;font-weight:500;margin-bottom:0.4rem;}
+.team-card .bio{font-size:0.72rem;color:#6b7280;line-height:1.55;max-width:140px;margin:0 auto;}
+.team-card.founder{padding-top:0;}
+.team-card.founder .team-avatar{max-width:140px;border:2px solid #2563eb;box-shadow:0 4px 20px rgba(37,99,235,0.18);}
+.team-card.founder h4{font-size:1.05rem;}
+.team-card.founder .role{font-size:0.8rem;}
+.team-card.founder .bio{font-size:0.78rem;max-width:160px;color:#4b5563;}
+.team-card.open .team-avatar-placeholder{background:#f8fafc;border-color:#bfdbfe;color:#bfdbfe;}
+.team-card.open h4{color:#9ca3af;}
+.team-card.open .role{color:#93c5fd;}
+.team-card.open .bio{color:#9ca3af;}
+.join-cta-wrap{margin-top:0.5rem;}
 .join-btn{display:inline-block;padding:0.9rem 2.2rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.95rem;cursor:pointer;text-decoration:none;transition:background .2s;}
 .join-btn:hover{background:#1d4ed8;}
 
@@ -134,12 +134,15 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
    RESPONSIVE BREAKPOINTS
 ══════════════════════════════════ */
 
-@media(max-width:1024px){
+@media(max-width:1100px){
   nav{padding:1rem 2rem;}
   .hero-left{padding:3rem 2rem;}
   .section-2col{gap:3rem;}
   .cards-grid{grid-template-columns:repeat(2,1fr);}
   .work-grid{grid-template-columns:repeat(2,1fr);}
+  .team-row{grid-template-columns:repeat(3,1fr);gap:1.5rem 1rem;}
+  .team-card.founder{grid-column:1 / -1;order:-1;margin-bottom:0.75rem;}
+  .team-card.founder .bio{max-width:220px;}
   .footer-grid{grid-template-columns:1fr;gap:2.5rem;}
 }
 
@@ -159,7 +162,10 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
   .work-section{padding:4rem 0;}
   .dark-section{padding:4rem 0;}
   .join-section{padding:4rem 0;}
-  .join-card{padding:2rem 1.5rem;}
+  .team-row{grid-template-columns:repeat(2,1fr);gap:1.5rem 1rem;}
+  .team-card.founder{grid-column:1 / -1;order:-1;margin-bottom:0.5rem;}
+  .team-card.founder .team-avatar{max-width:130px;}
+  .team-card .bio{max-width:180px;}
   .footer-grid{grid-template-columns:1fr;gap:2rem;}
   .footer{padding:3rem 0 1.5rem;}
 }
@@ -216,8 +222,8 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
     <h1>Every student deserves to master Algebra 1.</h1>
     <p>We've seen students struggle. That's why we built Algebridge - so no one gets left behind</p>
     <div class="hero-btns">
-      <button class="btn-primary" onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</button>
-      <button class="btn-outline" onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">See Our Work</button>
+      <a class="btn-primary" id="startLearningBtn" href="https://learn.algebridge.org" style="text-decoration:none;display:inline-block;">Start Learning</a>
+      <button class="btn-outline" onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</button>
     </div>
   </div>
   <div class="hero-right">
@@ -315,7 +321,8 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
         <img src="https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=700&q=85" alt="Student using an interactive learning platform on a laptop">
         <div class="work-card-body">
           <h4>Interactive Learning Platform</h4>
-          <p>We're building a simple, interactive platform that helps students understand Algebra 1 through step by step guidance, practice, and clear explanations</p>
+          <p>Practice Algebra 1 with videos, step-by-step help, and a fun house mini-game. Earn Bridgeys as you learn.</p>
+          <a id="platformLink" href="https://learn.algebridge.org" style="display:inline-block;margin-top:0.75rem;font-weight:600;color:#165dff;text-decoration:none;">Open the platform →</a>
         </div>
       </div>
       <div class="work-card">
@@ -341,16 +348,57 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
   <div class="join-inner">
     <span class="join-label">CHAPTER 05 · LOOKING FOR THE TEAM</span>
     <h2 class="join-heading">Our Team</h2>
-    <div class="join-card">
-      <div class="join-avatar-row">
-        <img class="join-avatar" src="ivandubovyi.jpeg" alt="Ivan Dubovyi"
-          onerror="this.style.display='none';">
-        <div class="join-avatar-name">
-          <strong>Ivan Dubovyi</strong>
-          <span>Founder &amp; The CEO of Algebridge</span>
-        </div>
+    <div class="team-row">
+      <!-- 3 members left of founder -->
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
       </div>
-      <p class="join-quote-text">Algebridge is still in its earliest days, and right now it's just me. But I know this mission is bigger than one person. I'm looking for people who genuinely care about students, people who've seen the same struggles and feel that same pull to do something about it. If you're passionate about helping kids understand Algebra 1 and want to be part of building something meaningful from the ground up, I'd love to hear from you.</p>
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
+      </div>
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
+      </div>
+
+      <!-- Founder (center) -->
+      <div class="team-card founder">
+        <img class="team-avatar" src="ivandubovyi.jpeg" alt="Ivan Dubovyi"
+          onerror="this.style.display='none';">
+        <h4>Ivan Dubovyi</h4>
+        <p class="role">Founder &amp; CEO</p>
+        <p class="bio">Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p>
+      </div>
+
+      <!-- 3 members right of founder -->
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
+      </div>
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
+      </div>
+      <div class="team-card open">
+        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
+        <h4>Open Spot</h4>
+        <p class="role">Role TBD</p>
+        <p class="bio">Description coming soon — join us and help define this role.</p>
+      </div>
+    </div>
+    <div class="join-cta-wrap">
       <a class="join-btn" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank">Join the Team</a>
     </div>
   </div>
@@ -376,7 +424,6 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
           <div class="support-btns">
             <button class="support-btn-primary" onclick="alert('Thank you! This would open a donation page.')">Donate Now</button>
             <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank"><button class="support-btn-outline">Get Involved</button></a>
-             <a href="https://forms.gle/MRxQYDMACKCpvqaM8" target="_blank"><button class="support-btn-outline">Get Help</button></a>
           </div>
         </div>
       </div>
@@ -386,6 +433,11 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
 </section>
 
 <script>
+// Update this after deploying the Next.js app on Vercel
+const APP_URL = "https://learn.algebridge.org";
+document.getElementById("startLearningBtn").href = APP_URL;
+document.getElementById("platformLink").href = APP_URL;
+
 function toggleMenu(){
   const btn=document.getElementById('hamburger');
   const menu=document.getElementById('mobileMenu');
