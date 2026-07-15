@@ -1,10 +1,33 @@
-# Turning on Cloud Accounts (5 minutes)
+# Cloud Accounts — Status: ✅ LIVE
 
-AlgeBridge works fully offline (progress saved in the browser), but you can turn
-on **real, password-protected accounts** that sync across devices. Security is
-handled by Supabase Auth (email + password) plus Postgres **Row-Level Security**,
-so a student can only ever read or write *their own* data — knowing another
-person's name or email is not enough to see or change their account.
+Cloud accounts are **already set up and live**. A Supabase project is provisioned
+(project ref `fejdghqbqmktoaoncqmg`), the schema + Row-Level Security are applied,
+instant signup (email auto-confirm) is on, and the public keys are committed in
+[`.env.production`](.env.production) so they ship with every Vercel build. Students
+can create a password-protected account from the **Sign in** page right now, and
+their progress syncs across devices.
+
+Security is handled by Supabase Auth (email + password) plus Postgres
+**Row-Level Security**: a student can only ever read or write *their own* data —
+knowing another person's name or email is not enough to see or change their
+account (verified: cross-user writes are rejected with a `42501` RLS error).
+
+## Optional: full AI tutor chat
+
+The "Chat with a Tutor (Beta)" feature and AI hints run on a smart built-in
+tutor by default (no key needed). To upgrade them to a real LLM, add a **secret**
+env var in Vercel (Project → Settings → Environment Variables) and redeploy:
+
+- `ANTHROPIC_API_KEY` — uses Claude (recommended), or
+- `OPENAI_API_KEY` — uses GPT.
+
+Never commit these — they are secret, unlike the public Supabase keys.
+
+---
+
+## Re-provisioning from scratch (only if you ever need a new backend)
+
+The steps below recreate the whole thing on a different Supabase project.
 
 ## 1. Create a free Supabase project
 

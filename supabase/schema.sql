@@ -246,3 +246,59 @@ create policy "Users can insert own leaderboard stats"
 create policy "Users can update own leaderboard stats"
   on public.leaderboard_stats for update
   using (auth.uid() = user_id);
+
+-- ============================================================
+-- RLS recursion fix (2026-07): the classes <-> class_members <->
+-- user_progress/profiles policies above referenced each other, which
+-- Postgres evaluates recursively ("infinite recursion detected in policy").
+-- These SECURITY DEFINER helpers run as the owner (RLS not re-applied),
+-- breaking the cycle, and the policies below replace the recursive ones.
+-- ============================================================
+
+create or replace function public.is_class_teacher(cid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.classes c where c.id = cid and c.teacher_id = auth.uid());
+$$;
+
+create or replace function public.is_class_member(cid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.class_members m where m.class_id = cid and m.student_id = auth.uid());
+$$;
+
+create or replace function public.teaches_student(sid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (
+    select 1
+    from public.class_members cm
+    join public.classes c on c.id = cm.class_id
+    where c.teacher_id = auth.uid() and cm.student_id = sid
+  );
+$$;
+
+revoke all on function public.is_class_teacher(uuid) from public;
+revoke all on function public.is_class_member(uuid) from public;
+revoke all on function public.teaches_student(uuid) from public;
+grant execute on function public.is_class_teacher(uuid) to authenticated;
+grant execute on function public.is_class_member(uuid) to authenticated;
+grant execute on function public.teaches_student(uuid) to authenticated;
+
+drop policy if exists "Teachers manage members of their own classes" on public.class_members;
+create policy "Teachers manage members of their own classes"
+  on public.class_members for all
+  using (public.is_class_teacher(class_id))
+  with check (public.is_class_teacher(class_id));
+
+drop policy if exists "Students can read classes they belong to" on public.classes;
+create policy "Students can read classes they belong to"
+  on public.classes for select
+  using (public.is_class_member(id));
+
+drop policy if exists "Teachers can read profiles of their students" on public.profiles;
+create policy "Teachers can read profiles of their students"
+  on public.profiles for select
+  using (public.teaches_student(id));
+
+drop policy if exists "Teachers can read progress of their students" on public.user_progress;
+create policy "Teachers can read progress of their students"
+  on public.user_progress for select
+  using (public.teaches_student(user_id));
