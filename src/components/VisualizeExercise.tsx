@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Skill } from "@/types";
 import { getVisualExercise } from "@/data/visual-exercises";
 import { DiagramView } from "@/components/visuals/DiagramView";
+import { VisualExplorer } from "@/components/visuals/VisualExplorer";
 import { markVisualCompleted } from "@/lib/progress";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
@@ -14,7 +15,49 @@ interface VisualizeExerciseProps {
   onCompleted?: () => void;
 }
 
+type Tab = "explore" | "quiz";
+
 export function VisualizeExercise({ skill, onCompleted }: VisualizeExerciseProps) {
+  const [tab, setTab] = useState<Tab>("explore");
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => setTab("explore")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+            tab === "explore" ? "bg-white text-bridge-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          🔎 Explore
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("quiz")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+            tab === "quiz" ? "bg-white text-bridge-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          🎯 Quiz
+        </button>
+      </div>
+
+      {tab === "explore" ? (
+        <div>
+          <p className="mb-4 text-sm text-slate-500">
+            Move the controls and watch the math change — build a picture in your head before you solve.
+          </p>
+          <VisualExplorer skill={skill} />
+        </div>
+      ) : (
+        <SpotTheGraphQuiz skill={skill} onCompleted={onCompleted} />
+      )}
+    </div>
+  );
+}
+
+function SpotTheGraphQuiz({ skill, onCompleted }: VisualizeExerciseProps) {
   const [nonce, setNonce] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
@@ -67,7 +110,7 @@ export function VisualizeExercise({ skill, onCompleted }: VisualizeExerciseProps
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Spot the correct graph</p>
       <p className="mt-2 text-base font-medium leading-relaxed text-slate-800">{exercise.prompt}</p>
 
@@ -84,7 +127,7 @@ export function VisualizeExercise({ skill, onCompleted }: VisualizeExerciseProps
               onClick={() => handlePick(option.id)}
               disabled={feedback === "correct"}
               aria-label={`Graph option ${i + 1}`}
-              className={`group relative aspect-square rounded-xl border-2 bg-white p-2 transition ${
+              className={`group relative aspect-square rounded-xl border-2 bg-white p-2 text-slate-700 transition ${
                 revealCorrect
                   ? "border-emerald-500 bg-emerald-50"
                   : revealWrong

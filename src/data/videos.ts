@@ -393,14 +393,15 @@ export function parseDurationToSeconds(duration: string): number {
 }
 
 export function youtubeEmbedUrl(youtubeId: string): string {
+  // NOTE: deliberately no `origin` param. It depends on window.location, which
+  // differs between the server render ("http://localhost:3000") and the real
+  // client origin — that produced a React hydration mismatch on every lesson
+  // page. The YouTube IFrame API attaches to the iframe by id (enablejsapi=1),
+  // so the origin URL param isn't needed for playback tracking to work.
   const params = new URLSearchParams({
     rel: "0",
     modestbranding: "1",
     enablejsapi: "1",
-    origin:
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000",
   });
   return `https://www.youtube-nocookie.com/embed/${youtubeId}?${params}`;
 }
