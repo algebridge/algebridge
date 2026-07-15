@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import {
   exportProgressForSync,
   importProgressFromSync,
+  clearLocalProgress,
   getProgress,
 } from "@/lib/progress";
 import { getLeaderboardSnapshot } from "@/lib/bridgeys";
@@ -156,6 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return error.message;
     const userId = data.user?.id;
     if (!userId) return "Sign-in succeeded, but no session was established. Please try again.";
+    // Start from a clean slate so a previous user's local progress on this
+    // (possibly shared) device can never be mistaken for — or synced into —
+    // the account that just signed in. The account's own cloud data loads next.
+    clearLocalProgress();
     await loadCloudProgress(userId);
     await refreshProfile(userId);
     return null;
@@ -167,7 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     if (!supabase) return;
     await supabase.auth.signOut();
+    setUser(null);
     setProfile(null);
+    // Clear this device so the next person doesn't see the signed-out
+    // student's progress. Their work is already safe in the cloud (synced above).
+    clearLocalProgress();
   }
 
   async function switchRole(role: UserRole) {

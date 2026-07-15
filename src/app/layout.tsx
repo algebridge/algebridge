@@ -6,6 +6,7 @@ import { LoginBanner } from "@/components/LoginBanner";
 import { AppInit } from "@/components/AppInit";
 import { AuthProvider } from "@/lib/auth";
 import { MusicCredits } from "@/components/MusicCredits";
+import { Calculator } from "@/components/Calculator";
 
 // Bold condensed display font — matches the AlgeBridge wordmark.
 const anton = Anton({
@@ -46,6 +47,7 @@ export default function RootLayout({
             <p className="mt-1">Grades 7–10 · Algebra 1 · {new Date().getFullYear()}</p>
             <MusicCredits />
           </footer>
+          <Calculator />
         </AuthProvider>
       </body>
     </html>

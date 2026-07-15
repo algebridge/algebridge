@@ -193,6 +193,16 @@ begin
     raise exception 'You must be signed in to search for students';
   end if;
 
+  -- Only teachers may look students up by email. This stops any signed-in
+  -- account from probing whether an email is registered or reading a
+  -- student's display name.
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'teacher'
+  ) then
+    raise exception 'Only teacher accounts can search for students';
+  end if;
+
   return query
     select p.id, p.email, p.display_name
     from public.profiles p

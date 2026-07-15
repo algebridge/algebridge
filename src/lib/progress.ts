@@ -604,6 +604,15 @@ export function importProgressFromSync(data: string): boolean {
   }
 }
 
+/** Wipe this browser's saved progress back to a clean slate. Used on sign-out
+ *  and before loading a different account's cloud progress, so one student's
+ *  work never leaks into another student's session on a shared device. */
+export function clearLocalProgress(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event(PROGRESS_UPDATED_EVENT));
+}
+
 export function generateExtraProblems(
   generatorKey: string,
   count: number = 5

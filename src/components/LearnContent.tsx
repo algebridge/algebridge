@@ -160,7 +160,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           <div>
             <p className="font-medium text-slate-900">Visualize it</p>
             <p className="text-xs text-slate-500">
-              {visualized ? "Done!" : "Spot the correct graph (optional but helpful)"}
+              {visualized ? "Done!" : "Explore it, then spot the correct graph"}
             </p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           <section>
             <h2 className="mb-3 text-lg font-bold text-slate-900">Step 2: Visualize</h2>
             <p className="mb-3 text-sm text-slate-500">
-              Build intuition by matching the math to its picture — pick the graph that&apos;s actually correct.
+              Play with the interactive model to <em>see</em> how the math works, then test yourself by spotting the correct graph.
             </p>
             <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
           </section>
