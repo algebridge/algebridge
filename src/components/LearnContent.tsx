@@ -7,6 +7,7 @@ import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { VisualizeExercise } from "@/components/VisualizeExercise";
+import { TutorChat } from "@/components/TutorChat";
 import { ProgressStatus } from "@/components/ProgressStatus";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -207,6 +208,11 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           <section>
             <h2 className="mb-3 text-lg font-bold text-slate-900">Step 3: Practice</h2>
             <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-lg font-bold text-slate-900">Need a hand?</h2>
+            <TutorChat skill={skill} />
           </section>
         </div>
 
