@@ -249,6 +249,24 @@ export interface Profile {
   role: UserRole;
   avatarUrl: string | null;
   bio: string | null;
+  isAdmin: boolean;
+}
+
+export interface GroupInfo {
+  id: string;
+  name: string;
+  kind: "all_tutors" | "algegroup";
+  createdBy: string | null;
+  memberCount?: number;
+}
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderName?: string | null;
+  body: string;
+  createdAt: string;
 }
 
 /** A tutor as seen in the public tutors directory. */

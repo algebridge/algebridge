@@ -15,13 +15,13 @@ export function GameHud({ houseStyleId, bridgeys, onExit, mode, hint }: GameHudP
   const house = getHouseStyle(houseStyleId);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-800 bg-gradient-to-r from-slate-900 to-slate-800 px-3 py-2 text-white shadow-lg sm:px-4">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-3 py-2.5 text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] sm:px-4">
       <div className="flex items-center gap-3">
         {onExit && (
           <button
             type="button"
             onClick={onExit}
-            className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-bold hover:bg-white/20"
+            className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-bold transition hover:bg-white/20"
           >
             ← {mode === "inside" ? "Outside" : "Back"}
           </button>
@@ -36,13 +36,14 @@ export function GameHud({ houseStyleId, bridgeys, onExit, mode, hint }: GameHudP
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="rounded-full bg-amber-500/20 px-3 py-1 ring-1 ring-amber-400/50">
+        <div className="flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 ring-1 ring-amber-400/50">
+          <BridgeysLogo size={16} />
           <span className="text-sm font-bold text-amber-300">{bridgeys.toLocaleString()}</span>
         </div>
       </div>
 
       {hint && (
-        <p className="w-full text-center text-[10px] text-slate-400 sm:text-xs">{hint}</p>
+        <p className="w-full text-center text-[10px] text-slate-300/80 sm:text-xs">{hint}</p>
       )}
     </div>
   );

@@ -12,6 +12,7 @@ import {
 import { getLeaderboardSnapshot } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
 import { getMyProfile, setMyRole } from "@/lib/teacher";
+import { claimRole } from "@/lib/social";
 import type { Profile, UserRole } from "@/types";
 
 interface AuthContextValue {
@@ -19,12 +20,14 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   configured: boolean;
-  signUp: (email: string, password: string, role?: UserRole) => Promise<string | null>;
+  signUp: (email: string, password: string, role?: UserRole, code?: string) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncProgress: () => Promise<void>;
-  switchRole: (role: UserRole) => Promise<void>;
+  switchRole: (role: UserRole, code?: string) => Promise<string | null>;
   refreshProfile: (userId: string) => Promise<void>;
+  deleteAccount: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -116,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  async function signUp(email: string, password: string, role: UserRole = "student") {
+  async function signUp(email: string, password: string, role: UserRole = "student", code?: string) {
     if (!configured) return "Cloud login is not configured yet. Progress is saved locally.";
     const supabase = createClient();
     if (!supabase) return "Cloud login is not configured yet. Progress is saved locally.";
@@ -144,9 +147,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     if (role !== "student") {
-      await setMyRole(data.user.id, role);
+      // Teacher/tutor roles are gated by an access code (checked server-side
+      // in the claim_role RPC). If the code is wrong the account is still
+      // created as a student and we surface the error.
+      const err = await claimRole(role, code);
       await refreshProfile(data.user.id);
+      if (err) return err;
     }
+    return null;
+  }
+
+  async function signInWithGoogle(): Promise<string | null> {
+    const supabase = createClient();
+    if (!supabase) return "Cloud login is not configured yet.";
+    const redirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    return error?.message ?? null;
+  }
+
+  async function deleteAccount(): Promise<string | null> {
+    const supabase = createClient();
+    if (!supabase) return "Cloud accounts are not configured.";
+    const { error } = await supabase.rpc("delete_user");
+    if (error) return error.message;
+    setUser(null);
+    setProfile(null);
+    clearLocalProgress();
+    await supabase.auth.signOut();
     return null;
   }
 
@@ -180,15 +211,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearLocalProgress();
   }
 
-  async function switchRole(role: UserRole) {
-    if (!user) return;
-    await setMyRole(user.id, role);
+  async function switchRole(role: UserRole, code?: string): Promise<string | null> {
+    if (!user) return "You must be signed in.";
+    // Admins can switch freely; everyone else must pass the access code for
+    // teacher/tutor (enforced server-side). Downgrades to student are free.
+    const err = profile?.isAdmin
+      ? await setMyRole(user.id, role)
+      : await claimRole(role, code);
     await refreshProfile(user.id);
+    return err;
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, configured, signUp, signIn, signOut, syncProgress, switchRole, refreshProfile }}
+      value={{ user, profile, loading, configured, signUp, signIn, signInWithGoogle, signOut, syncProgress, switchRole, refreshProfile, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

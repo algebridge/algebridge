@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { MessageThread } from "@/components/MessageThread";
-import { getPublicProfile, type PublicProfile } from "@/lib/social";
+import { getPublicProfile, ringUser, type PublicProfile } from "@/lib/social";
 import { roomIdFor } from "@/lib/call-utils";
 
 export default function ConversationPage() {
   const params = useParams();
   const otherId = Array.isArray(params.otherId) ? params.otherId[0] : (params.otherId as string);
   const { user, profile, loading } = useAuth();
+  const router = useRouter();
   const [other, setOther] = useState<PublicProfile | null>(null);
   const [loadingOther, setLoadingOther] = useState(true);
 
@@ -41,16 +42,19 @@ export default function ConversationPage() {
     );
   }
 
-  // A student↔tutor pair can start a video call. Both sides compute the same
-  // deterministic room id from their two user ids so they land together.
+  // Only tutors can start calls, and only with students. Both sides compute the
+  // same deterministic room id from their two user ids so they land together.
   const myRole = profile?.role ?? "student";
   const otherRole = other?.role ?? "student";
-  const isTutorPair =
-    (myRole === "tutor" && otherRole === "student") ||
-    (myRole !== "tutor" && otherRole === "tutor");
-  const callHref = isTutorPair
-    ? `/room/${roomIdFor(user.id, otherId)}?with=${otherId}`
-    : undefined;
+  const canCall = (myRole === "tutor" || profile?.isAdmin) && otherRole === "student";
+  const myName = profile?.displayName || user.email?.split("@")[0] || "Tutor";
+
+  function startCall() {
+    const roomId = roomIdFor(user!.id, otherId);
+    // Ring the student (if they're online) and head into the room.
+    ringUser(otherId, { roomId, callerId: user!.id, callerName: myName });
+    router.push(`/room/${roomId}?with=${otherId}`);
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-3">
@@ -65,7 +69,7 @@ export default function ConversationPage() {
           otherName={other?.displayName ?? null}
           otherAvatarUrl={other?.avatarUrl ?? null}
           otherRole={other?.role}
-          callHref={callHref}
+          onStartCall={canCall ? startCall : undefined}
         />
       )}
     </div>

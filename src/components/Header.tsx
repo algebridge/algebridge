@@ -172,6 +172,16 @@ export function Header() {
               )}
             </Link>
           )}
+          {user && (
+            <Link href="/groups" title="Group chats" className="text-sm text-slate-600 hover:text-bridge-600">
+              👥
+            </Link>
+          )}
+          {profile?.isAdmin && (
+            <Link href="/admin" title="Admin panel" className="text-sm text-slate-600 hover:text-bridge-600">
+              ⭐
+            </Link>
+          )}
           {profile?.role === "teacher" && (
             <Link href="/teacher" className="text-sm font-medium text-slate-600 hover:text-bridge-600">
               🧑‍🏫 Teacher

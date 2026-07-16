@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { dismissLoginPrompt, getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
 export function LoginBanner() {
+  const { user } = useAuth();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -18,7 +20,9 @@ export function LoginBanner() {
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
   }, []);
 
-  if (!visible) return null;
+  // Once signed in, there's nothing to prompt — never show the "create a free
+  // account" banner to an authenticated user.
+  if (user || !visible) return null;
 
   function handleDismiss() {
     dismissLoginPrompt();
