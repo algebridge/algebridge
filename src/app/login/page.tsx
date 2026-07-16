@@ -12,12 +12,16 @@ import { joinClassByCode } from "@/lib/teacher";
 import type { UserRole } from "@/types";
 
 export default function LoginPage() {
-  const { user, profile, configured, signUp, signIn, signOut, syncProgress, switchRole, loading } =
-    useAuth();
+  const {
+    user, profile, configured, signUp, signIn, signInWithGoogle, signOut,
+    syncProgress, switchRole, deleteAccount, loading,
+  } = useAuth();
   const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [roleCode, setRoleCode] = useState("");
+  const [switchCode, setSwitchCode] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -30,7 +34,7 @@ export default function LoginPage() {
 
     const err =
       mode === "signup"
-        ? await signUp(email, password, role)
+        ? await signUp(email, password, role, roleCode.trim() || undefined)
         : await signIn(email, password);
 
     if (err) {
@@ -39,6 +43,35 @@ export default function LoginPage() {
       await syncProgress();
       setMessage("Success! Your progress is synced to the cloud.");
     }
+  }
+
+  async function handleGoogle() {
+    setError("");
+    const err = await signInWithGoogle();
+    if (err) setError(err);
+  }
+
+  async function handleSwitch(target: UserRole) {
+    setError("");
+    setMessage("");
+    const err = await switchRole(target, switchCode.trim() || undefined);
+    if (err) setError(err);
+    else {
+      setMessage(`Switched to a ${target} account.`);
+      setSwitchCode("");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (
+      !window.confirm(
+        "Delete your account permanently? This erases your progress, messages, and profile. This cannot be undone."
+      )
+    )
+      return;
+    const err = await deleteAccount();
+    if (err) setError(err);
+    else setMessage("Your account has been deleted.");
   }
 
   async function handleJoinClass(e: React.FormEvent) {
@@ -76,6 +109,7 @@ export default function LoginPage() {
     const role = profile?.role ?? "student";
     const isTeacher = role === "teacher";
     const isTutor = role === "tutor";
+    const isAdmin = profile?.isAdmin ?? false;
     const roleBadge =
       isTutor ? "👩‍🏫 Tutor account" : isTeacher ? "🧑‍🏫 Teacher account" : "🎓 Student account";
     return (
@@ -87,6 +121,11 @@ export default function LoginPage() {
           {profile && (
             <span className="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
               {roleBadge}
+            </span>
+          )}
+          {isAdmin && (
+            <span className="ml-2 mt-2 inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+              ⭐ Admin
             </span>
           )}
         </div>
@@ -108,6 +147,9 @@ export default function LoginPage() {
           <Link href="/messages" className="btn-secondary block w-full text-center">
             💬 Messages
           </Link>
+          <Link href="/groups" className="btn-secondary block w-full text-center">
+            👥 Group Chats
+          </Link>
 
           {isTutor && (
             <Link href="/tutor-hub" className="btn-secondary block w-full text-center">
@@ -124,36 +166,41 @@ export default function LoginPage() {
               🔎 Find a Tutor
             </Link>
           )}
+          {isAdmin && (
+            <Link href="/admin" className="btn-secondary block w-full text-center">
+              ⭐ Admin Panel
+            </Link>
+          )}
 
-          {/* Role switching */}
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
-            {role !== "student" && (
-              <button
-                type="button"
-                onClick={() => switchRole("student").then(() => setMessage("Switched to a student account."))}
-                className="hover:text-slate-600"
-              >
-                Switch to student
-              </button>
+          {/* Role switching. Teacher/tutor need an access code (admins don't). */}
+          <div className="rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-medium text-slate-500">Switch account type</p>
+            {!isAdmin && (
+              <input
+                value={switchCode}
+                onChange={(e) => setSwitchCode(e.target.value)}
+                placeholder="Access code (for teacher/tutor)"
+                aria-label="Role access code"
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
+              />
             )}
-            {!isTeacher && (
-              <button
-                type="button"
-                onClick={() => switchRole("teacher").then(() => setMessage("Switched to a teacher account."))}
-                className="hover:text-slate-600"
-              >
-                Switch to teacher
-              </button>
-            )}
-            {!isTutor && (
-              <button
-                type="button"
-                onClick={() => switchRole("tutor").then(() => setMessage("Switched to a tutor account."))}
-                className="hover:text-slate-600"
-              >
-                Switch to tutor
-              </button>
-            )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {role !== "student" && (
+                <button type="button" onClick={() => handleSwitch("student")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                  🎓 Student
+                </button>
+              )}
+              {!isTeacher && (
+                <button type="button" onClick={() => handleSwitch("teacher")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                  🧑‍🏫 Teacher
+                </button>
+              )}
+              {!isTutor && (
+                <button type="button" onClick={() => handleSwitch("tutor")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                  👩‍🏫 Tutor
+                </button>
+              )}
+            </div>
           </div>
 
           <button type="button" onClick={() => signOut()} className="btn-secondary w-full">
@@ -162,6 +209,13 @@ export default function LoginPage() {
           <Link href="/" className="btn-secondary block w-full text-center">
             Back to Course
           </Link>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            className="w-full text-center text-xs text-red-400 hover:text-red-600"
+          >
+            Delete my account
+          </button>
         </div>
 
         {!isTeacher && (
@@ -273,6 +327,24 @@ export default function LoginPage() {
                   Tutors get a profile, can see all students, message them, and run video calls.
                 </p>
               )}
+              {role !== "student" && (
+                <div className="mt-3">
+                  <label htmlFor="role-code" className="block text-sm font-medium text-slate-700">
+                    {role === "tutor" ? "Tutor" : "Teacher"} access code
+                  </label>
+                  <input
+                    id="role-code"
+                    value={roleCode}
+                    onChange={(e) => setRoleCode(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
+                    placeholder="Enter the code you were given"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    {role === "tutor" ? "Tutor" : "Teacher"} accounts are verified with a code to
+                    keep students safe.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <div>
@@ -310,6 +382,24 @@ export default function LoginPage() {
             {mode === "signup" ? "Create Account" : "Sign In"}
           </button>
         </form>
+
+        <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" /> or <div className="h-px flex-1 bg-slate-200" />
+        </div>
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={!configured}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+            <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
+          </svg>
+          Continue with Google
+        </button>
 
         {error && (
           <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>

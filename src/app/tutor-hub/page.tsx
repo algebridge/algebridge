@@ -1,20 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
-import { listAllStudents } from "@/lib/social";
+import { listAllStudents, ringUser } from "@/lib/social";
 import { roomIdFor } from "@/lib/call-utils";
 import type { StudentDirectoryEntry } from "@/types";
 
 export default function TutorHubPage() {
   const { user, profile, loading } = useAuth();
+  const router = useRouter();
   const [students, setStudents] = useState<StudentDirectoryEntry[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [query, setQuery] = useState("");
 
-  const isTutor = profile?.role === "tutor";
+  const isTutor = profile?.role === "tutor" || (profile?.isAdmin ?? false);
+  const myName = profile?.displayName || user?.email?.split("@")[0] || "Tutor";
+
+  function callStudent(studentId: string) {
+    if (!user) return;
+    const roomId = roomIdFor(user.id, studentId);
+    ringUser(studentId, { roomId, callerId: user.id, callerName: myName });
+    router.push(`/room/${roomId}?with=${studentId}`);
+  }
 
   useEffect(() => {
     if (!isTutor) return;
@@ -99,15 +109,17 @@ export default function TutorHubPage() {
                   </p>
                   <p className="truncate text-xs text-slate-400">{s.email}</p>
                 </div>
-                <Link href={`/messages/${s.id}`} className="btn-secondary text-sm">
+                <Link href={`/messages/${s.id}`} className="btn-secondary text-sm" title="Message">
                   💬
                 </Link>
-                <Link
-                  href={`/room/${roomIdFor(user.id, s.id)}?with=${s.id}`}
+                <button
+                  type="button"
+                  onClick={() => callStudent(s.id)}
                   className="btn-secondary text-sm"
+                  title="Start a video call"
                 >
                   🎥
-                </Link>
+                </button>
               </li>
             ))}
           </ul>

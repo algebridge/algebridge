@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { listTutors } from "@/lib/social";
-import { roomIdFor } from "@/lib/call-utils";
 import type { TutorDirectoryEntry } from "@/types";
 
 export default function TutorsPage() {
@@ -79,16 +78,13 @@ export default function TutorsPage() {
                 {t.bio || "This tutor hasn't written a bio yet."}
               </p>
               {user && (
-                <div className="mt-4 flex gap-2">
-                  <Link href={`/messages/${t.id}`} className="btn-primary flex-1 text-center text-sm">
+                <div className="mt-4">
+                  <Link href={`/messages/${t.id}`} className="btn-primary block w-full text-center text-sm">
                     💬 Message
                   </Link>
-                  <Link
-                    href={`/room/${roomIdFor(user.id, t.id)}?with=${t.id}`}
-                    className="btn-secondary flex-1 text-center text-sm"
-                  >
-                    🎥 Call
-                  </Link>
+                  <p className="mt-2 text-center text-xs text-slate-400">
+                    Message to ask for help — your tutor can start a video call with you.
+                  </p>
                 </div>
               )}
             </div>

@@ -387,3 +387,123 @@ export async function markCallBridgeysAwarded(callSessionId: string): Promise<bo
   // Returns a row only if THIS update flipped the flag — prevents double pay.
   return !error && !!data && data.length > 0;
 }
+
+// ---------------------------------------------------------------------------
+// Roles + admin
+// ---------------------------------------------------------------------------
+
+/** Claim a role. Teacher/tutor require a valid access code (checked server-side). */
+export async function claimRole(role: UserRole, code?: string): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud accounts are not configured.";
+  const { error } = await supabase.rpc("claim_role", {
+    target_role: role,
+    code: code ?? null,
+  });
+  return error?.message ?? null;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  role: UserRole;
+  avatarUrl: string | null;
+}
+
+/** Admin-only: every user (RLS allows only admins to read all profiles). */
+export async function adminListUsers(): Promise<AdminUser[]> {
+  const supabase = createClient();
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, display_name, role, avatar_url")
+    .order("role", { ascending: true })
+    .order("display_name", { ascending: true });
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    email: r.email,
+    displayName: r.display_name,
+    role: (r.role as UserRole) ?? "student",
+    avatarUrl: r.avatar_url ?? null,
+  }));
+}
+
+/** Admin-only (or self): delete an account (RPC enforces the check). */
+export async function adminDeleteUser(userId: string): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud accounts are not configured.";
+  const { error } = await supabase.rpc("delete_user", { target: userId });
+  return error?.message ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Incoming-call ringing (realtime broadcast per user)
+// ---------------------------------------------------------------------------
+
+export interface RingPayload {
+  roomId: string;
+  callerId: string;
+  callerName: string;
+}
+
+function dropStaleChannel(topic: string) {
+  const supabase = createClient();
+  if (!supabase) return;
+  supabase
+    .getChannels()
+    .filter((c) => c.topic === `realtime:${topic}`)
+    .forEach((c) => supabase.removeChannel(c));
+}
+
+/** Ring a specific user (broadcast to their personal ring channel). */
+export function ringUser(targetId: string, payload: RingPayload): void {
+  const supabase = createClient();
+  if (!supabase) return;
+  const topic = `ring-${targetId}`;
+  dropStaleChannel(topic);
+  const ch = supabase.channel(topic);
+  ch.subscribe((st) => {
+    if (st === "SUBSCRIBED") {
+      ch.send({ type: "broadcast", event: "ring", payload });
+      setTimeout(() => supabase.removeChannel(ch), 2000);
+    }
+  });
+}
+
+/** Tell the caller their call was declined. */
+export function sendCallDecline(callerId: string, byName: string): void {
+  const supabase = createClient();
+  if (!supabase) return;
+  const topic = `ring-${callerId}`;
+  dropStaleChannel(topic);
+  const ch = supabase.channel(topic);
+  ch.subscribe((st) => {
+    if (st === "SUBSCRIBED") {
+      ch.send({ type: "broadcast", event: "decline", payload: { byName } });
+      setTimeout(() => supabase.removeChannel(ch), 2000);
+    }
+  });
+}
+
+/** Subscribe to incoming rings addressed to me. Returns unsubscribe. */
+export function subscribeToRing(
+  myId: string,
+  onRing: (p: RingPayload) => void,
+  onDecline: (byName: string) => void
+): () => void {
+  const supabase = createClient();
+  if (!supabase) return () => {};
+  const topic = `ring-${myId}`;
+  dropStaleChannel(topic);
+  const channel = supabase
+    .channel(topic)
+    .on("broadcast", { event: "ring" }, ({ payload }) => onRing(payload as RingPayload))
+    .on("broadcast", { event: "decline" }, ({ payload }) =>
+      onDecline((payload as { byName?: string }).byName ?? "They")
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

@@ -62,22 +62,32 @@ export default function HousePage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-amber-50 via-white to-sky-50 p-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <BridgeysLogo size={48} />
-            <h1 className="font-display text-3xl tracking-wide text-slate-900">Bridgey House</h1>
-          </div>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Your own mini-game! Earn Bridgeys from lessons, buy cool stuff, enter your house,
-            walk with arrow keys, and click to decorate.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-100 to-amber-50 px-5 py-3 shadow-sm">
-          <BridgeysLogo size={36} />
+      <header className="relative overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-br from-indigo-500 via-sky-500 to-emerald-400 p-6 text-white shadow-[0_20px_40px_-20px_rgba(30,64,175,0.6)] sm:p-8">
+        {/* soft decorative blobs */}
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-12 left-1/3 h-40 w-40 rounded-full bg-amber-300/30 blur-2xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Your Balance</p>
-            <p className="text-2xl font-bold text-amber-900">{progress.bridgeys.toLocaleString()}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur">
+                <BridgeysLogo size={40} />
+              </div>
+              <div>
+                <h1 className="font-display text-3xl tracking-wide drop-shadow-sm sm:text-4xl">Bridgey House</h1>
+                <p className="text-sm font-medium text-white/80">Your reward for mastering algebra 🎉</p>
+              </div>
+            </div>
+            <p className="mt-3 max-w-xl text-sm text-white/90">
+              Earn Bridgeys from lessons, shop for furniture and house styles, then step inside
+              and walk around with the arrow keys to decorate your space.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-white/40 bg-white/15 px-5 py-3 backdrop-blur">
+            <BridgeysLogo size={36} />
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white/80">Your Balance</p>
+              <p className="text-2xl font-bold">{progress.bridgeys.toLocaleString()}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -90,7 +100,7 @@ export default function HousePage() {
             onClick={() => setTab(t.id)}
             className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
               tab === t.id
-                ? "game-btn-primary shadow-md"
+                ? "bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow-md"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >

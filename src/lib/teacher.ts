@@ -26,8 +26,11 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
     role: normalizeRole(data.role),
     avatarUrl: data.avatar_url ?? null,
     bio: data.bio ?? null,
+    isAdmin: (data.email ?? "").toLowerCase() === ADMIN_EMAIL,
   };
 }
+
+export const ADMIN_EMAIL = "ivan.malchugan@gmail.com";
 
 export async function setMyRole(userId: string, role: UserRole): Promise<string | null> {
   const supabase = createClient();
