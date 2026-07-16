@@ -24,6 +24,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   syncProgress: () => Promise<void>;
   switchRole: (role: UserRole) => Promise<void>;
+  refreshProfile: (userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -142,8 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       snapshot
     );
 
-    if (role === "teacher") {
-      await setMyRole(data.user.id, "teacher");
+    if (role !== "student") {
+      await setMyRole(data.user.id, role);
       await refreshProfile(data.user.id);
     }
     return null;
@@ -187,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, configured, signUp, signIn, signOut, syncProgress, switchRole }}
+      value={{ user, profile, loading, configured, signUp, signIn, signOut, syncProgress, switchRole, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

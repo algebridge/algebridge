@@ -16,9 +16,24 @@ import { placeFurnitureAt, removePlacedFurniture } from "@/lib/bridgeys";
 import { showToast } from "@/lib/notify";
 import type { UserProgress } from "@/types";
 
-const PLAYER_SIZE = 52;
-const MOVE_SPEED = 5;
-const WALL_PAD = 8;
+// A noticeably bigger character than before (was 52).
+const PLAYER_SIZE = 96;
+const WALL_PAD = 6;
+
+// Walk speed in PERCENT of the room per second. The room is wider than it is
+// tall, so we scale the vertical speed up by the aspect ratio to make the
+// character move at the SAME on-screen pixel speed in every direction.
+const SPEED_X = 34;
+const SPEED_Y = SPEED_X * (ROOM_WIDTH / ROOM_HEIGHT);
+
+// The sprite is anchored bottom-center, so keep it fully inside the room:
+// clamp so half its width never crosses a side wall and its head/feet stay in.
+const HALF_W_PCT = (PLAYER_SIZE / ROOM_WIDTH) * 50;
+const FULL_H_PCT = (PLAYER_SIZE / ROOM_HEIGHT) * 100;
+const X_MIN = WALL_PAD + HALF_W_PCT;
+const X_MAX = 100 - WALL_PAD - HALF_W_PCT;
+const Y_MIN = FULL_H_PCT + 2;
+const Y_MAX = 100 - WALL_PAD;
 
 interface HouseExplorerProps {
   progress: UserProgress;
@@ -31,6 +46,8 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
   const roomRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
   const animRef = useRef<number>(0);
+  const lastTsRef = useRef<number | null>(null);
+  const walkingRef = useRef(false);
 
   const [player, setPlayer] = useState({ x: 50, y: 72 });
   const [facing, setFacing] = useState<"up" | "down" | "left" | "right">("down");
@@ -74,23 +91,39 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
   }, []);
 
   useEffect(() => {
-    function tick() {
+    function tick(ts: number) {
+      const last = lastTsRef.current;
+      lastTsRef.current = ts;
+      // Seconds since the previous frame, clamped so a background tab (which
+      // pauses rAF) doesn't produce one giant jump when it resumes.
+      const dt = last == null ? 0 : Math.min((ts - last) / 1000, 0.05);
+
       const keys = keysRef.current;
-      if (keys.size > 0) {
-        setWalking(true);
+      let dx = 0;
+      let dy = 0;
+      if (keys.has("ArrowUp")) dy -= 1;
+      if (keys.has("ArrowDown")) dy += 1;
+      if (keys.has("ArrowLeft")) dx -= 1;
+      if (keys.has("ArrowRight")) dx += 1;
+      const moving = dx !== 0 || dy !== 0;
+
+      if (moving && dt > 0) {
+        // Normalize diagonals so moving in two directions isn't ~1.4x faster.
+        const norm = dx !== 0 && dy !== 0 ? Math.SQRT1_2 : 1;
+        // Facing is set once per frame here (not inside the state updater) and
+        // only changes on actual horizontal movement, so it never flickers.
+        if (dx < 0) setFacing("left");
+        else if (dx > 0) setFacing("right");
         setPlayer((p) => {
-          let { x, y } = p;
-          const step = MOVE_SPEED * 0.14;
-          if (keys.has("ArrowUp")) { y -= step; setFacing("up"); }
-          if (keys.has("ArrowDown")) { y += step; setFacing("down"); }
-          if (keys.has("ArrowLeft")) { x -= step; setFacing("left"); }
-          if (keys.has("ArrowRight")) { x += step; setFacing("right"); }
-          x = Math.max(WALL_PAD, Math.min(100 - WALL_PAD, x));
-          y = Math.max(WALL_PAD + 8, Math.min(100 - WALL_PAD, y));
+          const x = Math.max(X_MIN, Math.min(X_MAX, p.x + dx * norm * SPEED_X * dt));
+          const y = Math.max(Y_MIN, Math.min(Y_MAX, p.y + dy * norm * SPEED_Y * dt));
           return { x, y };
         });
-      } else {
-        setWalking(false);
+      }
+
+      if (moving !== walkingRef.current) {
+        walkingRef.current = moving;
+        setWalking(moving);
       }
       animRef.current = requestAnimationFrame(tick);
     }
@@ -190,24 +223,37 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
           </div>
         )}
 
+        {/* The character is three nested layers, each owning ONE transform so
+            they never clobber each other: (1) outer = position + bottom-center
+            anchor, (2) middle = left/right facing flip, (3) inner = walk bob. */}
         <div
-          className={`absolute pointer-events-none -translate-x-1/2 -translate-y-full ${walking ? "animate-gentle-bounce" : ""}`}
+          className="absolute pointer-events-none"
           style={{
             left: `${player.x}%`,
             top: `${player.y}%`,
             width: PLAYER_SIZE * scale,
             height: PLAYER_SIZE * scale,
             zIndex: Math.round(player.y) + 100,
-            transform: `translate(-50%, -100%) scaleX(${facing === "left" ? -1 : 1})`,
+            transform: "translate(-50%, -100%)",
           }}
         >
-          <Image
-            src="/house/player.png"
-            alt="You"
-            fill
-            className="object-contain drop-shadow-lg"
-            sizes={`${PLAYER_SIZE}px`}
-          />
+          <div
+            className="h-full w-full"
+            style={{
+              transform: `scaleX(${facing === "left" ? -1 : 1})`,
+              transition: "transform 120ms ease",
+            }}
+          >
+            <div className={`relative h-full w-full ${walking ? "animate-gentle-bounce" : ""}`}>
+              <Image
+                src="/house/player.png"
+                alt="You"
+                fill
+                className="object-contain drop-shadow-lg"
+                sizes={`${Math.round(PLAYER_SIZE)}px`}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

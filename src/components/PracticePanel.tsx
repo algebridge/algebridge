@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeneratedProblem, PracticeProblem, Skill } from "@/types";
 import {
   generateExtraProblems,
@@ -8,7 +9,6 @@ import {
   getLevelInfo,
 } from "@/lib/progress";
 import { getShuffledProblemsForSkill } from "@/data/problem-banks";
-import { fetchAiTutorHint } from "@/lib/tutor";
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { fireConfetti, showToast } from "@/lib/notify";
@@ -39,11 +39,31 @@ function checkAnswer(problem: ActiveProblem, userAnswer: string): boolean {
     const expected = Number(problem.answer);
     const given = Number(userAnswer);
     if (!Number.isNaN(expected) && !Number.isNaN(given)) {
+      // When a problem asks the student to round to a specific place
+      // (decimalPlaces), grade by comparing BOTH values rounded to that
+      // place — so a correctly-rounded answer is always accepted, whether
+      // or not the stored answer was pre-rounded. Otherwise fall back to a
+      // small absolute tolerance.
+      const dp =
+        "decimalPlaces" in problem && typeof problem.decimalPlaces === "number"
+          ? problem.decimalPlaces
+          : undefined;
+      if (dp !== undefined) {
+        const factor = Math.pow(10, dp);
+        return Math.round(given * factor) === Math.round(expected * factor);
+      }
       return Math.abs(expected - given) < 0.001;
     }
     return normalizeAnswer(userAnswer) === normalizeAnswer(problem.answer ?? "");
   }
   return false;
+}
+
+// Buttons natively activate on the Space bar while focused, which caused
+// answers to "submit" just by pressing space after a click. We suppress
+// Space activation on action buttons; Enter and mouse clicks still work.
+function ignoreSpaceKey(e: React.KeyboardEvent<HTMLButtonElement>) {
+  if (e.key === " " || e.code === "Space") e.preventDefault();
 }
 
 export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
@@ -58,10 +78,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
   const [showExplanation, setShowExplanation] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
-  const [showAiTutor, setShowAiTutor] = useState(false);
-  const [tutorMessage, setTutorMessage] = useState("");
-  const [tutorSource, setTutorSource] = useState<"ai" | "local" | null>(null);
-  const [tutorLoading, setTutorLoading] = useState(false);
   const [infiniteMode, setInfiniteMode] = useState(false);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   const [combo, setCombo] = useState(0);
@@ -74,12 +90,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
 
   const { playCorrect, playWrong, playLevelUp } = useSound();
   const { speak, stop: stopSpeech, speaking, supported: speechSupported } = useSpeech();
-
-  // Guards against a stale AI Tutor response landing after the student has
-  // moved to a different problem or closed the modal.
-  const tutorRequestIdRef = useRef(0);
-  const tutorTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const tutorCloseRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -121,10 +131,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
     setShowExplanation(false);
     setAttempts(0);
     stopSpeech();
-    // A new problem invalidates any in-flight or previously shown AI Tutor
-    // response, so it never gets attached to the wrong question.
-    tutorRequestIdRef.current += 1;
-    setShowAiTutor(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemIndex, problem]);
 
@@ -260,44 +266,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
     setProblemIndex((i) => i + 1);
   }
 
-  useEffect(() => {
-    if (showAiTutor) {
-      tutorCloseRef.current?.focus();
-    }
-  }, [showAiTutor]);
-
-  function closeAiTutor() {
-    stopSpeech();
-    setShowAiTutor(false);
-    tutorTriggerRef.current?.focus();
-  }
-
-  async function openAiTutor() {
-    const requestId = tutorRequestIdRef.current + 1;
-    tutorRequestIdRef.current = requestId;
-    setShowAiTutor(true);
-    setTutorLoading(true);
-    setTutorMessage("");
-
-    const result = await fetchAiTutorHint({
-      skillTitle: skill.title,
-      keyIdea: skill.keyIdea,
-      learningGoal: skill.learningGoal,
-      problemPrompt: problem.prompt,
-      hint: problem.hint,
-      explanation: problem.explanation,
-      userAttempt: userAnswer || selectedChoice || undefined,
-      wrongAttempts: attempts,
-    });
-
-    // Ignore this response if the student already closed the modal or
-    // re-opened it for a different problem while we were waiting.
-    if (tutorRequestIdRef.current !== requestId) return;
-    setTutorMessage(result.message);
-    setTutorSource(result.source);
-    setTutorLoading(false);
-  }
-
   function moveStep(from: number, direction: -1 | 1) {
     const to = from + direction;
     if (to < 0 || to >= stepOrder.length) return;
@@ -309,14 +277,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
   // Keyboard shortcuts: Enter submits/advances, 1-9 picks a multiple-choice answer.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (showAiTutor) {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          closeAiTutor();
-        }
-        return;
-      }
-
       const target = e.target as HTMLElement | null;
       const isTypingInInput = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 
@@ -345,7 +305,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedback, problem, handleSubmit, showAiTutor]);
+  }, [feedback, problem, handleSubmit]);
 
   if (!problem) return null;
 
@@ -444,6 +404,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
                 type="button"
                 disabled={feedback === "correct"}
                 onClick={() => setSelectedChoice(choice)}
+                onKeyDown={ignoreSpaceKey}
                 className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
                   selectedChoice === choice
                     ? "border-bridge-500 bg-bridge-50 text-bridge-900"
@@ -472,6 +433,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
                 type="button"
                 disabled={feedback === "correct"}
                 onClick={() => setSelectedStep(i)}
+                onKeyDown={ignoreSpaceKey}
                 className={`block w-full rounded-xl border px-4 py-3 text-left font-mono text-sm ${
                   selectedStep === i
                     ? "border-red-400 bg-red-50"
@@ -552,23 +514,24 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-3">
           {feedback !== "correct" ? (
-            <button type="button" onClick={handleSubmit} className="btn-primary">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              onKeyDown={ignoreSpaceKey}
+              className="btn-primary"
+            >
               Check Answer
             </button>
           ) : (
-            <button type="button" onClick={nextProblem} className="btn-primary">
+            <button
+              type="button"
+              onClick={nextProblem}
+              onKeyDown={ignoreSpaceKey}
+              className="btn-primary"
+            >
               Next Problem →
             </button>
           )}
-
-          <button
-            ref={tutorTriggerRef}
-            type="button"
-            onClick={openAiTutor}
-            className="btn-secondary"
-          >
-            🤖 AI Tutor Hint
-          </button>
 
           {(skill.generatorKey || sessionProblems.length > 1) && !infiniteMode && (
             <button type="button" onClick={loadMoreProblems} className="btn-secondary">
@@ -582,63 +545,6 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
         </div>
       </div>
 
-      {/* AI Tutor modal */}
-      {showAiTutor && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={closeAiTutor}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ai-tutor-heading"
-            className="max-w-lg rounded-2xl bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h4 id="ai-tutor-heading" className="text-lg font-bold text-slate-900">
-                🤖 Bridge Tutor
-              </h4>
-              {speechSupported && !tutorLoading && tutorMessage && (
-                <button
-                  type="button"
-                  onClick={() => (speaking ? stopSpeech() : speak(tutorMessage))}
-                  title={speaking ? "Stop voiceover" : "Read this hint aloud"}
-                  aria-label={speaking ? "Stop reading the hint aloud" : "Read this hint aloud"}
-                  className={`flex h-11 shrink-0 items-center justify-center rounded-full px-2 text-sm hover:bg-slate-100 ${
-                    speaking ? "animate-pulse text-bridge-600" : "text-slate-400"
-                  }`}
-                >
-                  {speaking ? "⏹ Stop" : "🔊 Read aloud"}
-                </button>
-              )}
-            </div>
-            {tutorSource && (
-              <p className="mt-1 text-xs text-slate-500">
-                {tutorSource === "ai" ? "Powered by AI" : "Smart built-in tutor"}
-                {speechSupported && " · tap 🔊 to hear it read aloud"}
-              </p>
-            )}
-            <div className="mt-4 max-h-64 overflow-y-auto rounded-xl bg-bridge-50 p-4 text-sm text-bridge-900 whitespace-pre-wrap">
-              {tutorLoading ? "Thinking…" : tutorMessage || "Loading hint…"}
-            </div>
-            <button
-              ref={tutorCloseRef}
-              type="button"
-              onClick={closeAiTutor}
-              className="btn-primary mt-4 w-full"
-            >
-              Got it — let me try again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pedagogy note */}
-      <div className="rounded-xl border border-dashed border-bridge-200 bg-bridge-50/50 p-4 text-sm text-slate-600">
-        <strong className="text-bridge-800">Research-backed tip:</strong>{" "}
-        {skill.keyIdea}
-      </div>
     </div>
   );
 }

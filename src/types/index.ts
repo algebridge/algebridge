@@ -28,6 +28,13 @@ export interface PracticeProblem {
   steps?: string[];
   /** For step-order: correct order as indices */
   correctOrder?: number[];
+  /**
+   * For numeric answers that don't come out even: the decimal place the
+   * student should round to (1 = tenths, 2 = hundredths, 3 = thousandths).
+   * When set, the prompt tells them the place and grading compares both
+   * values rounded to it.
+   */
+  decimalPlaces?: number;
   explanation: string;
 }
 
@@ -233,13 +240,51 @@ export interface VisualExercise {
   correctOptionId: string;
 }
 
-export type UserRole = "student" | "teacher";
+export type UserRole = "student" | "teacher" | "tutor";
 
 export interface Profile {
   id: string;
   email: string | null;
   displayName: string | null;
   role: UserRole;
+  avatarUrl: string | null;
+  bio: string | null;
+}
+
+/** A tutor as seen in the public tutors directory. */
+export interface TutorDirectoryEntry {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+}
+
+/** A student as seen by a tutor in their student database. */
+export interface StudentDirectoryEntry {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+/** One row of a user's inbox: the other participant + last message. */
+export interface ConversationSummary {
+  otherId: string;
+  otherName: string | null;
+  otherAvatarUrl: string | null;
+  otherRole: UserRole;
+  lastMessage: string;
+  lastAt: string;
+  unread: number;
 }
 
 export interface ClassInfo {
@@ -278,5 +323,7 @@ export interface GeneratedProblem {
   hint: string;
   answer: string | number;
   choices?: string[];
+  /** See PracticeProblem.decimalPlaces — rounding place for numeric answers. */
+  decimalPlaces?: number;
   explanation: string;
 }

@@ -7,7 +7,6 @@ import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { VisualizeExercise } from "@/components/VisualizeExercise";
-import { TutorChat } from "@/components/TutorChat";
 import { ProgressStatus } from "@/components/ProgressStatus";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -212,7 +211,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
           <section>
             <h2 className="mb-3 text-lg font-bold text-slate-900">Need a hand?</h2>
-            <TutorChat skill={skill} />
+            <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Message any tutor, or hop on a video call with a shared whiteboard,
+                  your notebook, and a calculator — right here on AlgeBridge.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href="/tutors" className="btn-primary text-sm">🔎 Find a tutor</Link>
+                <Link href="/notebook" className="btn-secondary text-sm">📓 My notebook</Link>
+              </div>
+            </div>
           </section>
         </div>
 

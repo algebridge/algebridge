@@ -498,7 +498,7 @@ export const units: Unit[] = [
         keyIdea: "Growth: y = a(1 + r)ᵗ where r is the growth rate.",
         video: { id: "v34", title: "Exponential Growth", channel: "Mario's Math Tutoring", duration: "11:00", youtubeId: "Z5myJ8g_hss" },
         problems: [
-          { id: "eg2-p1", type: "numeric", prompt: "$1000 invested at 5% annual interest. Value after 2 years? (compound annually)", hint: "1000(1.05)²", answer: 1102.5, explanation: "1000 × 1.1025 = $1102.50" },
+          { id: "eg2-p1", type: "numeric", prompt: "$1000 invested at 5% annual interest. Value after 2 years? (compound annually — round to the hundredths place, the nearest cent)", hint: "1000(1.05)²", answer: 1102.5, decimalPlaces: 2, explanation: "1000 × 1.1025 = $1102.50" },
         ],
       },
       {

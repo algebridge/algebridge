@@ -24,7 +24,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "AlgeBridge — Learn Algebra 1",
   description:
-    "Bridge the gap from arithmetic to algebra. Free, research-backed Algebra 1 learning with videos, practice, and mastery tracking.",
+    "Bridge the gap from arithmetic to algebra. Free Algebra 1 learning with videos, practice, live tutors, and mastery tracking.",
 };
 
 export default function RootLayout({
@@ -42,7 +42,7 @@ export default function RootLayout({
           <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
           <footer className="border-t border-slate-200 bg-white py-8 text-center text-sm text-slate-500">
             <p>
-              AlgeBridge — Free forever. Built with research-backed teaching methods.
+              AlgeBridge — Free forever. Learn with videos, practice, and real tutors.
             </p>
             <p className="mt-1">Grades 7–10 · Algebra 1 · {new Date().getFullYear()}</p>
             <MusicCredits />
