@@ -237,7 +237,14 @@ export default function CallRoomPage() {
         }
       };
 
-      // 3) Signaling + data over one Realtime channel
+      // 3) Signaling + data over one Realtime channel. The topic must stay
+      //    shared with the peer, so first drop any stale channel with this
+      //    topic on our own client (supabase-js reuses same-topic channels,
+      //    and calling .on() on an already-subscribed one throws).
+      supabase
+        .getChannels()
+        .filter((c) => c.topic === `realtime:room-${roomId}`)
+        .forEach((c) => supabase.removeChannel(c));
       const channel = supabase.channel(`room-${roomId}`, {
         config: { broadcast: { self: false }, presence: { key: user.id } },
       });
