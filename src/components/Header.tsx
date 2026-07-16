@@ -11,10 +11,12 @@ import { useEffect, useState } from "react";
 import { useSound } from "@/hooks/useSound";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
+import { getUnreadCount, subscribeToIncomingMessages } from "@/lib/social";
 
 export function Header() {
   const { stats, continueTarget, mounted } = useProgress();
   const [reviewCount, setReviewCount] = useState(0);
+  const [unread, setUnread] = useState(0);
   const { user, profile } = useAuth();
   const { enabled: soundEnabled, toggle: toggleSound, mounted: soundMounted } = useSound();
   const {
@@ -36,6 +38,22 @@ export function Header() {
     );
     setReviewCount(getReviewQueueCount(getProgress().skills, skillMeta));
   }, [stats.completedSkills]);
+
+  // Unread message badge — load on sign-in and bump on new incoming messages.
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    let active = true;
+    const load = () => getUnreadCount().then((n) => active && setUnread(n));
+    load();
+    const unsub = subscribeToIncomingMessages(user.id, load);
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -134,6 +152,26 @@ export function Header() {
               </span>
             )}
           </Link>
+          <Link
+            href={profile?.role === "tutor" ? "/tutor-hub" : "/tutors"}
+            className="hidden text-sm text-slate-600 hover:text-bridge-600 sm:inline"
+          >
+            {profile?.role === "tutor" ? "👩‍🏫 Students" : "🔎 Tutors"}
+          </Link>
+          {user && (
+            <Link
+              href="/messages"
+              title="Messages"
+              className="relative text-sm text-slate-600 hover:text-bridge-600"
+            >
+              💬
+              {unread > 0 && (
+                <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-bridge-600 px-1 text-[10px] font-bold text-white">
+                  {unread}
+                </span>
+              )}
+            </Link>
+          )}
           {profile?.role === "teacher" && (
             <Link href="/teacher" className="text-sm font-medium text-slate-600 hover:text-bridge-600">
               🧑‍🏫 Teacher

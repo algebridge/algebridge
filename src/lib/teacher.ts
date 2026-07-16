@@ -1,6 +1,10 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { computeCourseStatsFromProgress, normalizeProgress } from "@/lib/progress";
-import type { ClassInfo, CourseStatsSummary, Profile, RosterStudent, UserProgress } from "@/types";
+import type { ClassInfo, CourseStatsSummary, Profile, RosterStudent, UserProgress, UserRole } from "@/types";
+
+function normalizeRole(role: unknown): UserRole {
+  return role === "teacher" || role === "tutor" ? role : "student";
+}
 
 export function teacherFeaturesConfigured(): boolean {
   return isSupabaseConfigured();
@@ -11,7 +15,7 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
   if (!supabase) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("id, email, display_name, role")
+    .select("id, email, display_name, role, avatar_url, bio")
     .eq("id", userId)
     .maybeSingle();
   if (!data) return null;
@@ -19,11 +23,13 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
     id: data.id,
     email: data.email,
     displayName: data.display_name,
-    role: data.role === "teacher" ? "teacher" : "student",
+    role: normalizeRole(data.role),
+    avatarUrl: data.avatar_url ?? null,
+    bio: data.bio ?? null,
   };
 }
 
-export async function setMyRole(userId: string, role: "student" | "teacher"): Promise<string | null> {
+export async function setMyRole(userId: string, role: UserRole): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return "Cloud login is not configured yet.";
   const { error } = await supabase

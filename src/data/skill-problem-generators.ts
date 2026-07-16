@@ -32,13 +32,19 @@ const generators: Record<string, SkillGenerator> = {
       }
       if (kind === 1) {
         const inches = randInt(12, 240);
+        const feet = inches / 12;
+        const even = Number.isInteger(feet);
+        const rounded = Math.round(feet * 100) / 100;
         return {
           id: "",
           type: "numeric",
-          prompt: `Convert ${inches} inches to feet.`,
+          prompt: even
+            ? `Convert ${inches} inches to feet.`
+            : `Convert ${inches} inches to feet. (round to the hundredths place)`,
           hint: "Divide by 12.",
-          answer: inches / 12,
-          explanation: `${inches} ÷ 12 = ${inches / 12} feet`,
+          answer: even ? feet : rounded,
+          decimalPlaces: even ? undefined : 2,
+          explanation: `${inches} ÷ 12 = ${even ? feet : rounded} feet`,
         };
       }
       if (kind === 2) {
@@ -1048,10 +1054,11 @@ const generators: Record<string, SkillGenerator> = {
         id: "",
         type: "numeric",
         prompt: negative
-          ? `Evaluate: ${base}^(-1/3)`
+          ? `Evaluate: ${base}^(-1/3)  (round to the thousandths place)`
           : `Evaluate: ${base}^(1/3)`,
         hint: negative ? `Take the cube root, then flip it.` : "A power of 1/3 means cube root.",
         answer: negative ? Math.round((1 / root) * 1000) / 1000 : root,
+        decimalPlaces: negative ? 3 : undefined,
         explanation: negative
           ? `${base}^(-1/3) = 1/${root} ≈ ${Math.round((1 / root) * 1000) / 1000}`
           : `${base}^(1/3) = ³√${base} = ${root}`,
@@ -1141,9 +1148,10 @@ const generators: Record<string, SkillGenerator> = {
       return {
         id: "",
         type: "numeric",
-        prompt: `$${principal} invested at ${rate * 100}% annual interest compounded annually. Value after ${years} years?`,
+        prompt: `$${principal} invested at ${rate * 100}% annual interest compounded annually. Value after ${years} years? (round to the hundredths place — the nearest cent)`,
         hint: `Use ${principal}(1.${String(rate * 100).padStart(2, "0")})^${years}`,
         answer: Math.round(value * 100) / 100,
+        decimalPlaces: 2,
         explanation: `$${principal}(1 + ${rate})^${years} ≈ $${Math.round(value * 100) / 100}`,
       };
     }),
@@ -1157,9 +1165,10 @@ const generators: Record<string, SkillGenerator> = {
       return {
         id: "",
         type: "numeric",
-        prompt: `A car worth $${value0.toLocaleString()} depreciates ${rate * 100}% per year. Value after ${years} year(s)?`,
+        prompt: `A car worth $${value0.toLocaleString()} depreciates ${rate * 100}% per year. Value after ${years} year(s)? (round to the nearest whole dollar)`,
         hint: `Multiply by ${1 - rate} each year.`,
         answer: Math.round(value),
+        decimalPlaces: 0,
         explanation: `$${value0.toLocaleString()} × ${1 - rate}^${years} ≈ $${Math.round(value).toLocaleString()}`,
       };
     }),

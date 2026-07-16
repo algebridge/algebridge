@@ -18,7 +18,7 @@ const STEPS = [
   {
     emoji: "✏️",
     title: "Practice a few problems",
-    body: "Answer at least 3 problems with 80%+ correct to complete a skill. Stuck? Tap 🤖 AI Tutor Hint for a nudge — it won't just give you the answer.",
+    body: "Answer at least 3 problems with 80%+ correct to complete a skill. Stuck? Message a real tutor any time from the Tutors page — they can even hop on a video call with you.",
   },
   {
     emoji: "🏆",

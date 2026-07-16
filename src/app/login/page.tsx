@@ -73,7 +73,11 @@ export default function LoginPage() {
   }
 
   if (user) {
-    const isTeacher = profile?.role === "teacher";
+    const role = profile?.role ?? "student";
+    const isTeacher = role === "teacher";
+    const isTutor = role === "tutor";
+    const roleBadge =
+      isTutor ? "👩‍🏫 Tutor account" : isTeacher ? "🧑‍🏫 Teacher account" : "🎓 Student account";
     return (
       <div className="mx-auto max-w-md space-y-6">
         <div className="text-center">
@@ -82,7 +86,7 @@ export default function LoginPage() {
           <p className="mt-2 text-slate-600">{user.email}</p>
           {profile && (
             <span className="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              {isTeacher ? "🧑‍🏫 Teacher account" : "🎓 Student account"}
+              {roleBadge}
             </span>
           )}
         </div>
@@ -97,28 +101,61 @@ export default function LoginPage() {
           >
             Sync Progress Now
           </button>
-          {isTeacher ? (
+
+          <Link href="/profile" className="btn-secondary block w-full text-center">
+            ⚙️ Edit Profile {isTutor && "& Photo"}
+          </Link>
+          <Link href="/messages" className="btn-secondary block w-full text-center">
+            💬 Messages
+          </Link>
+
+          {isTutor && (
+            <Link href="/tutor-hub" className="btn-secondary block w-full text-center">
+              👩‍🏫 Go to Tutor Hub
+            </Link>
+          )}
+          {isTeacher && (
             <Link href="/teacher" className="btn-secondary block w-full text-center">
               🧑‍🏫 Go to Teacher Dashboard
             </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => switchRole("teacher").then(() => setMessage("Switched to a teacher account."))}
-              className="btn-secondary w-full"
-            >
-              🧑‍🏫 Switch to a Teacher Account
-            </button>
           )}
-          {isTeacher && (
-            <button
-              type="button"
-              onClick={() => switchRole("student").then(() => setMessage("Switched to a student account."))}
-              className="w-full text-center text-xs text-slate-400 hover:text-slate-600"
-            >
-              Switch back to a student account
-            </button>
+          {!isTutor && (
+            <Link href="/tutors" className="btn-secondary block w-full text-center">
+              🔎 Find a Tutor
+            </Link>
           )}
+
+          {/* Role switching */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
+            {role !== "student" && (
+              <button
+                type="button"
+                onClick={() => switchRole("student").then(() => setMessage("Switched to a student account."))}
+                className="hover:text-slate-600"
+              >
+                Switch to student
+              </button>
+            )}
+            {!isTeacher && (
+              <button
+                type="button"
+                onClick={() => switchRole("teacher").then(() => setMessage("Switched to a teacher account."))}
+                className="hover:text-slate-600"
+              >
+                Switch to teacher
+              </button>
+            )}
+            {!isTutor && (
+              <button
+                type="button"
+                onClick={() => switchRole("tutor").then(() => setMessage("Switched to a tutor account."))}
+                className="hover:text-slate-600"
+              >
+                Switch to tutor
+              </button>
+            )}
+          </div>
+
           <button type="button" onClick={() => signOut()} className="btn-secondary w-full">
             Sign Out
           </button>
@@ -211,30 +248,31 @@ export default function LoginPage() {
           {mode === "signup" && (
             <div>
               <label className="block text-sm font-medium text-slate-700">I am a…</label>
-              <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRole("student")}
-                  className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
-                    role === "student"
-                      ? "border-bridge-500 bg-bridge-50 text-bridge-700"
-                      : "border-slate-300 text-slate-600"
-                  }`}
-                >
-                  🎓 Student
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("teacher")}
-                  className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
-                    role === "teacher"
-                      ? "border-bridge-500 bg-bridge-50 text-bridge-700"
-                      : "border-slate-300 text-slate-600"
-                  }`}
-                >
-                  🧑‍🏫 Teacher
-                </button>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {([
+                  ["student", "🎓 Student"],
+                  ["teacher", "🧑‍🏫 Teacher"],
+                  ["tutor", "👩‍🏫 Tutor"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRole(value)}
+                    className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition ${
+                      role === value
+                        ? "border-bridge-500 bg-bridge-50 text-bridge-700"
+                        : "border-slate-300 text-slate-600"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
+              {role === "tutor" && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Tutors get a profile, can see all students, message them, and run video calls.
+                </p>
+              )}
             </div>
           )}
           <div>

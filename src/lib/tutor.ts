@@ -78,60 +78,6 @@ function firstStepFor(prompt: string): string | null {
   return null;
 }
 
-/**
- * Builds a Socratic, graduated hint that helps the student find the answer
- * themselves. It intentionally never includes `ctx.explanation` (which
- * usually contains the final answer) — only the key idea, a problem-specific
- * next step, and the built-in hint, revealed in increasing detail the more
- * times the student has struggled.
- */
-export function buildLocalTutorResponse(ctx: TutorContext): string {
-  const attempts = ctx.wrongAttempts ?? 0;
-  const parts: string[] = [];
-  const firstStep = firstStepFor(ctx.problemPrompt);
-
-  parts.push(
-    `Let's work through ${ctx.skillTitle} together — I won't just hand you the answer, I'll help you find it. 💪`
-  );
-
-  if (attempts === 0) {
-    parts.push(`Think about this first: ${ctx.keyIdea}`);
-    if (firstStep) {
-      parts.push(`For "${ctx.problemPrompt}", here's your very first move:`);
-      parts.push(firstStep);
-      parts.push(`Try just that one step and see what the problem looks like after.`);
-    } else {
-      parts.push(
-        `Look at your problem again — "${ctx.problemPrompt}". Based on that idea, what's the very first move you'd make? Try it and see what you get.`
-      );
-    }
-    if (ctx.userAttempt) {
-      parts.push(
-        `You tried "${ctx.userAttempt}" — before changing anything, check: did your first step match that idea?`
-      );
-    }
-  } else if (attempts === 1) {
-    parts.push(`You've given it a shot already — that's how learning works! Here's a more specific nudge:`);
-    if (firstStep) parts.push(firstStep);
-    parts.push(`Built-in hint: ${ctx.hint}`);
-    parts.push(`Apply that one small step, then tell me what you get right after it.`);
-  } else {
-    parts.push(`Let's slow all the way down and break it into pieces — no need to solve it all at once:`);
-    parts.push(`1️⃣ ${ctx.keyIdea}`);
-    if (firstStep) parts.push(`2️⃣ ${firstStep}`);
-    parts.push(`${firstStep ? "3️⃣" : "2️⃣"} ${ctx.hint}`);
-    parts.push(
-      `Redo the problem using only those ideas, writing down what changes after each step. You're closer than you think — walk through it slowly and you'll get there.`
-    );
-  }
-
-  parts.push(
-    `Tip from real classrooms: say each step out loud as you do it ("think-aloud"). It's one of the fastest ways to catch your own mistakes.`
-  );
-
-  return parts.join("\n\n");
-}
-
 // ---------------------------------------------------------------------------
 // Conversational fallback for the chat tutor (used when no AI key is set).
 // Classifies the student's latest message and responds Socratically without
@@ -174,27 +120,6 @@ export function buildLocalChatReply(ctx: TutorContext, messages: TutorChatMessag
 
   // Default: treat their message as a work-in-progress and keep them moving.
   return `Okay, walk me through your thinking on that. ${firstStep ? "Remember: " + firstStep : "Remember the key idea: " + ctx.keyIdea}\n\nWhat do you get after your next step?`;
-}
-
-export async function fetchAiTutorHint(
-  ctx: TutorContext
-): Promise<{ message: string; source: "ai" | "local" }> {
-  try {
-    const res = await fetch("/api/tutor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ctx),
-    });
-
-    if (!res.ok) throw new Error("Tutor API failed");
-    const data = (await res.json()) as { message: string; source: "ai" | "local" };
-    return { ...data, message: stripMarkdownEmphasis(data.message) };
-  } catch {
-    return {
-      message: buildLocalTutorResponse(ctx),
-      source: "local",
-    };
-  }
 }
 
 export async function fetchTutorChat(
