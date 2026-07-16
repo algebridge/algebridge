@@ -13,6 +13,12 @@ export function socialConfigured(): boolean {
   return isSupabaseConfigured();
 }
 
+// Every realtime subscription must use a UNIQUE channel topic. supabase-js
+// returns the SAME channel instance for a repeated topic, and calling .on()
+// on an already-subscribed channel throws — which crashed the messages screen
+// because the Header and the open thread both subscribed to incoming messages.
+let channelSeq = 0;
+
 async function currentUserId(): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return null;
@@ -288,7 +294,7 @@ export function subscribeToIncomingMessages(
   const supabase = createClient();
   if (!supabase) return () => {};
   const channel = supabase
-    .channel(`dm-inbox-${myId}`)
+    .channel(`dm-inbox-${myId}-${++channelSeq}`)
     .on(
       "postgres_changes",
       {
