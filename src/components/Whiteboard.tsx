@@ -65,22 +65,36 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     }));
 
     // Keep the canvas backing store sized to its display box (crisp lines).
+    // A ResizeObserver also fires when the canvas goes from hidden (0x0, e.g.
+    // while the Notebook tab is showing) back to visible, so switching tabs
+    // never leaves the board blank.
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const resize = () => {
         const rect = canvas.getBoundingClientRect();
-        // Preserve drawing across resize by snapshotting.
+        const w = Math.round(rect.width);
+        const h = Math.round(rect.height);
+        // Skip while hidden (0x0) so we never wipe the drawing, and skip
+        // no-op resizes so we don't snapshot/redraw on every observer tick.
+        if (w === 0 || h === 0) return;
+        if (canvas.width === w && canvas.height === h) return;
+        // Preserve the drawing across the resize by snapshotting first.
         const snapshot = canvas.toDataURL();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+        canvas.width = w;
+        canvas.height = h;
         const img = new Image();
-        img.onload = () => canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        img.onload = () => canvas.getContext("2d")?.drawImage(img, 0, 0, w, h);
         img.src = snapshot;
       };
       resize();
+      const ro = new ResizeObserver(resize);
+      ro.observe(canvas);
       window.addEventListener("resize", resize);
-      return () => window.removeEventListener("resize", resize);
+      return () => {
+        ro.disconnect();
+        window.removeEventListener("resize", resize);
+      };
     }, []);
 
     function pos(e: React.PointerEvent<HTMLCanvasElement>) {
