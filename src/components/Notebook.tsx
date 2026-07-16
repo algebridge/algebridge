@@ -25,6 +25,10 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
   const [loading, setLoading] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirror the latest text + whether it's unsaved, so we can flush on unmount
+  // WITHOUT calling setState on an unmounted component.
+  const contentRef = useRef("");
+  const dirtyRef = useRef(false);
 
   const cloud = !!user && configured;
 
@@ -41,6 +45,8 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
       }
       if (active) {
         setContent(text);
+        contentRef.current = text;
+        dirtyRef.current = false;
         setLoading(false);
       }
     })();
@@ -49,8 +55,21 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
     };
   }, [cloud]);
 
+  // Raw save with no React state — safe to call during unmount.
+  const rawSave = useCallback(
+    (text: string) => {
+      if (cloud) {
+        void saveNotebook(text);
+      } else if (typeof window !== "undefined") {
+        window.localStorage.setItem(LOCAL_KEY, text);
+      }
+    },
+    [cloud]
+  );
+
   const persist = useCallback(
     async (text: string) => {
+      dirtyRef.current = false;
       if (cloud) {
         setSaveState("saving");
         const { error } = await saveNotebook(text);
@@ -65,17 +84,24 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
 
   function handleChange(text: string) {
     setContent(text);
+    contentRef.current = text;
+    dirtyRef.current = true;
     setSaveState("saving");
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => persist(text), 700);
+    timerRef.current = setTimeout(() => persist(contentRef.current), 700);
   }
 
-  // Flush a pending save on unmount so nothing is lost when leaving the page.
+  // Flush a pending save on unmount so the last edit is never lost when
+  // leaving the page (e.g. jotting a note in the call room, then leaving).
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (dirtyRef.current) {
+        rawSave(contentRef.current);
+        dirtyRef.current = false;
+      }
     };
-  }, []);
+  }, [rawSave]);
 
   const statusText =
     saveState === "saving"
