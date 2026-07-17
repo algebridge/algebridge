@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { sendCallDecline, subscribeToRing, type RingPayload } from "@/lib/social";
+import { getPublicProfile, sendCallDecline, subscribeToRing, type RingPayload } from "@/lib/social";
 import { showToast } from "@/lib/notify";
 
 /**
@@ -64,13 +64,19 @@ export function IncomingCall() {
     const unsub = subscribeToRing(
       user.id,
       (payload) => {
-        setIncoming(payload);
-        startRing();
-        // Auto-dismiss after 30s if unanswered.
-        timeoutRef.current = setTimeout(() => {
-          stopRing();
-          setIncoming(null);
-        }, 30000);
+        // Only tutors may call. Verify the caller is actually a tutor before
+        // ringing — a non-tutor caller's profile is either role!='tutor' or
+        // not readable (RLS), so the ring is ignored.
+        getPublicProfile(payload.callerId).then((caller) => {
+          if (caller?.role !== "tutor") return;
+          setIncoming(payload);
+          startRing();
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            stopRing();
+            setIncoming(null);
+          }, 30000);
+        });
       },
       (byName) => {
         showToast({ emoji: "📵", title: `${byName} declined the call.` });
@@ -79,9 +85,10 @@ export function IncomingCall() {
     return () => {
       unsub();
       stopRing();
+      setIncoming(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id]);
 
   if (!incoming) return null;
 

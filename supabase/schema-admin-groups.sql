@@ -23,9 +23,15 @@ create table if not exists public.role_codes (role text primary key, code text n
 alter table public.role_codes enable row level security;
 -- No SELECT policy => the client can never read the codes; they are only ever
 -- checked inside claim_role() (SECURITY DEFINER).
+--
+-- IMPORTANT: real access codes are NEVER committed to this repo (it is public).
+-- These are placeholder rows only. Set the real codes out-of-band, e.g.:
+--   update public.role_codes set code = '<strong-random>' where role = 'tutor';
+--   update public.role_codes set code = '<strong-random>' where role = 'teacher';
+-- Until you do, teacher/tutor signup is closed (no code matches) — fail-safe.
 insert into public.role_codes (role, code) values
-  ('teacher', 'BRIDGE-TEACHER-2026'),
-  ('tutor',   'BRIDGE-TUTOR-2026')
+  ('teacher', 'CHANGE-ME-teacher'),
+  ('tutor',   'CHANGE-ME-tutor')
 on conflict (role) do nothing;
 
 -- ---- Guard: block self-escalation of role via a direct update

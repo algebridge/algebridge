@@ -186,16 +186,21 @@ export async function getMessagesWith(otherId: string): Promise<DirectMessage[]>
   if (!supabase) return [];
   const uid = await currentUserId();
   if (!uid) return [];
+  // Fetch the NEWEST 500 (desc) then reverse for display, so long
+  // conversations show recent messages, not ancient history.
   const { data } = await supabase
     .from("direct_messages")
     .select("id, sender_id, recipient_id, body, created_at, read_at")
     .or(
       `and(sender_id.eq.${uid},recipient_id.eq.${otherId}),and(sender_id.eq.${otherId},recipient_id.eq.${uid})`
     )
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(500);
-  return (data ?? []).map(rowToMessage);
+  return (data ?? []).map(rowToMessage).reverse();
 }
+
+/** Fired after messages are marked read, so the nav unread badge can refresh. */
+export const MESSAGES_READ_EVENT = "algebridge:messages-read";
 
 /** Marks every message from `otherId` to me as read. */
 export async function markConversationRead(otherId: string): Promise<void> {
@@ -209,6 +214,9 @@ export async function markConversationRead(otherId: string): Promise<void> {
     .eq("recipient_id", uid)
     .eq("sender_id", otherId)
     .is("read_at", null);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MESSAGES_READ_EVENT));
+  }
 }
 
 /** Groups my messages into one row per conversation partner. */
@@ -403,6 +411,13 @@ export async function claimRole(role: UserRole, code?: string): Promise<string |
   return error?.message ?? null;
 }
 
+/** Joins the caller to the All-Tutors group (server checks they're a tutor/admin). */
+export async function ensureAllTutorsMembership(): Promise<void> {
+  const supabase = createClient();
+  if (!supabase) return;
+  await supabase.rpc("join_all_tutors_group");
+}
+
 export interface AdminUser {
   id: string;
   email: string | null;
@@ -447,13 +462,16 @@ export interface RingPayload {
   callerName: string;
 }
 
-function dropStaleChannel(topic: string) {
+// removeChannel() is async (it round-trips an unsubscribe). If we create a
+// channel on the same FIXED topic immediately after, supabase-js hands back the
+// still-present, now-"leaving" channel and .subscribe() no-ops — so listeners
+// bind to a dying channel. We therefore AWAIT removal before re-creating.
+async function removeStaleChannels(topic: string): Promise<void> {
   const supabase = createClient();
   if (!supabase) return;
-  supabase
-    .getChannels()
-    .filter((c) => c.topic === `realtime:${topic}`)
-    .forEach((c) => supabase.removeChannel(c));
+  for (const c of supabase.getChannels().filter((c) => c.topic === `realtime:${topic}`)) {
+    await supabase.removeChannel(c);
+  }
 }
 
 /** Ring a specific user (broadcast to their personal ring channel). */
@@ -461,14 +479,16 @@ export function ringUser(targetId: string, payload: RingPayload): void {
   const supabase = createClient();
   if (!supabase) return;
   const topic = `ring-${targetId}`;
-  dropStaleChannel(topic);
-  const ch = supabase.channel(topic);
-  ch.subscribe((st) => {
-    if (st === "SUBSCRIBED") {
-      ch.send({ type: "broadcast", event: "ring", payload });
-      setTimeout(() => supabase.removeChannel(ch), 2000);
-    }
-  });
+  (async () => {
+    await removeStaleChannels(topic);
+    const ch = supabase.channel(topic);
+    ch.subscribe((st) => {
+      if (st === "SUBSCRIBED") {
+        ch.send({ type: "broadcast", event: "ring", payload });
+        setTimeout(() => supabase.removeChannel(ch), 2000);
+      }
+    });
+  })();
 }
 
 /** Tell the caller their call was declined. */
@@ -476,14 +496,16 @@ export function sendCallDecline(callerId: string, byName: string): void {
   const supabase = createClient();
   if (!supabase) return;
   const topic = `ring-${callerId}`;
-  dropStaleChannel(topic);
-  const ch = supabase.channel(topic);
-  ch.subscribe((st) => {
-    if (st === "SUBSCRIBED") {
-      ch.send({ type: "broadcast", event: "decline", payload: { byName } });
-      setTimeout(() => supabase.removeChannel(ch), 2000);
-    }
-  });
+  (async () => {
+    await removeStaleChannels(topic);
+    const ch = supabase.channel(topic);
+    ch.subscribe((st) => {
+      if (st === "SUBSCRIBED") {
+        ch.send({ type: "broadcast", event: "decline", payload: { byName } });
+        setTimeout(() => supabase.removeChannel(ch), 2000);
+      }
+    });
+  })();
 }
 
 /** Subscribe to incoming rings addressed to me. Returns unsubscribe. */
@@ -495,15 +517,21 @@ export function subscribeToRing(
   const supabase = createClient();
   if (!supabase) return () => {};
   const topic = `ring-${myId}`;
-  dropStaleChannel(topic);
-  const channel = supabase
-    .channel(topic)
-    .on("broadcast", { event: "ring" }, ({ payload }) => onRing(payload as RingPayload))
-    .on("broadcast", { event: "decline" }, ({ payload }) =>
-      onDecline((payload as { byName?: string }).byName ?? "They")
-    )
-    .subscribe();
+  let channel: ReturnType<NonNullable<ReturnType<typeof createClient>>["channel"]> | null = null;
+  let cancelled = false;
+  (async () => {
+    await removeStaleChannels(topic);
+    if (cancelled) return;
+    channel = supabase
+      .channel(topic)
+      .on("broadcast", { event: "ring" }, ({ payload }) => onRing(payload as RingPayload))
+      .on("broadcast", { event: "decline" }, ({ payload }) =>
+        onDecline((payload as { byName?: string }).byName ?? "They")
+      )
+      .subscribe();
+  })();
   return () => {
-    supabase.removeChannel(channel);
+    cancelled = true;
+    if (channel) supabase.removeChannel(channel);
   };
 }

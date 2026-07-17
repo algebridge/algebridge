@@ -12,7 +12,7 @@ import {
 import { getLeaderboardSnapshot } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
 import { getMyProfile, setMyRole } from "@/lib/teacher";
-import { claimRole } from "@/lib/social";
+import { claimRole, ensureAllTutorsMembership } from "@/lib/social";
 import type { Profile, UserRole } from "@/types";
 
 interface AuthContextValue {
@@ -218,6 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const err = profile?.isAdmin
       ? await setMyRole(user.id, role)
       : await claimRole(role, code);
+    // claim_role auto-joins tutors to the All-Tutors group; the admin path
+    // (setMyRole) does not, so do it explicitly here.
+    if (!err && role === "tutor" && profile?.isAdmin) {
+      await ensureAllTutorsMembership();
+    }
     await refreshProfile(user.id);
     return err;
   }
