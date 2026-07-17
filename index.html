@@ -180,6 +180,57 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
   .tagline-band{padding:1rem 1.2rem;}
   .join-btn{width:100%;}
 }
+
+/* ══════════════════════════════════
+   MOTION — makes the page feel alive
+   (additive only; no content/layout change)
+══════════════════════════════════ */
+
+/* Hero background video (same slot + look as the old image) */
+.hero-right video{width:100%;height:100%;object-fit:cover;opacity:0.5;display:block;}
+
+/* Named-member avatars (gradient circle with initials) */
+.team-avatar-initials{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;margin:0 auto 0.85rem;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:1.6rem;letter-spacing:0.02em;box-shadow:0 6px 18px rgba(37,99,235,0.16);transition:transform .25s ease,box-shadow .25s ease;}
+
+/* Card + avatar hover life */
+.team-card{transition:transform .25s ease;}
+.team-card:not(.open):hover{transform:translateY(-5px);}
+.team-card:hover .team-avatar-initials,.team-card:hover .team-avatar{transform:scale(1.05);box-shadow:0 12px 26px rgba(37,99,235,0.24);}
+.why-card{transition:transform .25s ease,box-shadow .25s ease;}
+.why-card:hover{transform:translateY(-6px);box-shadow:0 16px 32px rgba(0,0,0,0.09);}
+.why-card-img,.work-card img{transition:transform .55s ease;}
+.why-card:hover .why-card-img,.work-card:hover img{transform:scale(1.06);}
+.work-card{transition:transform .2s ease,box-shadow .25s ease;}
+.work-card:hover{box-shadow:0 16px 32px rgba(0,0,0,0.1);}
+.btn-primary,.nav-cta,.join-btn,.support-btn-primary{transition:transform .18s ease,box-shadow .18s ease,background .2s ease;}
+.btn-primary:hover,.nav-cta:hover,.join-btn:hover,.support-btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(37,99,235,0.3);}
+.btn-outline{transition:transform .18s ease,background .2s ease;}
+.btn-outline:hover{transform:translateY(-2px);background:rgba(255,255,255,0.08);}
+
+/* Scroll-reveal (only active once JS adds body.anim, so no-JS shows all) */
+body.anim .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1);}
+body.anim .reveal.in{opacity:1;transform:none;}
+
+/* Hero entrance + ambient motion */
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
+@keyframes pulseDot{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(37,99,235,0.55);}70%{transform:scale(1.18);box-shadow:0 0 0 7px rgba(37,99,235,0);}}
+@keyframes bobArrow{0%,100%{transform:translateX(-50%);}50%{transform:translateX(-50%) translateY(7px);}}
+@keyframes heroGlow{0%,100%{opacity:0.45;transform:translate(-8%,-6%) scale(1);}50%{opacity:0.8;transform:translate(6%,5%) scale(1.18);}}
+@keyframes shimmer{0%{background-position:0% 0;}100%{background-position:200% 0;}}
+body.anim .hero-left>*{animation:fadeUp .85s cubic-bezier(.2,.8,.2,1) both;}
+body.anim .hero-pill{animation-delay:.05s;}
+body.anim .hero h1{animation-delay:.16s;}
+body.anim .hero p{animation-delay:.3s;}
+body.anim .hero-btns{animation-delay:.42s;}
+.hero-dot{animation:pulseDot 2s ease-in-out infinite;}
+.hero::before{content:'';position:absolute;top:0;left:0;width:60%;height:100%;background:radial-gradient(circle at 32% 42%,rgba(37,99,235,0.3),transparent 60%);animation:heroGlow 9s ease-in-out infinite;pointer-events:none;z-index:1;}
+.scroll-hint{animation:bobArrow 2.2s ease-in-out infinite;}
+.tagline-band{background:linear-gradient(100deg,#2563eb,#3b82f6,#2563eb);background-size:200% 100%;animation:shimmer 7s linear infinite;}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;}
+  body.anim .reveal{opacity:1!important;transform:none!important;}
+}
 </style>
 </head>
 <body>
@@ -227,7 +278,12 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
     </div>
   </div>
   <div class="hero-right">
-    <img src="algebra1.webp" alt="Students learning together">
+    <video class="hero-video" autoplay muted loop playsinline preload="metadata"
+      poster="algebra1.webp"
+      aria-label="Students learning together — one student teaching another">
+      <source src="https://videos.pexels.com/video-files/5535982/5535982-hd_1280_720_25fps.mp4" type="video/mp4">
+      <img src="algebra1.webp" alt="Students learning together">
+    </video>
   </div>
   <div class="scroll-hint">SCROLL TO LEARN MORE ↓</div>
 </section>
@@ -350,23 +406,23 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
     <h2 class="join-heading">Our Team</h2>
     <div class="team-row">
       <!-- 3 members left of founder -->
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">ZB</div>
+        <h4>Zachary Balan</h4>
+        <p class="role">Tutor</p>
+        <p class="bio">Works one-on-one with students, turning confusing Algebra 1 topics into clear, confident steps.</p>
       </div>
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);">SS</div>
+        <h4>Shaurya Sethi</h4>
+        <p class="role">Tutor</p>
+        <p class="bio">Breaks tough problems down step by step and helps students build lasting problem-solving habits.</p>
       </div>
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#059669,#047857);">SS</div>
+        <h4>Sebastian Sawicki</h4>
+        <p class="role">Treasurer</p>
+        <p class="bio">Manages Algebridge's budget and funding so our free tools and tutoring keep reaching more students.</p>
       </div>
 
       <!-- Founder (center) -->
@@ -379,23 +435,23 @@ nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-inde
       </div>
 
       <!-- 3 members right of founder -->
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#db2777,#be185d);">JM</div>
+        <h4>Jordyn Miller</h4>
+        <p class="role">Chief Marketing Officer</p>
+        <p class="bio">Leads marketing and outreach, getting Algebridge in front of the students who need it most.</p>
       </div>
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#f59e0b,#d97706);">RH</div>
+        <h4>Rayla Hardwood</h4>
+        <p class="role">Operational Manager</p>
+        <p class="bio">Keeps everything running behind the scenes — coordinating programs, scheduling, and day-to-day operations.</p>
       </div>
-      <div class="team-card open">
-        <div class="team-avatar-placeholder" aria-hidden="true">+</div>
-        <h4>Open Spot</h4>
-        <p class="role">Role TBD</p>
-        <p class="bio">Description coming soon — join us and help define this role.</p>
+      <div class="team-card">
+        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);">IH</div>
+        <h4>Ishaan Halgeri</h4>
+        <p class="role">Developer</p>
+        <p class="bio">Builds and maintains the Algebridge learning platform, shipping the features students practice with.</p>
       </div>
     </div>
     <div class="join-cta-wrap">
@@ -449,6 +505,40 @@ function navTo(id){
   document.getElementById('hamburger').classList.remove('open');
   document.getElementById('mobileMenu').classList.remove('open');
 }
+
+/* ── Scroll-reveal entrances (additive; content/arrangement untouched) ── */
+(function(){
+  document.body.classList.add('anim');
+  var groups = [
+    ['.section-2col > div', 130],
+    ['.why-card', 130],
+    ['.work-card', 130],
+    ['.team-card', 80],
+    ['.tagline-band', 0],
+    ['#why .chapter-label, #why .section-title', 0],
+    ['#projects .chapter-label, #projects .section-title', 0],
+    ['.join-label, .join-heading, .join-cta-wrap', 90],
+    ['.support-box', 0]
+  ];
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  groups.forEach(function(g){
+    var sel = g[0], stagger = g[1], i = 0;
+    document.querySelectorAll(sel).forEach(function(el){
+      el.classList.add('reveal');
+      if(stagger) el.style.transitionDelay = (Math.min(i,6)*stagger) + 'ms';
+      io.observe(el); i++;
+    });
+  });
+  // Failsafe: never leave anything hidden if the observer doesn't fire
+  // (e.g. throttled/background tab, older browser).
+  setTimeout(function(){
+    document.querySelectorAll('.reveal:not(.in)').forEach(function(el){ el.classList.add('in'); });
+  }, 2500);
+})();
 </script>
 </body>
 </html>
