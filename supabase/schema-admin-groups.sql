@@ -60,7 +60,7 @@ begin
   if me is null then raise exception 'You must be signed in'; end if;
   if target_role not in ('student','teacher','tutor') then raise exception 'Unknown role'; end if;
   if target_role in ('teacher','tutor') and not public.is_admin() then
-    if not exists (select 1 from public.role_codes rc where rc.role = target_role and rc.code = coalesce(code,'')) then
+    if not exists (select 1 from public.role_codes rc where rc.role = target_role and rc.code = coalesce(claim_role.code, '')) then
       raise exception 'That access code is not valid for the % role.', target_role;
     end if;
   end if;
