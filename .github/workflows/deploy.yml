@@ -12,9 +12,10 @@ name: Deploy to Vercel (production)
 #   VERCEL_PROJECT_ID  -> Vercel → the project → Settings → General ("Project ID")
 # Then push (or hit "Run workflow"). Nothing else changes.
 
+# Manual-only: Vercel's native GitHub deploy works, so this is a break-glass
+# fallback. Trigger it from the Actions tab ("Run workflow") if native deploy
+# ever stops promoting to production again (requires the secrets below).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
