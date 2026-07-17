@@ -52,6 +52,7 @@ export default function RootLayout({
               <Link href="/privacy" className="hover:text-bridge-600">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-bridge-600">Terms of Service</Link>
               <Link href="/safety" className="hover:text-bridge-600">Safety &amp; Trust</Link>
+              <Link href="/guidelines" className="hover:text-bridge-600">Community Guidelines</Link>
               <a href="mailto:support@algebridge.org" className="hover:text-bridge-600">Contact</a>
             </nav>
             <MusicCredits />
