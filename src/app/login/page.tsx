@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [role, setRole] = useState<UserRole>("student");
   const [roleCode, setRoleCode] = useState("");
   const [switchCode, setSwitchCode] = useState("");
+  const [switchFeedback, setSwitchFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -54,10 +56,22 @@ export default function LoginPage() {
   async function handleSwitch(target: UserRole) {
     setError("");
     setMessage("");
-    const err = await switchRole(target, switchCode.trim() || undefined);
-    if (err) setError(err);
-    else {
-      setMessage(`Switched to a ${target} account.`);
+    setSwitchFeedback(null);
+    const isAdmin = profile?.isAdmin ?? false;
+    const code = switchCode.trim();
+    // Teacher/tutor need an access code (admins are exempt). Catch the empty
+    // case up front so the user gets a clear prompt instead of "nothing happens".
+    if (!isAdmin && target !== "student" && !code) {
+      setSwitchFeedback({ ok: false, text: `Enter the ${target} access code above first.` });
+      return;
+    }
+    setSwitching(true);
+    const err = await switchRole(target, code || undefined);
+    setSwitching(false);
+    if (err) {
+      setSwitchFeedback({ ok: false, text: err });
+    } else {
+      setSwitchFeedback({ ok: true, text: `You're now a ${target}! 🎉` });
       setSwitchCode("");
     }
   }
@@ -186,21 +200,27 @@ export default function LoginPage() {
             )}
             <div className="mt-2 flex flex-wrap gap-2">
               {role !== "student" && (
-                <button type="button" onClick={() => handleSwitch("student")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                <button type="button" disabled={switching} onClick={() => handleSwitch("student")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-50">
                   🎓 Student
                 </button>
               )}
               {!isTeacher && (
-                <button type="button" onClick={() => handleSwitch("teacher")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                <button type="button" disabled={switching} onClick={() => handleSwitch("teacher")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-50">
                   🧑‍🏫 Teacher
                 </button>
               )}
               {!isTutor && (
-                <button type="button" onClick={() => handleSwitch("tutor")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100">
+                <button type="button" disabled={switching} onClick={() => handleSwitch("tutor")} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-50">
                   👩‍🏫 Tutor
                 </button>
               )}
             </div>
+            {switching && <p className="mt-2 text-xs text-slate-400">Switching…</p>}
+            {switchFeedback && (
+              <p className={`mt-2 text-xs font-medium ${switchFeedback.ok ? "text-emerald-600" : "text-red-600"}`}>
+                {switchFeedback.text}
+              </p>
+            )}
           </div>
 
           <button type="button" onClick={() => signOut()} className="btn-secondary w-full">
@@ -245,6 +265,9 @@ export default function LoginPage() {
           </div>
         )}
 
+        {error && (
+          <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>
+        )}
         {message && (
           <p className="rounded-xl bg-bridge-50 p-3 text-sm text-bridge-800">{message}</p>
         )}
