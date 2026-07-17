@@ -7,6 +7,7 @@ import {
   sendGroupMessage,
   subscribeToGroup,
 } from "@/lib/groups";
+import { getPublicProfile } from "@/lib/social";
 import type { GroupMessage } from "@/types";
 
 export function GroupThread({ groupId }: { groupId: string }) {
@@ -41,11 +42,23 @@ export function GroupThread({ groupId }: { groupId: string }) {
 
   useEffect(() => {
     const unsub = subscribeToGroup(groupId, (msg) => {
+      const known = nameCache.current.get(msg.senderId);
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, { ...msg, senderName: nameCache.current.get(msg.senderId) ?? "Member" }];
+        return [...prev, { ...msg, senderName: known ?? "…" }];
       });
       scrollToEnd();
+      // Backfill the name for a sender we haven't seen yet (e.g. a newly-added
+      // group member whose messages weren't in the initial load).
+      if (known === undefined) {
+        getPublicProfile(msg.senderId).then((p) => {
+          const name = p?.displayName ?? "Member";
+          nameCache.current.set(msg.senderId, name);
+          setMessages((prev) =>
+            prev.map((m) => (m.senderId === msg.senderId ? { ...m, senderName: name } : m))
+          );
+        });
+      }
     });
     return unsub;
   }, [groupId, scrollToEnd]);

@@ -241,10 +241,9 @@ export default function CallRoomPage() {
       //    shared with the peer, so first drop any stale channel with this
       //    topic on our own client (supabase-js reuses same-topic channels,
       //    and calling .on() on an already-subscribed one throws).
-      supabase
-        .getChannels()
-        .filter((c) => c.topic === `realtime:room-${roomId}`)
-        .forEach((c) => supabase.removeChannel(c));
+      for (const c of supabase.getChannels().filter((c) => c.topic === `realtime:room-${roomId}`)) {
+        await supabase.removeChannel(c);
+      }
       const channel = supabase.channel(`room-${roomId}`, {
         config: { broadcast: { self: false }, presence: { key: user.id } },
       });
@@ -316,10 +315,24 @@ export default function CallRoomPage() {
 
     return () => {
       cancelled = true;
-      cleanup(false);
+      // If the call was live and the user navigates away WITHOUT clicking
+      // "End call", still finalize (AI summary + Bridgeys) and tell the peer.
+      if (wasLiveRef.current && !finalizedRef.current) {
+        finalize();
+      }
+      cleanup(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, otherId, other]);
+
+  // Best-effort finalize on a hard tab close (React cleanup may not run).
+  useEffect(() => {
+    function onHide() {
+      if (wasLiveRef.current && !finalizedRef.current) finalize();
+    }
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [finalize]);
 
   // ---- live captions / transcript via Web Speech API ----
   useEffect(() => {

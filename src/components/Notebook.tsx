@@ -44,9 +44,12 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
         text = window.localStorage.getItem(LOCAL_KEY) ?? "";
       }
       if (active) {
-        setContent(text);
-        contentRef.current = text;
-        dirtyRef.current = false;
+        // Don't clobber in-progress edits if the storage backend flips (e.g.
+        // the user signs in while typing) — keep what they're writing.
+        if (!dirtyRef.current) {
+          setContent(text);
+          contentRef.current = text;
+        }
         setLoading(false);
       }
     })();

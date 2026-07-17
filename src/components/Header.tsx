@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { useSound } from "@/hooks/useSound";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
-import { getUnreadCount, subscribeToIncomingMessages } from "@/lib/social";
+import { getUnreadCount, subscribeToIncomingMessages, MESSAGES_READ_EVENT } from "@/lib/social";
 
 export function Header() {
   const { stats, continueTarget, mounted } = useProgress();
@@ -49,11 +49,14 @@ export function Header() {
     const load = () => getUnreadCount().then((n) => active && setUnread(n));
     load();
     const unsub = subscribeToIncomingMessages(user.id, load);
+    // Also refresh when a conversation is marked read (badge should go down).
+    window.addEventListener(MESSAGES_READ_EVENT, load);
     return () => {
       active = false;
       unsub();
+      window.removeEventListener(MESSAGES_READ_EVENT, load);
     };
-  }, [user]);
+  }, [user?.id]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
