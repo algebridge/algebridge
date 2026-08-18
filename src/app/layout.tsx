@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { SideNav } from "@/components/SideNav";
 import { AppNavProvider } from "@/components/AppNavProvider";
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { DotPattern } from "@/components/ui/dot-pattern";
 import { LoginBanner } from "@/components/LoginBanner";
 import { AppInit } from "@/components/AppInit";
 import { AuthProvider } from "@/lib/auth";
@@ -46,6 +47,17 @@ export default function RootLayout({
             <AppInit />
             <IncomingCall />
             <SideNav />
+
+            {/* Page texture: an even, quiet dot field behind everything.
+                Fixed, so it stays put while the page scrolls over it. No mask —
+                a fade would land under the header, where nothing can see it. */}
+            <DotPattern
+              width={22}
+              height={22}
+              cr={1}
+              className="fixed inset-0 -z-10 h-full w-full fill-slate-400/45"
+            />
+
             <div className="flex min-h-screen flex-col lg:pl-60">
               <Header />
               <LoginBanner />

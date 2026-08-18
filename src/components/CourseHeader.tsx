@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
 import { units } from "@/data/curriculum";
+import { DotPattern } from "@/components/ui/dot-pattern";
 
 const TOTAL_UNITS = units.length;
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
@@ -22,8 +23,14 @@ export function CourseHeader() {
   // dashboard. Signed-in students swap to their own numbers once auth resolves.
   if (!user) {
     return (
-      <section className="overflow-hidden rounded-2xl border border-bridge-900 bg-bridge-900 text-white">
-        <div className="px-6 py-9 sm:px-10 sm:py-11">
+      <section className="relative overflow-hidden rounded-2xl border border-bridge-900 bg-bridge-900 text-white">
+        <DotPattern
+          width={20}
+          height={20}
+          cr={1}
+          className="fill-white/15 [mask-image:radial-gradient(420px_circle_at_15%_20%,white,transparent)]"
+        />
+        <div className="relative z-10 px-6 py-9 sm:px-10 sm:py-11">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-bridge-300">
             Algebra 1 · Grades 7–10
           </p>
