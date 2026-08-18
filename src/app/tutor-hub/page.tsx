@@ -39,7 +39,7 @@ export default function TutorHubPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Tutor Hub</h1>
+        <h1 className="page-title">Tutor Hub</h1>
         <p className="text-slate-600">Sign in with a tutor account to see your students.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>
@@ -49,7 +49,7 @@ export default function TutorHubPage() {
   if (!isTutor) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Tutor Hub</h1>
+        <h1 className="page-title">Tutor Hub</h1>
         <p className="text-slate-600">
           This area is for tutors. Switch your account to a tutor account from your
           profile to see the student directory.
@@ -72,7 +72,7 @@ export default function TutorHubPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl tracking-wide text-slate-900">Tutor Hub</h1>
+          <h1 className="page-title">Tutor Hub</h1>
           <p className="mt-1 text-sm text-slate-500">
             Every student on AlgeBridge — message or call anyone who needs help.
           </p>

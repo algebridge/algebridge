@@ -305,12 +305,48 @@ export interface ConversationSummary {
   unread: number;
 }
 
+/** Colors a teacher can tag a class with, so periods are scannable. */
+export type ClassColor = "blue" | "emerald" | "amber" | "violet" | "rose" | "slate";
+
 export interface ClassInfo {
   id: string;
   name: string;
   joinCode: string;
   createdAt: string;
   studentCount: number;
+  /** e.g. "Period 3" or "Block B". */
+  period: string | null;
+  /** e.g. "8th grade". */
+  gradeLevel: string | null;
+  color: ClassColor;
+  /** Manual sort order within a teacher's class list. */
+  position: number;
+  archived: boolean;
+}
+
+/** Fields a teacher can set when creating or editing a class. */
+export interface ClassDraft {
+  name: string;
+  period?: string | null;
+  gradeLevel?: string | null;
+  color?: ClassColor;
+}
+
+/**
+ * A unit (or a single skill inside it) a teacher has assigned to a class,
+ * optionally with a due date.
+ */
+export interface ClassAssignment {
+  id: string;
+  classId: string;
+  unitId: string;
+  /** null = the whole unit. */
+  skillId: string | null;
+  title: string | null;
+  note: string | null;
+  dueDate: string | null;
+  position: number;
+  createdAt: string;
 }
 
 export interface RosterStudent {
@@ -319,6 +355,10 @@ export interface RosterStudent {
   displayName: string | null;
   joinedAt: string;
   stats: CourseStatsSummary | null;
+  /** Last time this student's progress was written to the cloud. */
+  lastActiveAt: string | null;
+  /** Normalized progress, so the roster can score assignments client-side. */
+  progress: UserProgress | null;
 }
 
 /** Trimmed-down subset of CourseStats needed for the teacher roster view. */

@@ -35,7 +35,7 @@ export default function AchievementsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-3xl tracking-wide text-slate-900">🏆 Achievements</h1>
+        <h1 className="page-title">Achievements</h1>
         <p className="mt-2 max-w-2xl text-slate-600">
           Earn XP for every problem you solve, level up, and unlock badges along the
           way. Progress and consistency matter more than getting everything perfect!

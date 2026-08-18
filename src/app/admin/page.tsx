@@ -36,7 +36,7 @@ export default function AdminPage() {
   if (!user || !isAdmin) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Admin</h1>
+        <h1 className="page-title">Admin</h1>
         <p className="text-slate-600">This area is for administrators only.</p>
         <Link href="/" className="btn-primary inline-block">Back to Course</Link>
       </div>
@@ -72,7 +72,7 @@ export default function AdminPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <h1 className="font-display text-2xl tracking-wide text-slate-900">⭐ Admin Panel</h1>
+        <h1 className="page-title">Admin panel</h1>
         <p className="mt-1 text-sm text-slate-500">
           Every account. You can message anyone or delete any account.
         </p>

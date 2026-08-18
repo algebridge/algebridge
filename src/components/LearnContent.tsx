@@ -6,6 +6,7 @@ import type { MasteryLevel, Skill, Unit } from "@/types";
 import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
+import { PracticeGate } from "@/components/PracticeGate";
 import { VisualizeExercise } from "@/components/VisualizeExercise";
 import { ProgressStatus } from "@/components/ProgressStatus";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -126,8 +127,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
       </div>
 
       <header>
-        <h1 className="font-display text-2xl tracking-wide text-slate-900 sm:text-3xl">{skill.title}</h1>
-        <p className="mt-2 text-slate-600">{skill.description}</p>
+        <h1 className="page-title">{skill.title}</h1>
+        <p className="page-subtitle">{skill.description}</p>
       </header>
 
       {/* 3-step checklist */}
@@ -188,7 +189,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
       <div className="grid gap-8 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
           <section>
-            <h2 className="mb-3 text-lg font-bold text-slate-900">Step 1: Watch</h2>
+            <h2 className="section-title mb-3">Step 1: Watch</h2>
             <VideoPlayer
               video={video}
               backupVideo={backupVideo}
@@ -197,20 +198,30 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-slate-900">Step 2: Visualize</h2>
+            <h2 className="section-title mb-3">Step 2: Visualize</h2>
             <p className="mb-3 text-sm text-slate-500">
               Play with the interactive model to <em>see</em> how the math works, then test yourself by spotting the correct graph.
             </p>
-            <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
+            <PracticeGate
+              activity="try the visual exercise"
+              freeNote="You can keep watching the lesson video above without an account."
+            >
+              <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
+            </PracticeGate>
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-slate-900">Step 3: Practice</h2>
-            <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
+            <h2 className="section-title mb-3">Step 3: Practice</h2>
+            <PracticeGate
+              activity="practice this skill"
+              freeNote="You can keep watching the lesson video above without an account."
+            >
+              <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
+            </PracticeGate>
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-bold text-slate-900">Need a hand?</h2>
+            <h2 className="section-title mb-3">Need a hand?</h2>
             <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
@@ -220,8 +231,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/tutors" className="btn-primary text-sm">🔎 Find a tutor</Link>
-                <Link href="/notebook" className="btn-secondary text-sm">📓 My notebook</Link>
+                <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>
+                <Link href="/notebook" className="btn-secondary text-sm">My notebook</Link>
               </div>
             </div>
           </section>
@@ -273,7 +284,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           </Link>
         ) : (
           <Link href="/" className="btn-primary text-sm">
-            🎉 Back to course
+            Back to course
           </Link>
         )}
       </div>

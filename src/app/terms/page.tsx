@@ -5,7 +5,7 @@ export const metadata = { title: "Terms of Service — AlgeBridge" };
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl tracking-wide text-slate-900">Terms of Service</h1>
+      <h1 className="page-title">Terms of Service</h1>
       <p className="mt-1 text-sm text-slate-500">Last updated: July 2026</p>
 
       <div className="mt-6 space-y-6 text-slate-700">

@@ -63,7 +63,7 @@ export default function GroupsPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Group Chats</h1>
+        <h1 className="page-title">Group Chats</h1>
         <p className="text-slate-600">Sign in to join group chats and AlgeGroups.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>
@@ -74,7 +74,7 @@ export default function GroupsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl tracking-wide text-slate-900">Group Chats</h1>
+          <h1 className="page-title">Group Chats</h1>
           <p className="mt-1 text-sm text-slate-500">
             {isTutor
               ? "The All-Tutors room, plus AlgeGroups you run with your students."

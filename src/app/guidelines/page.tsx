@@ -5,7 +5,7 @@ export const metadata = { title: "Community Guidelines — AlgeBridge" };
 export default function GuidelinesPage() {
   return (
     <article className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl tracking-wide text-slate-900">Community Guidelines</h1>
+      <h1 className="page-title">Community Guidelines</h1>
       <p className="mt-3 text-slate-700">
         Hey — welcome to the AlgeBridge community. 👋 We&apos;re students who built this because we
         remember exactly how it felt when Algebra 1 stopped making sense. This is a place to ask

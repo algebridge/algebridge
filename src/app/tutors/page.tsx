@@ -30,7 +30,7 @@ export default function TutorsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="font-display text-2xl tracking-wide text-slate-900">Find a Tutor</h1>
+        <h1 className="page-title">Find a Tutor</h1>
         <p className="mt-1 text-sm text-slate-500">
           Stuck on something? Message any tutor for help, or jump on a video call.
         </p>

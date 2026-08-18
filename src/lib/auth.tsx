@@ -13,6 +13,8 @@ import { getLeaderboardSnapshot } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
 import { getMyProfile, setMyRole } from "@/lib/teacher";
 import { claimRole, ensureAllTutorsMembership } from "@/lib/social";
+import { setDisplayName } from "@/lib/profile";
+import { checkFullName, isRealName } from "@/lib/name";
 import type { Profile, UserRole } from "@/types";
 
 interface AuthContextValue {
@@ -20,13 +22,25 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   configured: boolean;
-  signUp: (email: string, password: string, role?: UserRole, code?: string) => Promise<string | null>;
+  /**
+   * Signed in, but the account is still carrying an auto-generated name (older
+   * accounts got the email prefix). Practice is blocked until it's a real name.
+   */
+  needsRealName: boolean;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role?: UserRole,
+    code?: string
+  ) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
   syncProgress: () => Promise<void>;
   switchRole: (role: UserRole, code?: string) => Promise<string | null>;
   refreshProfile: (userId: string) => Promise<void>;
+  saveRealName: (fullName: string) => Promise<string | null>;
   deleteAccount: () => Promise<string | null>;
 }
 
@@ -119,13 +133,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  async function signUp(email: string, password: string, role: UserRole = "student", code?: string) {
+  async function signUp(
+    email: string,
+    password: string,
+    fullName: string,
+    role: UserRole = "student",
+    code?: string
+  ) {
     if (!configured) return "Cloud login is not configured yet. Progress is saved locally.";
     const supabase = createClient();
     if (!supabase) return "Cloud login is not configured yet. Progress is saved locally.";
-    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    // Every AlgeBridge account is identified by a real name, so validate it
+    // before creating the auth user — no half-made accounts.
+    const nameCheck = checkFullName(fullName);
+    if (!nameCheck.ok) return nameCheck.error;
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: nameCheck.formatted } },
+    });
     if (error) return error.message;
     if (!data.user) return "Sign-up succeeded, but no session was returned. Try signing in.";
+
+    // The signup trigger reads full_name from the auth metadata, but write it
+    // explicitly too so the name is right even on an older database schema.
+    await setDisplayName(nameCheck.formatted);
 
     // Upload local progress right away using the new user's id directly —
     // React's `user` state hasn't re-rendered yet at this point, so
@@ -140,11 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     const snapshot = getLeaderboardSnapshot(getProgress());
-    await syncLeaderboardStats(
-      data.user.id,
-      email.split("@")[0],
-      snapshot
-    );
+    await syncLeaderboardStats(data.user.id, nameCheck.formatted, snapshot);
 
     if (role !== "student") {
       // Teacher/tutor roles are gated by an access code (checked server-side
@@ -153,7 +183,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await claimRole(role, code);
       await refreshProfile(data.user.id);
       if (err) return err;
+    } else {
+      await refreshProfile(data.user.id);
     }
+    return null;
+  }
+
+  async function saveRealName(fullName: string): Promise<string | null> {
+    if (!user) return "You must be signed in.";
+    const err = await setDisplayName(fullName);
+    if (err) return err;
+    await refreshProfile(user.id);
     return null;
   }
 
@@ -227,9 +267,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return err;
   }
 
+  // A signed-in account whose stored name is still auto-generated (or was
+  // never loaded) can browse, but not practice, until it's a real name.
+  const needsRealName = !!user && !!profile && !isRealName(profile.displayName);
+
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, configured, signUp, signIn, signInWithGoogle, signOut, syncProgress, switchRole, refreshProfile, deleteAccount }}
+      value={{ user, profile, loading, configured, needsRealName, signUp, signIn, signInWithGoogle, signOut, syncProgress, switchRole, refreshProfile, saveRealName, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

@@ -406,7 +406,7 @@ export default function CallRoomPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Video Call</h1>
+        <h1 className="page-title">Video Call</h1>
         <p className="text-slate-600">Sign in to join the call.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>

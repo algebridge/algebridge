@@ -73,14 +73,36 @@ const VARIANT_CLASS: Record<NonNullable<Key["variant"]>, string> = {
   danger: "bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-semibold",
 };
 
+/** The launcher glyph: the four operations, which need no explaining. */
+function OperatorMark() {
+  return (
+    <span
+      aria-hidden
+      className="grid grid-cols-2 gap-x-1.5 gap-y-0.5 text-[15px] font-bold leading-none"
+    >
+      <span>+</span>
+      <span>−</span>
+      <span>×</span>
+      <span>÷</span>
+    </span>
+  );
+}
+
 export function Calculator() {
   const [open, setOpen] = useState(false);
+  /**
+   * Where the physical keyboard goes. The calculator only takes keystrokes
+   * after the student taps it — otherwise they'd be unable to type an answer
+   * (or backspace one) with the calculator sitting open beside the problem.
+   */
+  const [keypadActive, setKeypadActive] = useState(false);
   const [expr, setExpr] = useState("");
   const [history, setHistory] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // After "=", the next number press starts a fresh calculation.
   const replaceRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
 
   // Live preview of the current expression (grayed under the main line).
   let preview = "";
@@ -153,11 +175,42 @@ export function Calculator() {
     });
   }, [clearAll]);
 
-  // Keyboard support while the calculator is open.
+  // Tapping the calculator hands it the keyboard; touching anything else hands
+  // the keyboard back to the page (the answer box, usually).
+  useEffect(() => {
+    if (!open) return;
+    function isInsideCalculator(node: EventTarget | null): boolean {
+      if (!(node instanceof Node)) return false;
+      return !!panelRef.current?.contains(node) || !!launcherRef.current?.contains(node);
+    }
+    function onPointerDown(ev: PointerEvent) {
+      setKeypadActive(isInsideCalculator(ev.target));
+    }
+    // Covers Tab-ing into the answer box, and browsers that don't focus a
+    // <button> on tap (Safari), where pointerdown is the only signal.
+    function onFocusIn(ev: FocusEvent) {
+      setKeypadActive(isInsideCalculator(ev.target));
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("focusin", onFocusIn, true);
+    };
+  }, [open]);
+
+  // Keyboard support — only while the keypad holds the keyboard.
   useEffect(() => {
     if (!open) return;
     function onKey(ev: KeyboardEvent) {
       const k = ev.key;
+      if (k === "Escape") {
+        setOpen(false);
+        setKeypadActive(false);
+        return;
+      }
+      if (!keypadActive) return;
+
       const map: Record<string, Key | undefined> = {
         "*": KEYS.find((x) => x.label === "×"),
         x: KEYS.find((x) => x.label === "×"),
@@ -167,36 +220,40 @@ export function Calculator() {
         "=": KEYS.find((x) => x.action === "equals"),
         Backspace: KEYS.find((x) => x.action === "back"),
       };
-      if (k === "Escape") {
-        setOpen(false);
-        return;
-      }
-      if (/^[0-9]$/.test(k) || k === "." || k === "+" || k === "(" || k === ")" || k === "^") {
-        ev.preventDefault();
-        press({ label: k, variant: "num", aria: k });
-        return;
-      }
+
+      const direct =
+        /^[0-9]$/.test(k) || k === "." || k === "+" || k === "(" || k === ")" || k === "^";
       const mapped = map[k];
-      if (mapped) {
-        ev.preventDefault();
-        press(mapped);
-      }
+      if (!direct && !mapped) return;
+
+      // Capture phase + stopPropagation so the practice panel's own Enter and
+      // 1-9 shortcuts don't also fire off the same keystroke.
+      ev.preventDefault();
+      ev.stopPropagation();
+      press(direct ? { label: k, variant: "num", aria: k } : mapped!);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, press]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, keypadActive, press]);
 
   return (
     <>
       <button
+        ref={launcherRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => {
+            // Opening is itself a tap on the calculator, so it takes the keyboard.
+            setKeypadActive(!o);
+            return !o;
+          });
+        }}
         aria-label={open ? "Close calculator" : "Open calculator"}
         aria-expanded={open}
         title="Calculator"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-2xl text-white shadow-lg transition hover:scale-105 hover:bg-bridge-700 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2"
+        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition hover:scale-105 hover:bg-bridge-700 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2"
       >
-        {open ? "✕" : "🧮"}
+        {open ? <span className="text-2xl leading-none">✕</span> : <OperatorMark />}
       </button>
 
       {open && (
@@ -204,7 +261,9 @@ export function Calculator() {
           ref={panelRef}
           role="dialog"
           aria-label="Calculator"
-          className="animate-modal-in fixed bottom-24 right-5 z-50 w-[19rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"
+          className={`animate-modal-in fixed bottom-24 right-5 z-50 w-[19rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border bg-white p-3 shadow-2xl transition ${
+            keypadActive ? "border-bridge-400 ring-2 ring-bridge-200" : "border-slate-200"
+          }`}
         >
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -212,7 +271,10 @@ export function Calculator() {
             </span>
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setKeypadActive(false);
+              }}
               aria-label="Close calculator"
               className="rounded-md px-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
@@ -221,7 +283,7 @@ export function Calculator() {
           </div>
 
           {/* Display */}
-          <div className="mb-3 rounded-xl bg-slate-900 px-4 py-3 text-right">
+          <div className="mb-2 rounded-xl bg-slate-900 px-4 py-3 text-right">
             <div className="h-4 text-xs text-slate-500">{history ?? ""}</div>
             <div className="min-h-[2rem] break-all font-mono text-2xl font-semibold text-white">
               {expr || "0"}
@@ -230,6 +292,19 @@ export function Calculator() {
               {error ? <span className="text-red-400">{error}</span> : preview ? `= ${preview}` : ""}
             </div>
           </div>
+
+          {/* Who has the keyboard. Worth saying out loud — otherwise a student
+              types into the calculator and wonders why the answer box is empty. */}
+          <p
+            aria-live="polite"
+            className={`mb-2 px-1 text-[11px] leading-snug ${
+              keypadActive ? "text-bridge-700" : "text-slate-400"
+            }`}
+          >
+            {keypadActive
+              ? "Typing goes to the calculator. Click your answer box to type there."
+              : "Typing goes to your answer. Tap the keypad to use it."}
+          </p>
 
           {/* Keypad */}
           <div className="grid grid-cols-5 gap-1.5">

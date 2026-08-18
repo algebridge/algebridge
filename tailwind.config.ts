@@ -5,37 +5,43 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Monochrome brand ramp — matches the AlgeBridge logo (black on white).
+        // Primary brand ramp — the same blue the AlgeBridge marketing site
+        // (algebridge.org) uses, so the course platform and the public site
+        // read as one product.
         bridge: {
-          50: "#f7f7f7",
-          100: "#eeeeee",
-          200: "#dddddd",
-          300: "#bbbbbb",
-          400: "#888888",
-          500: "#555555",
-          600: "#2a2a2a",
-          700: "#1a1a1a",
-          800: "#101010",
-          900: "#050505",
-          950: "#000000",
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
+          700: "#1d4ed8",
+          800: "#1e40af",
+          900: "#1e3a8a",
+          950: "#172554",
         },
-        // Secondary accent — same monochrome family, used for small highlights/badges.
+        // Neutral support ramp for quiet surfaces and dividers.
         span: {
-          50: "#f7f7f7",
-          100: "#eeeeee",
-          200: "#dddddd",
-          300: "#bbbbbb",
-          400: "#888888",
-          500: "#000000",
-          600: "#000000",
-          700: "#000000",
-          800: "#000000",
-          900: "#000000",
+          50: "#f8fafc",
+          100: "#f1f5f9",
+          200: "#e2e8f0",
+          300: "#cbd5e1",
+          400: "#94a3b8",
+          500: "#64748b",
+          600: "#475569",
+          700: "#334155",
+          800: "#1e293b",
+          900: "#0f172a",
         },
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        panel: "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)",
+        raised: "0 4px 12px -2px rgb(15 23 42 / 0.10), 0 2px 4px -2px rgb(15 23 42 / 0.06)",
       },
     },
   },
