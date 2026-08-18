@@ -533,7 +533,7 @@ export default function CallRoomPage() {
               </button>
             </div>
             {captions && (
-              <div className="max-h-32 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+              <div data-lenis-prevent className="max-h-32 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
                 {transcriptView.length === 0 ? (
                   <p className="text-slate-400">Listening… speak and your words appear here.</p>
                 ) : (

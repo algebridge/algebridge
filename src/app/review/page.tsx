@@ -73,7 +73,7 @@ function ReviewQueue() {
           <li key={item.skillId}>
             <Link
               href={`/learn/${item.unitId}/${item.skillId}`}
-              className="group flex items-center gap-4 px-5 py-3.5 transition hover:bg-slate-50"
+              className="group flex items-center gap-4 px-5 py-3.5 transition duration-150 ease-out hover:translate-x-1 hover:bg-slate-50"
             >
               <div className="min-w-0 flex-1">
                 <h3 className="truncate font-medium text-slate-900 group-hover:text-bridge-700">

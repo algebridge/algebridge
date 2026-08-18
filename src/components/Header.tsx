@@ -72,7 +72,7 @@ export function Header() {
             <Link
               href="/achievements"
               title={`Level ${stats.level}: ${stats.levelTitle}`}
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 transition hover:border-bridge-300 hover:bg-bridge-50"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 transition duration-150 ease-out hover:scale-105 hover:border-bridge-300 hover:bg-bridge-50"
             >
               <span className="text-xs font-semibold text-slate-700">Level {stats.level}</span>
               <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-200">
@@ -95,7 +95,7 @@ export function Header() {
             <Link
               href="/house"
               title="Bridgeys"
-              className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+              className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition duration-150 ease-out hover:scale-105 hover:bg-amber-100"
             >
               <BridgeysLogo size={16} />
               {stats.bridgeys.toLocaleString()}
@@ -250,7 +250,7 @@ export function Header() {
 
       {/* Mobile / tablet nav sheet */}
       {menuOpen && (
-        <div className="max-h-[70vh] overflow-y-auto border-t border-slate-200 bg-white lg:hidden">
+        <div data-lenis-prevent className="max-h-[70vh] overflow-y-auto border-t border-slate-200 bg-white lg:hidden">
           <nav className="px-3 py-3">
             {sections.map((section) => (
               <div key={section.title} className="mb-4 last:mb-0">

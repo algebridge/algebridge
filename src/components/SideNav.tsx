@@ -26,7 +26,7 @@ export function SideNav() {
         <span className="font-display text-lg tracking-wide text-slate-900">AlgeBridge</span>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav data-lenis-prevent className="flex-1 overflow-y-auto px-3 py-4">
         {sections.map((section) => (
           <NavGroup key={section.title} section={section} pathname={pathname} />
         ))}
@@ -61,7 +61,7 @@ function NavGroup({ section, pathname }: { section: NavSection; pathname: string
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition duration-150 ease-out hover:translate-x-0.5 ${
                   active
                     ? "bg-bridge-50 text-bridge-700"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"

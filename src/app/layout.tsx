@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { SideNav } from "@/components/SideNav";
 import { AppNavProvider } from "@/components/AppNavProvider";
+import { SmoothScroll } from "@/components/SmoothScroll";
 import { LoginBanner } from "@/components/LoginBanner";
 import { AppInit } from "@/components/AppInit";
 import { AuthProvider } from "@/lib/auth";
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-slate-50 font-body">
         <AuthProvider>
           <AppNavProvider>
+            <SmoothScroll />
             <AppInit />
             <IncomingCall />
             <SideNav />

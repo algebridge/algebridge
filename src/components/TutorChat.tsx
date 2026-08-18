@@ -64,6 +64,7 @@ export function TutorChat({ skill }: { skill: Skill }) {
         <div className="border-t border-slate-100 p-4">
           <div
             ref={scrollRef}
+            data-lenis-prevent
             className="max-h-80 space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-3"
             aria-live="polite"
           >
