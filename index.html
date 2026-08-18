@@ -779,8 +779,13 @@ img{display:block;max-width:100%;}
        no further progress event is guaranteed, so the buffered check
        would never be re-run and the hero would stay on the loop.
        Poll until it is safe to scrub, then stop. */
-    pollId = setInterval(tryEnableScrub, 400);
-    setTimeout(function(){ if (pollId){ clearInterval(pollId); pollId = 0; } }, 30000);
+    pollId = setInterval(tryEnableScrub, 500);
+    setTimeout(function(){ if (pollId){ clearInterval(pollId); pollId = 0; } }, 300000);
+
+    /* Opening the page in a background tab is common, and browsers both
+       throttle timers and deprioritise media loading while hidden, so the
+       clip often finishes buffering only once the tab is looked at. */
+    document.addEventListener('visibilitychange', tryEnableScrub);
 
     /* copy fades out as the runway is consumed, the cue goes first */
     function paintCopy(){
