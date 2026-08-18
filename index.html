@@ -709,6 +709,7 @@ img{display:block;max-width:100%;}
     var ctx = cv.getContext('2d');
     var scrubbing = false;
     var wantFrame = false;
+    var pollId    = 0;
 
     /* keep the video playing for the fallback presentation */
     var kick = vid.play();
@@ -750,6 +751,7 @@ img{display:block;max-width:100%;}
       if (scrubbing || reduce) return;
       if (window.innerWidth < 861) return;          /* phones keep the loop */
       if (!fullyBuffered()) return;
+      if (pollId){ clearInterval(pollId); pollId = 0; }
       scrubbing = true;
       vid.pause();
       vid.loop = false;
@@ -766,9 +768,19 @@ img{display:block;max-width:100%;}
     }
 
     vid.addEventListener('seeked', paint);
-    vid.addEventListener('loadeddata', function(){ tryEnableScrub(); });
+    vid.addEventListener('loadeddata', tryEnableScrub);
+    vid.addEventListener('canplay', tryEnableScrub);
     vid.addEventListener('canplaythrough', tryEnableScrub);
     vid.addEventListener('progress', tryEnableScrub);
+    vid.addEventListener('suspend', tryEnableScrub);
+
+    /* Events alone are not enough over a real network: canplaythrough
+       fires while the file is still downloading, and once it finishes
+       no further progress event is guaranteed, so the buffered check
+       would never be re-run and the hero would stay on the loop.
+       Poll until it is safe to scrub, then stop. */
+    pollId = setInterval(tryEnableScrub, 400);
+    setTimeout(function(){ if (pollId){ clearInterval(pollId); pollId = 0; } }, 30000);
 
     /* copy fades out as the runway is consumed, the cue goes first */
     function paintCopy(){
