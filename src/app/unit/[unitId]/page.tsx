@@ -25,22 +25,16 @@ export default async function UnitPage({
         <span className="text-slate-800">Unit {unit.number}</span>
       </nav>
 
-      <header className="flex items-start gap-4">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-bridge-100 text-3xl">
-          {unit.icon}
-        </span>
-        <div>
-          <h1 className="font-display text-2xl tracking-wide text-slate-900 sm:text-3xl">{unit.title}</h1>
-          <p className="mt-2 text-slate-600">{unit.description}</p>
-        </div>
+      <header>
+        <p className="eyebrow">Unit {unit.number} of {units.length}</p>
+        <h1 className="page-title mt-1">{unit.title}</h1>
+        <p className="page-subtitle">{unit.description}</p>
       </header>
 
       <UnitProgressHeader unit={unit} />
 
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Skills in this unit
-        </h2>
+        <h2 className="eyebrow">Skills in this unit</h2>
         {unit.skills.map((skill, index) => (
           <SkillListItem
             key={skill.id}

@@ -5,57 +5,43 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { dismissLoginPrompt, getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
+/**
+ * One-line reminder for signed-out visitors that lessons are open but practice
+ * needs a free account. Disappears for good once dismissed or signed in.
+ */
 export function LoginBanner() {
-  const { user } = useAuth();
-  const [visible, setVisible] = useState(false);
+  const { user, configured, loading } = useAuth();
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
     function refresh() {
-      const progress = getProgress();
-      const hasActivity = Object.keys(progress.skills).length > 0;
-      setVisible(hasActivity && !progress.loginPromptDismissed);
+      setDismissed(getProgress().loginPromptDismissed);
     }
     refresh();
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
   }, []);
 
-  // Once signed in, there's nothing to prompt — never show the "create a free
-  // account" banner to an authenticated user.
-  if (user || !visible) return null;
+  if (user || loading || !configured || dismissed) return null;
 
   function handleDismiss() {
     dismissLoginPrompt();
-    setVisible(false);
+    setDismissed(true);
   }
 
   return (
-    <div className="border-b border-span-200 bg-gradient-to-r from-span-50 to-bridge-50">
-      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-6">
-        <div className="flex items-start gap-3">
-          <span className="text-xl" aria-hidden>
-            💾
-          </span>
-          <div>
-            <p className="font-semibold text-slate-800">
-              Your progress is saved on this device
-            </p>
-            <p className="text-sm text-slate-600">
-              Create a free account to sync across devices and never lose your
-              bridge progress.
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Link href="/login" className="btn-primary text-sm">
-            Create Free Account
+    <div className="border-b border-bridge-100 bg-bridge-50">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+        <p className="text-sm text-slate-700">
+          <span className="font-semibold text-slate-900">Lessons are free to watch.</span>{" "}
+          Create a free account to practice, track your skills, and join your class.
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/login" className="btn-primary btn-sm">
+            Create free account
           </Link>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="btn-secondary text-sm"
-          >
-            Maybe later
+          <button type="button" onClick={handleDismiss} className="btn-ghost btn-sm">
+            Not now
           </button>
         </div>
       </div>

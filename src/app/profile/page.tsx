@@ -30,7 +30,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Your Profile</h1>
+        <h1 className="page-title">Your Profile</h1>
         <p className="text-slate-600">Sign in to set up your profile and photo.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>
@@ -67,7 +67,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="font-display text-2xl tracking-wide text-slate-900">Your Profile</h1>
+        <h1 className="page-title">Your Profile</h1>
         <p className="mt-1 text-sm text-slate-500">
           {isTutor
             ? "Students see this on the Tutors page — add a friendly photo and bio."

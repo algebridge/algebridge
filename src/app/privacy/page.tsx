@@ -5,7 +5,7 @@ export const metadata = { title: "Privacy Policy — AlgeBridge" };
 export default function PrivacyPage() {
   return (
     <article className="prose-slate mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl tracking-wide text-slate-900">Privacy Policy</h1>
+      <h1 className="page-title">Privacy Policy</h1>
       <p className="mt-1 text-sm text-slate-500">Last updated: July 2026</p>
 
       <div className="mt-6 space-y-6 text-slate-700">

@@ -2,116 +2,73 @@
 
 import Link from "next/link";
 import { useProgress } from "@/hooks/useProgress";
-import { units } from "@/data/curriculum";
-import { getUnitCompletion } from "@/lib/progress";
-import { ProgressBar } from "./ProgressBar";
+import { useAuth } from "@/lib/auth";
 
+/**
+ * Level / XP summary. The course header above already carries the headline
+ * numbers and the unit cards carry per-unit progress, so this panel only shows
+ * what neither of them does.
+ */
 export function ProgressOverview() {
   const { stats, mounted } = useProgress();
+  const { user, configured } = useAuth();
+
+  if (configured && !user) return null;
+  if (!mounted) return null;
+
+  const levelPercent =
+    stats.xpForNextLevel > 0
+      ? Math.min(100, Math.round((stats.xpIntoLevel / stats.xpForNextLevel) * 100))
+      : 0;
 
   return (
-    <section id="progress" className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Your Progress</h2>
-        <p className="mt-1 text-slate-600">
-          Complete each skill by watching the video and answering at least 3
-          practice problems with 80%+ correct on your recent tries.
-        </p>
+    <section id="progress" className="panel">
+      <div className="panel-head">
+        <p className="panel-title">Your progress</p>
+        <Link href="/achievements" className="text-xs font-medium text-bridge-700 hover:underline">
+          All achievements →
+        </Link>
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="card text-center">
-          <p className="text-3xl font-bold text-bridge-700">
-            {stats.completedSkills}/{stats.totalSkills}
-          </p>
-          <p className="mt-1 text-sm text-slate-600">Skills complete</p>
-        </div>
-        <div className="card text-center">
-          <p className="text-3xl font-bold text-bridge-700">
-            {stats.unitsComplete}/{stats.totalUnits}
-          </p>
-          <p className="mt-1 text-sm text-slate-600">Units complete</p>
-        </div>
-        <div className="card text-center">
-          <p className="text-3xl font-bold text-bridge-700">{stats.problemsSolved}</p>
-          <p className="mt-1 text-sm text-slate-600">Problems solved</p>
-        </div>
-      </div>
-
-      <Link
-        href="/achievements"
-        className="card flex items-center gap-4 hover:border-bridge-300"
-      >
-        <span className="text-3xl">⭐</span>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-slate-900">
-            Level {stats.level}: {stats.levelTitle}
-          </p>
-          <div className="mt-1.5">
-            <ProgressBar
-              value={stats.xpIntoLevel}
-              max={stats.xpForNextLevel}
-              showFraction={false}
-              size="sm"
-            />
+      <div className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              Level {stats.level} · {stats.levelTitle}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {stats.xpForNextLevel > 0
+                ? `${stats.xpIntoLevel} / ${stats.xpForNextLevel} XP to the next level`
+                : `${stats.xp} XP earned`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {stats.streak > 0 && (
+              <span className="badge bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-100">
+                🔥 {stats.streak}-day streak
+              </span>
+            )}
+            <span className="badge-neutral">
+              {stats.badgeCount} badge{stats.badgeCount === 1 ? "" : "s"}
+            </span>
+            <span className="badge-neutral">
+              {stats.unitsComplete}/{stats.totalUnits} units
+            </span>
           </div>
         </div>
-        {stats.streak > 0 && (
-          <span className="shrink-0 rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-orange-700">
-            🔥 {stats.streak}
-          </span>
-        )}
-        <span className="shrink-0 rounded-full bg-bridge-50 px-3 py-1 text-sm font-bold text-bridge-700">
-          🏆 {stats.badgeCount}
-        </span>
-      </Link>
 
-      <div className="card">
-        <ProgressBar
-          value={stats.completedSkills}
-          max={stats.totalSkills}
-          label="Course completion"
-        />
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-bridge-600 transition-all duration-500"
+            style={{ width: `${levelPercent}%` }}
+          />
+        </div>
+
         {stats.inProgressSkills > 0 && (
           <p className="mt-3 text-sm text-amber-700">
-            ◐ {stats.inProgressSkills} skill{stats.inProgressSkills !== 1 ? "s" : ""} in
-            progress — finish them to move forward!
+            {stats.inProgressSkills} skill{stats.inProgressSkills !== 1 ? "s" : ""} started but not
+            finished — a few more problems each and they&apos;re done.
           </p>
         )}
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-700">Unit breakdown</h3>
-        {units.map((unit) => {
-          const { completed, total } = mounted
-            ? getUnitCompletion(unit.skills.map((s) => s.id))
-            : { completed: 0, total: unit.skills.length };
-          return (
-            <Link
-              key={unit.id}
-              href={`/unit/${unit.id}`}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition hover:border-bridge-300 hover:shadow-sm"
-            >
-              <span className="text-xl">{unit.icon}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">
-                  Unit {unit.number}: {unit.title}
-                </p>
-                <div className="mt-1.5">
-                  <ProgressBar
-                    value={completed}
-                    max={total}
-                    showFraction={false}
-                    size="sm"
-                  />
-                </div>
-              </div>
-              <span className="shrink-0 text-xs font-medium text-slate-500">
-                {completed}/{total}
-              </span>
-            </Link>
-          );
-        })}
       </div>
     </section>
   );

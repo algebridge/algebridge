@@ -64,7 +64,7 @@ export default function LeaderboardPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-3xl tracking-wide text-slate-900">🏆 Nationwide Leaderboard</h1>
+        <h1 className="page-title">Nationwide leaderboard</h1>
         <p className="mt-2 max-w-2xl text-slate-600">
           Compete with AlgeBridge students across the country! Rankings update when you sign in and
           sync your progress.

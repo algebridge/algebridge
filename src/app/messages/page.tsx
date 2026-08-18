@@ -30,7 +30,7 @@ export default function MessagesPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
-        <h1 className="font-display text-2xl text-slate-900">Messages</h1>
+        <h1 className="page-title">Messages</h1>
         <p className="text-slate-600">Sign in to message tutors and classmates.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>
@@ -42,7 +42,7 @@ export default function MessagesPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl tracking-wide text-slate-900">Messages</h1>
+        <h1 className="page-title">Messages</h1>
         <Link href={isTutor ? "/tutor-hub" : "/tutors"} className="btn-secondary text-sm">
           {isTutor ? "👩‍🏫 All students" : "🔎 Find a tutor"}
         </Link>

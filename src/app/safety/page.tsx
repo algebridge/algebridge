@@ -5,7 +5,7 @@ export const metadata = { title: "Safety & Trust — AlgeBridge" };
 export default function SafetyPage() {
   return (
     <article className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl tracking-wide text-slate-900">Safety &amp; Trust</h1>
+      <h1 className="page-title">Safety &amp; Trust</h1>
       <p className="mt-2 text-slate-600">
         AlgeBridge connects students with real tutors, so we take safety seriously.
         Here&apos;s how we keep the platform trustworthy.
