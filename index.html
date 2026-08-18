@@ -3,541 +3,811 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Algebridge</title>
+<title>Algebridge | Free Algebra 1 for every student</title>
+<meta name="description" content="Algebridge is a student-led initiative making Algebra 1 learnable for every student. A free practice platform, a 173-topic directory, and real people to help when you get stuck.">
 <link rel="icon" type="image/png" href="algebridge logo icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
+/* ══════════════════════════════════════════════════════════════
+   ALGEBRIDGE
+   Structure and typographic system modelled on scale.com:
+   near-monochrome, large low-weight display type, tight tracking,
+   mono eyebrow labels, 8px radii, scroll-revealed statements.
+   Brand blue #2563eb takes the place of Scale's bronze accent.
+   ══════════════════════════════════════════════════════════════ */
+
+:root{
+  --black:#000;
+  --white:#fff;
+  --stage:#eaeaea;        /* light section panel */
+  --muted:#929292;        /* secondary text */
+  --line:#c7c7c7;         /* hairline border */
+  --line-dark:#242424;    /* hairline on black */
+  --label:#575757;        /* footer label */
+  --accent:#2563eb;       /* Algebridge blue */
+  --max:1472px;
+  --pad:24px;
+}
+
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',sans-serif;background:#fff;color:#111;line-height:1.6;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,Arial,sans-serif;
+  background:var(--white);
+  color:var(--black);
+  font-size:16px;line-height:1.5;letter-spacing:-0.01em;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+img{display:block;max-width:100%;}
 
-/* ── NAV ── */
-nav{background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:100;padding:1.1rem 3rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
-.logo{display:flex;align-items:center;gap:0.6rem;flex-shrink:0;}
-.logo-img{width:44px;height:44px;object-fit:contain;display:block;}
-.logo-name{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:600;color:#111;}
-.nav-links{display:flex;gap:2.2rem;flex-wrap:wrap;}
-.nav-links a{text-decoration:none;color:#374151;font-size:0.9rem;font-weight:500;cursor:pointer;position:relative;padding-bottom:2px;white-space:nowrap;}
-.nav-links a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:#1d4ed8;transition:width .2s;}
+.wrap{max-width:var(--max);margin:0 auto;width:100%;padding-left:var(--pad);padding-right:var(--pad);}
+
+/* ── Typography scale ───────────────────────────────────────── */
+.display{font-size:clamp(2.75rem,7.6vw,7.25rem);font-weight:400;line-height:1;letter-spacing:-0.01em;}
+.h2{font-size:clamp(2rem,5vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.01em;}
+.h3{font-size:clamp(1.25rem,1.9vw,1.5rem);font-weight:500;line-height:1.5;letter-spacing:-0.01em;}
+.label{
+  font-family:'JetBrains Mono',ui-monospace,monospace;
+  font-size:0.6875rem;line-height:1.5;letter-spacing:-0.01em;
+  text-transform:uppercase;color:var(--muted);
+}
+.lede{font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.6;color:var(--muted);}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:.6875rem 1.125rem;border-radius:8px;font-size:.9375rem;font-weight:400;
+  transition:background .18s ease,color .18s ease,border-color .18s ease,opacity .18s ease;white-space:nowrap;}
+.btn-solid{background:var(--black);color:var(--white);}
+.btn-solid:hover{background:#1f1f1f;}
+.btn-ghost{border:1px solid var(--line);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--black);color:var(--black);}
+.btn-invert{background:var(--white);color:var(--black);border-radius:6px;}
+.btn-invert:hover{opacity:.86;}
+.btn-lg{padding:.9375rem 1.75rem;font-size:1rem;}
+
+/* ── Announcement bar ───────────────────────────────────────── */
+.announce{background:var(--black);color:var(--white);position:relative;}
+.announce.hidden{display:none;}
+.announce-inner{display:flex;align-items:center;justify-content:center;gap:.5rem;
+  min-height:39px;padding:.5rem 3rem;font-size:.8125rem;text-align:center;flex-wrap:wrap;}
+.announce-inner .mark{flex-shrink:0;opacity:.9;}
+.announce a{text-decoration:underline;text-underline-offset:3px;text-decoration-color:#555;}
+.announce a:hover{text-decoration-color:#fff;}
+.announce-x{position:absolute;right:1rem;top:50%;transform:translateY(-50%);
+  color:#8a8a8a;font-size:1rem;line-height:1;padding:.35rem;}
+.announce-x:hover{color:#fff;}
+
+/* ── Nav ────────────────────────────────────────────────────── */
+.nav{position:sticky;top:0;z-index:80;background:rgba(255,255,255,.92);
+  backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:2rem;height:64px;}
+.brand{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
+.brand img{width:26px;height:26px;object-fit:contain;}
+.brand span{font-size:1.125rem;font-weight:500;letter-spacing:-0.03em;}
+.nav-links{display:flex;align-items:center;gap:1.75rem;font-size:.9375rem;color:#3a3a3a;}
+.nav-links a{position:relative;padding:.25rem 0;}
+.nav-links a::after{content:'';position:absolute;left:0;bottom:0;height:1px;width:0;background:currentColor;transition:width .22s ease;}
+.nav-links a:hover{color:var(--black);}
 .nav-links a:hover::after{width:100%;}
-.nav-cta{padding:0.6rem 1.5rem;background:#111;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.nav-actions{display:flex;align-items:center;gap:.625rem;flex-shrink:0;}
+.nav-actions .btn-ghost{padding:.5rem 1rem;font-size:.875rem;}
+.nav-actions .btn-solid{padding:.5625rem 1.125rem;font-size:.875rem;}
 
-/* Hamburger */
-.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;background:none;border:none;}
-.hamburger span{display:block;width:24px;height:2px;background:#111;border-radius:2px;transition:all .25s;}
-.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
-.hamburger.open span:nth-child(2){opacity:0;}
-.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
-.mobile-menu{display:none;flex-direction:column;background:#fff;border-top:1px solid #e5e7eb;padding:1.2rem 2rem 1.5rem;gap:1.1rem;}
-.mobile-menu a{text-decoration:none;color:#374151;font-size:1rem;font-weight:500;cursor:pointer;}
-.mobile-menu .mobile-cta{padding:0.75rem 1.5rem;background:#111;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.9rem;cursor:pointer;text-align:center;margin-top:0.5rem;}
-.mobile-menu.open{display:flex;}
+.burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:34px;height:34px;}
+.burger i{display:block;height:1.5px;width:19px;background:var(--black);transition:transform .25s ease,opacity .2s ease;}
+.burger.open i:nth-child(1){transform:translateY(6.5px) rotate(45deg);}
+.burger.open i:nth-child(2){opacity:0;}
+.burger.open i:nth-child(3){transform:translateY(-6.5px) rotate(-45deg);}
+.sheet{position:fixed;inset:64px 0 0;background:var(--black);color:var(--white);z-index:70;
+  padding:2.5rem var(--pad);display:none;flex-direction:column;gap:.25rem;overflow-y:auto;}
+.sheet.open{display:flex;}
+.sheet a{font-size:2rem;font-weight:400;letter-spacing:-0.02em;padding:.75rem 0;border-bottom:1px solid var(--line-dark);}
+.sheet .sheet-cta{margin-top:2rem;display:flex;flex-direction:column;gap:.75rem;}
+.sheet .sheet-cta a{font-size:1rem;border:none;text-align:center;padding:.9375rem 1.5rem;border-radius:8px;}
+.sheet .sheet-cta .a{background:var(--white);color:var(--black);}
+.sheet .sheet-cta .b{border:1px solid #3a3a3a;color:var(--white);}
 
-/* ── HERO ── */
-.hero{background:#0a0a0a;color:#fff;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:0;position:relative;overflow:hidden;}
-.hero-left{padding:4rem 3rem;z-index:2;}
-.hero-pill{display:inline-flex;align-items:center;gap:0.5rem;padding:0.3rem 1rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:9999px;font-size:0.72rem;letter-spacing:0.12em;margin-bottom:1.8rem;}
-.hero-dot{width:7px;height:7px;background:#2563eb;border-radius:50%;display:inline-block;flex-shrink:0;}
-.hero h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(2.4rem,5vw,4.2rem);font-weight:700;line-height:1.02;letter-spacing:-0.03em;margin-bottom:1.4rem;}
-.hero p{font-size:clamp(0.95rem,2vw,1.1rem);color:#9ca3af;max-width:380px;margin-bottom:2rem;}
-.hero-btns{display:flex;gap:1rem;flex-wrap:wrap;}
-.btn-primary{padding:0.9rem 1.8rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.95rem;cursor:pointer;}
-.btn-outline{padding:0.9rem 1.8rem;background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.45);border-radius:9999px;font-weight:500;font-size:0.95rem;cursor:pointer;}
-.hero-right{height:100vh;position:relative;}
-.hero-right img{width:100%;height:100%;object-fit:cover;opacity:0.45;display:block;}
-.hero-right::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,#0a0a0a 0%,transparent 40%);}
-.scroll-hint{position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);text-align:center;color:rgba(255,255,255,0.35);font-size:0.65rem;letter-spacing:0.18em;z-index:3;white-space:nowrap;}
+/* ── Hero ───────────────────────────────────────────────────────
+   Scale's model: a tall scroll runway with a pinned stage, and the
+   footage scrubbed frame-by-frame onto a canvas by scroll position.
+   The runway height is set in CSS (not by JS) so layout never shifts
+   when the scrubber turns itself on or falls back to a plain loop.  */
+.hero{position:relative;background:var(--black);color:var(--white);
+  min-height:min(88vh,860px);}
+.hero-stage{position:relative;height:min(88vh,860px);overflow:hidden;isolation:isolate;
+  display:flex;flex-direction:column;justify-content:center;background:var(--black);}
+/* graded so the footage reads as texture behind the words, never as the
+   subject: the raw clip is bright paper and would fight the headline */
+.hero-video,.hero-canvas{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;z-index:0;display:block;
+  filter:saturate(.72) brightness(.58) contrast(1.08);}
+.hero-canvas{display:none;}
+.hero-stage.scrub .hero-canvas{display:block;}
+.hero-stage.scrub .hero-video{visibility:hidden;}
+/* faint coordinate grid tying the footage to the subject */
+.hero-grid{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  background-size:68px 68px;}
+.hero-veil{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(125% 95% at 50% 46%,rgba(0,0,0,.30) 0%,rgba(0,0,0,.66) 55%,rgba(0,0,0,.90) 100%),
+             linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.10) 34%,rgba(0,0,0,.62) 100%);}
+.hero-inner{position:relative;z-index:3;width:100%;text-align:center;
+  will-change:opacity,transform;}
+.hero h1{max-width:15ch;margin:0 auto;}
+.hero-sub{margin:2rem auto 0;max-width:44ch;color:rgba(255,255,255,.72);font-size:clamp(.9375rem,1.4vw,1.0625rem);}
+.hero-cta{margin-top:2.5rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;}
+.hero-cta .btn-line{border:1px solid rgba(255,255,255,.28);color:#fff;}
+.hero-cta .btn-line:hover{border-color:#fff;background:rgba(255,255,255,.06);}
+.scroll-cue{position:absolute;right:var(--pad);bottom:1.75rem;z-index:4;
+  display:flex;align-items:center;gap:.75rem;color:rgba(255,255,255,.62);font-size:.8125rem;
+  will-change:opacity;}
+.scroll-cue .ring{width:30px;height:30px;border:1px solid rgba(255,255,255,.35);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;}
+.scroll-cue .ring svg{animation:nudge 2.2s ease-in-out infinite;}
+@keyframes nudge{0%,100%{transform:translateY(-2px);}50%{transform:translateY(2px);}}
 
-/* ── TAGLINE BAND ── */
-.tagline-band{background:#2563eb;color:#fff;padding:1.2rem 2rem;text-align:center;}
-.tagline-band p{font-size:clamp(0.9rem,2vw,1.05rem);font-weight:500;font-family:'Space Grotesk',sans-serif;letter-spacing:0.01em;}
+/* Desktop gets the runway + pin. Narrow screens keep a single-screen
+   hero with the clip simply looping, which is what phones can afford. */
+@media(min-width:861px){
+  .hero{height:260vh;min-height:0;}
+  .hero-stage{position:sticky;top:0;height:100vh;}
+}
 
-/* ── SECTIONS ── */
-.section{max-width:1200px;margin:0 auto;padding:6rem 2rem;}
-.chapter-label{font-size:0.72rem;font-weight:600;letter-spacing:0.16em;color:#2563eb;display:block;margin-bottom:1.2rem;}
-.section-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(1.9rem,4vw,2.8rem);font-weight:700;line-height:1.08;letter-spacing:-0.02em;position:relative;display:inline-block;}
-.section-title::after{content:'';position:absolute;bottom:-8px;left:0;width:44px;height:4px;background:#2563eb;border-radius:9999px;}
-.section-2col{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;}
-.body-text{font-size:1.05rem;color:#4b5563;line-height:1.8;}
-.body-text p+p{margin-top:1rem;}
+/* ── Scroll-revealed statement ──────────────────────────────── */
+.statement{background:var(--black);color:var(--white);padding:11rem 0;}
+.statement p{font-size:clamp(1.75rem,4.4vw,3.5rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
+.statement .w{color:rgba(255,255,255,.17);transition:color .35s ease;}
+.statement .w.lit{color:var(--white);}
+.statement .w.accent.lit{color:var(--accent);}
 
-/* ── DARK SECTION ── */
-.dark-section{background:#0a0a0a;color:#fff;padding:6rem 0;}
-.dark-section .section{padding-top:0;padding-bottom:0;}
-.dark-section .chapter-label{color:#93c5fd;}
-.dark-section .section-title{color:#fff;}
-.dark-section .section-title::after{background:#2563eb;}
-.dark-section .body-text{color:#9ca3af;}
+/* ── Curriculum stage ───────────────────────────────────────── */
+.stage{background:var(--stage);padding:7rem 0;}
+.stage-words{display:flex;flex-wrap:wrap;gap:.35em 1.15em;align-items:baseline;justify-content:center;
+  font-size:clamp(1.5rem,4vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.01em;max-width:1100px;margin:0 auto;}
+.stage-words span{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;}
+.stage-words span.in{opacity:1;transform:none;}
+.stage-words .dim{color:#8d8d8d;}
+.stage-words .hot{color:var(--accent);}
+.stage-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
+.stage-foot{margin-top:4rem;display:flex;justify-content:center;}
 
-/* ── WHY CARDS ── */
-.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
-.why-card{border:1px solid #e5e7eb;border-radius:1.25rem;overflow:hidden;}
-.why-card-img{height:200px;width:100%;object-fit:cover;display:block;filter:grayscale(20%);}
-.why-card-body{padding:1.5rem;}
-.why-card-body h3{font-family:'Space Grotesk',sans-serif;font-size:1.2rem;font-weight:600;margin-bottom:0.5rem;}
-.why-card-body p{font-size:0.9rem;color:#6b7280;line-height:1.65;}
-.why-card-accent{width:32px;height:3px;background:#2563eb;border-radius:9999px;margin-bottom:1rem;}
+/* ── Marquee ────────────────────────────────────────────────── */
+.marquee-sec{padding:6rem 0;overflow:hidden;border-bottom:1px solid #ededed;}
+.marquee-head{margin-bottom:3.5rem;}
+.marquee{display:flex;width:max-content;gap:0;}
+.marquee.run{animation:slide 64s linear infinite;}
+.marquee.rev{animation-direction:reverse;}
+.marquee-row{overflow:hidden;}
+.marquee-row + .marquee-row{border-top:1px solid #ededed;}
+.marquee-sec:hover .marquee.run{animation-play-state:paused;}
+@keyframes slide{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.mcard{width:340px;flex-shrink:0;padding:3rem 2rem 3rem 0;margin-right:2rem;border-right:1px solid #ededed;}
+.mcard h3{margin-bottom:1.25rem;min-height:5.5em;}
+.mcard .label{display:block;}
 
-/* ── WORK ── */
-.work-section{background:#f9fafb;padding:6rem 0;}
-.work-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem;}
-.work-card{background:#fff;border:1px solid #e5e7eb;border-radius:1.25rem;overflow:hidden;transition:transform .2s;}
-.work-card:hover{transform:translateY(-6px);}
-.work-card img{width:100%;height:220px;object-fit:cover;display:block;filter:grayscale(15%);}
-.work-card-body{padding:1.5rem;}
-.work-card-body h4{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;}
-.work-card-body p{font-size:0.875rem;color:#6b7280;line-height:1.65;}
+/* ── Card grid ──────────────────────────────────────────────── */
+.grid-sec{padding:6rem 0;}
+/* the ch constraint must sit on the display element itself: on a 16px
+   wrapper it resolves ~8px per ch and shreds the 64px headline */
+.grid-head{margin-bottom:3.5rem;}
+.grid-head .h2{max-width:20ch;}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ededed;border:1px solid #ededed;}
+.card{background:var(--white);padding:2.5rem 2rem;display:flex;flex-direction:column;min-height:26rem;
+  transition:background .25s ease;}
+.card:hover{background:#fafafa;}
+.card .label{margin-bottom:auto;}
+.card h3{font-size:clamp(1.5rem,2.4vw,2rem);font-weight:400;line-height:1.15;letter-spacing:-0.015em;margin:3.5rem 0 1.25rem;}
+.card p{color:var(--muted);font-size:.9375rem;line-height:1.65;}
+.card .more{margin-top:1.75rem;display:inline-flex;align-items:center;gap:.5rem;font-size:.9375rem;}
+.card .more svg{transition:transform .2s ease;}
+.card:hover .more svg{transform:translateX(3px);}
 
-/* ── TEAM ── */
-.join-section{background:#f0f6ff;padding:6rem 0;}
-.join-inner{max-width:1200px;margin:0 auto;padding:0 2rem;text-align:center;}
-.join-label{font-size:0.72rem;font-weight:600;letter-spacing:0.16em;color:#2563eb;display:block;margin-bottom:1.2rem;}
-.join-heading{font-family:'Space Grotesk',sans-serif;font-size:clamp(1.8rem,4vw,2.5rem);font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:#111;margin-bottom:2.5rem;}
-.team-row{display:grid;grid-template-columns:repeat(7,1fr);gap:1rem;align-items:start;margin-bottom:2.5rem;}
-.team-card{text-align:center;padding:0.5rem 0.25rem;}
-.team-avatar{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;object-fit:cover;object-position:center 20%;margin:0 auto 0.85rem;display:block;background:#e5e7eb;}
-.team-avatar-placeholder{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;margin:0 auto 0.85rem;display:flex;align-items:center;justify-content:center;background:#e8eef9;border:1.5px dashed #93c5fd;color:#93c5fd;font-size:1.6rem;font-weight:300;}
-.team-card h4{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.92rem;margin-bottom:0.15rem;color:#111;}
-.team-card .role{font-size:0.75rem;color:#2563eb;font-weight:500;margin-bottom:0.4rem;}
-.team-card .bio{font-size:0.72rem;color:#6b7280;line-height:1.55;max-width:140px;margin:0 auto;}
-.team-card.founder{padding-top:0;}
-.team-card.founder .team-avatar{max-width:140px;border:2px solid #2563eb;box-shadow:0 4px 20px rgba(37,99,235,0.18);}
-.team-card.founder h4{font-size:1.05rem;}
-.team-card.founder .role{font-size:0.8rem;}
-.team-card.founder .bio{font-size:0.78rem;max-width:160px;color:#4b5563;}
-.team-card.open .team-avatar-placeholder{background:#f8fafc;border-color:#bfdbfe;color:#bfdbfe;}
-.team-card.open h4{color:#9ca3af;}
-.team-card.open .role{color:#93c5fd;}
-.team-card.open .bio{color:#9ca3af;}
-.join-cta-wrap{margin-top:0.5rem;}
-.join-btn{display:inline-block;padding:0.9rem 2.2rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.95rem;cursor:pointer;text-decoration:none;transition:background .2s;}
-.join-btn:hover{background:#1d4ed8;}
+/* ── Team ───────────────────────────────────────────────────── */
+.team-sec{padding:6rem 0;}
+.team-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
+.team{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#ededed;border:1px solid #ededed;}
+.member{background:var(--white);padding:2rem 1.75rem 2.25rem;display:flex;flex-direction:column;min-height:15rem;
+  transition:background .25s ease;}
+.member:hover{background:#fafafa;}
+.member .initials{width:44px;height:44px;border-radius:8px;background:var(--black);color:var(--white);
+  display:flex;align-items:center;justify-content:center;font-size:.8125rem;letter-spacing:.02em;margin-bottom:auto;}
+.member .initials.lead{background:var(--accent);}
+.member h4{font-size:1.125rem;font-weight:500;letter-spacing:-0.015em;margin:2.5rem 0 .375rem;}
+.member .label{margin-bottom:.875rem;}
+.member p{color:var(--muted);font-size:.875rem;line-height:1.6;}
 
-/* ── FOOTER ── */
-.footer{background:#0a0a0a;color:#fff;padding:5rem 0 2rem;}
-.footer-inner{max-width:1200px;margin:0 auto;padding:0 2rem;}
-.footer-grid{display:grid;grid-template-columns:5fr 7fr;gap:4rem;margin-bottom:4rem;}
-.footer-logo{display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;}
-.footer-logo-img{width:40px;height:40px;object-fit:contain;}
-.footer-logo-name{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:600;}
-.footer-desc{color:#6b7280;font-size:0.95rem;max-width:340px;margin-bottom:2rem;line-height:1.7;}
-.footer-email-label{font-size:0.7rem;letter-spacing:0.15em;color:#4b5563;margin-bottom:0.4rem;}
-.footer-email a{font-size:1.1rem;color:#93c5fd;text-decoration:none;word-break:break-all;}
-.support-box{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:1.25rem;padding:2rem;}
-.support-box h3{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:600;margin-bottom:0.75rem;}
-.support-box p{color:#9ca3af;font-size:0.9rem;margin-bottom:1.5rem;line-height:1.7;}
-.support-btns{display:flex;gap:1rem;flex-wrap:wrap;}
-.support-btn-primary{flex:1;min-width:120px;padding:1rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;font-weight:600;font-size:0.9rem;cursor:pointer;}
-.support-btn-outline{flex:1;min-width:120px;padding:1rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:9999px;font-weight:500;font-size:0.9rem;cursor:pointer;}
-.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding-top:1.5rem;text-align:center;color:#4b5563;font-size:0.8rem;}
+/* ── Closing CTA ────────────────────────────────────────────── */
+.close-sec{background:var(--black);color:var(--white);padding:9rem 0;}
+.close-sec .h2{max-width:14ch;}
+.close-sec p{margin:2rem 0 2.75rem;max-width:46ch;color:rgba(255,255,255,.6);font-size:1.0625rem;line-height:1.6;}
 
-/* ══════════════════════════════════
-   RESPONSIVE BREAKPOINTS
-══════════════════════════════════ */
+/* ── Footer ─────────────────────────────────────────────────── */
+.foot{background:var(--black);color:var(--white);padding:8rem 0 1.5rem;}
+.foot-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5rem;padding-bottom:7rem;}
+.foot-col .label{color:var(--label);margin-bottom:1.25rem;display:block;font-size:.8125rem;}
+.foot-col a,.foot-col span:not(.label){display:block;font-size:.9375rem;color:rgba(255,255,255,.72);padding:.3125rem 0;}
+.foot-col a:hover{color:var(--white);}
+.foot-tag{font-size:clamp(1.5rem,4.6vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.02em;
+  padding-bottom:5rem;max-width:20ch;}
+.foot-legal{border-top:1px solid var(--line-dark);padding-top:1.5rem;
+  display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap;}
+.foot-legal span,.foot-legal a{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.6875rem;
+  text-transform:uppercase;color:var(--label);letter-spacing:-0.01em;}
+.foot-legal a:hover{color:rgba(255,255,255,.8);}
 
+/* ── Reveal on scroll ───────────────────────────────────────── */
+.rv{opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1);}
+.rv.in{opacity:1;transform:none;}
+
+/* ── Responsive ─────────────────────────────────────────────── */
 @media(max-width:1100px){
-  nav{padding:1rem 2rem;}
-  .hero-left{padding:3rem 2rem;}
-  .section-2col{gap:3rem;}
-  .cards-grid{grid-template-columns:repeat(2,1fr);}
-  .work-grid{grid-template-columns:repeat(2,1fr);}
-  .team-row{grid-template-columns:repeat(3,1fr);gap:1.5rem 1rem;}
-  .team-card.founder{grid-column:1 / -1;order:-1;margin-bottom:0.75rem;}
-  .team-card.founder .bio{max-width:220px;}
-  .footer-grid{grid-template-columns:1fr;gap:2.5rem;}
+  .cards{grid-template-columns:1fr 1fr;}
+  .team{grid-template-columns:1fr 1fr;}
+  .foot-cols{grid-template-columns:1fr 1fr;gap:3rem 2rem;}
 }
-
-@media(max-width:768px){
-  .nav-links,.nav-cta{display:none;}
-  .hamburger{display:flex;}
-  nav{padding:1rem 1.5rem;}
-  .hero{grid-template-columns:1fr;min-height:auto;}
-  .hero-left{padding:5rem 1.5rem 3rem;}
-  .hero-right{height:280px;}
-  .hero-right::after{background:linear-gradient(to bottom,#0a0a0a 0%,transparent 50%);}
-  .scroll-hint{display:none;}
-  .section-2col{grid-template-columns:1fr;gap:2.5rem;}
-  .section{padding:4rem 1.5rem;}
-  .cards-grid{grid-template-columns:1fr;}
-  .work-grid{grid-template-columns:1fr;}
-  .work-section{padding:4rem 0;}
-  .dark-section{padding:4rem 0;}
-  .join-section{padding:4rem 0;}
-  .team-row{grid-template-columns:repeat(2,1fr);gap:1.5rem 1rem;}
-  .team-card.founder{grid-column:1 / -1;order:-1;margin-bottom:0.5rem;}
-  .team-card.founder .team-avatar{max-width:130px;}
-  .team-card .bio{max-width:180px;}
-  .footer-grid{grid-template-columns:1fr;gap:2rem;}
-  .footer{padding:3rem 0 1.5rem;}
+@media(max-width:860px){
+  .nav-links{display:none;}
+  .nav-actions .btn-ghost{display:none;}
+  .burger{display:flex;}
+  .statement{padding:7rem 0;}
+  .stage{padding:5rem 0;}
+  .marquee-sec,.grid-sec,.team-sec{padding:4.5rem 0;}
+  .close-sec{padding:6rem 0;}
+  .foot{padding:5rem 0 1.5rem;}
+  .foot-cols{padding-bottom:4.5rem;}
+  .foot-tag{padding-bottom:3.5rem;}
+  .card{min-height:22rem;padding:2rem 1.5rem;}
+  .card h3{margin-top:2.5rem;}
+  .scroll-cue{left:var(--pad);right:auto;}
 }
-
-@media(max-width:480px){
-  .hero-left{padding:4rem 1.2rem 2.5rem;}
-  .hero-btns{flex-direction:column;}
-  .btn-primary,.btn-outline{width:100%;text-align:center;}
-  .section{padding:3rem 1.2rem;}
-  .support-btns{flex-direction:column;}
-  .support-btn-primary,.support-btn-outline{width:100%;}
-  .tagline-band{padding:1rem 1.2rem;}
-  .join-btn{width:100%;}
+@media(max-width:640px){
+  .cards{grid-template-columns:1fr;}
+  .team{grid-template-columns:1fr;}
+  .member{min-height:auto;}
+  .member h4{margin-top:1.5rem;}
+  .card h3{margin-top:2rem;}
+  .mcard{width:260px;padding-right:1.5rem;margin-right:1.5rem;}
+  .hero-inner{padding-top:5rem;padding-bottom:6rem;}
 }
-
-/* ══════════════════════════════════
-   MOTION — makes the page feel alive
-   (additive only; no content/layout change)
-══════════════════════════════════ */
-
-/* Hero background video (same slot + look as the old image) */
-.hero-right video{width:100%;height:100%;object-fit:cover;opacity:0.5;display:block;}
-
-/* Named-member avatars (gradient circle with initials) */
-.team-avatar-initials{width:100%;aspect-ratio:1;max-width:120px;border-radius:1rem;margin:0 auto 0.85rem;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:1.6rem;letter-spacing:0.02em;box-shadow:0 6px 18px rgba(37,99,235,0.16);transition:transform .25s ease,box-shadow .25s ease;}
-
-/* Card + avatar hover life */
-.team-card{transition:transform .25s ease;}
-.team-card:not(.open):hover{transform:translateY(-5px);}
-.team-card:hover .team-avatar-initials,.team-card:hover .team-avatar{transform:scale(1.05);box-shadow:0 12px 26px rgba(37,99,235,0.24);}
-.why-card{transition:transform .25s ease,box-shadow .25s ease;}
-.why-card:hover{transform:translateY(-6px);box-shadow:0 16px 32px rgba(0,0,0,0.09);}
-.why-card-img,.work-card img{transition:transform .55s ease;}
-.why-card:hover .why-card-img,.work-card:hover img{transform:scale(1.06);}
-.work-card{transition:transform .2s ease,box-shadow .25s ease;}
-.work-card:hover{box-shadow:0 16px 32px rgba(0,0,0,0.1);}
-.btn-primary,.nav-cta,.join-btn,.support-btn-primary{transition:transform .18s ease,box-shadow .18s ease,background .2s ease;}
-.btn-primary:hover,.nav-cta:hover,.join-btn:hover,.support-btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(37,99,235,0.3);}
-.btn-outline{transition:transform .18s ease,background .2s ease;}
-.btn-outline:hover{transform:translateY(-2px);background:rgba(255,255,255,0.08);}
-
-/* Scroll-reveal (only active once JS adds body.anim, so no-JS shows all) */
-body.anim .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1);}
-body.anim .reveal.in{opacity:1;transform:none;}
-
-/* Hero entrance + ambient motion */
-@keyframes fadeUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
-@keyframes pulseDot{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(37,99,235,0.55);}70%{transform:scale(1.18);box-shadow:0 0 0 7px rgba(37,99,235,0);}}
-@keyframes bobArrow{0%,100%{transform:translateX(-50%);}50%{transform:translateX(-50%) translateY(7px);}}
-@keyframes heroGlow{0%,100%{opacity:0.45;transform:translate(-8%,-6%) scale(1);}50%{opacity:0.8;transform:translate(6%,5%) scale(1.18);}}
-@keyframes shimmer{0%{background-position:0% 0;}100%{background-position:200% 0;}}
-body.anim .hero-left>*{animation:fadeUp .85s cubic-bezier(.2,.8,.2,1) both;}
-body.anim .hero-pill{animation-delay:.05s;}
-body.anim .hero h1{animation-delay:.16s;}
-body.anim .hero p{animation-delay:.3s;}
-body.anim .hero-btns{animation-delay:.42s;}
-.hero-dot{animation:pulseDot 2s ease-in-out infinite;}
-.hero::before{content:'';position:absolute;top:0;left:0;width:60%;height:100%;background:radial-gradient(circle at 32% 42%,rgba(37,99,235,0.3),transparent 60%);animation:heroGlow 9s ease-in-out infinite;pointer-events:none;z-index:1;}
-.scroll-hint{animation:bobArrow 2.2s ease-in-out infinite;}
-.tagline-band{background:linear-gradient(100deg,#2563eb,#3b82f6,#2563eb);background-size:200% 100%;animation:shimmer 7s linear infinite;}
-
 @media(prefers-reduced-motion:reduce){
-  *{animation:none!important;}
-  body.anim .reveal{opacity:1!important;transform:none!important;}
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  html{scroll-behavior:auto;}
+  .rv{opacity:1;transform:none;}
+  .stage-words span{opacity:1;transform:none;}
+  .statement .w{color:#fff;}
 }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<nav>
-  <div class="logo">
-    <img class="logo-img" src="algebridge logo.png" alt="Algebridge Logo">
-    <span class="logo-name">Algebridge</span>
+<!-- ══ Announcement ══════════════════════════════════════════ -->
+<div class="announce" id="announce">
+  <div class="announce-inner">
+    <svg class="mark" width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+      <path d="M1 10L10 1M10 1H3.5M10 1V7.5" stroke="currentColor" stroke-width="1.2"/>
+    </svg>
+    <span>The Algebridge Directory is live. 173 topics, Pre-Algebra through Algebra 2.
+      <a href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">Explore it</a></span>
   </div>
-  <div class="nav-links">
-    <a onclick="document.getElementById('home').scrollIntoView({behavior:'smooth'})">Home</a>
-    <a onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">About Us</a>
-    <a onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</a>
-    <a onclick="document.getElementById('why').scrollIntoView({behavior:'smooth'})">Why It Matters</a>
-    <a onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">Our Work</a>
-    <a onclick="document.getElementById('team').scrollIntoView({behavior:'smooth'})">Our Team</a>
-  </div>
-  <button class="nav-cta" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Get Involved</button>
-  <button class="hamburger" id="hamburger" aria-label="Open menu" onclick="toggleMenu()">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<!-- MOBILE MENU -->
-<div class="mobile-menu" id="mobileMenu">
-  <a onclick="navTo('home')">Home</a>
-  <a onclick="navTo('about')">About Us</a>
-  <a onclick="navTo('mission')">Our Mission</a>
-  <a onclick="navTo('why')">Why It Matters</a>
-  <a onclick="navTo('projects')">Our Work</a>
-  <a onclick="navTo('team')">Our Team</a>
-  <button class="mobile-cta" onclick="navTo('contact')">Get Involved</button>
+  <button class="announce-x" id="announceX" aria-label="Dismiss announcement">&times;</button>
 </div>
 
-<!-- HERO -->
-<section id="home" class="hero">
-  <div class="hero-left">
-    <div class="hero-pill"><span class="hero-dot"></span>STUDENT-LED INITIATIVE · EST. 2026</div>
-    <h1>Every student deserves to master Algebra 1.</h1>
-    <p>We've seen students struggle. That's why we built Algebridge - so no one gets left behind</p>
-    <div class="hero-btns">
-      <a class="btn-primary" id="startLearningBtn" href="https://algebridge.vercel.app" style="text-decoration:none;display:inline-block;">Start Learning</a>
-      <button class="btn-outline" onclick="document.getElementById('mission').scrollIntoView({behavior:'smooth'})">Our Mission</button>
+<!-- ══ Nav ═══════════════════════════════════════════════════ -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <img src="algebridge logo icon.png" alt="">
+      <span>algebridge</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#platform">Platform</a>
+      <a href="#directory">Directory</a>
+      <a href="#mission">Mission</a>
+      <a href="#team">Team</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Log in</a>
+      <a class="btn btn-solid" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Start learning</a>
+      <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i><i></i></button>
     </div>
   </div>
-  <div class="hero-right">
-    <video class="hero-video" autoplay muted loop playsinline preload="metadata"
-      poster="algebra1.webp"
-      aria-label="Students learning together — one student teaching another">
-      <source src="https://videos.pexels.com/video-files/5535982/5535982-hd_1280_720_25fps.mp4" type="video/mp4">
-      <img src="algebra1.webp" alt="Students learning together">
-    </video>
-  </div>
-  <div class="scroll-hint">SCROLL TO LEARN MORE ↓</div>
-</section>
+</header>
 
-<!-- TAGLINE BAND -->
-<div class="tagline-band">
-  <p>Algebridge is a student-led initiative that helps students overcome struggles in Algebra 1 using interactive tools, resources, and support.</p>
+<div class="sheet" id="sheet">
+  <a href="#platform">Platform</a>
+  <a href="#directory">Directory</a>
+  <a href="#mission">Mission</a>
+  <a href="#team">Team</a>
+  <div class="sheet-cta">
+    <a class="a" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Start learning</a>
+    <a class="b" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Get involved</a>
+  </div>
 </div>
 
-<!-- ABOUT -->
-<section id="about">
-  <div class="section">
-    <div class="section-2col">
-      <div>
-        <span class="chapter-label">CHAPTER 01</span>
-        <h2 class="section-title">Algebridge is a student-led initiative that helps students overcome struggles in Algebra</h2>
+<!-- ══ Hero ══════════════════════════════════════════════════ -->
+<section class="hero" id="top">
+  <div class="hero-stage" id="heroStage">
+    <video class="hero-video" id="heroVideo"
+           src="hero/study.mp4" poster="hero/study-poster.jpg"
+           muted loop playsinline autoplay preload="auto" aria-hidden="true"></video>
+    <canvas class="hero-canvas" id="heroCanvas" aria-hidden="true"></canvas>
+    <div class="hero-grid"></div>
+    <div class="hero-veil"></div>
+    <div class="wrap hero-inner" id="heroCopy">
+      <h1 class="display">Every student deserves to master Algebra&nbsp;1.</h1>
+      <p class="hero-sub">Algebridge is a student-led initiative building the practice, the explanations,
+        and the help that make the hardest year in math a year students get through.</p>
+      <div class="hero-cta">
+        <a class="btn btn-invert btn-lg" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Start learning</a>
+        <a class="btn btn-line btn-lg" href="#mission">Our mission</a>
       </div>
-      <div class="body-text" style="margin-top:0.5rem;">
-        <p>Algebridge was founded in 2026 by Ivan Dubovyi, who saw firsthand how many peers fall behind when Algebra 1 begins - and felt driven to change that</p>
-        <p>We focus on Algebra 1 because it's the critical turning point where students either build a strong foundation or begin to lose confidence. Our mission is to make sure every student makes it across that bridge</p>
-        <div style="margin-top:2rem;border-radius:1rem;overflow:hidden;border:1px solid #e5e7eb;">
-          <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=900&q=85" alt="Student working through algebra at a whiteboard" style="width:100%;height:260px;object-fit:cover;display:block;filter:grayscale(10%);">
-        </div>
-      </div>
+    </div>
+    <div class="scroll-cue" id="scrollCue">
+      <span>Scroll to explore</span>
+      <span class="ring">
+        <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
+          <path d="M5.5 0v11M1 7l4.5 4.5L10 7" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+      </span>
     </div>
   </div>
 </section>
 
-<!-- MISSION -->
-<section id="mission">
-  <div class="dark-section">
-    <div class="section">
-      <div class="section-2col" style="gap:4rem;">
-        <div>
-          <span class="chapter-label">CHAPTER 02</span>
-          <h2 class="section-title" style="color:#fff;">Our mission: ensure every kid truly understands Algebra</h2>
-          <p class="body-text" style="margin-top:2rem;">Algebra 1 is more than just a subject - it's the foundation for everything that comes next. Fractions, equations, functions, and variables form the language of advanced math, science, and technology</p>
-          <p class="body-text" style="margin-top:1rem;">Our mission is to make sure no student falls behind at this critical stage - because understanding Algebra 1 means understanding the beginning of it all</p>
-        </div>
-        <div style="border-radius:1.25rem;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
-          <img src="https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800&q=85" alt="Algebra equations written clearly on paper" style="width:100%;height:340px;object-fit:cover;display:block;filter:grayscale(20%) brightness(0.85);">
-        </div>
-      </div>
+<!-- ══ Statement ═════════════════════════════════════════════ -->
+<section class="statement" id="mission">
+  <div class="wrap">
+    <p data-reveal-words>Algebra 1 is the year math stops being arithmetic and starts being a language. Everything after it is built on that year.</p>
+  </div>
+</section>
+
+<!-- ══ Curriculum stage ══════════════════════════════════════ -->
+<section class="stage">
+  <div class="wrap">
+    <div class="stage-head rv">
+      <h2 class="h2">Thirteen units.<br>Forty-six skills.<br>All of Algebra 1.</h2>
+      <p class="lede" style="max-width:34ch">Every skill on the platform carries a video, a key idea,
+        practice that regenerates, and step-by-step feedback the moment an answer goes wrong.</p>
+    </div>
+    <div class="stage-words" id="stageWords">
+      <span>Working with Units</span>
+      <span class="dim">Solving Equations</span>
+      <span>Linear Graphs</span>
+      <span class="dim">Forms of Linear Equations</span>
+      <span>Systems of Equations</span>
+      <span class="dim">Inequalities</span>
+      <span class="hot">Functions</span>
+      <span class="dim">Sequences</span>
+      <span>Exponents &amp; Radicals</span>
+      <span class="dim">Exponential Growth</span>
+      <span>Multiplying &amp; Factoring</span>
+      <span class="dim">Quadratic Equations</span>
+      <span>Absolute Value</span>
+    </div>
+    <div class="stage-foot rv">
+      <a class="btn btn-solid btn-lg" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Start learning</a>
     </div>
   </div>
 </section>
 
-<!-- WHY IT MATTERS -->
-<section id="why">
-  <div class="section">
-    <div style="text-align:center;margin-bottom:0.5rem;">
-      <span class="chapter-label" style="display:block;text-align:center;">CHAPTER 03</span>
-      <h2 class="section-title" style="display:inline-block;position:relative;">Why we do this — and why it matters</h2>
+<!-- ══ Marquee ═══════════════════════════════════════════════ -->
+<section class="marquee-sec" id="platform">
+  <div class="wrap marquee-head rv">
+    <h2 class="h2">Built for every part of the year.</h2>
+  </div>
+
+  <div class="marquee-row">
+    <div class="marquee run" data-dup>
+      <div class="mcard"><h3>46 skills, each with a video, a key idea, and problems that regenerate so practice never runs out.</h3><span class="label">Platform</span></div>
+      <div class="mcard"><h3>Step-by-step feedback the moment an answer goes wrong, instead of a red X.</h3><span class="label">Practice</span></div>
+      <div class="mcard"><h3>Two explanations for every topic. One plain, one in depth, one click apart.</h3><span class="label">Directory</span></div>
+      <div class="mcard"><h3>Interactive explorers for slope, balance, parabolas, and inequality lines.</h3><span class="label">Visualize</span></div>
+      <div class="mcard"><h3>Progress that saves to an account and follows the student across devices.</h3><span class="label">Accounts</span></div>
     </div>
-    <div class="cards-grid">
-      <div class="why-card">
-        <img class="why-card-img" src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=700&q=85" alt="Student studying hard at a desk">
-        <div class="why-card-body">
-          <div class="why-card-accent"></div>
-          <h3>We've Seen the Struggle</h3>
-          <p>Our founder saw how quickly students begin to lose confidence when Algebra 1 starts. That moment sparked a decision to act — and Algebridge was built from that experience</p>
-        </div>
-      </div>
-      <div class="why-card">
-        <img class="why-card-img" src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=700&q=85" alt="Math equations representing Algebra foundation">
-        <div class="why-card-body">
-          <div class="why-card-accent"></div>
-          <h3>Algebra 1 Is the Foundation</h3>
-          <p>Every advanced math course, from geometry to calculus, builds on Algebra 1. Getting it right here isn't optional. It's the foundation for everything that follows</p>
-        </div>
-      </div>
-      <div class="why-card">
-        <img class="why-card-img" src="https://images.unsplash.com/photo-1529390079861-591de354faf5?w=700&q=85" alt="Students succeeding and celebrating learning">
-        <div class="why-card-body">
-          <div class="why-card-accent"></div>
-          <h3>Every Kid Deserves to Succeed</h3>
-          <p>No student should fall behind simply because they didn't have the right support at the right time. We're here to make sure they don't</p>
-        </div>
-      </div>
+  </div>
+
+  <div class="marquee-row">
+    <div class="marquee run rev" data-dup>
+      <div class="mcard"><h3>173 topics spanning Pre-Algebra, Algebra 1, Geometry, and Algebra 2.</h3><span class="label">Directory</span></div>
+      <div class="mcard"><h3>A house to build and Bridgeys to earn, so a hard set is worth finishing.</h3><span class="label">Motivation</span></div>
+      <div class="mcard"><h3>Live sessions with a real person, on a shared whiteboard and notebook.</h3><span class="label">Tutoring</span></div>
+      <div class="mcard"><h3>Class tools that let a teacher group students and follow a whole period.</h3><span class="label">Classroom</span></div>
+      <div class="mcard"><h3>Spaced review that brings back the skills a student is about to forget.</h3><span class="label">Retention</span></div>
     </div>
   </div>
 </section>
 
-<!-- OUR WORK -->
-<section id="projects" class="work-section">
-  <div style="max-width:1200px;margin:0 auto;padding:0 2rem;">
-    <span class="chapter-label">CHAPTER 04</span>
-    <h2 class="section-title">How We Help</h2>
-    <div class="work-grid">
-      <div class="work-card">
-        <img src="https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=700&q=85" alt="Student using an interactive learning platform on a laptop">
-        <div class="work-card-body">
-          <h4>Interactive Learning Platform</h4>
-          <p>Practice Algebra 1 with videos, step-by-step help, and a fun house mini-game. Earn Bridgeys as you learn.</p>
-          <a id="platformLink" href="https://algebridge.vercel.app" style="display:inline-block;margin-top:0.75rem;font-weight:600;color:#165dff;text-decoration:none;">Open the platform →</a>
-        </div>
-      </div>
-      <div class="work-card">
-        <img src="algebra2.jpg" alt="Tutor working one-on-one with a student">
-        <div class="work-card-body">
-          <h4>Guided Support</h4>
-          <p>We provide support for students who get stuck - helping them work through problems and understand concepts, not just memorize them</p>
-        </div>
-      </div>
-      <div class="work-card">
-        <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?w=700&q=85" alt="Students in a group learning program">
-        <div class="work-card-body">
-          <h4>Growing Support System</h4>
-          <p>As we grow, we aim to expand access through tutoring and structured programs for students who need extra help in Algebra 1</p>
-        </div>
-      </div>
+<!-- ══ Card grid ═════════════════════════════════════════════ -->
+<section class="grid-sec" id="directory">
+  <div class="wrap">
+    <div class="grid-head rv">
+      <h2 class="h2">We build the parts students actually get stuck on.</h2>
+    </div>
+    <div class="cards rv">
+
+      <a class="card" href="https://algebridge.vercel.app" target="_blank" rel="noopener">
+        <span class="label">The platform</span>
+        <h3>A platform that teaches, not just tests.</h3>
+        <p>Thirteen units and forty-six skills covering Algebra 1 end to end. Every skill pairs a video
+          with a key idea and a bank of problems that regenerates, so a student who needs ten more
+          questions gets ten more questions.</p>
+        <span class="more">Open the platform
+          <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+        </span>
+      </a>
+
+      <a class="card" href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">
+        <span class="label">The directory</span>
+        <h3>Every topic explained twice.</h3>
+        <p>173 topics from Pre-Algebra through Algebra 2, each with a plain explanation and an in-depth
+          one, a worked example, the mistakes people actually make, and a video. Having only one depth
+          available is what makes students give up.</p>
+        <span class="more">Browse the directory
+          <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+        </span>
+      </a>
+
+      <a class="card" href="#team">
+        <span class="label">The team</span>
+        <h3>Built by students who sat in the same class.</h3>
+        <p>Algebridge was founded in 2026 by Ivan Dubovyi after watching how fast classmates lose
+          confidence once Algebra 1 begins. The people building it are close enough to the problem to
+          remember exactly where it starts.</p>
+        <span class="more">Meet the team
+          <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+        </span>
+      </a>
+
     </div>
   </div>
 </section>
 
-<!-- JOIN / OUR TEAM -->
-<section id="team" class="join-section">
-  <div class="join-inner">
-    <span class="join-label">CHAPTER 05 · LOOKING FOR THE TEAM</span>
-    <h2 class="join-heading">Our Team</h2>
-    <div class="team-row">
-      <!-- 3 members left of founder -->
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">ZB</div>
-        <h4>Zachary Balan</h4>
-        <p class="role">Tutor</p>
-        <p class="bio">Works one-on-one with students, turning confusing Algebra 1 topics into clear, confident steps.</p>
-      </div>
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);">SS</div>
-        <h4>Shaurya Sethi</h4>
-        <p class="role">Tutor</p>
-        <p class="bio">Breaks tough problems down step by step and helps students build lasting problem-solving habits.</p>
-      </div>
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#059669,#047857);">SS</div>
-        <h4>Sebastian Sawicki</h4>
-        <p class="role">Treasurer</p>
-        <p class="bio">Manages Algebridge's budget and funding so our free tools and tutoring keep reaching more students.</p>
-      </div>
+<!-- ══ Team ══════════════════════════════════════════════════ -->
+<section class="team-sec" id="team">
+  <div class="wrap">
+    <div class="team-head rv">
+      <h2 class="h2">From students.<br>For students.</h2>
+      <p class="lede" style="max-width:32ch">A student-led initiative founded in 2026, run by people who are still in the room where the problem happens.</p>
+    </div>
+    <div class="team rv">
 
-      <!-- Founder (center) -->
-      <div class="team-card founder">
-        <img class="team-avatar" src="ivandubovyi.jpeg" alt="Ivan Dubovyi"
-          onerror="this.style.display='none';">
+      <div class="member">
+        <span class="initials lead">ID</span>
         <h4>Ivan Dubovyi</h4>
-        <p class="role">Founder &amp; CEO</p>
-        <p class="bio">Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p>
+        <span class="label">Founder &amp; CEO</span>
+        <p>Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p>
       </div>
 
-      <!-- 3 members right of founder -->
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#db2777,#be185d);">JM</div>
-        <h4>Jordyn Miller</h4>
-        <p class="role">Chief Marketing Officer</p>
-        <p class="bio">Leads marketing and outreach, getting Algebridge in front of the students who need it most.</p>
+      <div class="member">
+        <span class="initials">ZB</span>
+        <h4>Zachary Balan</h4>
+        <span class="label">Tutor</span>
+        <p>Works one-on-one with students, turning confusing Algebra 1 topics into clear, confident steps.</p>
       </div>
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#f59e0b,#d97706);">RH</div>
-        <h4>Rayla Hardwood</h4>
-        <p class="role">Operational Manager</p>
-        <p class="bio">Keeps everything running behind the scenes — coordinating programs, scheduling, and day-to-day operations.</p>
+
+      <div class="member">
+        <span class="initials">SS</span>
+        <h4>Shaurya Sethi</h4>
+        <span class="label">Tutor</span>
+        <p>Breaks tough problems down step by step and helps students build lasting problem-solving habits.</p>
       </div>
-      <div class="team-card">
-        <div class="team-avatar-initials" aria-hidden="true" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);">IH</div>
+
+      <div class="member">
+        <span class="initials">IH</span>
         <h4>Ishaan Halgeri</h4>
-        <p class="role">Developer</p>
-        <p class="bio">Builds and maintains the Algebridge learning platform, shipping the features students practice with.</p>
+        <span class="label">Developer</span>
+        <p>Builds and maintains the Algebridge learning platform, shipping the features students practice with.</p>
       </div>
-    </div>
-    <div class="join-cta-wrap">
-      <a class="join-btn" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank">Join the Team</a>
+
+      <div class="member">
+        <span class="initials">SS</span>
+        <h4>Sebastian Sawicki</h4>
+        <span class="label">Treasurer</span>
+        <p>Manages the budget and funding so our free tools and tutoring keep reaching more students.</p>
+      </div>
+
+      <div class="member">
+        <span class="initials">JM</span>
+        <h4>Jordyn Miller</h4>
+        <span class="label">Chief Marketing Officer</span>
+        <p>Leads marketing and outreach, getting Algebridge in front of the students who need it most.</p>
+      </div>
+
+      <div class="member">
+        <span class="initials">RH</span>
+        <h4>Rayla Hardwood</h4>
+        <span class="label">Operational Manager</span>
+        <p>Keeps everything running behind the scenes, coordinating programs, scheduling, and day-to-day operations.</p>
+      </div>
+
+      <a class="member" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">
+        <span class="initials" style="background:#ededed;color:#000">+</span>
+        <h4>Join the team</h4>
+        <span class="label">Open</span>
+        <p>Tutors, builders, and organizers who want Algebra 1 to stop being the wall it is today.</p>
+      </a>
+
     </div>
   </div>
 </section>
 
-<!-- FOOTER -->
-<section id="contact">
-  <div class="footer">
-    <div class="footer-inner">
-      <div class="footer-grid">
-        <div>
-          <div class="footer-logo">
-            <img class="footer-logo-img" src="algebridge logo b.png" alt="Algebridge Logo">
-            <span class="footer-logo-name">algebridge</span>
-          </div>
-          <p class="footer-desc">A student-led initiative dedicated to helping every student understand and succeed in Algebra. Founded 2026.</p>
-          <div class="footer-email-label">CONTACT</div>
-          <div class="footer-email"><a href="mailto:ivan.malchugan@gmail.com">info@algebridge.org</a></div>
-        </div>
-        <div class="support-box">
-          <h3>Support our work</h3>
-          <p>Help us reach more students who are struggling with Algebra 1. Your support funds our practice platform, tutoring, and student programs.</p>
-          <div class="support-btns">
-            <button class="support-btn-primary" onclick="alert('Thank you! This would open a donation page.')">Donate Now</button>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank"><button class="support-btn-outline">Get Involved</button></a>
-          </div>
-        </div>
-      </div>
-      <div class="footer-bottom">&#169; 2026 Algebridge. All rights reserved. Student-led initiative</div>
+<!-- ══ Closing CTA ═══════════════════════════════════════════ -->
+<section class="close-sec">
+  <div class="wrap">
+    <h2 class="h2 rv">Our mission,<br>your foundation.</h2>
+    <p class="rv">Start today. Algebridge is free, it stays free, and every unit of Algebra 1 is already waiting.</p>
+    <div class="rv">
+      <a class="btn btn-invert btn-lg" href="https://algebridge.vercel.app" target="_blank" rel="noopener">Start learning</a>
     </div>
   </div>
 </section>
+
+<!-- ══ Footer ════════════════════════════════════════════════ -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-cols">
+      <div class="foot-col">
+        <span class="label">Platform</span>
+        <a href="https://algebridge.vercel.app" target="_blank" rel="noopener">Open the platform</a>
+        <a href="https://algebridge.vercel.app" target="_blank" rel="noopener">Practice</a>
+        <a href="https://algebridge.vercel.app" target="_blank" rel="noopener">Progress</a>
+        <a href="https://algebridge.vercel.app" target="_blank" rel="noopener">Classroom</a>
+      </div>
+      <div class="foot-col">
+        <span class="label">Directory</span>
+        <a href="https://algebridge-directory.vercel.app/pre-algebra" target="_blank" rel="noopener">Pre-Algebra</a>
+        <a href="https://algebridge-directory.vercel.app/algebra-1" target="_blank" rel="noopener">Algebra 1</a>
+        <a href="https://algebridge-directory.vercel.app/geometry" target="_blank" rel="noopener">Geometry</a>
+        <a href="https://algebridge-directory.vercel.app/algebra-2" target="_blank" rel="noopener">Algebra 2</a>
+      </div>
+      <div class="foot-col">
+        <span class="label">About</span>
+        <a href="#mission">Mission</a>
+        <a href="#team">Team</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Get involved</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Support our work</a>
+      </div>
+      <div class="foot-col">
+        <span class="label">Contact</span>
+        <a href="mailto:ivan.malchugan@gmail.com">info@algebridge.org</a>
+        <span>Student-led initiative</span>
+        <span>Founded 2026</span>
+      </div>
+    </div>
+
+    <div class="foot-tag">Free Algebra 1 for every student who needs it</div>
+
+    <div class="foot-legal">
+      <span>&copy; 2026 Algebridge. All rights reserved.</span>
+      <a href="mailto:ivan.malchugan@gmail.com">info@algebridge.org</a>
+    </div>
+  </div>
+</footer>
 
 <script>
-// Update this after deploying the Next.js app on Vercel
-const APP_URL = "https://algebridge.vercel.app";
-document.getElementById("startLearningBtn").href = APP_URL;
-document.getElementById("platformLink").href = APP_URL;
-
-function toggleMenu(){
-  const btn=document.getElementById('hamburger');
-  const menu=document.getElementById('mobileMenu');
-  btn.classList.toggle('open');
-  menu.classList.toggle('open');
-}
-function navTo(id){
-  document.getElementById(id).scrollIntoView({behavior:'smooth'});
-  document.getElementById('hamburger').classList.remove('open');
-  document.getElementById('mobileMenu').classList.remove('open');
-}
-
-/* ── Scroll-reveal entrances (additive; content/arrangement untouched) ── */
 (function(){
-  document.body.classList.add('anim');
-  var groups = [
-    ['.section-2col > div', 130],
-    ['.why-card', 130],
-    ['.work-card', 130],
-    ['.team-card', 80],
-    ['.tagline-band', 0],
-    ['#why .chapter-label, #why .section-title', 0],
-    ['#projects .chapter-label, #projects .section-title', 0],
-    ['.join-label, .join-heading, .join-cta-wrap', 90],
-    ['.support-box', 0]
-  ];
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Announcement dismiss ─────────────────────────────────── */
+  var ax = document.getElementById('announceX');
+  if (ax) ax.addEventListener('click', function(){
+    document.getElementById('announce').classList.add('hidden');
+  });
+
+  /* ── Mobile sheet ─────────────────────────────────────────── */
+  var burger = document.getElementById('burger');
+  var sheet  = document.getElementById('sheet');
+  function closeSheet(){
+    burger.classList.remove('open');
+    sheet.classList.remove('open');
+    burger.setAttribute('aria-expanded','false');
+    document.body.style.overflow = '';
+  }
+  burger.addEventListener('click', function(){
+    var open = sheet.classList.toggle('open');
+    burger.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+  });
+  Array.prototype.forEach.call(sheet.querySelectorAll('a'), function(a){
+    a.addEventListener('click', closeSheet);
+  });
+
+  /* ── Duplicate marquee tracks for a seamless loop ─────────── */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-dup]'), function(track){
+    track.innerHTML += track.innerHTML;
+  });
+
+  /* ── Generic reveal ───────────────────────────────────────── */
   var io = new IntersectionObserver(function(entries){
     entries.forEach(function(e){
-      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
     });
-  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
-  groups.forEach(function(g){
-    var sel = g[0], stagger = g[1], i = 0;
-    document.querySelectorAll(sel).forEach(function(el){
-      el.classList.add('reveal');
-      if(stagger) el.style.transitionDelay = (Math.min(i,6)*stagger) + 'ms';
-      io.observe(el); i++;
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  Array.prototype.forEach.call(document.querySelectorAll('.rv'), function(el){ io.observe(el); });
+
+  /* ── Curriculum words: stagger in ─────────────────────────── */
+  var wordStage = document.getElementById('stageWords');
+  if (wordStage){
+    var sio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var kids = e.target.children;
+        for (var i = 0; i < kids.length; i++){
+          (function(el, n){ setTimeout(function(){ el.classList.add('in'); }, n * 55); })(kids[i], i);
+        }
+        sio.unobserve(e.target);
+      });
+    }, { threshold: 0.2 });
+    sio.observe(wordStage);
+  }
+
+  /* ── Statement: light words up as the section scrolls past ── */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-reveal-words]'), function(p){
+    var words = p.textContent.trim().split(/\s+/);
+    p.textContent = '';
+    words.forEach(function(w, i){
+      var s = document.createElement('span');
+      s.className = 'w' + (/language/i.test(w) ? ' accent' : '');
+      s.textContent = w;
+      p.appendChild(s);
+      if (i < words.length - 1) p.appendChild(document.createTextNode(' '));
     });
+    var spans = p.querySelectorAll('.w');
+
+    if (reduce){
+      Array.prototype.forEach.call(spans, function(s){ s.classList.add('lit'); });
+      return;
+    }
+
+    function paint(){
+      var r = p.getBoundingClientRect();
+      var vh = window.innerHeight;
+      /* progress runs 0 -> 1 while the paragraph travels up through the viewport */
+      var prog = (vh * 0.78 - r.top) / (r.height + vh * 0.42);
+      prog = Math.max(0, Math.min(1, prog));
+      var lit = Math.round(prog * spans.length);
+      for (var i = 0; i < spans.length; i++){
+        spans[i].classList.toggle('lit', i < lit);
+      }
+    }
+
+    var ticking = false;
+    function onScroll(){
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function(){ paint(); ticking = false; });
+    }
+    window.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', onScroll);
+    paint();
   });
-  // Failsafe: never leave anything hidden if the observer doesn't fire
-  // (e.g. throttled/background tab, older browser).
-  setTimeout(function(){
-    document.querySelectorAll('.reveal:not(.in)').forEach(function(el){ el.classList.add('in'); });
-  }, 2500);
+
+  /* ── Hero: footage scrubbed by scroll ──────────────────────────
+     The video element is only a frame source; what you see is the
+     canvas. Scroll position maps to currentTime, so the clip plays
+     forward as you scroll down and backward as you scroll up.
+
+     Scrubbing only switches on once the whole file is buffered,
+     because seeking into an unbuffered range stalls and the hero
+     would freeze. Until then (and on phones, and under reduced
+     motion) the plain looping video stays visible instead.        */
+  var stage = document.getElementById('heroStage');
+  var vid   = document.getElementById('heroVideo');
+  var cv    = document.getElementById('heroCanvas');
+  var copy  = document.getElementById('heroCopy');
+  var cue   = document.getElementById('scrollCue');
+  var hero  = document.querySelector('.hero');
+
+  if (stage && vid && cv && cv.getContext){
+    var ctx = cv.getContext('2d');
+    var scrubbing = false;
+    var wantFrame = false;
+
+    /* keep the video playing for the fallback presentation */
+    var kick = vid.play();
+    if (kick && kick.catch) kick.catch(function(){ /* autoplay refused: poster stands in */ });
+
+    function sizeCanvas(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width  = Math.floor(stage.clientWidth  * dpr);
+      cv.height = Math.floor(stage.clientHeight * dpr);
+    }
+
+    /* draw the frame with the same geometry as object-fit:cover */
+    function paint(){
+      var cw = cv.width, ch = cv.height,
+          vw = vid.videoWidth, vh = vid.videoHeight;
+      if (!vw || !vh || !cw || !ch) return;
+      var s = Math.max(cw / vw, ch / vh);
+      var dw = vw * s, dh = vh * s;
+      try { ctx.drawImage(vid, (cw - dw) / 2, (ch - dh) / 2, dw, dh); } catch (e) {}
+    }
+
+    /* 0 -> 1 across the runway below the pinned stage */
+    function runwayProgress(){
+      var runway = hero.offsetHeight - stage.clientHeight;
+      if (runway <= 0) return 0;
+      var p = -hero.getBoundingClientRect().top / runway;
+      return Math.max(0, Math.min(1, p));
+    }
+
+    function fullyBuffered(){
+      if (!vid.duration || !isFinite(vid.duration)) return false;
+      for (var i = 0; i < vid.buffered.length; i++){
+        if (vid.buffered.start(i) <= 0.1 && vid.buffered.end(i) >= vid.duration - 0.3) return true;
+      }
+      return false;
+    }
+
+    function tryEnableScrub(){
+      if (scrubbing || reduce) return;
+      if (window.innerWidth < 861) return;          /* phones keep the loop */
+      if (!fullyBuffered()) return;
+      scrubbing = true;
+      vid.pause();
+      vid.loop = false;
+      sizeCanvas();
+      stage.classList.add('scrub');
+      seekToScroll();
+      paint();
+    }
+
+    function seekToScroll(){
+      if (!scrubbing) return;
+      var t = runwayProgress() * (vid.duration - 0.06);
+      if (Math.abs(vid.currentTime - t) > 0.008) vid.currentTime = t;
+    }
+
+    vid.addEventListener('seeked', paint);
+    vid.addEventListener('loadeddata', function(){ tryEnableScrub(); });
+    vid.addEventListener('canplaythrough', tryEnableScrub);
+    vid.addEventListener('progress', tryEnableScrub);
+
+    /* copy fades out as the runway is consumed, the cue goes first */
+    function paintCopy(){
+      var p = runwayProgress();
+      var fade = Math.max(0, Math.min(1, (p - 0.42) / 0.38));
+      copy.style.opacity   = String(1 - fade);
+      copy.style.transform = 'translateY(' + (-fade * 44).toFixed(1) + 'px)';
+      if (cue) cue.style.opacity = String(Math.max(0, 1 - p * 5));
+    }
+
+    function onScroll(){
+      if (wantFrame) return;
+      wantFrame = true;
+      requestAnimationFrame(function(){
+        wantFrame = false;
+        seekToScroll();
+        paintCopy();
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', function(){
+      if (scrubbing){
+        if (window.innerWidth < 861){          /* dropped to phone width: hand back to the loop */
+          scrubbing = false;
+          stage.classList.remove('scrub');
+          vid.loop = true;
+          var r = vid.play(); if (r && r.catch) r.catch(function(){});
+        } else {
+          sizeCanvas(); paint();
+        }
+      } else {
+        tryEnableScrub();
+      }
+      paintCopy();
+    });
+    paintCopy();
+  }
+
 })();
 </script>
 </body>
