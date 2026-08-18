@@ -73,7 +73,7 @@ export default function AchievementsPage() {
           </div>
         </div>
 
-        <Link href="/house" className="card flex items-center gap-4 transition hover:border-amber-300 hover:shadow-md">
+        <Link href="/house" className="card flex items-center gap-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-amber-300 hover:shadow-raised">
           <BridgeysLogo size={48} />
           <div>
             <p className="text-2xl font-bold text-amber-700">{mounted ? bridgeys.toLocaleString() : 0} Bridgeys</p>
@@ -94,13 +94,19 @@ export default function AchievementsPage() {
             return (
               <div
                 key={badge.id}
-                className={`flex items-center gap-3 rounded-2xl border p-4 transition ${
+                className={`group flex items-center gap-3 rounded-2xl border p-4 transition duration-200 ease-out ${
                   earned
-                    ? "border-bridge-200 bg-white shadow-sm"
+                    ? "border-bridge-200 bg-white shadow-sm hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-raised"
                     : "border-dashed border-slate-200 bg-slate-50 opacity-60"
                 }`}
               >
-                <span className={`text-3xl ${earned ? "" : "grayscale"}`}>{badge.emoji}</span>
+                <span
+                  className={`text-3xl transition-transform duration-200 ease-out ${
+                    earned ? "group-hover:scale-110" : "grayscale"
+                  }`}
+                >
+                  {badge.emoji}
+                </span>
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-900">{badge.title}</p>
                   <p className="text-xs text-slate-500">{badge.description}</p>

@@ -98,7 +98,7 @@ export function MessageThread({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+      <div data-lenis-prevent className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
         {loading ? (
           <p className="text-center text-sm text-slate-400">Loading…</p>
         ) : messages.length === 0 ? (

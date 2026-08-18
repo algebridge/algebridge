@@ -135,7 +135,7 @@ export default function GroupsPage() {
                 className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
               />
             </div>
-            <div className="max-h-64 overflow-y-auto p-2">
+            <div data-lenis-prevent className="max-h-64 overflow-y-auto p-2">
               {students.length === 0 ? (
                 <p className="p-4 text-center text-sm text-slate-400">No students found.</p>
               ) : (

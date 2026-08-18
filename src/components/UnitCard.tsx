@@ -21,7 +21,7 @@ export function UnitCard({ unit }: UnitCardProps) {
     <Link href={`/unit/${unit.id}`} className="card-link group block">
       <div className="flex items-start gap-3.5">
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold transition-transform duration-200 ease-out group-hover:scale-110 ${
             isComplete
               ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100"
               : "bg-slate-100 text-slate-600 group-hover:bg-bridge-50 group-hover:text-bridge-700"

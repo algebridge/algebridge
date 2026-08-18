@@ -9,11 +9,11 @@ body {
 @layer components {
   /* ---- Buttons ------------------------------------------------ */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-bridge-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-bridge-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-bridge-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-150 ease-out hover:scale-[1.03] hover:bg-bridge-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition duration-150 ease-out hover:scale-[1.03] hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-ghost {
@@ -35,7 +35,7 @@ body {
   }
 
   .card-link {
-    @apply rounded-xl border border-slate-200 bg-white p-5 shadow-panel transition hover:border-bridge-300 hover:shadow-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2;
+    @apply rounded-xl border border-slate-200 bg-white p-5 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:shadow-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2;
   }
 
   /* A panel with its own header strip — the standard block on this platform. */
@@ -56,7 +56,7 @@ body {
   }
 
   .skill-card {
-    @apply flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-bridge-300 hover:bg-bridge-50/40;
+    @apply flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:bg-bridge-50/40 hover:shadow-panel;
   }
 
   /* ---- Page structure ----------------------------------------- */
@@ -154,6 +154,62 @@ body {
 
   .notice-success {
     @apply notice border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+}
+
+/* ── Lenis smooth scroll ─────────────────────────────────────
+   Required by the library: it drives scrolling itself, so the
+   document must not also be doing native smooth-scroll. Any
+   inner scroller (chat, sidebar, menus) carries data-lenis-prevent
+   and keeps normal native scrolling.
+──────────────────────────────────────────────────────────────*/
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ── Hover motion ────────────────────────────────────────────
+   The lift/zoom lives inside .btn-primary, .btn-secondary,
+   .card-link and .skill-card above, so every button and clickable
+   card in the app picks it up. Kept to 1-3% so it reads as
+   responsive rather than bouncy — this is a place students study.
+
+   Reduced motion gets none of it: transitions collapse and the
+   hover transforms are switched off, so nothing jumps instead of
+   sliding. Lenis is skipped entirely in SmoothScroll.tsx.
+──────────────────────────────────────────────────────────────*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .btn-primary:hover,
+  .btn-primary:active,
+  .btn-secondary:hover,
+  .btn-secondary:active,
+  .card-link:hover,
+  .skill-card:hover,
+  .group:hover .group-hover\:scale-110,
+  a:hover,
+  button:hover {
+    transform: none !important;
   }
 }
 
