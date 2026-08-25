@@ -26,7 +26,6 @@ export function HouseRoom({ progress, onUpdate }: HouseRoomProps) {
   return (
     <CartoonExterior
       houseStyleId={progress.houseStyleId}
-      bridgeys={progress.bridgeys}
       onEnter={() => setInside(true)}
     />
   );
