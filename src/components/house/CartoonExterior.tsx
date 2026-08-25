@@ -37,7 +37,6 @@ const SPRITE_BASE = 93;
  * yard that is the levelled pad, whose screen position comes from the
  * renderer's camera; for a drawn one it is the scene's shared ground line.
  */
-const PAD_BOTTOM_PCT = 100 - PAD_SCREEN_Y * 100;
 const DRAWN_BOTTOM_PCT = 100 - (SCENE_GROUND_Y / SCENE_H) * 100;
 
 export function CartoonExterior({ houseStyleId, onEnter }: CartoonExteriorProps) {
@@ -46,7 +45,7 @@ export function CartoonExterior({ houseStyleId, onEnter }: CartoonExteriorProps)
 
   const placement = {
     left: "50%",
-    bottom: `${scene.image ? PAD_BOTTOM_PCT : DRAWN_BOTTOM_PCT}%`,
+    bottom: `${DRAWN_BOTTOM_PCT}%`,
     width: `${HOUSE_WIDTH}%`,
     transform: "translateX(-50%)",
   } as const;
@@ -58,54 +57,71 @@ export function CartoonExterior({ houseStyleId, onEnter }: CartoonExteriorProps)
       <div className="relative aspect-[3/2] w-full overflow-hidden">
         <YardBackdrop scene={scene} />
 
-        {/* The building's shadow, on the ground it stands on. It is the sprite
-            itself flipped about its base, squashed and sheared away from the
-            light — a plain ellipse reads as a disc a sprite hovers over. */}
-        {house.exteriorImage && (
-          <div aria-hidden className="absolute" style={placement}>
-            <div className="relative aspect-[3/2] w-full">
-              <div
-                className="absolute inset-0"
-                style={{
-                  transformOrigin: `50% ${SPRITE_BASE}%`,
-                  transform: "scaleY(-0.24) skewX(-21deg)",
-                  filter: "brightness(0) blur(3.5px)",
-                  opacity: 0.26,
-                }}
-              >
-                <Image
-                  src={house.exteriorImage}
-                  alt=""
-                  fill
-                  className="object-contain object-bottom"
-                  sizes="(max-width: 640px) 55vw, 400px"
-                />
+        {scene.model ? (
+          /* The building was rendered with this yard's own camera, horizon and
+             sun, so it needs no placing: it is a full-frame overlay and the
+             perspective agrees with the ground by construction. Its shadow is
+             its own silhouette, hinged at the pad. */
+          <>
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                transformOrigin: `50% ${PAD_SCREEN_Y * 100}%`,
+                transform: "scaleY(-0.26) skewX(-34deg)",
+                filter: "brightness(0) blur(5px)",
+                opacity: 0.3,
+              }}
+            >
+              <Image src={scene.model} alt="" fill className="object-cover" sizes="100vw" />
+            </div>
+            <Image
+              src={scene.model}
+              alt={`${house.name} exterior`}
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 900px) 100vw, 1200px"
+            />
+          </>
+        ) : (
+          house.exteriorImage && (
+            <>
+              <div aria-hidden className="absolute" style={placement}>
+                <div className="relative aspect-[3/2] w-full">
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      transformOrigin: `50% ${SPRITE_BASE}%`,
+                      transform: "scaleY(-0.24) skewX(-21deg)",
+                      filter: "brightness(0) blur(3.5px)",
+                      opacity: 0.26,
+                    }}
+                  >
+                    <Image
+                      src={house.exteriorImage}
+                      alt=""
+                      fill
+                      className="object-contain object-bottom"
+                      sizes="(max-width: 640px) 55vw, 400px"
+                    />
+                  </div>
+                </div>
               </div>
-              <div
-                className="absolute left-1/2 w-[62%] -translate-x-1/2"
-                style={{
-                  top: `${SPRITE_BASE - 1.5}%`,
-                  height: "5%",
-                  background: `radial-gradient(ellipse at 50% 35%, ${scene.shadow}66 0%, ${scene.shadow}33 50%, ${scene.shadow}00 78%)`,
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {house.exteriorImage && (
-          <div className="absolute" style={placement}>
-            <div className="relative aspect-[3/2] w-full">
-              <Image
-                src={house.exteriorImage}
-                alt={`${house.name} exterior`}
-                fill
-                className="object-contain object-bottom"
-                priority
-                sizes="(max-width: 640px) 55vw, 400px"
-              />
-            </div>
-          </div>
+              <div className="absolute" style={placement}>
+                <div className="relative aspect-[3/2] w-full">
+                  <Image
+                    src={house.exteriorImage}
+                    alt={`${house.name} exterior`}
+                    fill
+                    className="object-contain object-bottom"
+                    priority
+                    sizes="(max-width: 640px) 55vw, 400px"
+                  />
+                </div>
+              </div>
+            </>
+          )
         )}
 
         <YardForeground scene={scene} />

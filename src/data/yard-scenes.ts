@@ -45,6 +45,9 @@ export interface SceneGrad {
 export interface YardScene {
   /** Set to a real render or photograph to bypass every vector layer below. */
   image?: string;
+  /** The building, rendered with this yard's own camera and sun. Full frame,
+   *  so it composites as a straight overlay. */
+  model?: string;
   /** Sky gradient, top to horizon. */
   sky: string[];
   /** Colour the horizon washes toward, which is what reads as distance. */
@@ -130,6 +133,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
   /* ── Cozy Cottage — a summer meadow, late morning ───────────── */
   cottage: {
     image: "/house/yards/cottage.webp",
+    model: "/house/models/cottage.webp",
     sky: ["#1E6FC4", "#4E9EDC", "#8FC9EC", "#D8ECF5"],
     haze: "#DCEDF4",
     hazeTop: 0.44,
@@ -176,6 +180,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
   /* ── Treehouse Hideout — a forest clearing ─────────────────── */
   treehouse: {
     image: "/house/yards/treehouse.webp",
+    model: "/house/models/treehouse.webp",
     sky: ["#2E9BC4", "#63C0DA", "#A8DDE4", "#DCF2E8"],
     haze: "#DCF2E8",
     hazeTop: 0.42,
@@ -221,6 +226,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
   /* ── City Loft — rooftops at golden hour ───────────────────── */
   loft: {
     image: "/house/yards/loft.webp",
+    model: "/house/models/loft.webp",
     sky: ["#2C6FB4", "#5E9FD2", "#E9B888", "#FFD9A8"],
     haze: "#FFD9A8",
     hazeTop: 0.4,
@@ -269,6 +275,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
   /* ── Beach Bungalow — open shore ───────────────────────────── */
   beach: {
     image: "/house/yards/beach.webp",
+    model: "/house/models/beach.webp",
     sky: ["#1E96D4", "#55BCE6", "#9EDCF0", "#E0F6FF"],
     haze: "#E0F6FF",
     hazeTop: 0.42,
@@ -312,6 +319,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
   /* ── Algebra Castle — mountains at dusk ────────────────────── */
   castle: {
     image: "/house/yards/castle.webp",
+    model: "/house/models/castle.webp",
     sky: ["#3B2E7E", "#6A55A8", "#B87FA4", "#F5B184"],
     haze: "#F0AE84",
     hazeTop: 0.46,
