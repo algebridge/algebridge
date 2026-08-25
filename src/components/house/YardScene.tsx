@@ -223,6 +223,49 @@ const GROUND_MASK = `linear-gradient(to bottom, transparent ${
   (PAD_SCREEN_Y - 0.028) * 100
 }%, rgba(0,0,0,0.55) ${PAD_SCREEN_Y * 100}%, #000 ${(PAD_SCREEN_Y + 0.05) * 100}%)`;
 
+/**
+ * Cloud shadows crossing the ground.
+ *
+ * The sky had weather moving across it while the land underneath sat in
+ * unchanging light, which is the tell that the ground is a photograph. These
+ * drift at the same rate as the cloud band that casts them, are squashed flat
+ * because a shadow on the ground is seen at a grazing angle, and are masked to
+ * below the horizon so they darken land and never sky.
+ */
+const SHADOW_BLOBS = [
+  { x: 110, y: 600, rx: 260, ry: 44, o: 0.16 },
+  { x: 470, y: 660, rx: 200, ry: 34, o: 0.13 },
+  { x: 830, y: 578, rx: 300, ry: 40, o: 0.15 },
+  { x: 1120, y: 700, rx: 230, ry: 30, o: 0.11 },
+];
+
+function CloudShadows({ horizon }: { horizon: number }) {
+  const mask = `linear-gradient(to bottom, transparent ${horizon * 100}%, #000 ${
+    (horizon + 0.06) * 100
+  }%)`;
+  const band = (offset: number) => (
+    <g transform={`translate(${offset} 0)`}>
+      {SHADOW_BLOBS.map((b, i) => (
+        <ellipse key={i} cx={b.x} cy={b.y} rx={b.rx} ry={b.ry} fill="#0d2410" opacity={b.o} />
+      ))}
+    </g>
+  );
+  return (
+    <svg
+      viewBox={VIEW_BOX}
+      preserveAspectRatio="xMidYMid slice"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      style={{ WebkitMaskImage: mask, maskImage: mask }}
+      aria-hidden
+    >
+      <g className="yard-drift" style={{ animationDuration: "92s", filter: "blur(26px)" }}>
+        {band(0)}
+        {band(SCENE_W)}
+      </g>
+    </svg>
+  );
+}
+
 /** Sky, sun and weather. Always drawn, whether the ground is rendered or drawn. */
 function SkyLayer({ scene }: { scene: YardScene }) {
   return (
@@ -299,14 +342,17 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
         /* A rendered heightfield. Its sky is transparent and distance fades to
            alpha, so the animated sky above shows through the far ground and the
            aerial perspective is the render's own rather than painted on. */
-        <Image
-          src={scene.image}
-          alt=""
-          fill
-          className="object-cover"
-          priority
-          sizes="(max-width: 900px) 100vw, 1200px"
-        />
+        <>
+          <Image
+            src={scene.image}
+            alt=""
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 900px) 100vw, 1200px"
+          />
+          <CloudShadows horizon={0.6} />
+        </>
       ) : (
         <svg
           viewBox={VIEW_BOX}
