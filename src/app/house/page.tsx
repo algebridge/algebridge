@@ -13,9 +13,11 @@ import {
   getFurnitureItem,
 } from "@/data/house-catalog";
 import { DISPLAY_TITLES } from "@/data/titles-catalog";
+import { ORNAMENTS, ornamentImage } from "@/data/ornament-catalog";
 import {
   buyFurniture,
   buyHouseStyle,
+  buyOrnament,
   buyTitle,
   equipTitle,
 } from "@/lib/bridgeys";
@@ -80,6 +82,7 @@ export default function HousePage() {
       placed: placed.length,
       prestige,
       houses: progress.ownedHouseStyles.length,
+      garden: (progress.ownedOrnaments ?? []).length,
       titles: progress.ownedTitles.length,
     };
   }, [progress]);
@@ -130,6 +133,7 @@ export default function HousePage() {
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:gap-x-8">
             <SummaryStat label="Furniture" value={`${stats.owned}/${stats.total}`} />
             <SummaryStat label="Houses" value={`${stats.houses}/${HOUSE_STYLES.length}`} />
+            <SummaryStat label="Garden" value={`${stats.garden}`} />
             <SummaryStat label="Titles" value={`${stats.titles}/${DISPLAY_TITLES.length}`} />
             <SummaryStat label="Prestige" value={stats.prestige.toLocaleString()} />
           </dl>
@@ -373,6 +377,90 @@ export default function HousePage() {
                       })}
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          </section>
+          {/* ── Garden ornaments ───────────────────────────────────── */}
+          <section>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="section-title">Garden</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Ornaments for outside. Place them from the yard, and buy more than one of
+                  anything you want repeated.
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 tabular-nums">{stats.garden} owned</p>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {ORNAMENTS.map((item) => {
+                const affordable = balance >= item.price;
+                const owned = (progress.ownedOrnaments ?? []).filter((o) => o === item.id).length;
+                const tier = RARITY_TIERS.find((r) => r.id === item.rarity)!;
+                return (
+                  <article key={item.id} className="card flex flex-col overflow-hidden p-0">
+                    <div
+                      className={`flex h-28 items-center justify-center border-b border-slate-100 bg-slate-50 ${
+                        affordable ? "" : "opacity-45"
+                      }`}
+                    >
+                      <span className="relative block h-24 w-24">
+                        <Image
+                          src={ornamentImage(item.id)}
+                          alt={item.name}
+                          fill
+                          sizes="120px"
+                          className="object-contain object-bottom"
+                        />
+                      </span>
+                    </div>
+
+                    <div className="flex flex-1 flex-col p-3.5">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {item.name}
+                        {owned > 0 && (
+                          <span className="ml-1.5 text-xs font-medium text-slate-500">
+                            x{owned}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                        <span className={`h-1.5 w-1.5 rounded-full ${tier.dot}`} />
+                        {tier.label}
+                        <span aria-hidden>·</span>
+                        <span className="tabular-nums">{item.prestige} prestige</span>
+                      </p>
+                      <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-600">
+                        {item.description}
+                      </p>
+
+                      <div className="mt-3 flex items-end justify-between gap-2">
+                        <div>
+                          <BridgeyPrice amount={item.price} size="sm" muted={!affordable} />
+                          {!affordable && (
+                            <p className="mt-1 text-[11px] font-medium text-slate-400 tabular-nums">
+                              {(item.price - balance).toLocaleString()} more to go
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!affordable}
+                          onClick={() => handlePurchase(() => buyOrnament(item.id))}
+                          className="btn-primary btn-sm"
+                          title={
+                            affordable
+                              ? undefined
+                              : `${(item.price - balance).toLocaleString()} more Bridgeys needed`
+                          }
+                        >
+                          Buy
+                        </button>
+                      </div>
+                    </div>
+                  </article>
                 );
               })}
             </div>

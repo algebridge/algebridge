@@ -31,7 +31,7 @@ import sharp from "sharp";
 /* ── Noise ──────────────────────────────────────────────────────
    Integer hash, so a re-run reproduces the same yard exactly. */
 
-function hash2(x: number, y: number): number {
+export function hash2(x: number, y: number): number {
   let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1);
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
@@ -39,7 +39,7 @@ function hash2(x: number, y: number): number {
   return (h >>> 0) / 4294967296;
 }
 
-function noise2(x: number, y: number): number {
+export function noise2(x: number, y: number): number {
   const xi = Math.floor(x);
   const yi = Math.floor(y);
   const xf = x - xi;
@@ -102,20 +102,20 @@ function ridged2(x: number, y: number, octaves: number): number {
    Low and close, the way you would stand in your own garden. The Sentloop
    range wanted a distant alpine view; a yard wants the near ground legible. */
 
-const CAM_Y = 1.85;
-const HORIZON = 0.6;
-const Z_NEAR = 1.6;
-const Z_FAR = 150;
-const PITCH_SCALE = 1.02;
-const FOV = 0.66;
+export const CAM_Y = 1.85;
+export const HORIZON = 0.6;
+export const Z_NEAR = 1.6;
+export const Z_FAR = 150;
+export const PITCH_SCALE = 1.02;
+export const FOV = 0.66;
 
 /** Where the house stands, and how wide its level ground is. */
-const PAD_Z = 15.5;
-const PAD_R = 4.4;
+export const PAD_Z = 15.5;
+export const PAD_R = 4.4;
 
 type RGB = [number, number, number];
 
-type Scene = {
+export type Scene = {
   /** Landform vertical scale. */
   relief: number;
   /** Horizontal size of the landforms. Larger is broader, calmer country. */
@@ -149,7 +149,7 @@ function norm(v: RGB): RGB {
   return [v[0] / l, v[1] / l, v[2] / l];
 }
 
-const SCENES: Record<string, Scene> = {
+export const SCENES: Record<string, Scene> = {
   /* Meadow, late morning, sun high and to the left. */
   cottage: {
     relief: 7.4,
@@ -261,7 +261,7 @@ const SCENES: Record<string, Scene> = {
  * And the pad flattens a disc of ground at PAD_Z, because a house standing on
  * a hillside is a house sliding down a hillside.
  */
-function height(x: number, z: number, s: Scene): number {
+export function height(x: number, z: number, s: Scene): number {
   // fbm clusters hard around its mean, so the raw range is nothing like
   // [-0.5,0.5]. Widen it, or the relief numbers below mean almost nothing.
   const rolling = (fbm2(x * s.scale + s.seed, z * s.scale + s.seed, 6) - 0.5) * 2.8;
@@ -306,7 +306,7 @@ function height(x: number, z: number, s: Scene): number {
 }
 
 /** How much of this point is the level pad rather than open country. */
-function padMix(x: number, z: number): number {
+export function padMix(x: number, z: number): number {
   const dz = z - PAD_Z;
   const d = Math.sqrt(x * x + dz * dz);
   const k = Math.max(0, Math.min(1, (d - PAD_R * 0.6) / (PAD_R * 0.7)));
@@ -491,4 +491,4 @@ async function main() {
   }
 }
 
-main();
+if (import.meta.filename === process.argv[1]) main();

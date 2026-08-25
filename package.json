@@ -10,7 +10,10 @@
     "yards": "node --experimental-strip-types scripts/gen-yards.ts",
     "birds": "node --experimental-strip-types scripts/gen-birds.ts",
     "critters": "node --experimental-strip-types scripts/gen-critters.ts",
-    "houses": "node --experimental-strip-types scripts/gen-houses.ts"
+    "houses": "node --experimental-strip-types scripts/gen-houses.ts",
+    "turntable": "node --experimental-strip-types scripts/gen-turntable.ts",
+    "ornaments": "node --experimental-strip-types scripts/gen-ornaments.ts",
+    "check:yard": "node --experimental-strip-types scripts/check-yard.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
