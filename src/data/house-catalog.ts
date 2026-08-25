@@ -27,7 +27,7 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#fef3c7",
     floorColor: "#d97706",
     accentColor: "#92400e",
-    exteriorImage: "/house/exterior/cottage.png",
+    exteriorImage: "/house/models/cottage-card.webp",
   },
   {
     id: "treehouse",
@@ -38,7 +38,7 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#dcfce7",
     floorColor: "#92400e",
     accentColor: "#365314",
-    exteriorImage: "/house/exterior/treehouse.png",
+    exteriorImage: "/house/models/treehouse-card.webp",
   },
   {
     id: "loft",
@@ -49,7 +49,7 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#e2e8f0",
     floorColor: "#475569",
     accentColor: "#0f172a",
-    exteriorImage: "/house/exterior/loft.png",
+    exteriorImage: "/house/models/loft-card.webp",
   },
   {
     id: "beach",
@@ -60,7 +60,7 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#bae6fd",
     floorColor: "#fcd34d",
     accentColor: "#0369a1",
-    exteriorImage: "/house/exterior/beach.png",
+    exteriorImage: "/house/models/beach-card.webp",
   },
   {
     id: "castle",
@@ -71,7 +71,7 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#e9d5ff",
     floorColor: "#5b21b6",
     accentColor: "#4c1d95",
-    exteriorImage: "/house/exterior/castle.png",
+    exteriorImage: "/house/models/castle-card.webp",
   },
 ];
 
