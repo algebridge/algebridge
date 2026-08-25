@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   SCENE_GROUND_Y,
   SCENE_H,
@@ -11,41 +12,47 @@ import {
  * The yard, in two halves that the house sits between.
  *
  * <YardBackdrop/> paints sky, weather, distant land and the ground plane.
- * <YardForeground/> paints the terrain nearer than the house, which is what
- * buries the flat bottom edge of the sprite, plus the critter running across
- * in front of it.
+ * <YardForeground/> paints the terrain nearer than the house, which buries the
+ * flat bottom edge of the sprite, plus the critter running across in front.
  *
  * Both are transparent SVGs filling the same box, so stacking backdrop, house,
  * foreground puts the building genuinely inside the landscape rather than on
  * top of a picture of one.
  *
- * All motion is CSS transforms on groups, and every animation is disabled
- * under prefers-reduced-motion by the rules in globals.css.
+ * Depth comes from four things a flat fill cannot do: every terrain band is a
+ * gradient, the horizon washes toward a haze colour so distance desaturates,
+ * cloud is shaded from lit top to shadowed base, and the nearest bank is blurred.
+ *
+ * If a scene has `image`, it is a real render and every vector layer is
+ * skipped — only the sky animation and critter draw on top.
  */
 
 const VIEW_BOX = `0 0 ${SCENE_W} ${SCENE_H}`;
 
-function Paint({ d, fill, stroke, opacity }: ScenePaint) {
+function Paint({ d, fill, opacity, blur }: ScenePaint) {
   return (
     <path
       d={d}
       fill={fill}
       opacity={opacity}
-      stroke={stroke}
-      strokeWidth={stroke ? 3 : undefined}
-      strokeLinejoin="round"
+      filter={blur ? `blur(${blur}px)` : undefined}
     />
   );
 }
 
-/** One puffy cloud, built from overlapping circles so it stays flat-shaded. */
-function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
+/**
+ * A cloud, shaded rather than flat: a radial gradient lights the crown and
+ * lets the underside fall into shadow, which is most of what separates a cloud
+ * from a white blob.
+ */
+function Cloud({ x, y, s, grad }: { x: number; y: number; s: number; grad: string }) {
   return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <ellipse cx={0} cy={10} rx={78} ry={26} />
-      <circle cx={-34} cy={2} r={26} />
-      <circle cx={2} cy={-14} r={34} />
-      <circle cx={40} cy={0} r={24} />
+    <g transform={`translate(${x} ${y}) scale(${s})`} fill={`url(#${grad})`}>
+      <ellipse cx={0} cy={12} rx={82} ry={24} />
+      <circle cx={-38} cy={2} r={26} />
+      <circle cx={-6} cy={-16} r={35} />
+      <circle cx={30} cy={-6} r={27} />
+      <circle cx={58} cy={6} r={19} />
     </g>
   );
 }
@@ -56,26 +63,28 @@ function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
  */
 function CloudBand({
   clouds,
-  fill,
+  grad,
   opacity,
   duration,
+  blur,
 }: {
   clouds: { x: number; y: number; s: number }[];
-  fill: string;
+  grad: string;
   opacity: number;
   duration: number;
+  blur?: number;
 }) {
   const band = (offset: number) => (
     <g transform={`translate(${offset} 0)`}>
       {clouds.map((c, i) => (
-        <Cloud key={i} {...c} />
+        <Cloud key={i} {...c} grad={grad} />
       ))}
     </g>
   );
   return (
     <g
-      fill={fill}
       opacity={opacity}
+      filter={blur ? `blur(${blur}px)` : undefined}
       className="yard-drift"
       style={{ animationDuration: `${duration}s` }}
     >
@@ -89,18 +98,14 @@ function CloudBand({
 function Bird({ scale, fill }: { scale: number; fill: string }) {
   return (
     <g transform={`scale(${scale})`} className="yard-flap">
-      <path
-        d="M-26,0 q13,-17 26,-2 q13,-15 26,2 q-13,-7 -26,4 q-13,-11 -26,-4 Z"
-        fill={fill}
-      />
+      <path d="M-26,0 q13,-17 26,-2 q13,-15 26,2 q-13,-7 -26,4 q-13,-11 -26,-4 Z" fill={fill} />
     </g>
   );
 }
 
 /**
- * Birds cross the sky on their own schedule. Each is given a hard-coded delay
- * and altitude rather than a random one, so the server and the browser agree
- * on the markup.
+ * Birds cross the sky on their own schedule. Each has a hard-coded delay and
+ * altitude rather than a random one, so server and browser agree on the markup.
  */
 const BIRD_PATHS = [
   { y: 172, scale: 1.5, duration: 26, delay: 0 },
@@ -131,15 +136,7 @@ function Birds({ fill }: { fill: string }) {
    around the origin, standing on y = 0, so the running group can place it on
    the ground without per-animal fudging. */
 
-function Critter({
-  kind,
-  body,
-  accent,
-}: {
-  kind: CritterKind;
-  body: string;
-  accent: string;
-}) {
+function Critter({ kind, body, accent }: { kind: CritterKind; body: string; accent: string }) {
   const line = "#2E2118";
   if (kind === "hopper") {
     return (
@@ -184,8 +181,57 @@ function Critter({
   );
 }
 
+/** Fine blade strokes so mid-ground grass is not one flat wash. */
+function GrassTexture({ fill, opacity }: { fill: string; opacity: number }) {
+  return (
+    <g opacity={opacity} stroke={fill} strokeWidth={2} strokeLinecap="round" fill="none">
+      {Array.from({ length: 90 }, (_, i) => {
+        const x = ((i * 149) % 1196) + 2;
+        const y = 546 + ((i * 37) % 150);
+        const lean = ((i * 23) % 7) - 3;
+        const len = 9 + ((i * 13) % 7);
+        return <path key={i} d={`M${x},${y} q${lean},${-len / 2} ${lean * 2},${-len}`} />;
+      })}
+    </g>
+  );
+}
+
+/** Terrain gradients, declared once per scene and referenced from both SVGs. */
+function TerrainGrads({ scene }: { scene: YardScene }) {
+  return (
+    <>
+      {scene.grads.map((g) => (
+        <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={g.from} />
+          <stop offset="100%" stopColor={g.to} />
+        </linearGradient>
+      ))}
+    </>
+  );
+}
+
 export function YardBackdrop({ scene }: { scene: YardScene }) {
-  const id = "yard";
+  if (scene.image) {
+    return (
+      <div className="absolute inset-0">
+        <Image
+          src={scene.image}
+          alt=""
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 900px) 100vw, 1200px"
+        />
+        <svg viewBox={VIEW_BOX} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
+          <defs>
+            <TerrainGrads scene={scene} />
+          </defs>
+          <Birds fill={scene.birdFill} />
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <svg
       viewBox={VIEW_BOX}
@@ -194,45 +240,65 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
       aria-hidden
     >
       <defs>
-        <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={scene.skyTop} />
-          <stop offset="100%" stopColor={scene.skyBottom} />
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          {scene.sky.map((c, i) => (
+            <stop key={i} offset={`${(i / (scene.sky.length - 1)) * 100}%`} stopColor={c} />
+          ))}
         </linearGradient>
+
+        {/* Distance wash. Everything far away drifts toward this, which is what
+            atmospheric perspective actually is. */}
+        <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+          <stop offset={`${scene.hazeTop * 100}%`} stopColor={scene.haze} stopOpacity="0" />
+          <stop offset={`${(scene.hazeTop + 0.12) * 100}%`} stopColor={scene.haze} stopOpacity="0.3" />
+          <stop offset={`${(scene.hazeTop + 0.22) * 100}%`} stopColor={scene.haze} stopOpacity="0" />
+        </linearGradient>
+
+        <radialGradient id="cloud" cx="42%" cy="26%" r="78%">
+          <stop offset="0%" stopColor={scene.cloudTop} />
+          <stop offset="62%" stopColor={scene.cloudTop} />
+          <stop offset="100%" stopColor={scene.cloudBottom} />
+        </radialGradient>
+
         {scene.orb && (
-          <radialGradient id={`${id}-halo`}>
-            <stop offset="0%" stopColor={scene.orb.halo} stopOpacity="0.85" />
-            <stop offset="100%" stopColor={scene.orb.halo} stopOpacity="0" />
+          <radialGradient id="glow">
+            <stop offset="0%" stopColor={scene.orb.glow} stopOpacity="0.75" />
+            <stop offset="45%" stopColor={scene.orb.glow} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={scene.orb.glow} stopOpacity="0" />
           </radialGradient>
         )}
+
+        <TerrainGrads scene={scene} />
       </defs>
 
-      <rect width={SCENE_W} height={SCENE_H} fill={`url(#${id}-sky)`} />
+      <rect width={SCENE_W} height={SCENE_H} fill="url(#sky)" />
 
       {scene.orb && (
         <>
-          <circle cx={scene.orb.cx} cy={scene.orb.cy} r={scene.orb.r * 2.6} fill={`url(#${id}-halo)`} />
-          <circle cx={scene.orb.cx} cy={scene.orb.cy} r={scene.orb.r} fill={scene.orb.fill} />
+          <circle cx={scene.orb.cx} cy={scene.orb.cy} r={scene.orb.r * 4.2} fill="url(#glow)" />
+          <circle cx={scene.orb.cx} cy={scene.orb.cy} r={scene.orb.r} fill={scene.orb.core} />
         </>
       )}
 
-      {/* Far weather drifts slowly, near weather faster — cheap parallax. */}
+      {/* Far weather is smaller, paler and blurred; near weather is sharp. */}
       <CloudBand
         clouds={[
-          { x: 130, y: 128, s: 0.62 },
-          { x: 520, y: 96, s: 0.5 },
-          { x: 880, y: 150, s: 0.58 },
+          { x: 130, y: 128, s: 0.6 },
+          { x: 520, y: 96, s: 0.48 },
+          { x: 880, y: 150, s: 0.56 },
         ]}
-        fill={scene.cloudFill}
-        opacity={scene.cloudOpacity * 0.6}
+        grad="cloud"
+        opacity={scene.cloudOpacity * 0.55}
         duration={150}
+        blur={2}
       />
       <CloudBand
         clouds={[
-          { x: 250, y: 210, s: 1 },
-          { x: 720, y: 176, s: 0.86 },
-          { x: 1040, y: 236, s: 0.94 },
+          { x: 250, y: 214, s: 1 },
+          { x: 720, y: 178, s: 0.86 },
+          { x: 1040, y: 240, s: 0.94 },
         ]}
-        fill={scene.cloudFill}
+        grad="cloud"
         opacity={scene.cloudOpacity}
         duration={92}
       />
@@ -242,6 +308,11 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
       {scene.back.map((p, i) => (
         <Paint key={i} {...p} />
       ))}
+
+      {/* The haze sits over the distant land, not under it. */}
+      <rect width={SCENE_W} height={SCENE_H} fill="url(#haze)" />
+
+      {scene.texture && <GrassTexture {...scene.texture} />}
     </svg>
   );
 }
