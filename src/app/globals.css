@@ -286,3 +286,71 @@ html.lenis body {
 .game-hotbar {
   image-rendering: auto;
 }
+
+/* ── Yard scene motion ───────────────────────────────────────
+   The house's yard is vector, so everything that moves is a CSS transform on
+   an SVG group. Distances are in user units, which map 1:1 to the scene's
+   1200x800 viewBox regardless of how large the scene is drawn. */
+
+/* Weather. The band is drawn twice one scene apart and slid exactly one
+   scene, so the loop is seamless. */
+@keyframes yard-drift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-1200px); }
+}
+.yard-drift {
+  animation-name: yard-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Birds cross the whole scene and re-enter off the left edge. */
+@keyframes yard-fly {
+  from { transform: translateX(-140px); }
+  to   { transform: translateX(1340px); }
+}
+.yard-fly {
+  animation-name: yard-fly;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Wings, squashed about their own centre. */
+@keyframes yard-flap {
+  from { transform: scaleY(1); }
+  to   { transform: scaleY(0.3); }
+}
+.yard-flap {
+  transform-origin: center;
+  animation: yard-flap 0.42s ease-in-out infinite alternate;
+}
+
+/* A critter crossing the open ground. */
+@keyframes yard-dash {
+  from { transform: translateX(-120px); }
+  to   { transform: translateX(1320px); }
+}
+.yard-dash {
+  animation-name: yard-dash;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes yard-hop {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  40%      { transform: translateY(-26px) scaleY(1.06); }
+  70%      { transform: translateY(0) scaleY(0.94); }
+}
+.yard-hop {
+  animation: yard-hop 0.72s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yard-drift,
+  .yard-fly,
+  .yard-flap,
+  .yard-dash,
+  .yard-hop {
+    animation: none !important;
+  }
+}
