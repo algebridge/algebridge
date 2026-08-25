@@ -130,6 +130,7 @@ function clearing(cy: number, rx: number, ry: number): string {
 export const YARD_SCENES: Record<string, YardScene> = {
   /* ── Cozy Cottage — a summer meadow, late morning ───────────── */
   cottage: {
+    image: "/house/yards/cottage.webp",
     sky: ["#1E6FC4", "#4E9EDC", "#8FC9EC", "#D8ECF5"],
     haze: "#DCEDF4",
     hazeTop: 0.44,
@@ -176,6 +177,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
 
   /* ── Treehouse Hideout — a forest clearing ─────────────────── */
   treehouse: {
+    image: "/house/yards/treehouse.webp",
     sky: ["#2E9BC4", "#63C0DA", "#A8DDE4", "#DCF2E8"],
     haze: "#DCF2E8",
     hazeTop: 0.42,
@@ -221,6 +223,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
 
   /* ── City Loft — rooftops at golden hour ───────────────────── */
   loft: {
+    image: "/house/yards/loft.webp",
     sky: ["#2C6FB4", "#5E9FD2", "#E9B888", "#FFD9A8"],
     haze: "#FFD9A8",
     hazeTop: 0.4,
@@ -269,6 +272,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
 
   /* ── Beach Bungalow — open shore ───────────────────────────── */
   beach: {
+    image: "/house/yards/beach.webp",
     sky: ["#1E96D4", "#55BCE6", "#9EDCF0", "#E0F6FF"],
     haze: "#E0F6FF",
     hazeTop: 0.42,
@@ -312,6 +316,7 @@ export const YARD_SCENES: Record<string, YardScene> = {
 
   /* ── Algebra Castle — mountains at dusk ────────────────────── */
   castle: {
+    image: "/house/yards/castle.webp",
     sky: ["#3B2E7E", "#6A55A8", "#B87FA4", "#F5B184"],
     haze: "#F0AE84",
     hazeTop: 0.46,

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "yards": "node --experimental-strip-types scripts/gen-yards.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

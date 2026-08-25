@@ -4,6 +4,7 @@ import Image from "next/image";
 import { GameHud } from "@/components/house/GameHud";
 import { YardBackdrop, YardForeground } from "@/components/house/YardScene";
 import { getHouseStyle } from "@/data/house-catalog";
+import { PAD_SCREEN_Y } from "@/components/house/YardScene";
 import { SCENE_GROUND_Y, SCENE_H, getYardScene } from "@/data/yard-scenes";
 
 interface CartoonExteriorProps {
@@ -27,12 +28,17 @@ interface CartoonExteriorProps {
  */
 
 /** House width as a % of the scene, so it scales with the art, not the viewport. */
-const HOUSE_WIDTH = 33;
+const HOUSE_WIDTH = 37;
 /** Where the building's base sits inside its own padded sprite. */
 const SPRITE_BASE = 93;
 
-/** Put the sprite's base on the scene's shared ground line. */
-const HOUSE_BOTTOM_PCT = 100 - (SCENE_GROUND_Y / SCENE_H) * 100;
+/**
+ * Put the sprite's base on the ground it is meant to stand on. For a rendered
+ * yard that is the levelled pad, whose screen position comes from the
+ * renderer's camera; for a drawn one it is the scene's shared ground line.
+ */
+const PAD_BOTTOM_PCT = 100 - PAD_SCREEN_Y * 100;
+const DRAWN_BOTTOM_PCT = 100 - (SCENE_GROUND_Y / SCENE_H) * 100;
 
 export function CartoonExterior({ houseStyleId, onEnter }: CartoonExteriorProps) {
   const house = getHouseStyle(houseStyleId) ?? getHouseStyle("cottage")!;
@@ -40,7 +46,7 @@ export function CartoonExterior({ houseStyleId, onEnter }: CartoonExteriorProps)
 
   const placement = {
     left: "50%",
-    bottom: `${HOUSE_BOTTOM_PCT}%`,
+    bottom: `${scene.image ? PAD_BOTTOM_PCT : DRAWN_BOTTOM_PCT}%`,
     width: `${HOUSE_WIDTH}%`,
     transform: "translateX(-50%)",
   } as const;
