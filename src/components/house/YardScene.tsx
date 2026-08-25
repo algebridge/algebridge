@@ -210,28 +210,21 @@ function TerrainGrads({ scene }: { scene: YardScene }) {
   );
 }
 
-export function YardBackdrop({ scene }: { scene: YardScene }) {
-  if (scene.image) {
-    return (
-      <div className="absolute inset-0">
-        <Image
-          src={scene.image}
-          alt=""
-          fill
-          className="object-cover"
-          priority
-          sizes="(max-width: 900px) 100vw, 1200px"
-        />
-        <svg viewBox={VIEW_BOX} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
-          <defs>
-            <TerrainGrads scene={scene} />
-          </defs>
-          <Birds fill={scene.birdFill} />
-        </svg>
-      </div>
-    );
-  }
+/**
+ * The pad's position on screen, derived from the renderer's own camera rather
+ * than eyeballed: horizon 0.60, camera height 1.85, pad levelled to 0.14 at
+ * depth 15.5, pitch 1.02. So 0.60 + ((1.85 - 0.14) / 15.5) * 1.02 = 0.7125.
+ * Keep this in step with scripts/gen-yards.ts or the house floats.
+ */
+export const PAD_SCREEN_Y = 0.723;
 
+/** Terrain fades in front of the house across this band, dissolving its base. */
+const GROUND_MASK = `linear-gradient(to bottom, transparent ${
+  (PAD_SCREEN_Y - 0.028) * 100
+}%, rgba(0,0,0,0.55) ${PAD_SCREEN_Y * 100}%, #000 ${(PAD_SCREEN_Y + 0.05) * 100}%)`;
+
+/** Sky, sun and weather. Always drawn, whether the ground is rendered or drawn. */
+function SkyLayer({ scene }: { scene: YardScene }) {
   return (
     <svg
       viewBox={VIEW_BOX}
@@ -245,21 +238,11 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
             <stop key={i} offset={`${(i / (scene.sky.length - 1)) * 100}%`} stopColor={c} />
           ))}
         </linearGradient>
-
-        {/* Distance wash. Everything far away drifts toward this, which is what
-            atmospheric perspective actually is. */}
-        <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
-          <stop offset={`${scene.hazeTop * 100}%`} stopColor={scene.haze} stopOpacity="0" />
-          <stop offset={`${(scene.hazeTop + 0.12) * 100}%`} stopColor={scene.haze} stopOpacity="0.3" />
-          <stop offset={`${(scene.hazeTop + 0.22) * 100}%`} stopColor={scene.haze} stopOpacity="0" />
-        </linearGradient>
-
         <radialGradient id="cloud" cx="42%" cy="26%" r="78%">
           <stop offset="0%" stopColor={scene.cloudTop} />
           <stop offset="62%" stopColor={scene.cloudTop} />
           <stop offset="100%" stopColor={scene.cloudBottom} />
         </radialGradient>
-
         {scene.orb && (
           <radialGradient id="glow">
             <stop offset="0%" stopColor={scene.orb.glow} stopOpacity="0.75" />
@@ -267,7 +250,6 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
             <stop offset="100%" stopColor={scene.orb.glow} stopOpacity="0" />
           </radialGradient>
         )}
-
         <TerrainGrads scene={scene} />
       </defs>
 
@@ -304,35 +286,60 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
       />
 
       <Birds fill={scene.birdFill} />
-
-      {scene.back.map((p, i) => (
-        <Paint key={i} {...p} />
-      ))}
-
-      {/* The haze sits over the distant land, not under it. */}
-      <rect width={SCENE_W} height={SCENE_H} fill="url(#haze)" />
-
-      {scene.texture && <GrassTexture {...scene.texture} />}
     </svg>
   );
 }
 
-export function YardForeground({ scene }: { scene: YardScene }) {
+export function YardBackdrop({ scene }: { scene: YardScene }) {
   return (
+    <>
+      <SkyLayer scene={scene} />
+
+      {scene.image ? (
+        /* A rendered heightfield. Its sky is transparent and distance fades to
+           alpha, so the animated sky above shows through the far ground and the
+           aerial perspective is the render's own rather than painted on. */
+        <Image
+          src={scene.image}
+          alt=""
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 900px) 100vw, 1200px"
+        />
+      ) : (
+        <svg
+          viewBox={VIEW_BOX}
+          preserveAspectRatio="xMidYMid slice"
+          className="absolute inset-0 h-full w-full"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+              <stop offset={`${scene.hazeTop * 100}%`} stopColor={scene.haze} stopOpacity="0" />
+              <stop offset={`${(scene.hazeTop + 0.12) * 100}%`} stopColor={scene.haze} stopOpacity="0.3" />
+              <stop offset={`${(scene.hazeTop + 0.22) * 100}%`} stopColor={scene.haze} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {scene.back.map((p, i) => (
+            <Paint key={i} {...p} />
+          ))}
+          <rect width={SCENE_W} height={SCENE_H} fill="url(#haze)" />
+          {scene.texture && <GrassTexture {...scene.texture} />}
+        </svg>
+      )}
+    </>
+  );
+}
+
+export function YardForeground({ scene }: { scene: YardScene }) {
+  const critter = (
     <svg
       viewBox={VIEW_BOX}
       preserveAspectRatio="xMidYMid slice"
       className="pointer-events-none absolute inset-0 h-full w-full"
       aria-hidden
     >
-      {/* Terrain nearer than the house. The first band's uneven top edge is
-          what crosses in front of the sprite's base. */}
-      {scene.front.map((p, i) => (
-        <Paint key={i} {...p} />
-      ))}
-
-      {/* The critter runs across the open ground, in front of the building but
-          behind the nearest bank, so it passes into and out of cover. */}
       <g className="yard-dash" style={{ animationDuration: "19s" }}>
         <g transform={`translate(0 ${SCENE_GROUND_Y + 122})`}>
           <g className="yard-hop">
@@ -340,7 +347,51 @@ export function YardForeground({ scene }: { scene: YardScene }) {
           </g>
         </g>
       </g>
+    </svg>
+  );
 
+  if (scene.image) {
+    return (
+      <>
+        {/* The same render again, faded in across the pad, so real ground
+            passes in front of the sprite's flat base. Because the occluder is
+            the identical image there is no seam to hide. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ WebkitMaskImage: GROUND_MASK, maskImage: GROUND_MASK }}
+        >
+          <Image
+            src={scene.image}
+            alt=""
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 900px) 100vw, 1200px"
+          />
+        </div>
+        {critter}
+      </>
+    );
+  }
+
+  return (
+    <svg
+      viewBox={VIEW_BOX}
+      preserveAspectRatio="xMidYMid slice"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden
+    >
+      {scene.front.map((p, i) => (
+        <Paint key={i} {...p} />
+      ))}
+      <g className="yard-dash" style={{ animationDuration: "19s" }}>
+        <g transform={`translate(0 ${SCENE_GROUND_Y + 122})`}>
+          <g className="yard-hop">
+            <Critter kind={scene.critter} body={scene.critterBody} accent={scene.critterAccent} />
+          </g>
+        </g>
+      </g>
       {scene.near.map((p, i) => (
         <Paint key={i} {...p} />
       ))}
