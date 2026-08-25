@@ -27,8 +27,6 @@ export const SCENE_H = 800;
 /** The y where a building's base sits, shared by every scene. */
 export const SCENE_GROUND_Y = 528;
 
-export type CritterKind = "hopper" | "runner" | "crab";
-
 export interface ScenePaint {
   d: string;
   /** A colour, or "url(#id)" naming one of the scene's gradients. */
@@ -65,10 +63,11 @@ export interface YardScene {
   near: ScenePaint[];
   /** Fine strokes over the mid ground, so grass is not one flat wash. */
   texture: { fill: string; opacity: number } | null;
-  birdFill: string;
-  critter: CritterKind;
-  critterBody: string;
-  critterAccent: string;
+  /** Castle flies at dusk, so its birds take the paler ink. */
+  duskBirds: boolean;
+  /** Which rendered coat crosses this yard, and how far down it runs. */
+  critterCoat: "hare" | "fox" | "grey";
+  critterTop: number;
   shadow: string;
 }
 
@@ -168,10 +167,9 @@ export const YARD_SCENES: Record<string, YardScene> = {
       { d: scatter(740, 792, 8, 2, 8), fill: "#FFC94D", opacity: 0.9, blur: 2.5 },
     ],
     texture: { fill: "#2F6B20", opacity: 0.14 },
-    birdFill: "#3B4A55",
-    critter: "hopper",
-    critterBody: "#F7EEDC",
-    critterAccent: "#E4A9B0",
+    duskBirds: false,
+    critterCoat: "hare",
+    critterTop: 79,
     shadow: "#22380F",
   },
 
@@ -214,10 +212,9 @@ export const YARD_SCENES: Record<string, YardScene> = {
       { d: scatter(738, 792, 7, 3, 8), fill: "#EFDD78", opacity: 0.9, blur: 2.5 },
     ],
     texture: { fill: "#1C4A20", opacity: 0.16 },
-    birdFill: "#33413A",
-    critter: "runner",
-    critterBody: "#E08340",
-    critterAccent: "#FBF1E2",
+    duskBirds: false,
+    critterCoat: "fox",
+    critterTop: 78,
     shadow: "#12300F",
   },
 
@@ -263,10 +260,9 @@ export const YARD_SCENES: Record<string, YardScene> = {
       { d: scatter(742, 792, 7, 4, 8), fill: "#DE7C72", opacity: 0.9, blur: 2.5 },
     ],
     texture: { fill: "#3A4A2C", opacity: 0.12 },
-    birdFill: "#3A4457",
-    critter: "runner",
-    critterBody: "#4A4A52",
-    critterAccent: "#F0EDE6",
+    duskBirds: false,
+    critterCoat: "grey",
+    critterTop: 80,
     shadow: "#232A36",
   },
 
@@ -307,10 +303,9 @@ export const YARD_SCENES: Record<string, YardScene> = {
       { d: scatter(746, 792, 6, 9, 8), fill: "#E8B394", opacity: 0.9, blur: 2.5 },
     ],
     texture: null,
-    birdFill: "#4A5560",
-    critter: "crab",
-    critterBody: "#E8623F",
-    critterAccent: "#FFD9C4",
+    duskBirds: false,
+    critterCoat: "hare",
+    critterTop: 81,
     shadow: "#7A5E2C",
   },
 
@@ -356,10 +351,9 @@ export const YARD_SCENES: Record<string, YardScene> = {
       { d: scatter(740, 792, 6, 10, 8), fill: "#D2AEE8", opacity: 0.9, blur: 2.5 },
     ],
     texture: { fill: "#26331A", opacity: 0.16 },
-    birdFill: "#2E2647",
-    critter: "runner",
-    critterBody: "#7A67A0",
-    critterAccent: "#EADEF5",
+    duskBirds: true,
+    critterCoat: "grey",
+    critterTop: 79,
     shadow: "#1E1633",
   },
 };

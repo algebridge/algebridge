@@ -3,7 +3,6 @@ import {
   SCENE_GROUND_Y,
   SCENE_H,
   SCENE_W,
-  type CritterKind,
   type ScenePaint,
   type YardScene,
 } from "@/data/yard-scenes";
@@ -28,6 +27,59 @@ import {
  */
 
 const VIEW_BOX = `0 0 ${SCENE_W} ${SCENE_H}`;
+
+/**
+ * Birds, as a stepped walk along a rendered wingbeat sheet — see
+ * scripts/gen-birds.ts. Each has a hard-coded altitude, speed and delay rather
+ * than a random one, so server and browser agree on the markup, and each beats
+ * at its own rate so a flock never pulses in unison.
+ */
+const BIRD_PATHS = [
+  { top: 16, scale: 1, duration: 30, delay: 0, beat: 0.5 },
+  { top: 23, scale: 0.72, duration: 41, delay: -11, beat: 0.58 },
+  { top: 11, scale: 0.52, duration: 54, delay: -26, beat: 0.66 },
+];
+
+/** The critter, as a stepped walk along a rendered bound — gen-critters.ts. */
+function Critter({ coat, top }: { coat: string; top: number }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <span
+        className={`yard-critter${coat === "hare" ? "" : ` yard-critter-${coat}`}`}
+        style={{ top: `${top}%`, animationDuration: "21s" }}
+      >
+        <span className="yard-critter-sprite" />
+      </span>
+    </div>
+  );
+}
+
+function Birds({ dusk }: { dusk: boolean }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {BIRD_PATHS.map((b, i) => (
+        <span
+          key={i}
+          className={`yard-bird${dusk ? " yard-bird-dusk" : ""}`}
+          style={{
+            top: `${b.top}%`,
+            animationDuration: `${b.duration}s`,
+            animationDelay: `${b.delay}s`,
+          }}
+        >
+          <span
+            className="yard-bird-sprite"
+            style={{
+              transform: `scale(${b.scale})`,
+              transformOrigin: "left top",
+              ["--beat" as string]: `${b.beat}s`,
+            }}
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function Paint({ d, fill, opacity, blur }: ScenePaint) {
   return (
@@ -90,93 +142,6 @@ function CloudBand({
     >
       {band(0)}
       {band(SCENE_W)}
-    </g>
-  );
-}
-
-/** A gull shape whose wings flap by squashing vertically. */
-function Bird({ scale, fill }: { scale: number; fill: string }) {
-  return (
-    <g transform={`scale(${scale})`} className="yard-flap">
-      <path d="M-26,0 q13,-17 26,-2 q13,-15 26,2 q-13,-7 -26,4 q-13,-11 -26,-4 Z" fill={fill} />
-    </g>
-  );
-}
-
-/**
- * Birds cross the sky on their own schedule. Each has a hard-coded delay and
- * altitude rather than a random one, so server and browser agree on the markup.
- */
-const BIRD_PATHS = [
-  { y: 172, scale: 1.5, duration: 26, delay: 0 },
-  { y: 224, scale: 1.05, duration: 34, delay: -9 },
-  { y: 132, scale: 0.78, duration: 42, delay: -19 },
-];
-
-function Birds({ fill }: { fill: string }) {
-  return (
-    <>
-      {BIRD_PATHS.map((b, i) => (
-        <g
-          key={i}
-          className="yard-fly"
-          style={{ animationDuration: `${b.duration}s`, animationDelay: `${b.delay}s` }}
-        >
-          <g transform={`translate(0 ${b.y})`}>
-            <Bird scale={b.scale} fill={fill} />
-          </g>
-        </g>
-      ))}
-    </>
-  );
-}
-
-/* ── Critters ───────────────────────────────────────────────────
-   Three silhouettes, palette-swapped per scene. Each is drawn facing right
-   around the origin, standing on y = 0, so the running group can place it on
-   the ground without per-animal fudging. */
-
-function Critter({ kind, body, accent }: { kind: CritterKind; body: string; accent: string }) {
-  const line = "#2E2118";
-  if (kind === "hopper") {
-    return (
-      <g stroke={line} strokeWidth={3} strokeLinejoin="round">
-        <ellipse cx={-16} cy={-6} rx={7} ry={5} fill={body} />
-        <path d="M-2,-30 q-5,-22 4,-24 q7,3 3,25 Z" fill={body} />
-        <path d="M8,-30 q-2,-23 8,-23 q6,4 -1,24 Z" fill={body} />
-        <ellipse cx={0} cy={-14} rx={19} ry={14} fill={body} />
-        <circle cx={16} cy={-22} r={11} fill={body} />
-        <circle cx={21} cy={-24} r={2.4} fill={line} stroke="none" />
-        <path d="M-8,-2 q4,6 10,0" fill="none" />
-        <path d="M6,-2 q4,6 10,0" fill="none" />
-        <ellipse cx={12} cy={-16} rx={4} ry={3} fill={accent} stroke="none" />
-      </g>
-    );
-  }
-  if (kind === "crab") {
-    return (
-      <g stroke={line} strokeWidth={3} strokeLinejoin="round">
-        <path d="M-22,-8 l-9,-9 M-16,-6 l-8,4 M16,-6 l8,4 M22,-8 l9,-9" fill="none" />
-        <ellipse cx={0} cy={-13} rx={22} ry={14} fill={body} />
-        <path d="M-24,-22 q-11,-3 -12,7 q9,6 13,-1 Z" fill={body} />
-        <path d="M24,-22 q11,-3 12,7 q-9,6 -13,-1 Z" fill={body} />
-        <circle cx={-8} cy={-22} r={4.5} fill={accent} />
-        <circle cx={8} cy={-22} r={4.5} fill={accent} />
-        <circle cx={-8} cy={-22} r={2} fill={line} stroke="none" />
-        <circle cx={8} cy={-22} r={2} fill={line} stroke="none" />
-      </g>
-    );
-  }
-  return (
-    <g stroke={line} strokeWidth={3} strokeLinejoin="round">
-      <path d="M-20,-16 q-18,-2 -20,-20 q12,4 20,8 Z" fill={body} />
-      <ellipse cx={0} cy={-16} rx={22} ry={12} fill={body} />
-      <path d="M-12,-6 q3,7 8,0 M4,-6 q3,7 8,0" fill="none" />
-      <circle cx={20} cy={-24} r={11} fill={body} />
-      <path d="M13,-32 l-2,-11 l10,6 Z" fill={body} />
-      <path d="M27,-32 l3,-11 l7,8 Z" fill={body} />
-      <circle cx={25} cy={-25} r={2.4} fill={line} stroke="none" />
-      <ellipse cx={16} cy={-18} rx={5} ry={3} fill={accent} stroke="none" />
     </g>
   );
 }
@@ -328,7 +293,6 @@ function SkyLayer({ scene }: { scene: YardScene }) {
         duration={92}
       />
 
-      <Birds fill={scene.birdFill} />
     </svg>
   );
 }
@@ -337,6 +301,7 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
   return (
     <>
       <SkyLayer scene={scene} />
+      <Birds dusk={scene.duskBirds} />
 
       {scene.image ? (
         /* A rendered heightfield. Its sky is transparent and distance fades to
@@ -379,22 +344,7 @@ export function YardBackdrop({ scene }: { scene: YardScene }) {
 }
 
 export function YardForeground({ scene }: { scene: YardScene }) {
-  const critter = (
-    <svg
-      viewBox={VIEW_BOX}
-      preserveAspectRatio="xMidYMid slice"
-      className="pointer-events-none absolute inset-0 h-full w-full"
-      aria-hidden
-    >
-      <g className="yard-dash" style={{ animationDuration: "19s" }}>
-        <g transform={`translate(0 ${SCENE_GROUND_Y + 122})`}>
-          <g className="yard-hop">
-            <Critter kind={scene.critter} body={scene.critterBody} accent={scene.critterAccent} />
-          </g>
-        </g>
-      </g>
-    </svg>
-  );
+  const critter = <Critter coat={scene.critterCoat} top={scene.critterTop} />;
 
   if (scene.image) {
     return (
@@ -422,25 +372,28 @@ export function YardForeground({ scene }: { scene: YardScene }) {
   }
 
   return (
-    <svg
-      viewBox={VIEW_BOX}
-      preserveAspectRatio="xMidYMid slice"
-      className="pointer-events-none absolute inset-0 h-full w-full"
-      aria-hidden
-    >
-      {scene.front.map((p, i) => (
-        <Paint key={i} {...p} />
-      ))}
-      <g className="yard-dash" style={{ animationDuration: "19s" }}>
-        <g transform={`translate(0 ${SCENE_GROUND_Y + 122})`}>
-          <g className="yard-hop">
-            <Critter kind={scene.critter} body={scene.critterBody} accent={scene.critterAccent} />
-          </g>
-        </g>
-      </g>
-      {scene.near.map((p, i) => (
-        <Paint key={i} {...p} />
-      ))}
-    </svg>
+    <>
+      <svg
+        viewBox={VIEW_BOX}
+        preserveAspectRatio="xMidYMid slice"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        aria-hidden
+      >
+        {scene.front.map((p, i) => (
+          <Paint key={i} {...p} />
+        ))}
+      </svg>
+      {critter}
+      <svg
+        viewBox={VIEW_BOX}
+        preserveAspectRatio="xMidYMid slice"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        aria-hidden
+      >
+        {scene.near.map((p, i) => (
+          <Paint key={i} {...p} />
+        ))}
+      </svg>
+    </>
   );
 }

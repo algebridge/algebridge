@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "yards": "node --experimental-strip-types scripts/gen-yards.ts"
+    "yards": "node --experimental-strip-types scripts/gen-yards.ts",
+    "birds": "node --experimental-strip-types scripts/gen-birds.ts",
+    "critters": "node --experimental-strip-types scripts/gen-critters.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
