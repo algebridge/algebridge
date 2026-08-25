@@ -1,3 +1,5 @@
+import { getOrnament, getUnplacedOrnamentIds } from "@/data/ornament-catalog";
+import { clampToPad } from "@/lib/yard-camera";
 import {
   getBestOwnedFurniture,
   getFurnitureItem,
@@ -231,3 +233,59 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
 }
 
 export { getUnplacedFurnitureIds };
+
+/* ── Garden ornaments ───────────────────────────────────────────
+   The outdoor half of the House. Unlike furniture, ornaments can be owned
+   more than once — a picket fence is only useful in multiples — so buying is
+   an append rather than a membership test, and placement is matched against
+   the owned list by count. */
+
+export function buyOrnament(itemId: string): PurchaseResult {
+  const item = getOrnament(itemId);
+  if (!item) return { ok: false, message: "That ornament doesn't exist." };
+
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+
+  const cantAfford = spendBridgeys(progress, item.price);
+  if (cantAfford) return cantAfford;
+
+  progress.ownedOrnaments = [...(progress.ownedOrnaments ?? []), itemId];
+  saveProgress(progress);
+  return { ok: true, message: `${item.name} delivered! Place it out in your yard.` };
+}
+
+export function placeOrnamentAt(itemId: string, x: number, z: number): PurchaseResult {
+  const item = getOrnament(itemId);
+  if (!item) return { ok: false, message: "That ornament doesn't exist." };
+
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const owned = progress.ownedOrnaments ?? [];
+  const placed = progress.placedOrnaments ?? [];
+
+  if (!getUnplacedOrnamentIds(owned, placed).includes(itemId)) {
+    return { ok: false, message: `You have no spare ${item.name} to put down.` };
+  }
+
+  const spot = clampToPad({ x, z });
+  progress.placedOrnaments = [
+    ...placed,
+    { instanceId: `orn-${Date.now()}-${placed.length}`, itemId, x: spot.x, z: spot.z },
+  ];
+  saveProgress(progress);
+  return { ok: true, message: `${item.name} placed.` };
+}
+
+export function removePlacedOrnament(instanceId: string): PurchaseResult {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const placed = progress.placedOrnaments ?? [];
+  const entry = placed.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "Nothing to pick up there." };
+
+  progress.placedOrnaments = placed.filter((p) => p.instanceId !== instanceId);
+  saveProgress(progress);
+  const item = getOrnament(entry.itemId);
+  return { ok: true, message: `${item?.name ?? "Ornament"} picked up.` };
+}

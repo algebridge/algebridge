@@ -48,7 +48,7 @@ function normalize(a: V3): V3 {
 /* ── Primitives ─────────────────────────────────────────────────
    Each returns a signed distance. Everything below is built from these. */
 
-function sdBox(p: V3, c: V3, b: V3): number {
+export function sdBox(p: V3, c: V3, b: V3): number {
   const q: V3 = [
     Math.abs(p[0] - c[0]) - b[0],
     Math.abs(p[1] - c[1]) - b[1],
@@ -59,7 +59,7 @@ function sdBox(p: V3, c: V3, b: V3): number {
 }
 
 /** A gable roof: a triangular prism running along z. */
-function sdGable(p: V3, c: V3, half: number, hgt: number, depth: number): number {
+export function sdGable(p: V3, c: V3, half: number, hgt: number, depth: number): number {
   const x = Math.abs(p[0] - c[0]);
   const y = p[1] - c[1];
   const z = Math.abs(p[2] - c[2]) - depth;
@@ -72,14 +72,14 @@ function sdGable(p: V3, c: V3, half: number, hgt: number, depth: number): number
 }
 
 /** Vertical cylinder. */
-function sdCyl(p: V3, c: V3, r: number, h: number): number {
+export function sdCyl(p: V3, c: V3, r: number, h: number): number {
   const d = len([p[0] - c[0], 0, p[2] - c[2]]) - r;
   const y = Math.abs(p[1] - c[1]) - h;
   return len([Math.max(d, 0), Math.max(y, 0), 0]) + Math.min(Math.max(d, y), 0);
 }
 
 /** Cone standing on its base, for tower roofs. */
-function sdCone(p: V3, c: V3, r: number, h: number): number {
+export function sdCone(p: V3, c: V3, r: number, h: number): number {
   const q = len([p[0] - c[0], 0, p[2] - c[2]]);
   const y = p[1] - c[1];
   const k = normalize([h, r, 0]);
@@ -157,19 +157,19 @@ function courses(
 /* ── Materials ──────────────────────────────────────────────────
    The id travels with the distance so the shader knows what it hit. */
 
-const M_WALL = 0;
-const M_ROOF = 1;
-const M_TRIM = 2;
-const M_GLASS = 3;
-const M_DOOR = 4;
-const M_STONE = 5;
-const M_LEAF = 6;
-const M_FRAME = 7;
+export const M_WALL = 0;
+export const M_ROOF = 1;
+export const M_TRIM = 2;
+export const M_GLASS = 3;
+export const M_DOOR = 4;
+export const M_STONE = 5;
+export const M_LEAF = 6;
+export const M_FRAME = 7;
 
-type Hit = { d: number; m: number };
+export type Hit = { d: number; m: number };
 const closer = (a: Hit, b: Hit): Hit => (a.d < b.d ? a : b);
 
-type Model = (p: V3) => Hit;
+export type Model = (p: V3) => Hit;
 
 /**
  * A window as joinery rather than a coloured rectangle: glass set back behind
@@ -210,7 +210,7 @@ function doorway(p: V3, x: number, zFace: number, w: number, h: number): Hit {
   return out;
 }
 
-const MODELS: Record<string, Model> = {
+export const MODELS: Record<string, Model> = {
   /* A cottage: rendered walls, a tiled gable with real eaves, a porch, a
      chimney with a cap, shutters and a window box. */
   cottage: (p) => {
@@ -379,9 +379,9 @@ const MODELS: Record<string, Model> = {
    a red-roofed cottage and the shop art still matches the yard. */
 
 type WallStyle = "render" | "brick" | "plank";
-type Palette = { sun: V3; sky: V3; wall: WallStyle; cols: Record<number, V3> };
+export type Palette = { sun: V3; sky: V3; wall: WallStyle; cols: Record<number, V3> };
 
-const PALETTES: Record<string, Palette> = {
+export const PALETTES: Record<string, Palette> = {
   cottage: {
     sun: normalize([-0.55, 0.74, -0.38]),
     sky: [150, 186, 214],
@@ -467,7 +467,7 @@ const PALETTES: Record<string, Palette> = {
  * darker brick, it is a brick with a shadow in front of it, and multiplying
  * after the lighting is what makes it behave that way.
  */
-function surface(mat: number, q: V3, n: V3, pal: Palette): { col: V3; shade: number } {
+export function surface(mat: number, q: V3, n: V3, pal: Palette): { col: V3; shade: number } {
   const base = pal.cols[mat] ?? pal.cols[M_WALL];
   let col: V3 = [base[0], base[1], base[2]];
   let shade = 1;
@@ -510,9 +510,11 @@ function surface(mat: number, q: V3, n: V3, pal: Palette): { col: V3; shade: num
     const grain = 0.92 + noise2(u * 3, w * 26) * 0.16;
     col = [col[0] * grain, col[1] * grain, col[2] * grain];
   } else if (mat === M_LEAF) {
-    const [u, w] = tangents(q, n);
-    const clump = noise2(u * 5.5, w * 5.5);
-    const fine = noise2(u * 17, w * 17);
+    // Sampled from the position itself rather than through tangents(). Axis
+    // selection is fine on a flat face and bands hard on a curved one, which
+    // striped every tree in the yard.
+    const clump = noise2(q[0] * 5.5 + q[1] * 2.3, q[2] * 5.5 + q[1] * 1.7);
+    const fine = noise2(q[0] * 17 + q[1] * 6.1, q[2] * 17 + q[1] * 4.3);
     shade = 0.62 + clump * 0.46;
     const v = 0.82 + fine * 0.3;
     col = [col[0] * v, col[1] * v * 1.04, col[2] * v];
@@ -521,7 +523,7 @@ function surface(mat: number, q: V3, n: V3, pal: Palette): { col: V3; shade: num
 }
 
 /** Soft shadow by marching toward the sun through the model itself. */
-function shadow(p: V3, sun: V3, model: Model): number {
+export function shadow(p: V3, sun: V3, model: Model): number {
   let s = 1;
   let t = 0.06;
   for (let i = 0; i < 26 && t < 9; i++) {
@@ -534,7 +536,7 @@ function shadow(p: V3, sun: V3, model: Model): number {
 }
 
 /** Ambient occlusion, so eaves and recesses gather shade. */
-function occlusion(p: V3, n: V3, model: Model): number {
+export function occlusion(p: V3, n: V3, model: Model): number {
   let occ = 0;
   let w = 1;
   for (let i = 1; i <= 5; i++) {
@@ -546,7 +548,7 @@ function occlusion(p: V3, n: V3, model: Model): number {
   return Math.max(0, Math.min(1, 1 - occ * 1.5));
 }
 
-function normalAt(p: V3, model: Model): V3 {
+export function normalAt(p: V3, model: Model): V3 {
   const e = 0.0025;
   return normalize([
     model([p[0] + e, p[1], p[2]]).d - model([p[0] - e, p[1], p[2]]).d,
@@ -670,4 +672,4 @@ async function main() {
   }
 }
 
-main();
+if (import.meta.filename === process.argv[1]) main();

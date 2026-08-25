@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CartoonExterior } from "@/components/house/CartoonExterior";
+import { YardViewer } from "@/components/house/YardViewer";
 import { HouseExplorer } from "@/components/house/HouseExplorer";
 import type { UserProgress } from "@/types";
 
@@ -24,8 +24,10 @@ export function HouseRoom({ progress, onUpdate }: HouseRoomProps) {
   }
 
   return (
-    <CartoonExterior
-      houseStyleId={progress.houseStyleId}
+    // Every style has a turntable, so the yard is walk-around-able.
+    <YardViewer
+      progress={progress}
+      onUpdate={onUpdate}
       onEnter={() => setInside(true)}
     />
   );

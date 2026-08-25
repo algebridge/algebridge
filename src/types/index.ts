@@ -116,6 +116,24 @@ export interface UserProgress {
   bridgeyEconomyMigratedV1?: boolean;
   /** One-time migration: slot furniture → free-position coords. */
   housePlacementMigratedV2?: boolean;
+  /** Garden ornaments the student owns. */
+  ownedOrnaments?: string[];
+  /** Ornaments standing in the yard, in world metres around the pad. */
+  placedOrnaments?: PlacedOrnamentEntry[];
+}
+
+/**
+ * A yard ornament, stored in WORLD coordinates rather than screen percentages.
+ * Screen coords are only true for one camera angle, so anything stored that
+ * way slides off the moment the view is spun.
+ */
+export interface PlacedOrnamentEntry {
+  instanceId: string;
+  itemId: string;
+  /** Metres east of the pad centre. */
+  x: number;
+  /** Metres north of the pad centre. */
+  z: number;
 }
 
 export interface PlacedFurnitureEntry {
