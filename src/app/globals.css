@@ -306,51 +306,80 @@ html.lenis body {
 
 /* Birds cross the whole scene and re-enter off the left edge. */
 @keyframes yard-fly {
-  from { transform: translateX(-140px); }
-  to   { transform: translateX(1340px); }
+  from { transform: translateX(-12%); }
+  to   { transform: translateX(106%); }
 }
-.yard-fly {
+
+/* A bird is a shape changing in three dimensions, so its wingbeat is eight
+   rendered frames rather than a squash. Scaling the whole silhouette
+   vertically — which is what this used to do — reads as the bird bobbing up
+   and down, not as wings moving. */
+.yard-bird {
+  position: absolute;
+  left: 0;
+  width: 100%;
   animation-name: yard-fly;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
+.yard-bird-sprite {
+  display: block;
+  width: 66px;
+  height: 66px;
+  background-image: url("/house/birds/birds-day.png");
+  background-size: 528px 66px;
+  background-repeat: no-repeat;
+  animation: yard-wingbeat var(--beat, 0.54s) steps(8) infinite;
+}
+.yard-bird-dusk .yard-bird-sprite {
+  background-image: url("/house/birds/birds-dusk.png");
+}
+@keyframes yard-wingbeat {
+  from { background-position-x: 0px; }
+  to   { background-position-x: -528px; }
+}
 
-/* Wings, squashed about their own centre. */
-@keyframes yard-flap {
-  from { transform: scaleY(1); }
-  to   { transform: scaleY(0.3); }
-}
-.yard-flap {
-  transform-origin: center;
-  animation: yard-flap 0.42s ease-in-out infinite alternate;
-}
-
-/* A critter crossing the open ground. */
-@keyframes yard-dash {
-  from { transform: translateX(-120px); }
-  to   { transform: translateX(1320px); }
-}
-.yard-dash {
+/* A critter crossing the open ground. The bound is in the rendered frames
+   themselves — see scripts/gen-critters.ts — so nothing here fakes it by
+   translating a flat shape up and down. */
+.yard-critter {
+  --critter: 46px;
+  position: absolute;
+  left: 0;
+  width: 100%;
   animation-name: yard-dash;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
-
-@keyframes yard-hop {
-  0%, 100% { transform: translateY(0) scaleY(1); }
-  40%      { transform: translateY(-26px) scaleY(1.06); }
-  70%      { transform: translateY(0) scaleY(0.94); }
+@media (max-width: 640px) {
+  .yard-critter { --critter: 26px; }
 }
-.yard-hop {
-  animation: yard-hop 0.72s ease-in-out infinite;
+@keyframes yard-dash {
+  from { transform: translateX(-8%); }
+  to   { transform: translateX(104%); }
+}
+.yard-critter-sprite {
+  display: block;
+  width: var(--critter);
+  height: var(--critter);
+  background-image: url("/house/critters/hare.png");
+  background-size: calc(var(--critter) * 8) var(--critter);
+  background-repeat: no-repeat;
+  animation: yard-bound 0.62s steps(8) infinite;
+}
+.yard-critter-fox .yard-critter-sprite { background-image: url("/house/critters/fox.png"); }
+.yard-critter-grey .yard-critter-sprite { background-image: url("/house/critters/grey.png"); }
+@keyframes yard-bound {
+  from { background-position-x: 0px; }
+  to   { background-position-x: calc(var(--critter) * -8); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .yard-drift,
-  .yard-fly,
-  .yard-flap,
-  .yard-dash,
-  .yard-hop {
+  .yard-bird,
+  .yard-bird-sprite,
+  .yard-critter,
+  .yard-critter-sprite {
     animation: none !important;
   }
 }

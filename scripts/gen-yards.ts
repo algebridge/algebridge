@@ -279,8 +279,14 @@ function height(x: number, z: number, s: Scene): number {
   // relief to catch the light. Without this the foreground renders as paper.
   const tussock = (fbm2(x * 0.42 + 91, z * 0.42 + 91, 3) - 0.5) * 0.5;
   const grain = (noise2(x * 2.4 + 57, z * 2.4 + 57) - 0.5) * 0.11;
+  // Near ground needs relief at the scale the camera actually resolves. With
+  // nothing above 2.4 the foreground rendered as green velvet: correct, and
+  // completely smooth. These are small in world units and only visible close
+  // up, which is exactly where the eye looks for texture.
+  const clumps = (noise2(x * 9 + 21, z * 9 + 21) - 0.5) * 0.05;
+  const blades = (noise2(x * 26 + 77, z * 26 + 77) - 0.5) * 0.018;
 
-  let h = land * (0.4 + massif * 1.15) * s.relief * opens + tussock + grain;
+  let h = land * (0.4 + massif * 1.15) * s.relief * opens + tussock + grain + clumps + blades;
 
   // A shore needs the ground to actually fall away from you. Without this
   // the sea pools in whatever hollows the noise happened to leave.
@@ -305,6 +311,26 @@ function padMix(x: number, z: number): number {
   const d = Math.sqrt(x * x + dz * dz);
   const k = Math.max(0, Math.min(1, (d - PAD_R * 0.6) / (PAD_R * 0.7)));
   return 1 - k * k * (3 - 2 * k);
+}
+
+/**
+ * Soft cast shadow: march toward the sun and see whether the land gets in the
+ * way. Tracking the closest approach rather than a yes/no hit gives a penumbra,
+ * so ridges do not stamp a hard edge across the valley below them.
+ */
+function sunShadow(x: number, y: number, z: number, s: Scene): number {
+  let shade = 1;
+  let t = 0.35;
+  for (let i = 0; i < 22 && t < 26; i++) {
+    const hx = x + s.sun[0] * t;
+    const hz = z + s.sun[2] * t;
+    const ray = y + s.sun[1] * t;
+    const gap = ray - height(hx, hz, s);
+    if (gap < 0) return 0.12;
+    shade = Math.min(shade, (gap * 7) / t);
+    t *= 1.42;
+  }
+  return Math.max(0.12, Math.min(1, shade));
 }
 
 function render(width: number, heightPx: number, s: Scene): Buffer {
@@ -356,8 +382,14 @@ function render(width: number, heightPx: number, s: Scene): Buffer {
         const nyn = ny / nl;
 
         const diffuse = Math.max(0, nx * s.sun[0] + nyn * s.sun[1] + nz * s.sun[2]);
-        // Wrapped, so shadowed faces keep shape instead of going flat black.
-        const lit = Math.min(1, diffuse * 0.84 + 0.16);
+        // Ground in another hill's shade takes no sun however it is angled.
+        const shadow = isWater ? 1 : sunShadow(wx, h, z, s);
+        // Wrapped, so shaded faces keep shape instead of going flat black.
+        const lit = Math.min(1, diffuse * shadow * 0.9 + 0.1);
+        // Shadows are filled by light from the sky, which is blue. Filling
+        // them with a darker version of the surface is the other half of why
+        // flat-shaded ground looks like velvet.
+        const skyFill = (1 - diffuse * shadow) * 0.34;
 
         let dark: RGB;
         let light: RGB;
@@ -395,12 +427,19 @@ function render(width: number, heightPx: number, s: Scene): Buffer {
           ];
         }
 
-        // Fine variation so a large face is not one flat wash.
-        const grain = isWater ? 1 : noise2(wx * 1.6, z * 1.6) * 0.16 + 0.92;
+        // Variation at two scales, so a large face is neither one flat wash
+        // nor uniformly speckled.
+        const grain = isWater
+          ? 1
+          : (noise2(wx * 1.6, z * 1.6) * 0.15 + 0.9) * (noise2(wx * 7.5 + 31, z * 7.5 + 31) * 0.1 + 0.95);
 
         let r = (dark[0] + (light[0] - dark[0]) * lit) * grain;
         let g = (dark[1] + (light[1] - dark[1]) * lit) * grain;
         let b = (dark[2] + (light[2] - dark[2]) * lit) * grain;
+
+        r += (s.ambient[0] - r) * skyFill;
+        g += (s.ambient[1] - g) * skyFill;
+        b += (s.ambient[2] - b) * skyFill;
 
         // Aerial perspective. Distance pulls colour toward the ambient sky
         // tone and then drains the alpha, so the furthest ground dissolves
