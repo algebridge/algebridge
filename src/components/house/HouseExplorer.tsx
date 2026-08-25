@@ -163,15 +163,17 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
   }
 
   return (
-    <div className="space-y-3">
+    <div className="panel">
       <GameHud
         houseStyleId={progress.houseStyleId}
-        bridgeys={progress.bridgeys}
         onExit={onExit}
         mode="inside"
-        hint="⬆️⬇️⬅️➡️ walk · click inventory item · click floor to place · click furniture to pick up"
+        hint="Arrow keys to walk"
       />
 
+      {/* The room fills the panel instead of sitting in a fixed 800px box with
+          grey gutters either side, and it no longer carries its own heavy black
+          frame — the panel is the frame. */}
       <div
         ref={roomRef}
         role="application"
@@ -179,15 +181,15 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
         tabIndex={0}
         onClick={handleRoomClick}
         onMouseMove={handleMouseMove}
-        className={`game-room relative mx-auto w-full overflow-hidden rounded-2xl border-4 border-slate-900 shadow-2xl focus:outline-none focus:ring-2 focus:ring-amber-400 ${
-          placingItemId ? "cursor-crosshair ring-2 ring-amber-400" : "cursor-default"
+        className={`game-room relative w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500 ${
+          placingItemId ? "cursor-crosshair" : "cursor-default"
         }`}
-        style={{ aspectRatio: `${ROOM_WIDTH} / ${ROOM_HEIGHT}`, maxWidth: ROOM_WIDTH }}
+        style={{ aspectRatio: `${ROOM_WIDTH} / ${ROOM_HEIGHT}` }}
       >
         <CartoonRoomBackground houseId={house.id} className="absolute inset-0 h-full w-full" />
 
         {placingItemId && (
-          <div className="pointer-events-none absolute inset-0 bg-amber-300/10" />
+          <div className="pointer-events-none absolute inset-0 bg-bridge-400/15 ring-2 ring-inset ring-bridge-500" />
         )}
 
         {placed.map((entry) => {
@@ -257,17 +259,27 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
         </div>
       </div>
 
-      {/* Game hotbar */}
-      <div className="game-hotbar rounded-2xl border-2 border-slate-800 bg-gradient-to-b from-slate-800 to-slate-900 p-3 shadow-lg">
-        <p className="mb-2 text-center text-xs font-bold uppercase tracking-wider text-amber-400">
-          🎒 Inventory {placingItemId ? "— click the floor!" : ""}
-        </p>
-        {unplaced.length === 0 && placed.length === 0 ? (
-          <p className="text-center text-sm text-slate-400">
-            Empty! Hit the Shop tab to buy furniture with Bridgeys.
+      {/* Inventory tray — part of the same panel as the room rather than a
+          second dark slab underneath it. The instructions live here, next to
+          the thing they describe, at a size you can actually read. */}
+      <div className="border-t border-slate-200 bg-slate-50/80 px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="eyebrow">Inventory</p>
+          <p className="text-xs text-slate-500">
+            {placingItemId
+              ? "Click anywhere on the floor to put it down. Esc to cancel."
+              : "Pick an item to place it. Click furniture in the room to pick it back up."}
+          </p>
+        </div>
+
+        {unplaced.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-600">
+            {placed.length === 0
+              ? "Nothing to place yet. Buy furniture in the Shop with the Bridgeys you have earned."
+              : "Everything you own is placed. Click a piece in the room to pick it up again."}
           </p>
         ) : (
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {unplaced.map((id) => {
               const item = getFurnitureItem(id);
               if (!item) return null;
@@ -276,15 +288,18 @@ export function HouseExplorer({ progress, onUpdate, onExit }: HouseExplorerProps
                 <button
                   key={id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => { setPlacingItemId(active ? null : id); setCursorPos(null); }}
-                  className={`flex flex-col items-center rounded-xl border-2 p-1.5 transition ${
+                  className={`flex w-24 flex-col items-center gap-1 rounded-xl border bg-white p-2 transition ${
                     active
-                      ? "border-amber-400 bg-amber-500/20 ring-2 ring-amber-400 scale-105"
-                      : "border-slate-600 bg-slate-700/50 hover:border-amber-500/50 hover:bg-slate-700"
+                      ? "border-bridge-500 ring-2 ring-bridge-200"
+                      : "border-slate-200 hover:border-bridge-300 hover:shadow-panel"
                   }`}
                 >
-                  <CartoonFurnitureArt itemId={id} size={48} variant="room" />
-                  <span className="mt-0.5 max-w-[64px] truncate text-[9px] font-medium text-slate-300">{item.name}</span>
+                  <CartoonFurnitureArt itemId={id} size={52} variant="room" />
+                  <span className="w-full truncate text-center text-[11px] font-medium text-slate-700">
+                    {item.name}
+                  </span>
                 </button>
               );
             })}
