@@ -2,6 +2,7 @@ import { units } from "@/data/curriculum";
 import { CourseHeader } from "@/components/CourseHeader";
 import { AssignedWork } from "@/components/AssignedWork";
 import { ContinueCard } from "@/components/ContinueCard";
+import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 
@@ -19,27 +20,34 @@ export default function HomePage() {
     <div className="space-y-6">
       <CourseHeader />
 
-      <AssignedWork />
+      {/* The course outline itself is behind a free account. The header above
+          and the steps below stay open, so a visitor can still see how
+          AlgeBridge works before signing up. */}
+      <CourseGate>
+        <div className="space-y-6">
+          <AssignedWork />
 
-      <div id="continue">
-        <ContinueCard />
-      </div>
+          <div id="continue">
+            <ContinueCard />
+          </div>
 
-      <section id="units">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 className="section-title">Course outline</h2>
-          <p className="text-sm text-slate-500">
-            {units.length} units · {TOTAL_SKILLS} skills
-          </p>
+          <section id="units">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 className="section-title">Course outline</h2>
+              <p className="text-sm text-slate-500">
+                {units.length} units · {TOTAL_SKILLS} skills
+              </p>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {units.map((unit) => (
+                <UnitCard key={unit.id} unit={unit} />
+              ))}
+            </div>
+          </section>
+
+          <ProgressOverview />
         </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {units.map((unit) => (
-            <UnitCard key={unit.id} unit={unit} />
-          ))}
-        </div>
-      </section>
-
-      <ProgressOverview />
+      </CourseGate>
 
       <section className="panel">
         <div className="panel-head">

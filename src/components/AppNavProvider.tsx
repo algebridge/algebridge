@@ -26,7 +26,7 @@ const AppNavContext = createContext<AppNavState | null>(null);
  * the sidebar and the top bar don't each open their own realtime subscription.
  */
 export function AppNavProvider({ children }: { children: React.ReactNode }) {
-  const { user, profile } = useAuth();
+  const { user, profile, configured } = useAuth();
   const { stats, continueTarget, mounted } = useProgress();
   const [reviewCount, setReviewCount] = useState(0);
   const [unread, setUnread] = useState(0);
@@ -67,7 +67,17 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
     [user, profile?.role, profile?.isAdmin, reviewCount, unread]
   );
 
-  const value: AppNavState = { sections, continueTarget, stats, mounted, unread, reviewCount };
+  // "Continue" drops the student straight into a lesson, and lessons sit behind
+  // CourseGate. Offering it to a signed-out visitor would only walk them into
+  // the sign-up wall, so the shell hides it until there's an account.
+  const value: AppNavState = {
+    sections,
+    continueTarget: configured && !user ? null : continueTarget,
+    stats,
+    mounted,
+    unread,
+    reviewCount,
+  };
 
   return <AppNavContext.Provider value={value}>{children}</AppNavContext.Provider>;
 }
