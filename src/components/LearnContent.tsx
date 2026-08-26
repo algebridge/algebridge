@@ -6,7 +6,7 @@ import type { MasteryLevel, Skill, Unit } from "@/types";
 import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
-import { PracticeGate } from "@/components/PracticeGate";
+import { CourseGate } from "@/components/CourseGate";
 import { VisualizeExercise } from "@/components/VisualizeExercise";
 import { ProgressStatus } from "@/components/ProgressStatus";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -109,185 +109,181 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
         <span className="text-slate-800">Skill {skillIndex}</span>
       </nav>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-slate-600">
-            Unit {unit.number} · Skill {skillIndex} of {unit.skills.length}
-          </p>
-          <ProgressStatus level={mastery} />
-        </div>
-        <div className="mt-2">
-          <ProgressBar
-            value={unitProgress.completed}
-            max={unitProgress.total}
-            showFraction={false}
-            size="sm"
-          />
-        </div>
-      </div>
-
+      {/* Title and description stay open so a shared lesson link still
+          says what it leads to. The lesson itself needs an account. */}
       <header>
         <h1 className="page-title">{skill.title}</h1>
         <p className="page-subtitle">{skill.description}</p>
       </header>
 
-      {/* 3-step checklist */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div
-          className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-            videoStepSatisfied
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-bridge-200 bg-bridge-50"
-          }`}
-        >
-          <span className="text-xl">{videoStepSatisfied ? "✅" : "1️⃣"}</span>
-          <div>
-            <p className="font-medium text-slate-900">Watch the video</p>
-            <p className="text-xs text-slate-500">
-              {videoWatched
-                ? "Done!"
-                : isSkillComplete
-                  ? "Skipped — you already know this!"
-                  : "Start here (or skip if you already know it)"}
-            </p>
+      <CourseGate>
+        <div className="space-y-6">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-slate-600">
+                Unit {unit.number} · Skill {skillIndex} of {unit.skills.length}
+              </p>
+              <ProgressStatus level={mastery} />
+            </div>
+            <div className="mt-2">
+              <ProgressBar
+                value={unitProgress.completed}
+                max={unitProgress.total}
+                showFraction={false}
+                size="sm"
+              />
+            </div>
           </div>
-        </div>
-        <div
-          className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-            visualized ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
-          }`}
-        >
-          <span className="text-xl">{visualized ? "✅" : "2️⃣"}</span>
-          <div>
-            <p className="font-medium text-slate-900">Visualize it</p>
-            <p className="text-xs text-slate-500">
-              {visualized ? "Done!" : "Explore it, then spot the correct graph"}
-            </p>
-          </div>
-        </div>
-        <div
-          className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-            isSkillComplete
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-slate-200 bg-white"
-          }`}
-        >
-          <span className="text-xl">{isSkillComplete ? "✅" : "3️⃣"}</span>
-          <div>
-            <p className="font-medium text-slate-900">Practice problems</p>
-            <p className="text-xs text-slate-500">
-              {isSkillComplete
-                ? "Skill complete!"
-                : practiceStats.attempted === 0
-                  ? "Answer 3 problems (80%+ correct)"
-                  : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <div className="grid gap-8 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
-          <section>
-            <h2 className="section-title mb-3">Step 1: Watch</h2>
-            <VideoPlayer
-              video={video}
-              backupVideo={backupVideo}
-              onWatched={handleVideoWatched}
-            />
-          </section>
-
-          <section>
-            <h2 className="section-title mb-3">Step 2: Visualize</h2>
-            <p className="mb-3 text-sm text-slate-500">
-              Play with the interactive model to <em>see</em> how the math works, then test yourself by spotting the correct graph.
-            </p>
-            <PracticeGate
-              activity="try the visual exercise"
-              freeNote="You can keep watching the lesson video above without an account."
+          {/* 3-step checklist */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div
+              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
+                videoStepSatisfied
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-bridge-200 bg-bridge-50"
+              }`}
             >
-              <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
-            </PracticeGate>
-          </section>
-
-          <section>
-            <h2 className="section-title mb-3">Step 3: Practice</h2>
-            <PracticeGate
-              activity="practice this skill"
-              freeNote="You can keep watching the lesson video above without an account."
-            >
-              <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
-            </PracticeGate>
-          </section>
-
-          <section>
-            <h2 className="section-title mb-3">Need a hand?</h2>
-            <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xl">{videoStepSatisfied ? "✅" : "1️⃣"}</span>
               <div>
-                <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Message any tutor, or hop on a video call with a shared whiteboard,
-                  your notebook, and a calculator — right here on AlgeBridge.
+                <p className="font-medium text-slate-900">Watch the video</p>
+                <p className="text-xs text-slate-500">
+                  {videoWatched
+                    ? "Done!"
+                    : isSkillComplete
+                      ? "Skipped — you already know this!"
+                      : "Start here (or skip if you already know it)"}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>
-                <Link href="/notebook" className="btn-secondary text-sm">My notebook</Link>
+            </div>
+            <div
+              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
+                visualized ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
+              }`}
+            >
+              <span className="text-xl">{visualized ? "✅" : "2️⃣"}</span>
+              <div>
+                <p className="font-medium text-slate-900">Visualize it</p>
+                <p className="text-xs text-slate-500">
+                  {visualized ? "Done!" : "Explore it, then spot the correct graph"}
+                </p>
               </div>
             </div>
-          </section>
-        </div>
-
-        <aside className="lg:col-span-2">
-          <div className="card sticky top-24 space-y-4">
-            <div>
-              <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
-              <p className="mt-2 text-sm text-slate-600">{skill.learningGoal}</p>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900">Key idea</h3>
-              <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
-            </div>
-            <div className="rounded-xl bg-bridge-50 p-3 text-sm text-slate-600">
-              <p className="font-medium text-slate-800">How to complete this skill:</p>
-              <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
-                <li>Watch the video above</li>
-                <li>Try the visualize exercise (optional)</li>
-                <li>Answer at least 3 practice problems</li>
-                <li>Get 80% or more correct</li>
-              </ol>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-              Overall: {stats.completedSkills}/{stats.totalSkills} skills complete
+            <div
+              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
+                isSkillComplete
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <span className="text-xl">{isSkillComplete ? "✅" : "3️⃣"}</span>
+              <div>
+                <p className="font-medium text-slate-900">Practice problems</p>
+                <p className="text-xs text-slate-500">
+                  {isSkillComplete
+                    ? "Skill complete!"
+                    : practiceStats.attempted === 0
+                      ? "Answer 3 problems (80%+ correct)"
+                      : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
+                </p>
+              </div>
             </div>
           </div>
-        </aside>
-      </div>
 
-      <div className="flex justify-between border-t border-slate-200 pt-6">
-        {prev ? (
-          <Link
-            href={`/learn/${prev.unitId}/${prev.skill.id}`}
-            className="btn-secondary text-sm"
-          >
-            ← Previous
-          </Link>
-        ) : (
-          <span />
-        )}
-        {next ? (
-          <Link
-            href={`/learn/${next.unitId}/${next.skill.id}`}
-            className="btn-primary text-sm"
-          >
-            {isSkillComplete ? "Next skill →" : "Skip to next →"}
-          </Link>
-        ) : (
-          <Link href="/" className="btn-primary text-sm">
-            Back to course
-          </Link>
-        )}
-      </div>
+          <div className="grid gap-8 lg:grid-cols-5">
+            <div className="space-y-6 lg:col-span-3">
+              <section>
+                <h2 className="section-title mb-3">Step 1: Watch</h2>
+                <VideoPlayer
+                  video={video}
+                  backupVideo={backupVideo}
+                  onWatched={handleVideoWatched}
+                />
+              </section>
+
+              <section>
+                <h2 className="section-title mb-3">Step 2: Visualize</h2>
+                <p className="mb-3 text-sm text-slate-500">
+                  Play with the interactive model to <em>see</em> how the math works, then test yourself by spotting the correct graph.
+                </p>
+                <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
+              </section>
+
+              <section>
+                <h2 className="section-title mb-3">Step 3: Practice</h2>
+                <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
+              </section>
+
+              <section>
+                <h2 className="section-title mb-3">Need a hand?</h2>
+                <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Message any tutor, or hop on a video call with a shared whiteboard,
+                      your notebook, and a calculator — right here on AlgeBridge.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>
+                    <Link href="/notebook" className="btn-secondary text-sm">My notebook</Link>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside className="lg:col-span-2">
+              <div className="card sticky top-24 space-y-4">
+                <div>
+                  <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
+                  <p className="mt-2 text-sm text-slate-600">{skill.learningGoal}</p>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Key idea</h3>
+                  <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
+                </div>
+                <div className="rounded-xl bg-bridge-50 p-3 text-sm text-slate-600">
+                  <p className="font-medium text-slate-800">How to complete this skill:</p>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
+                    <li>Watch the video above</li>
+                    <li>Try the visualize exercise (optional)</li>
+                    <li>Answer at least 3 practice problems</li>
+                    <li>Get 80% or more correct</li>
+                  </ol>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                  Overall: {stats.completedSkills}/{stats.totalSkills} skills complete
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="flex justify-between border-t border-slate-200 pt-6">
+            {prev ? (
+              <Link
+                href={`/learn/${prev.unitId}/${prev.skill.id}`}
+                className="btn-secondary text-sm"
+              >
+                ← Previous
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <Link
+                href={`/learn/${next.unitId}/${next.skill.id}`}
+                className="btn-primary text-sm"
+              >
+                {isSkillComplete ? "Next skill →" : "Skip to next →"}
+              </Link>
+            ) : (
+              <Link href="/" className="btn-primary text-sm">
+                Back to course
+              </Link>
+            )}
+          </div>
+        </div>
+      </CourseGate>
     </div>
   );
 }

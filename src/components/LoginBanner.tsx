@@ -6,8 +6,8 @@ import { useAuth } from "@/lib/auth";
 import { dismissLoginPrompt, getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
 /**
- * One-line reminder for signed-out visitors that lessons are open but practice
- * needs a free account. Disappears for good once dismissed or signed in.
+ * One-line reminder for signed-out visitors that the course is behind a free
+ * account. Disappears for good once dismissed or signed in.
  */
 export function LoginBanner() {
   const { user, configured, loading } = useAuth();
@@ -33,8 +33,8 @@ export function LoginBanner() {
     <div className="border-b border-bridge-100 bg-bridge-50">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:px-6 lg:px-8">
         <p className="text-sm text-slate-700">
-          <span className="font-semibold text-slate-900">Lessons are free to watch.</span>{" "}
-          Create a free account to practice, track your skills, and join your class.
+          <span className="font-semibold text-slate-900">The whole course is free.</span>{" "}
+          Create an account to open the lessons, save your progress, and join your class.
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/login" className="btn-primary btn-sm">

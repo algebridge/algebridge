@@ -49,12 +49,12 @@ export function CourseHeader() {
             >
               Create free account
             </Link>
-            <a
-              href="#units"
+            <Link
+              href="/login?mode=signin"
               className="rounded-lg border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
             >
-              Browse the course
-            </a>
+              I already have an account
+            </Link>
           </div>
           <dl className="mt-8 grid max-w-lg grid-cols-3 gap-6 border-t border-white/15 pt-5">
             <Stat label="Units" value={String(TOTAL_UNITS)} />
