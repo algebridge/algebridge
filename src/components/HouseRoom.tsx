@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { YardViewer } from "@/components/house/YardViewer";
-import { HouseExplorer } from "@/components/house/HouseExplorer";
+import { RoomPanorama } from "@/components/house/RoomPanorama";
 import type { UserProgress } from "@/types";
 
 interface HouseRoomProps {
@@ -15,7 +15,7 @@ export function HouseRoom({ progress, onUpdate }: HouseRoomProps) {
 
   if (inside) {
     return (
-      <HouseExplorer
+      <RoomPanorama
         progress={progress}
         onUpdate={onUpdate}
         onExit={() => setInside(false)}

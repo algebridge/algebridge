@@ -32,8 +32,14 @@ export const EYE_Y = 1.62;
 /** Vertical half-angle captured, in radians. */
 export const V_HALF = 0.62;
 
+/**
+ * Width covers a full turn, height covers 2 * V_HALF, and the two have to
+ * resolve the same number of pixels per radian or the panorama is stretched.
+ * 2560 / (2*pi) = 407 px per radian, so the height must be 2 * V_HALF * 407.
+ * The first pass used 720 and everything inside came out 1.4x too tall.
+ */
 const OUT_W = 2560;
-const OUT_H = 720;
+const OUT_H = Math.round(2 * V_HALF * (2560 / (Math.PI * 2)));
 const SS = 2;
 
 type V3 = [number, number, number];
@@ -288,26 +294,31 @@ function render(id: string): Buffer {
       // world outside it, so daylight has to come from the openings.
       let lit: number;
       if (hit.m === M_GLASS) {
-        lit = 1.35;
+        // Bright, but not clipped to paper white — a blown-out rectangle reads
+        // as a hole in the render rather than as a window.
+        lit = 1.12;
       } else {
         const direct = Math.max(0, dot(n, SUN));
         // Bounce: brighter nearer the windowed wall, and the floor catches
         // more of it than the ceiling does.
         const toward = Math.max(0, (-p[2] + ROOM_D / 2) / ROOM_D);
         const up = Math.max(0, n[1]);
-        const ambient = 0.42 + toward * 0.3 + up * 0.12;
+        // A lit room, not a cellar. The first pass summed to about 0.5 on the
+        // side walls, which turned warm plaster into grey concrete.
+        const ambient = 0.66 + toward * 0.34 + up * 0.14;
         // Corners gather shade, which is most of what gives a room its volume.
         const corner =
           Math.min(1, (ROOM_W / 2 - Math.abs(p[0])) / 0.9) *
           Math.min(1, (ROOM_D / 2 - Math.abs(p[2])) / 0.9);
         const ao = 0.72 + 0.28 * Math.max(0, Math.min(1, corner));
-        lit = (direct * 0.55 + ambient) * ao * surf.shade;
+        lit = (direct * 0.42 + ambient) * ao * surf.shade;
       }
 
       const i = (py * w + px) * 4;
-      rgba[i] = surf.col[0] * lit + pal.day[0] * 0.05;
-      rgba[i + 1] = surf.col[1] * lit + pal.day[1] * 0.05;
-      rgba[i + 2] = surf.col[2] * lit + pal.day[2] * 0.05;
+      // A little of the daylight colour bounces onto everything.
+      rgba[i] = surf.col[0] * lit + pal.day[0] * 0.07;
+      rgba[i + 1] = surf.col[1] * lit + pal.day[1] * 0.07;
+      rgba[i + 2] = surf.col[2] * lit + pal.day[2] * 0.07;
       rgba[i + 3] = 255;
     }
   }

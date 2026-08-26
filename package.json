@@ -13,7 +13,8 @@
     "houses": "node --experimental-strip-types scripts/gen-houses.ts",
     "turntable": "node --experimental-strip-types scripts/gen-turntable.ts",
     "ornaments": "node --experimental-strip-types scripts/gen-ornaments.ts",
-    "check:yard": "node --experimental-strip-types scripts/check-yard.ts"
+    "check:yard": "node --experimental-strip-types scripts/check-yard.ts",
+    "interiors": "node --experimental-strip-types scripts/gen-interiors.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
