@@ -46,6 +46,8 @@ export function buildNav({
   else classroom.push({ href: "/classes", label: "My classes", icon: "classes" });
   if (isTutor) classroom.push({ href: "/tutor-hub", label: "Students", icon: "students" });
   else classroom.push({ href: "/tutors", label: "Find a tutor", icon: "tutors" });
+  // The shared tutoring calendar. Staff only — students have no view yet.
+  if (isTutor || isAdmin) classroom.push({ href: "/calendar", label: "Calendar", icon: "clock" });
   if (signedIn) {
     classroom.push({ href: "/messages", label: "Messages", icon: "messages", badge: unreadCount });
     classroom.push({ href: "/groups", label: "Group chats", icon: "groups" });
