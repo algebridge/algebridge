@@ -42,11 +42,17 @@ function normalizeColor(value: unknown): ClassColor {
 export async function getMyProfile(userId: string): Promise<Profile | null> {
   const supabase = createClient();
   if (!supabase) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, email, display_name, role, avatar_url, bio")
-    .eq("id", userId)
-    .maybeSingle();
+  const [{ data }, { data: admin }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, email, display_name, role, avatar_url, bio")
+      .eq("id", userId)
+      .maybeSingle(),
+    // The database decides who is an admin. Comparing against a hardcoded
+    // address here used to let the UI and the RLS policies disagree, and made
+    // a second admin impossible without a deploy.
+    supabase.rpc("is_admin"),
+  ]);
   if (!data) return null;
   return {
     id: data.id,
@@ -55,11 +61,9 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
     role: normalizeRole(data.role),
     avatarUrl: data.avatar_url ?? null,
     bio: data.bio ?? null,
-    isAdmin: (data.email ?? "").toLowerCase() === ADMIN_EMAIL,
+    isAdmin: admin === true,
   };
 }
-
-export const ADMIN_EMAIL = "ivan.malchugan@gmail.com";
 
 export async function setMyRole(userId: string, role: UserRole): Promise<string | null> {
   const supabase = createClient();
