@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { fetchEnabledProviders } from "@/lib/auth-providers";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { exportProgressForSync, importProgressFromSync } from "@/lib/progress";
 import { checkFullName } from "@/lib/name";
@@ -26,6 +27,12 @@ function LoginPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next");
+
+  // Only offer a provider the project has actually enabled.
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  useEffect(() => {
+    void fetchEnabledProviders().then((p) => setGoogleEnabled(p.has("google")));
+  }, []);
 
   const [mode, setMode] = useState<"signup" | "signin">(
     params.get("mode") === "signin" ? "signin" : "signup"
@@ -449,6 +456,8 @@ function LoginPageInner() {
             </button>
           </form>
 
+          {googleEnabled && (
+          <>
           <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
             <div className="h-px flex-1 bg-slate-200" /> or <div className="h-px flex-1 bg-slate-200" />
           </div>
@@ -466,6 +475,8 @@ function LoginPageInner() {
             </svg>
             Continue with Google
           </button>
+          </>
+          )}
 
           {error && <p className="notice-error mt-4">{error}</p>}
           {message && <p className="notice-success mt-4">{message}</p>}
