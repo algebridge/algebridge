@@ -5,13 +5,13 @@ import {
   evaluateNewBadges,
   getLevelInfo,
   RECENT_WINDOW,
+  REQUIRED_STREAK,
   XP_REWARDS,
   type Badge,
 } from "@/lib/gamification";
 import {
   normalizeBridgeyProgress,
   tryAwardSkillCompleteBridgeys,
-  tryAwardVisualBridgeys,
 } from "@/lib/bridgeys";
 import { STARTER_HOUSE_ID } from "@/data/house-catalog";
 
@@ -52,13 +52,29 @@ export interface ContinueTarget {
 export interface SkillPracticeStats {
   attempted: number;
   correct: number;
-  /** Attempts within the rolling accuracy window (see RECENT_WINDOW) */
+  /** Correct answers in the current unbroken run, this is what finishes a skill. */
+  streak: number;
+  /** How long that run has to get. */
+  required: number;
+  /** Attempts within the rolling window (see RECENT_WINDOW) */
   recentAttempted: number;
   recentCorrect: number;
-  /** Accuracy computed from the rolling window — this drives mastery, not lifetime accuracy */
+  /** Accuracy over the rolling window. Shown to the student, but it no longer
+   *  decides anything, the run does. */
   accuracy: number;
   problemsNeeded: number;
   isComplete: boolean;
+}
+
+/** Correct answers a skill has finished in a row. */
+export function currentStreak(prog: SkillProgress): number {
+  if (typeof prog.correctStreak === "number") return prog.correctStreak;
+  // Saves from before the run rule existed: read the run off the tail of the
+  // window they did keep, so nobody's progress resets on the way in.
+  const recent = prog.recentResults ?? [];
+  let n = 0;
+  for (let i = recent.length - 1; i >= 0 && recent[i]; i -= 1) n += 1;
+  return n;
 }
 
 export interface AttemptResult {
@@ -76,13 +92,6 @@ export interface AttemptResult {
 export interface VideoWatchedResult {
   progress: UserProgress;
   xpGained: number;
-  newBadges: Badge[];
-}
-
-export interface VisualCompletedResult {
-  progress: UserProgress;
-  xpGained: number;
-  bridgeysGained: number;
   newBadges: Badge[];
 }
 
@@ -104,7 +113,7 @@ const DEFAULT_PROGRESS: UserProgress = {
   placedFurniture: {},
   placedFurnitureItems: [],
   ownedTitles: [],
-  bridgeyRewardsClaimed: { visual: [], complete: [] },
+  bridgeyRewardsClaimed: { complete: [] },
   leaderboardOptIn: true,
 };
 
@@ -116,8 +125,8 @@ export function normalizeProgress(raw: Partial<UserProgress> | null | undefined)
 
 /**
  * Bumps (or resets) the daily practice streak based on a *real* learning
- * action — a correct/incorrect problem attempt, a watched video, or a
- * completed visualize exercise. Merely opening the app never counts, so the
+ * action, a correct/incorrect problem attempt, or a watched video. Merely
+ * opening the app never counts, so the
  * streak always reflects actual practice days. Idempotent within a day.
  */
 function applyStreakForActivity(progress: UserProgress): void {
@@ -141,7 +150,7 @@ function applyStreakForActivity(progress: UserProgress): void {
  * One-time migration: earlier versions marked a video "watched" the instant the
  * iframe loaded, with no real playback check. That flag isn't trustworthy, so the
  * first time a returning user's data is loaded, un-verified "watched" videos are
- * reset to unwatched — they'll need to actually watch (or confirm after a
+ * reset to unwatched, they'll need to actually watch (or confirm after a
  * time-gated fallback) under the new, real tracking.
  */
 function migrateProgress(progress: UserProgress): UserProgress {
@@ -225,30 +234,6 @@ export function markVideoWatched(skillId: string): VideoWatchedResult {
   return { progress, xpGained, newBadges };
 }
 
-export function markVisualCompleted(skillId: string): VisualCompletedResult {
-  const progress = getProgress();
-  const existing = getSkillProgress(skillId);
-  const alreadyDone = existing.visualized;
-
-  progress.skills[skillId] = {
-    ...existing,
-    level: existing.level === "locked" ? "attempted" : existing.level,
-    visualized: true,
-  };
-  applyStreakForActivity(progress);
-
-  let xpGained = 0;
-  if (!alreadyDone) {
-    xpGained = XP_REWARDS.visualCompleted;
-    progress.xp += xpGained;
-  }
-
-  const bridgeysGained = tryAwardVisualBridgeys(progress, skillId);
-
-  const newBadges = evaluateNewBadges(progress);
-  saveProgress(progress);
-  return { progress, xpGained, bridgeysGained, newBadges };
-}
 
 export function recordProblemAttempt(
   skillId: string,
@@ -264,20 +249,23 @@ export function recordProblemAttempt(
   const recentResults = [...(existing.recentResults ?? []), correct].slice(
     -RECENT_WINDOW
   );
-  const windowAccuracy =
-    recentResults.length > 0
-      ? recentResults.filter(Boolean).length / recentResults.length
-      : 0;
+  const streak = correct ? currentStreak(existing) + 1 : 0;
 
-  // Mastery is based on the last few attempts (a rolling window), not lifetime
-  // accuracy — so an early mistake doesn't permanently drag down a student
-  // who has since learned the skill.
+  // A skill is finished by a run of REQUIRED_STREAK correct answers, not by an
+  // accuracy percentage over a window. The percentage was the wrong mechanism
+  // for two reasons: a student could finish a skill while still getting one in
+  // five wrong, and the number itself was unreadable mid-session, nobody can
+  // tell from "80% of the last five" what to do next. A run of five is a
+  // target you can see, and one you have to actually earn in a row.
   let level: MasteryLevel = existing.level === "locked" ? "attempted" : existing.level;
-  if (attempted >= 3) {
-    if (windowAccuracy >= 1) level = "mastered";
-    else if (windowAccuracy >= 0.8) level = "proficient";
-    else if (windowAccuracy >= 0.6) level = "familiar";
-    else level = "attempted";
+  const wasFinished = level === "proficient" || level === "mastered";
+  if (streak >= REQUIRED_STREAK) {
+    // Never missing at all on the way there is worth its own tier.
+    level = correctCount === attempted ? "mastered" : "proficient";
+  } else if (!wasFinished) {
+    // Finishing is permanent, so a later slip never takes a skill back off the
+    // student, it only means the next run starts again from zero.
+    level = streak >= 3 ? "familiar" : "attempted";
   }
 
   progress.skills[skillId] = {
@@ -286,6 +274,7 @@ export function recordProblemAttempt(
     problemsAttempted: attempted,
     problemsCorrect: correctCount,
     recentResults,
+    correctStreak: streak,
     lastPracticed: new Date().toISOString(),
     videoWatched: existing.videoWatched,
   };
@@ -346,7 +335,7 @@ export function recordProblemAttempt(
 
 /**
  * Call once per app load. This never *grants* streak credit (only real
- * practice activity does, via `applyStreakForActivity`) — it only clears a
+ * practice activity does, via `applyStreakForActivity`), it only clears a
  * streak that's already been broken, so the header/achievements never show a
  * stale streak from many days ago.
  */
@@ -456,28 +445,16 @@ export function getSkillPracticeStats(skillId: string): SkillPracticeStats {
   const accuracy = recentAttempted > 0 ? recentCorrect / recentAttempted : 0;
   const isComplete = prog.level === "proficient" || prog.level === "mastered";
 
-  // Mirrors the real mastery rule in recordProblemAttempt (>=3 attempts AND
-  // >=80% accuracy over the rolling window) by simulating best-case correct
-  // answers, so the UI never tells a student "0 more to try" while they're
-  // still short of mastery due to earlier misses dragging down their window.
-  let problemsNeeded = 0;
-  if (!isComplete) {
-    let simulated = [...recentResults];
-    let attempted = prog.problemsAttempted;
-    let guard = 0;
-    while (guard < RECENT_WINDOW + 3) {
-      const acc = simulated.length > 0 ? simulated.filter(Boolean).length / simulated.length : 0;
-      if (attempted >= 3 && acc >= 0.8) break;
-      simulated = [...simulated, true].slice(-RECENT_WINDOW);
-      attempted += 1;
-      problemsNeeded += 1;
-      guard += 1;
-    }
-  }
+  // With a run-of-five rule this is just subtraction, where the old accuracy
+  // rule needed a simulation to answer "how many more?" at all.
+  const streak = currentStreak(prog);
+  const problemsNeeded = isComplete ? 0 : REQUIRED_STREAK - streak;
 
   return {
     attempted: prog.problemsAttempted,
     correct: prog.problemsCorrect,
+    streak,
+    required: REQUIRED_STREAK,
     recentAttempted,
     recentCorrect,
     accuracy,

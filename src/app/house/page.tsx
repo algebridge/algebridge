@@ -7,6 +7,7 @@ import { HouseRoom } from "@/components/HouseRoom";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
+import { HouseThumb } from "@/components/house/HouseThumb";
 import {
   FURNITURE_ITEMS,
   HOUSE_STYLES,
@@ -181,7 +182,7 @@ export default function HousePage() {
               body={
                 stats.owned === 0
                   ? "You have no furniture yet. Everything in the shop is bought with Bridgeys you already earned."
-                  : `You own ${stats.owned} ${stats.owned === 1 ? "piece" : "pieces"} and have placed ${stats.placed}. Step inside to move things around.`
+                  : `You own ${stats.owned} ${stats.owned === 1 ? "piece" : "pieces"} and have placed ${stats.placed}. Open the house to move things around.`
               }
               action={
                 <button type="button" onClick={() => setTab("shop")} className="btn-primary btn-sm">
@@ -231,17 +232,9 @@ export default function HousePage() {
                     }`}
                   >
                     <div className="relative h-44 border-b border-slate-200 bg-slate-50">
-                      {/* A neutral field, so five different art styles sit on
-                          one shelf instead of five different pastel washes. */}
-                      {house.exteriorImage && (
-                        <Image
-                          src={house.exteriorImage}
-                          alt={house.name}
-                          fill
-                          className="object-contain p-4"
-                          sizes="(max-width: 640px) 100vw, 340px"
-                        />
-                      )}
+                      {/* Drawn, not photographed: the card shows the same house
+                          the student will actually be standing in. */}
+                      <HouseThumb styleId={house.id} />
                       {equipped && (
                         <span className="badge-brand absolute left-3 top-3">Living here</span>
                       )}

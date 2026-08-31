@@ -45,7 +45,7 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
       }
       if (active) {
         // Don't clobber in-progress edits if the storage backend flips (e.g.
-        // the user signs in while typing) — keep what they're writing.
+        // the user signs in while typing), keep what they're writing.
         if (!dirtyRef.current) {
           setContent(text);
           contentRef.current = text;
@@ -58,7 +58,7 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
     };
   }, [cloud]);
 
-  // Raw save with no React state — safe to call during unmount.
+  // Raw save with no React state, safe to call during unmount.
   const rawSave = useCallback(
     (text: string) => {
       if (cloud) {

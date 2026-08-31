@@ -5,7 +5,7 @@ import type { Video } from "@/types";
  * Keys match skill IDs in curriculum.ts.
  */
 export const SKILL_VIDEOS: Record<string, Video> = {
-  // Unit 1 — Working with Units
+  // Unit 1, Working with Units
   "unit-basics": {
     id: "sv-unit-basics",
     title: "Unit Conversion within the Metric System",
@@ -28,7 +28,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "LdZ00OFAfaQ",
   },
 
-  // Unit 2 — Solving Equations
+  // Unit 2, Solving Equations
   "one-step-equations": {
     id: "sv-one-step",
     title: "Solving Basic Equations Part 1",
@@ -65,7 +65,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "mgHO-bsCDrA",
   },
 
-  // Unit 3 — Linear Equations & Graphs
+  // Unit 3, Linear Equations & Graphs
   "coordinate-plane": {
     id: "sv-coordinate",
     title: "Graphing On The Coordinate Plane",
@@ -95,37 +95,37 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "MXV65i9g1Xg",
   },
 
-  // Unit 4 — Forms of Linear Equations
+  // Unit 4, Forms of Linear Equations
   "slope-intercept": {
     id: "sv-slope-intercept",
-    title: "Basic Linear Functions — y = mx + b",
+    title: "Basic Linear Functions, y = mx + b",
     channel: "Math Antics",
     duration: "13:23",
     youtubeId: "MXV65i9g1Xg",
   },
   "point-slope": {
     id: "sv-point-slope",
-    title: "Algebra 1 Review — Linear Equations",
+    title: "Algebra 1 Review, Linear Equations",
     channel: "The Organic Chemistry Tutor",
     duration: "2:12",
     youtubeId: "TbJ5gqLRpeM",
   },
   "standard-form": {
     id: "sv-standard-form",
-    title: "Algebra 1 Review — Forms of Linear Equations",
+    title: "Algebra 1 Review, Forms of Linear Equations",
     channel: "The Organic Chemistry Tutor",
     duration: "2:12",
     youtubeId: "TbJ5gqLRpeM",
   },
   "parallel-perpendicular": {
     id: "sv-parallel",
-    title: "Algebra 1 Review — Parallel & Perpendicular Lines",
+    title: "Algebra 1 Review, Parallel & Perpendicular Lines",
     channel: "The Organic Chemistry Tutor",
     duration: "2:12",
     youtubeId: "TbJ5gqLRpeM",
   },
 
-  // Unit 5 — Systems of Equations
+  // Unit 5, Systems of Equations
   "graphing-systems": {
     id: "sv-graph-systems",
     title: "Solving Systems by Graphing, Substitution & Elimination",
@@ -155,7 +155,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "oKqtgz2eo-Y",
   },
 
-  // Unit 6 — Inequalities
+  // Unit 6, Inequalities
   "graphing-inequalities": {
     id: "sv-graph-ineq",
     title: "Inequalities In Algebra",
@@ -178,7 +178,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "RyesLifeUBw",
   },
 
-  // Unit 7 — Functions
+  // Unit 7, Functions
   "function-notation": {
     id: "sv-functions",
     title: "What Are Functions?",
@@ -201,7 +201,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "52tpYl2tTqk",
   },
 
-  // Unit 8 — Sequences
+  // Unit 8, Sequences
   "arithmetic-sequences": {
     id: "sv-arithmetic",
     title: "Arithmetic Sequences and Series",
@@ -217,7 +217,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "XZJdyPkCxuE",
   },
 
-  // Unit 9 — Exponents & Radicals
+  // Unit 9, Exponents & Radicals
   "exponent-rules": {
     id: "sv-exponents",
     title: "Simplifying Exponents",
@@ -247,7 +247,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "B4zejSI8zho",
   },
 
-  // Unit 10 — Exponential Growth & Decay
+  // Unit 10, Exponential Growth & Decay
   "exponential-functions": {
     id: "sv-exp-func",
     title: "Intro To Exponents",
@@ -270,7 +270,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "e5nwJKUc3bA",
   },
 
-  // Unit 11 — Quadratics: Factoring
+  // Unit 11, Quadratics: Factoring
   "multiplying-binomials": {
     id: "sv-multiply-binomials",
     title: "The Distributive Property (Multiplying Polynomials)",
@@ -300,7 +300,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "U6FndtdgpcA",
   },
 
-  // Unit 12 — Quadratic Functions
+  // Unit 12, Quadratic Functions
   "graphing-parabolas": {
     id: "sv-parabolas",
     title: "Graphing Quadratic Functions",
@@ -330,7 +330,7 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     youtubeId: "qeByhTF8WEw",
   },
 
-  // Unit 13 — Absolute Value & Piecewise
+  // Unit 13, Absolute Value & Piecewise
   "absolute-value": {
     id: "sv-abs-value",
     title: "Absolute Value",
@@ -395,7 +395,7 @@ export function parseDurationToSeconds(duration: string): number {
 export function youtubeEmbedUrl(youtubeId: string): string {
   // NOTE: deliberately no `origin` param. It depends on window.location, which
   // differs between the server render ("http://localhost:3000") and the real
-  // client origin — that produced a React hydration mismatch on every lesson
+  // client origin, that produced a React hydration mismatch on every lesson
   // page. The YouTube IFrame API attaches to the iframe by id (enablejsapi=1),
   // so the origin URL param isn't needed for playback tracking to work.
   const params = new URLSearchParams({

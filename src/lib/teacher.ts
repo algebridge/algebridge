@@ -492,7 +492,7 @@ export async function getMyClassesAsStudent(): Promise<StudentClass[]> {
   if (!me) return [];
 
   // RLS narrows this to classes the student is a member of, plus any they
-  // teach — filter to memberships so a teacher's own classes don't show up
+  // teach, filter to memberships so a teacher's own classes don't show up
   // in the student dashboard.
   const { data: memberships } = await supabase
     .from("class_members")

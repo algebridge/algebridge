@@ -274,6 +274,17 @@ html.lenis body {
   animation: modal-in 0.25s ease-out;
 }
 
+/* For panels the user can drag: their position lives in an inline transform,
+   so the entrance animation must not touch transform or the panel snaps back
+   to its resting corner for the length of the animation. */
+@keyframes fade-rise {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-rise 0.18s ease-out;
+}
+
 /* Bridgey House mini-game styles */
 .game-btn-primary {
   @apply bg-gradient-to-b from-amber-400 to-amber-500 text-slate-900 hover:from-amber-300 hover:to-amber-400;
@@ -287,99 +298,49 @@ html.lenis body {
   image-rendering: auto;
 }
 
-/* ── Yard scene motion ───────────────────────────────────────
-   The house's yard is vector, so everything that moves is a CSS transform on
-   an SVG group. Distances are in user units, which map 1:1 to the scene's
-   1200x800 viewBox regardless of how large the scene is drawn. */
 
-/* Weather. The band is drawn twice one scene apart and slid exactly one
-   scene, so the loop is seamless. */
-@keyframes yard-drift {
+/* ── Dollhouse motion ────────────────────────────────────────
+   The House is one flat picture, so everything that moves is a CSS transform
+   on an SVG group. Distances are in user units, which map 1:1 to the scene's
+   1200x800 viewBox however large it is drawn. */
+
+/* Cloud bands are authored one scene wider than the frame and slid exactly
+   one scene, so the loop has no seam to see. */
+@keyframes dh-drift {
   from { transform: translateX(0); }
   to   { transform: translateX(-1200px); }
 }
-.yard-drift {
-  animation-name: yard-drift;
+.dh-cloud {
+  animation-name: dh-drift;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+  will-change: transform;
+}
+.dh-cloud-far  { animation-duration: 96s; }
+.dh-cloud-near { animation-duration: 58s; }
+
+/* The front of the house. Both halves move on the same curve as the panels
+   they reveal, so opening reads as one gesture rather than two. */
+.dh-shutter {
+  transition: transform 480ms cubic-bezier(0.22, 0.9, 0.28, 1), opacity 380ms ease-out;
 }
 
-/* Birds cross the whole scene and re-enter off the left edge. */
-@keyframes yard-fly {
-  from { transform: translateX(-12%); }
-  to   { transform: translateX(106%); }
+/* Anything placed pops in rather than appearing, which is what makes putting
+   a thing down feel like putting it down. */
+@keyframes dh-settle {
+  from { transform: translate(-50%, -100%) scale(0.86); opacity: 0; }
+  to   { transform: translate(-50%, -100%) scale(1); opacity: 1; }
 }
-
-/* A bird is a shape changing in three dimensions, so its wingbeat is eight
-   rendered frames rather than a squash. Scaling the whole silhouette
-   vertically — which is what this used to do — reads as the bird bobbing up
-   and down, not as wings moving. */
-.yard-bird {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  animation-name: yard-fly;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-.yard-bird-sprite {
-  display: block;
-  width: 66px;
-  height: 66px;
-  background-image: url("/house/birds/birds-day.png");
-  background-size: 528px 66px;
-  background-repeat: no-repeat;
-  animation: yard-wingbeat var(--beat, 0.54s) steps(8) infinite;
-}
-.yard-bird-dusk .yard-bird-sprite {
-  background-image: url("/house/birds/birds-dusk.png");
-}
-@keyframes yard-wingbeat {
-  from { background-position-x: 0px; }
-  to   { background-position-x: -528px; }
-}
-
-/* A critter crossing the open ground. The bound is in the rendered frames
-   themselves — see scripts/gen-critters.ts — so nothing here fakes it by
-   translating a flat shape up and down. */
-.yard-critter {
-  --critter: 46px;
-  position: absolute;
-  left: 0;
-  width: 100%;
-  animation-name: yard-dash;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-@media (max-width: 640px) {
-  .yard-critter { --critter: 26px; }
-}
-@keyframes yard-dash {
-  from { transform: translateX(-8%); }
-  to   { transform: translateX(104%); }
-}
-.yard-critter-sprite {
-  display: block;
-  width: var(--critter);
-  height: var(--critter);
-  background-image: url("/house/critters/hare.png");
-  background-size: calc(var(--critter) * 8) var(--critter);
-  background-repeat: no-repeat;
-  animation: yard-bound 0.62s steps(8) infinite;
-}
-.yard-critter-fox .yard-critter-sprite { background-image: url("/house/critters/fox.png"); }
-.yard-critter-grey .yard-critter-sprite { background-image: url("/house/critters/grey.png"); }
-@keyframes yard-bound {
-  from { background-position-x: 0px; }
-  to   { background-position-x: calc(var(--critter) * -8); }
+.dh-piece {
+  animation: dh-settle 260ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yard-drift,
-  .yard-bird,
-  .yard-bird-sprite,
-  .yard-critter,
-  .yard-critter-sprite {
+  .dh-cloud,
+  .dh-piece {
     animation: none !important;
+  }
+  .dh-shutter {
+    transition: none !important;
   }
 }

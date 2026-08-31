@@ -4,7 +4,7 @@ import { MUSIC_TRACKS, type MusicTrack } from "@/data/musicTracks";
  * Plays real, calm background music (real recordings, not synthesized tones)
  * through a single shared <audio> element. Tracks are shuffled into a
  * playlist that loops forever, with soft fade-in/fade-out so it never feels
- * abrupt. Volume is kept low — this is meant to sit quietly behind the app.
+ * abrupt. Volume is kept low, this is meant to sit quietly behind the app.
  */
 
 const TARGET_VOLUME = 0.28;
@@ -86,7 +86,7 @@ function playCurrent(fadeIn: boolean) {
   audio.src = track.src;
   audio.volume = fadeIn ? 0 : TARGET_VOLUME;
   audio.play().catch(() => {
-    // Autoplay can be blocked outside a user gesture — the toggle button
+    // Autoplay can be blocked outside a user gesture, the toggle button
     // click is itself a gesture, so this normally succeeds.
   });
   if (fadeIn) fadeVolume(audio, TARGET_VOLUME, FADE_MS);

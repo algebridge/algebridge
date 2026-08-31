@@ -66,7 +66,7 @@ export function ProgressOverview() {
         {stats.inProgressSkills > 0 && (
           <p className="mt-3 text-sm text-amber-700">
             {stats.inProgressSkills} skill{stats.inProgressSkills !== 1 ? "s" : ""} started but not
-            finished — a few more problems each and they&apos;re done.
+            finished, a few more problems each and they&apos;re done.
           </p>
         )}
       </div>

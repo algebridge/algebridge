@@ -1148,7 +1148,7 @@ const generators: Record<string, SkillGenerator> = {
       return {
         id: "",
         type: "numeric",
-        prompt: `$${principal} invested at ${rate * 100}% annual interest compounded annually. Value after ${years} years? (round to the hundredths place — the nearest cent)`,
+        prompt: `$${principal} invested at ${rate * 100}% annual interest compounded annually. Value after ${years} years? (round to the hundredths place, the nearest cent)`,
         hint: `Use ${principal}(1.${String(rate * 100).padStart(2, "0")})^${years}`,
         answer: Math.round(value * 100) / 100,
         decimalPlaces: 2,
@@ -1201,7 +1201,7 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x + ${b})(x − ${c})`,
-          hint: "Use FOIL — the last term will be negative.",
+          hint: "Use FOIL, the last term will be negative.",
           answer: correct,
           choices: mcChoices(correct, [
             `x² + ${b + c}x − ${b * c}`,
@@ -1329,7 +1329,7 @@ const generators: Record<string, SkillGenerator> = {
         id: "",
         type: "multiple-choice",
         prompt: `Factor ${a * a}x² − ${n * n}`,
-        hint: "Difference of squares works with coefficients — factor out the square root of each term.",
+        hint: "Difference of squares works with coefficients, factor out the square root of each term.",
         answer: `(${a}x + ${n})(${a}x − ${n})`,
         choices: mcChoices(`(${a}x + ${n})(${a}x − ${n})`, [
           `(${a}x − ${n})²`,
@@ -1602,9 +1602,11 @@ function genericNumericGenerator(skillId: string, seeds: PracticeProblem[]): Pra
 
 export function generateProblemBank(
   skillId: string,
-  seedProblems: PracticeProblem[] = []
+  seedProblems: PracticeProblem[] = [],
+  /** Vary this to get a different set of problems for the same skill. */
+  seed = 0
 ): PracticeProblem[] {
-  return withSeededGeneration(hashString(skillId), () => {
+  return withSeededGeneration((hashString(skillId) ^ seed) >>> 0, () => {
     const generator = generators[skillId];
     if (generator) {
       return generator(seedProblems);

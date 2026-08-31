@@ -83,7 +83,7 @@ export default function TutorsPage() {
                     💬 Message
                   </Link>
                   <p className="mt-2 text-center text-xs text-slate-400">
-                    Message to ask for help — your tutor can start a video call with you.
+                    Message to ask for help, your tutor can start a video call with you.
                   </p>
                 </div>
               )}

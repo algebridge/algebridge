@@ -55,7 +55,7 @@ export function IncomingCall() {
       const timer = setInterval(beep, 2500);
       audioRef.current = { ctx, timer };
     } catch {
-      /* audio not available — the visual ring still shows */
+      /* audio not available, the visual ring still shows */
     }
   }
 
@@ -65,7 +65,7 @@ export function IncomingCall() {
       user.id,
       (payload) => {
         // Only tutors may call. Verify the caller is actually a tutor before
-        // ringing — a non-tutor caller's profile is either role!='tutor' or
+        // ringing, a non-tutor caller's profile is either role!='tutor' or
         // not readable (RLS), so the ring is ignored.
         getPublicProfile(payload.callerId).then((caller) => {
           if (caller?.role !== "tutor") return;

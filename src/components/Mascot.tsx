@@ -1,7 +1,7 @@
 const CORRECT_MESSAGES = [
   "Nice work!",
   "You crushed it!",
-  "Boom — exactly right!",
+  "Boom, exactly right!",
   "You're on fire!",
   "Excellent! Keep going!",
   "That's exactly right!",
@@ -10,10 +10,10 @@ const CORRECT_MESSAGES = [
 ];
 
 const WRONG_MESSAGES = [
-  "Not quite — you've got this!",
+  "Not quite, you've got this!",
   "Close! Give it another shot.",
   "Almost! Try again.",
-  "Keep thinking — you're learning!",
+  "Keep thinking, you're learning!",
   "So close! One more try.",
   "That's not it, but don't give up!",
 ];

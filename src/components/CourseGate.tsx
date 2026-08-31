@@ -8,7 +8,7 @@ const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 
 const BULLETS = [
   `All ${TOTAL_UNITS} units and ${TOTAL_SKILLS} skills, free with no ads`,
-  "Every lesson video, visual model, and practice problem unlocks",
+  "Every lesson video and practice problem unlocks",
   "Your progress saves and follows you to any computer or phone",
   "Join your teacher's class, or message a real tutor when you're stuck",
 ];

@@ -60,13 +60,13 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
-        {/* Logo — the sidebar carries it on desktop. */}
+        {/* Logo, the sidebar carries it on desktop. */}
         <Link href="/" className="flex shrink-0 items-center gap-2 lg:hidden">
           <Image src="/brand/logo-icon.png" alt="AlgeBridge" width={26} height={26} />
           <span className="font-display text-base tracking-wide text-slate-900">AlgeBridge</span>
         </Link>
 
-        {/* Stat chips — desktop */}
+        {/* Stat chips, desktop */}
         {mounted && (
           <div className="hidden items-center gap-2 lg:flex">
             <Link
@@ -104,7 +104,7 @@ export function Header() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          {/* Sound controls live in the mobile menu instead — the top bar is
+          {/* Sound controls live in the mobile menu instead, the top bar is
               too tight for them on a phone. */}
           <div className="hidden lg:flex">
             <UtilityToggles
@@ -226,7 +226,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Slim progress strip — mobile at-a-glance */}
+      {/* Slim progress strip, mobile at-a-glance */}
       {mounted && (
         <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-1.5 text-xs text-slate-500 sm:px-6 lg:hidden">
           <span className="shrink-0">

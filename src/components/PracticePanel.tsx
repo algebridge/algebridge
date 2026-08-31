@@ -8,13 +8,15 @@ import {
   recordProblemAttempt,
   getLevelInfo,
 } from "@/lib/progress";
-import { getShuffledProblemsForSkill } from "@/data/problem-banks";
+import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
+import { REQUIRED_STREAK } from "@/lib/gamification";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
 import { useSpeech } from "@/hooks/useSpeech";
 import { Mascot } from "@/components/Mascot";
+import { problemAllowsCalculator, setCalculatorAccess } from "@/lib/calculator-access";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -41,7 +43,7 @@ function checkAnswer(problem: ActiveProblem, userAnswer: string): boolean {
     if (!Number.isNaN(expected) && !Number.isNaN(given)) {
       // When a problem asks the student to round to a specific place
       // (decimalPlaces), grade by comparing BOTH values rounded to that
-      // place — so a correctly-rounded answer is always accepted, whether
+      // place, so a correctly-rounded answer is always accepted, whether
       // or not the stored answer was pre-rounded. Otherwise fall back to a
       // small absolute tolerance.
       const dp =
@@ -96,7 +98,9 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
   }, []);
 
   useEffect(() => {
-    setSessionProblems(getShuffledProblemsForSkill(skill.id, skill.problems));
+    // Generated here rather than at module scope: the seed varies per session
+    // by design, so this must never run during SSR.
+    setSessionProblems(getFreshProblemsForSkill(skill.id, skill.problems));
     setProblemIndex(0);
     setInfiniteMode(false);
     setExtraProblems([]);
@@ -115,6 +119,14 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
   useEffect(() => {
     setMastery(getSkillProgress(skill.id).level);
   }, [skill.id]);
+
+  const calculatorAllowed = problem ? problemAllowsCalculator(problem) : true;
+
+  useEffect(() => {
+    setCalculatorAccess(calculatorAllowed);
+    // Leaving practice hands the calculator back to the rest of the app.
+    return () => setCalculatorAccess(null);
+  }, [calculatorAllowed]);
 
   useEffect(() => {
     setUserAnswer("");
@@ -141,7 +153,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
       setProblemIndex(0);
       return;
     }
-    setSessionProblems(getShuffledProblemsForSkill(skill.id, skill.problems));
+    setSessionProblems(getFreshProblemsForSkill(skill.id, skill.problems));
     setProblemIndex(0);
   }, [skill.generatorKey, skill.id, skill.problems]);
 
@@ -180,7 +192,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
           showToast({
             emoji: "🔥",
             title: `${next} in a row!`,
-            description: "You're on a roll — keep it up!",
+            description: "You're on a roll, keep it up!",
           });
         }
         return next;
@@ -259,7 +271,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
         loadMoreProblems();
         return;
       }
-      setSessionProblems(getShuffledProblemsForSkill(skill.id, skill.problems));
+      setSessionProblems(getFreshProblemsForSkill(skill.id, skill.problems));
       setProblemIndex(0);
       return;
     }
@@ -314,6 +326,8 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
     : {
         attempted: 0,
         correct: 0,
+        streak: 0,
+        required: REQUIRED_STREAK,
         recentAttempted: 0,
         recentCorrect: 0,
         accuracy: 0,
@@ -326,18 +340,28 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         {ps.isComplete ? (
           <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            ✓ Skill complete! Recent accuracy: {ps.recentCorrect}/{ps.recentAttempted}.
+            ✓ Skill complete, you got {ps.required} right in a row.
           </div>
         ) : (
-          <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            {ps.attempted === 0 ? (
-              <>Answer <strong>3 problems</strong> with at least <strong>80% correct</strong> to complete this skill.</>
-            ) : (
-              <>
-                Progress (last {ps.recentAttempted}): <strong>{ps.recentCorrect}/{ps.recentAttempted} correct</strong>
-                {ps.problemsNeeded > 0 && <> · {ps.problemsNeeded} more to try</>}
-              </>
-            )}
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            {/* The run, drawn. A student should be able to see how close they
+                are without reading a sentence, and see exactly what a wrong
+                answer just cost them. */}
+            <StreakPips done={ps.streak} total={ps.required} />
+            <span>
+              {ps.streak === 0 ? (
+                <>
+                  Get <strong>{ps.required} right in a row</strong> to finish this skill.
+                </>
+              ) : (
+                <>
+                  <strong>
+                    {ps.streak} of {ps.required}
+                  </strong>{" "}
+                  in a row · {ps.problemsNeeded} to go
+                </>
+              )}
+            </span>
           </div>
         )}
         {combo >= 2 && (
@@ -417,7 +441,7 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
                 <span>{choice}</span>
               </button>
             ))}
-            <p className="text-xs text-slate-400">Tip: press 1–{problem.choices.length} to pick an answer.</p>
+            <p className="text-xs text-slate-400">Tip: press 1-{problem.choices.length} to pick an answer.</p>
           </div>
         )}
 
@@ -546,5 +570,22 @@ export function PracticePanel({ skill, onMasteryChange }: PracticePanelProps) {
       </div>
 
     </div>
+  );
+}
+
+/** The run so far: filled for answers banked, hollow for what is still owed. */
+function StreakPips({ done, total }: { done: number; total: number }) {
+  return (
+    <span className="flex items-center gap-1" aria-label={`${done} of ${total} correct in a row`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className={`h-2.5 w-2.5 rounded-full transition ${
+            i < done ? "bg-emerald-500" : "bg-slate-300"
+          }`}
+        />
+      ))}
+    </span>
   );
 }

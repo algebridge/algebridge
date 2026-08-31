@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Privacy Policy — AlgeBridge" };
+export const metadata = { title: "Privacy Policy, AlgeBridge" };
 
 export default function PrivacyPage() {
   return (
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Who we are</h2>
           <p className="mt-2">
-            AlgeBridge is a free Algebra 1 learning platform for students in grades 7–10.
+            AlgeBridge is a free Algebra 1 learning platform for students in grades 7-10.
             This policy explains what we collect, why, and the choices you have.
           </p>
         </section>
@@ -20,10 +20,10 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">What we collect</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li><strong>Account info</strong> — your email and a display name, if you create an account.</li>
-            <li><strong>Learning progress</strong> — skills completed, practice results, XP, and Bridgeys. Without an account this stays only in your browser.</li>
-            <li><strong>Profile</strong> — an optional photo and bio (tutors and students).</li>
-            <li><strong>Messages &amp; calls</strong> — direct messages, group messages, and call records (including any AI-generated recap) so the feature works.</li>
+            <li><strong>Account info</strong>, your email and a display name, if you create an account.</li>
+            <li><strong>Learning progress</strong>, skills completed, practice results, XP, and Bridgeys. Without an account this stays only in your browser.</li>
+            <li><strong>Profile</strong>, an optional photo and bio (tutors and students).</li>
+            <li><strong>Messages &amp; calls</strong>, direct messages, group messages, and call records (including any AI-generated recap) so the feature works.</li>
           </ul>
         </section>
 
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Children&apos;s privacy</h2>
           <p className="mt-2">
-            AlgeBridge is intended for students in grades 7–10. If you are under 13, please
+            AlgeBridge is intended for students in grades 7-10. If you are under 13, please
             use AlgeBridge with a parent, guardian, or teacher, and only create an account
             with their permission.
           </p>

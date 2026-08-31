@@ -18,7 +18,7 @@ export const units: Unit[] = [
         generatorKey: "unit-conversion",
         problems: [
           { id: "u1-p1", type: "numeric", prompt: "Convert 3 miles to feet. (1 mile = 5280 ft)", hint: "Multiply 3 × 5280.", answer: 15840, explanation: "3 × 5280 = 15,840 feet" },
-          { id: "u1-p2", type: "multiple-choice", prompt: "Which conversion factor converts inches to feet?", hint: "12 inches = 1 foot — divide inches by 12.", answer: "1 ft / 12 in", choices: ["12 in / 1 ft", "1 ft / 12 in", "12 ft / 1 in", "1 in / 12 ft"], explanation: "To convert inches to feet, multiply by 1 ft / 12 in." },
+          { id: "u1-p2", type: "multiple-choice", prompt: "Which conversion factor converts inches to feet?", hint: "12 inches = 1 foot, divide inches by 12.", answer: "1 ft / 12 in", choices: ["12 in / 1 ft", "1 ft / 12 in", "12 ft / 1 in", "1 in / 12 ft"], explanation: "To convert inches to feet, multiply by 1 ft / 12 in." },
           { id: "u1-p3", type: "numeric", prompt: "A car travels 60 miles in 1 hour. How many feet per second? (Round to nearest whole number)", hint: "Convert miles→feet, hours→seconds.", answer: 88, explanation: "60 mi/hr × 5280 ft/mi ÷ 3600 sec/hr ≈ 88 ft/sec" },
         ],
       },
@@ -27,7 +27,7 @@ export const units: Unit[] = [
         title: "Dimensional Analysis",
         description: "Use unit fractions to solve multi-step conversion problems.",
         learningGoal: "Set up and solve multi-step unit conversion problems.",
-        keyIdea: "Units cancel like numbers — track units through every step.",
+        keyIdea: "Units cancel like numbers, track units through every step.",
         video: { id: "v2", title: "Dimensional Analysis", channel: "Tyler DeWitt", duration: "10:30", youtubeId: "Rd4a1X6H0t4" },
         generatorKey: "unit-conversion",
         problems: [
@@ -154,7 +154,7 @@ export const units: Unit[] = [
         problems: [
           { id: "g2-p1", type: "numeric", prompt: "Find the slope between (1, 2) and (4, 8).", hint: "m = (8−2)/(4−1)", answer: 2, explanation: "m = 6/3 = 2" },
           { id: "g2-p2", type: "multiple-choice", prompt: "What is the slope of a horizontal line?", hint: "No rise, only run.", answer: "0", choices: ["0", "1", "Undefined", "−1"], explanation: "Horizontal lines have zero rise → slope = 0." },
-          { id: "g2-p3", type: "multiple-choice", prompt: "What is the slope of a vertical line?", hint: "No run — division by zero.", answer: "Undefined", choices: ["0", "1", "Undefined", "−1"], explanation: "Vertical lines have undefined slope (run = 0)." },
+          { id: "g2-p3", type: "multiple-choice", prompt: "What is the slope of a vertical line?", hint: "No run, division by zero.", answer: "Undefined", choices: ["0", "1", "Undefined", "−1"], explanation: "Vertical lines have undefined slope (run = 0)." },
         ],
       },
       {
@@ -498,7 +498,7 @@ export const units: Unit[] = [
         keyIdea: "Growth: y = a(1 + r)ᵗ where r is the growth rate.",
         video: { id: "v34", title: "Exponential Growth", channel: "Mario's Math Tutoring", duration: "11:00", youtubeId: "Z5myJ8g_hss" },
         problems: [
-          { id: "eg2-p1", type: "numeric", prompt: "$1000 invested at 5% annual interest. Value after 2 years? (compound annually — round to the hundredths place, the nearest cent)", hint: "1000(1.05)²", answer: 1102.5, decimalPlaces: 2, explanation: "1000 × 1.1025 = $1102.50" },
+          { id: "eg2-p1", type: "numeric", prompt: "$1000 invested at 5% annual interest. Value after 2 years? (compound annually, round to the hundredths place, the nearest cent)", hint: "1000(1.05)²", answer: 1102.5, decimalPlaces: 2, explanation: "1000 × 1.1025 = $1102.50" },
         ],
       },
       {

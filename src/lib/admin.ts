@@ -24,7 +24,7 @@ export interface AdminOverview {
   /**
    * A LAST-SEEN histogram over the past 30 days, not daily actives: every
    * account appears once, on the day it was last seen. The UI has to label it
-   * that way — reading it as DAU would overstate a quiet day and understate a
+   * that way, reading it as DAU would overstate a quiet day and understate a
    * busy one.
    */
   seenByDay: { day: string; n: number }[];

@@ -18,8 +18,8 @@ export function CourseHeader() {
   const { user } = useAuth();
   const { stats, continueTarget, mounted } = useProgress();
 
-  // Nobody is authenticated on the first paint, so the prerendered HTML — what
-  // a visitor and a search engine see — is the course pitch, not an empty
+  // Nobody is authenticated on the first paint, so the prerendered HTML, what
+  // a visitor and a search engine see, is the course pitch, not an empty
   // dashboard. Signed-in students swap to their own numbers once auth resolves.
   if (!user) {
     return (
@@ -32,7 +32,7 @@ export function CourseHeader() {
         />
         <div className="relative z-10 px-6 py-9 sm:px-10 sm:py-11">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-bridge-300">
-            Algebra 1 · Grades 7–10
+            Algebra 1 · Grades 7-10
           </p>
           <h1 className="mt-2.5 max-w-2xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             The full Algebra 1 course, one skill at a time.
@@ -70,7 +70,7 @@ export function CourseHeader() {
     <section className="panel">
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div>
-          <p className="eyebrow">Algebra 1 · Grades 7–10</p>
+          <p className="eyebrow">Algebra 1 · Grades 7-10</p>
           <h1 className="page-title mt-1">Your course</h1>
           <p className="page-subtitle">
             {mounted && stats.completedSkills > 0

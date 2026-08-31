@@ -5,9 +5,9 @@ import type { Skill } from "@/types";
 import { fetchTutorChat, type TutorChatMessage, type TutorContext } from "@/lib/tutor";
 
 const GREETING =
-  "Hey! I'm Bridge Tutor. 👋 Ask me anything about this skill — say \"give me a hint\", show me your work, or tell me where you're stuck. I won't hand you the answer, but I'll help you get there.";
+  "Hey! I'm Bridge Tutor. 👋 Ask me anything about this skill, say \"give me a hint\", show me your work, or tell me where you're stuck. I won't hand you the answer, but I'll help you get there.";
 
-const SUGGESTIONS = ["Give me a hint", "I'm stuck — where do I start?", "Why does this work?"];
+const SUGGESTIONS = ["Give me a hint", "I'm stuck, where do I start?", "Why does this work?"];
 
 export function TutorChat({ skill }: { skill: Skill }) {
   const [open, setOpen] = useState(false);
@@ -114,7 +114,7 @@ export function TutorChat({ skill }: { skill: Skill }) {
             </button>
           </form>
           <p className="mt-2 text-center text-[11px] text-slate-400">
-            Beta feature · The tutor guides you to the answer — it never just gives it away.
+            Beta feature · The tutor guides you to the answer, it never just gives it away.
           </p>
         </div>
       )}

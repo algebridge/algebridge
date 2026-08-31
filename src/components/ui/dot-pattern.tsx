@@ -5,7 +5,7 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
-  /** Grid cell size — the gap between dots. */
+  /** Grid cell size, the gap between dots. */
   width?: number;
   height?: number;
   /** Offset of the whole grid. */

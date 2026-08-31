@@ -338,8 +338,8 @@ export default function CalendarPage() {
                         {e.location ? ` ${e.location}` : ""}
                       </small>
                     </td>
-                    <td>{e.tutorName ?? "—"}</td>
-                    <td>{e.studentName ?? "—"}</td>
+                    <td>{e.tutorName ?? "-"}</td>
+                    <td>{e.studentName ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>

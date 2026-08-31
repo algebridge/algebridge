@@ -10,9 +10,8 @@ const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 
 const HOW_IT_WORKS = [
   { n: "1", title: "Watch", desc: "A short lesson video from a maths teacher who explains it well." },
-  { n: "2", title: "Visualize", desc: "See the idea as a graph or a number line, then spot the right one." },
-  { n: "3", title: "Practice", desc: "Answer problems until you're at 80% or better on your recent tries." },
-  { n: "4", title: "Complete", desc: "The skill turns green, and comes back later for review." },
+  { n: "2", title: "Practice", desc: "Answer problems until you get five right in a row." },
+  { n: "3", title: "Complete", desc: "The skill turns green, and comes back later for review." },
 ];
 
 export default function HomePage() {

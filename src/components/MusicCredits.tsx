@@ -1,6 +1,6 @@
 import { MUSIC_TRACKS } from "@/data/musicTracks";
 
-/** Required attribution for the CC BY–licensed background music tracks. */
+/** Required attribution for the CC BY-licensed background music tracks. */
 export function MusicCredits() {
   return (
     <details className="mx-auto mt-3 max-w-md text-xs text-slate-400">

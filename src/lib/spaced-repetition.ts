@@ -34,7 +34,7 @@ export function getSkillsDueForReview(
       (now - new Date(prog.lastPracticed).getTime()) / (1000 * 60 * 60 * 24);
 
     // Walk intervals from largest to smallest so a skill that's overdue by a
-    // lot (e.g. missed several intervals during a vacation) still shows up —
+    // lot (e.g. missed several intervals during a vacation) still shows up -
     // it should never silently disappear just because its exact 2-day window
     // was missed.
     for (let i = REVIEW_INTERVALS_DAYS.length - 1; i >= 0; i--) {

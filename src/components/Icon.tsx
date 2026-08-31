@@ -1,7 +1,7 @@
 /**
  * Small stroke-icon set for navigation and page headers.
  * Line icons (rather than emoji) are what make the app read as a platform
- * instead of a toy — emoji stay in the rewards/house features on purpose.
+ * instead of a toy, emoji stay in the rewards/house features on purpose.
  */
 
 export type IconName =

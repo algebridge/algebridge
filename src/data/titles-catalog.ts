@@ -12,12 +12,12 @@ export const DISPLAY_TITLES: DisplayTitle[] = [
   { id: "variable-victor", name: "Variable Victor", emoji: "🏅", price: 320, description: "No unknown is safe when you're on the case." },
   { id: "brainstorm-boss", name: "Brainstorm Boss", emoji: "🧠", price: 350, description: "Ideas hit you faster than lightning." },
   { id: "bridgey-baron", name: "Bridgey Baron", emoji: "🪙", price: 400, description: "Wealthy in Bridgeys and wisdom." },
-  { id: "streak-champion", name: "Streak Champion", emoji: "🔥", price: 450, description: "Day after day — you show up and slay." },
+  { id: "streak-champion", name: "Streak Champion", emoji: "🔥", price: 450, description: "Day after day, you show up and slay." },
   { id: "infinity-icon", name: "Infinity Icon", emoji: "♾️", price: 550, description: "Your potential has no upper bound." },
   { id: "cosmic-calculator", name: "Cosmic Calculator", emoji: "🌌", price: 650, description: "You compute at galactic speed." },
   { id: "dragon-solver", name: "Dragon Solver", emoji: "🐉", price: 750, description: "Tough problems? You breathe fire through them." },
   { id: "quantum-queen", name: "Quantum Queen", emoji: "⚛️", price: 850, description: "Existing in multiple correct answers at once." },
-  { id: "legend-of-algebridge", name: "Legend of AlgeBridge", emoji: "🏆", price: 1200, description: "The ultimate title — only the greatest earn this." },
+  { id: "legend-of-algebridge", name: "Legend of AlgeBridge", emoji: "🏆", price: 1200, description: "The ultimate title, only the greatest earn this." },
   { id: "bridgey-billionaire", name: "Bridgey Billionaire", emoji: "💰", price: 2000, description: "Your house is basically a museum of flex." },
 ];
 

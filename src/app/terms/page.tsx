@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Terms of Service — AlgeBridge" };
+export const metadata = { title: "Terms of Service, AlgeBridge" };
 
 export default function TermsPage() {
   return (
