@@ -68,11 +68,31 @@ Guide with one small next step and end with a question.
 If the student proposes an answer, do not confirm or deny it. Have them check it by substituting back.`;
 }
 
-async function callGemini(key: string, sys: string, msgs: HelperMessage[]): Promise<string> {
-  // Google's free tier is the most generous of the keyless-to-cheap options
-  // and needs no card, which is why it is tried first.
+/**
+ * Google's free tier is the most generous of the free options and needs no
+ * card, so it is tried first.
+ *
+ * The model list is a list on purpose. Google retires and renames flash
+ * aliases regularly, and a 404 on one name would otherwise look identical to
+ * "no key configured": the helper would quietly serve canned replies and the
+ * key would appear not to work. Trying each in turn and reporting which one
+ * answered removes that whole class of confusion.
+ */
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-flash-latest",
+  "gemini-1.5-flash",
+];
+
+async function callGeminiModel(
+  key: string,
+  model: string,
+  sys: string,
+  msgs: HelperMessage[]
+): Promise<string> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -82,15 +102,31 @@ async function callGemini(key: string, sys: string, msgs: HelperMessage[]): Prom
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
         })),
-        generationConfig: { maxOutputTokens: 300, temperature: 0.6 },
+        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
       }),
     }
   );
-  if (!res.ok) throw new Error("gemini failed");
+  if (!res.ok) throw new Error(`gemini ${model}: ${res.status}`);
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("gemini empty");
+  if (!text) throw new Error(`gemini ${model}: empty`);
   return text;
+}
+
+async function callGemini(
+  key: string,
+  sys: string,
+  msgs: HelperMessage[]
+): Promise<{ text: string; model: string }> {
+  const errors: string[] = [];
+  for (const model of GEMINI_MODELS) {
+    try {
+      return { text: await callGeminiModel(key, model, sys, msgs), model };
+    } catch (e) {
+      errors.push(String(e instanceof Error ? e.message : e));
+    }
+  }
+  throw new Error(errors.join("; "));
 }
 
 async function callGroq(key: string, sys: string, msgs: HelperMessage[]): Promise<string> {
@@ -135,21 +171,30 @@ async function callOpenAICompatible(
   return text;
 }
 
-async function askModel(sys: string, msgs: HelperMessage[]): Promise<string | null> {
+async function askModel(
+  sys: string,
+  msgs: HelperMessage[]
+): Promise<{ text: string; provider: string } | null> {
   const gemini = process.env.GEMINI_API_KEY;
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
   try {
-    if (gemini) return await callGemini(gemini, sys, msgs);
-    if (groq) return await callGroq(groq, sys, msgs);
+    if (gemini) {
+      const r = await callGemini(gemini, sys, msgs);
+      return { text: r.text, provider: `gemini:${r.model}` };
+    }
+    if (groq) return { text: await callGroq(groq, sys, msgs), provider: "groq" };
     if (openai)
-      return await callOpenAICompatible(
-        "https://api.openai.com/v1/chat/completions",
-        openai,
-        "gpt-4o-mini",
-        sys,
-        msgs
-      );
+      return {
+        text: await callOpenAICompatible(
+          "https://api.openai.com/v1/chat/completions",
+          openai,
+          "gpt-4o-mini",
+          sys,
+          msgs
+        ),
+        provider: "openai",
+      };
   } catch {
     /* every failure falls through to the local engine */
   }
@@ -200,7 +245,11 @@ export async function POST(request: Request) {
   const reply = (message: string, source: Source, extra: Record<string, unknown> = {}) =>
     NextResponse.json({ message: stripEmDashes(stripMarkdownEmphasis(message)), source, ...extra });
 
-  // --- 1. Gates that never reach a model ---------------------------------
+  // --- 1. The two hard gates, which never reach a model -------------------
+  //
+  // Only the actual rules are gated. Everything else has to be allowed
+  // through, or the helper answers from a lookup table and stops listening,
+  // which is exactly the complaint a canned reply earns.
 
   const intent = classifyIntent(last);
 
@@ -214,30 +263,34 @@ export async function POST(request: Request) {
     return reply(refuseAnswer(ctx), "gate", { intent });
   }
 
-  if (intent === "escalate") {
+  // The offer of a human is made once. Repeating it verbatim every time a
+  // student expresses frustration is the canned-reply problem in miniature.
+  const alreadyOffered = messages.some(
+    (m) => m.role === "assistant" && m.content.includes("set you up with one of our tutors")
+  );
+  if (intent === "escalate" && !alreadyOffered) {
     return reply(ESCALATION_OFFER, "gate", { intent, offerTutor: true });
   }
 
-  if (mode === "scheduler") {
-    return reply(schedulerPrompt("offered"), "gate", { intent: "scheduling" });
+  // --- 2. Ask a model, in every mode -------------------------------------
+
+  const answered = await askModel(systemPrompt(mode, ctx), messages);
+  const raw = answered?.text ?? null;
+
+  // Without a key the mode-specific engines are the best answer available.
+  if (!raw) {
+    if (mode === "scheduler") return reply(schedulerPrompt("offered"), "local", { intent: "scheduling" });
+    if (mode === "reminder") return reply(reminderReply(ctx, last), "local", { intent: "formula" });
   }
-
-  if (mode === "reminder") {
-    return reply(reminderReply(ctx, last), "gate", { intent: "formula" });
-  }
-
-  // --- 2. Ask a model, if one is configured ------------------------------
-
-  const raw = await askModel(systemPrompt(mode, ctx), messages);
 
   // --- 3. Filter what came back ------------------------------------------
 
   if (raw) {
     const forbidden = forbiddenValues(ctx);
-    if (!leaksAnswer(raw, forbidden)) return reply(raw, "ai", { intent });
+    if (!leaksAnswer(raw, forbidden)) return reply(raw, "ai", { intent, provider: answered!.provider });
     // The model gave away a value the student was meant to reach. Discard it
     // entirely rather than trying to patch it, and answer deterministically.
-    return reply(localFallback(ctx, messages), "local", { intent, filtered: true });
+    return reply(localFallback(ctx, messages), "local", { intent, filtered: true, provider: answered!.provider });
   }
 
   return reply(localFallback(ctx, messages), "local", { intent });
