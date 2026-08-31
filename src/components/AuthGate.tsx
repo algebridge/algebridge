@@ -44,7 +44,7 @@ export function AuthGate({
   const { user, configured, loading, needsRealName } = useAuth();
   const pathname = usePathname();
 
-  // With no cloud backend there are no accounts to require — a local-only
+  // With no cloud backend there are no accounts to require, a local-only
   // deployment stays fully usable.
   if (!configured) return <>{children}</>;
 

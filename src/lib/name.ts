@@ -4,7 +4,7 @@
  * AlgeBridge is a school platform: teachers grade a roster, tutors join video
  * calls, and classmates see each other in group chats. Handles like "xX_mathgod"
  * make all three unusable, so every account must carry the student's actual
- * name — a first name plus a last name (a last initial is allowed for privacy).
+ * name, a first name plus a last name (a last initial is allowed for privacy).
  */
 
 const NAME_CHARS = /^[\p{L}\p{M}'’.\-\s]+$/u;
@@ -68,7 +68,7 @@ function titleCasePart(part: string): string {
  */
 export function formatName(raw: string): string {
   const parts = cleanName(raw).split(" ").filter(Boolean);
-  // Any capital at all means they typed it deliberately — leave it alone.
+  // Any capital at all means they typed it deliberately, leave it alone.
   if (parts.some((p) => p !== p.toLowerCase())) return parts.join(" ");
   return parts
     .map((part, i) => {
@@ -90,7 +90,7 @@ export function checkFullName(raw: string): NameCheck {
   if (!formatted) return fail("Enter your first and last name.");
   if (formatted.length > MAX_NAME_LENGTH)
     return fail(`Names can be at most ${MAX_NAME_LENGTH} characters.`);
-  if (/\d/.test(formatted)) return fail("Names can't contain numbers — use your real name.");
+  if (/\d/.test(formatted)) return fail("Names can't contain numbers, use your real name.");
   if (/[_@/\\|<>]/.test(formatted))
     return fail("Use your real name, not a username or email address.");
   if (!NAME_CHARS.test(formatted))
@@ -102,7 +102,7 @@ export function checkFullName(raw: string): NameCheck {
 
   const first = parts[0].replace(/[.'’-]/g, "");
   const last = parts[parts.length - 1].replace(/[.'’-]/g, "");
-  if (first.length < 2) return fail("Your first name looks too short — please spell it out.");
+  if (first.length < 2) return fail("Your first name looks too short, please spell it out.");
   // A last initial ("Ivan D.") is allowed; anything longer must be a real word.
   if (last.length < 1) return fail("Please enter your last name or last initial.");
 

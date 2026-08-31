@@ -17,7 +17,7 @@ export function ContinueCard() {
     );
   }
 
-  // Signed-out visitors have no progress to continue — nudge them once here
+  // Signed-out visitors have no progress to continue, nudge them once here
   // rather than showing an empty "pick up where you left off".
   if (configured && !user) return null;
 

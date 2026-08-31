@@ -15,7 +15,7 @@ import {
 import type { UserProgress } from "@/types";
 
 /**
- * "What does my teacher want me to do?" — the first question a student in a
+ * "What does my teacher want me to do?", the first question a student in a
  * class has. Shown above the course itself, and silent for anyone not in one.
  */
 export function AssignedWork() {

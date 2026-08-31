@@ -13,9 +13,9 @@ function systemPrompt(): string {
 Write a warm, encouraging recap the student can read afterward. Use plain text (no markdown symbols).
 Structure it as:
 1. A one-sentence overview of what the session covered.
-2. "What we worked on:" — 2-4 short bullet-style lines (use "- ").
-3. "Remember:" — 1-3 key takeaways or tips.
-4. "Next steps:" — 1-3 concrete things to practice.
+2. "What we worked on:", 2-4 short bullet-style lines (use "- ").
+3. "Remember:", 1-3 key takeaways or tips.
+4. "Next steps:", 1-3 concrete things to practice.
 Keep it under ~200 words. Be specific to what was actually discussed. If the transcript is sparse, keep it short and honest.`;
 }
 

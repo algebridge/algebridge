@@ -193,7 +193,7 @@ export default function TeacherDashboardPage() {
               <p className="px-5 py-4 text-sm text-slate-500">Loading classes…</p>
             ) : visibleClasses.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-500">
-                No classes yet. Create your first one above — it takes about ten
+                No classes yet. Create your first one above, it takes about ten
                 seconds.
               </p>
             ) : (
@@ -660,7 +660,7 @@ function RosterTab({
               className="field font-mono text-xs"
             />
             <p className="field-hint">
-              One per line, or separated by commas — paste a whole column from your
+              One per line, or separated by commas, paste a whole column from your
               gradebook. Students must already have an AlgeBridge account.
             </p>
             <button type="submit" disabled={adding} className="btn-secondary">
@@ -680,7 +680,7 @@ function RosterTab({
               )}
               {result.notFound.length > 0 && (
                 <p className="text-amber-700">
-                  No account found for {result.notFound.join(", ")} — ask them to sign
+                  No account found for {result.notFound.join(", ")}, ask them to sign
                   up first, then add them again.
                 </p>
               )}
@@ -757,9 +757,9 @@ function RosterTab({
                         <span className="text-xs text-slate-400">No activity yet</span>
                       )}
                     </td>
-                    <td className="text-xs">{student.stats ? student.stats.level : "—"}</td>
+                    <td className="text-xs">{student.stats ? student.stats.level : "-"}</td>
                     <td className="text-xs">
-                      {student.stats?.streak ? `${student.stats.streak} days` : "—"}
+                      {student.stats?.streak ? `${student.stats.streak} days` : "-"}
                     </td>
                     <td className="text-xs">{student.stats?.problemsSolved ?? 0}</td>
                     <td className="whitespace-nowrap text-xs text-slate-500">

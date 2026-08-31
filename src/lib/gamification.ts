@@ -4,19 +4,25 @@ import { units, TOTAL_SKILLS } from "@/data/curriculum";
 /** How many of the most recent attempts count toward mastery accuracy. */
 export const RECENT_WINDOW = 5;
 
+/**
+ * Correct answers in a row that finish a skill.
+ *
+ * This replaced an "at least 3 attempts at 80% accuracy over a rolling window"
+ * rule. Same order of effort, but a student can read this one off the screen
+ * and knows exactly what a wrong answer costs.
+ */
+export const REQUIRED_STREAK = 5;
+
 export const XP_REWARDS = {
   correctAnswer: 10,
   firstTryBonus: 5,
   videoWatched: 15,
-  visualCompleted: 10,
   skillComplete: 50,
   unitComplete: 150,
 };
 
-/** Bridgeys — in-game currency earned from lessons. */
+/** Bridgeys, in-game currency earned from lessons. */
 export const BRIDGEY_REWARDS = {
-  /** Finishing the Visualize It step on a skill (once per skill). */
-  visualCompleted: 5,
   /** Completing a full skill/lesson (once per skill). */
   skillComplete: 10,
 };
@@ -98,15 +104,16 @@ function countVideosWatched(progress: UserProgress): number {
   return Object.values(progress.skills).filter((s) => s.videoWatched).length;
 }
 
-function countVisualized(progress: UserProgress): number {
-  return Object.values(progress.skills).filter((s) => s.visualized).length;
-}
-
-function hasPerfectStreakOfFive(progress: UserProgress): boolean {
+/**
+ * A skill finished without ever getting one wrong.
+ *
+ * This used to check for any five correct in a row, which every finished skill
+ * now satisfies by definition, the badge would have fired on the same event
+ * as completion and meant nothing. Never missing at all still means something.
+ */
+function hasFlawlessSkill(progress: UserProgress): boolean {
   return Object.values(progress.skills).some(
-    (s) =>
-      (s.recentResults?.length ?? 0) >= 5 &&
-      s.recentResults!.slice(-5).every(Boolean)
+    (s) => s.level === "mastered" && s.problemsAttempted > 0 && s.problemsAttempted === s.problemsCorrect
   );
 }
 
@@ -136,9 +143,9 @@ export const BADGES: BadgeDefinition[] = [
   {
     id: "perfect-five",
     title: "Perfect Round",
-    description: "Get 5 practice problems right in a row",
+    description: "Finish a skill without a single wrong answer",
     emoji: "💯",
-    check: hasPerfectStreakOfFive,
+    check: hasFlawlessSkill,
   },
   {
     id: "streak-3",
@@ -174,13 +181,6 @@ export const BADGES: BadgeDefinition[] = [
     description: "Watch 10 lesson videos",
     emoji: "📺",
     check: (p) => countVideosWatched(p) >= 10,
-  },
-  {
-    id: "visual-thinker",
-    title: "Visual Thinker",
-    description: "Complete 10 Visualize It diagrams",
-    emoji: "📐",
-    check: (p) => countVisualized(p) >= 10,
   },
   {
     id: "level-5",

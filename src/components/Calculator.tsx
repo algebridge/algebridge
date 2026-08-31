@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { evaluate, formatResult, CalcError } from "@/lib/calculator";
+import {
+  getCalculatorAccess,
+  getServerCalculatorAccess,
+  subscribeCalculatorAccess,
+} from "@/lib/calculator-access";
 
 /** Auto-close any parentheses the student left open, so tapping √9 = just works. */
 function balanceParens(s: string): string {
@@ -88,11 +93,22 @@ function OperatorMark() {
   );
 }
 
+/** Where the panel sits, as an offset from its resting corner. */
+interface Nudge {
+  x: number;
+  y: number;
+}
+
+const NUDGE_KEY = "algebridge-calculator-position";
+
 export function Calculator() {
   const [open, setOpen] = useState(false);
+  /** Dragged offset from the bottom-right corner it starts in. */
+  const [nudge, setNudge] = useState<Nudge>({ x: 0, y: 0 });
+  const dragRef = useRef<{ px: number; py: number; from: Nudge } | null>(null);
   /**
    * Where the physical keyboard goes. The calculator only takes keystrokes
-   * after the student taps it — otherwise they'd be unable to type an answer
+   * after the student taps it, otherwise they'd be unable to type an answer
    * (or backspace one) with the calculator sitting open beside the problem.
    */
   const [keypadActive, setKeypadActive] = useState(false);
@@ -103,6 +119,36 @@ export function Calculator() {
   const replaceRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+
+  // Practice tells the calculator whether this problem is one it belongs on.
+  // Anywhere with no opinion (null) keeps it, so it stays a general tool.
+  const access = useSyncExternalStore(
+    subscribeCalculatorAccess,
+    getCalculatorAccess,
+    getServerCalculatorAccess
+  );
+  const available = access !== false;
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NUDGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Nudge;
+        if (typeof saved?.x === "number" && typeof saved?.y === "number") setNudge(saved);
+      }
+    } catch {
+      /* a blocked or corrupt store just means it opens in the corner */
+    }
+  }, []);
+
+  // A problem the calculator is not offered on closes it rather than leaving
+  // it floating over an answer box it may not be used for.
+  useEffect(() => {
+    if (!available) {
+      setOpen(false);
+      setKeypadActive(false);
+    }
+  }, [available]);
 
   // Live preview of the current expression (grayed under the main line).
   let preview = "";
@@ -115,6 +161,55 @@ export function Calculator() {
       preview = "";
     }
   }
+
+  /**
+   * Dragging keeps the panel anchored to its corner and stores an offset,
+   * rather than switching to absolute coordinates. That way a window resize
+   * cannot strand it off-screen: the corner moves with the viewport and the
+   * offset is clamped to what is still visible.
+   */
+  const clampNudge = useCallback((n: Nudge): Nudge => {
+    const box = panelRef.current?.getBoundingClientRect();
+    const w = box?.width ?? 304;
+    const h = box?.height ?? 420;
+    return {
+      x: Math.min(0, Math.max(-(window.innerWidth - w - 24), n.x)),
+      y: Math.min(0, Math.max(-(window.innerHeight - h - 24), n.y)),
+    };
+  }, []);
+
+  const onDragStart = useCallback((e: React.PointerEvent) => {
+    dragRef.current = { px: e.clientX, py: e.clientY, from: nudge };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  }, [nudge]);
+
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    // Right and bottom anchoring means both axes run backwards from the drag.
+    setNudge(clampNudge({ x: d.from.x + (e.clientX - d.px), y: d.from.y + (e.clientY - d.py) }));
+  }, [clampNudge]);
+
+  const onDragEnd = useCallback(() => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setNudge((n) => {
+      try {
+        window.localStorage.setItem(NUDGE_KEY, JSON.stringify(n));
+      } catch {
+        /* not being able to remember where it was put is not worth an error */
+      }
+      return n;
+    });
+  }, []);
+
+  useEffect(() => {
+    function onResize() {
+      setNudge((n) => clampNudge(n));
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [clampNudge]);
 
   const clearAll = useCallback(() => {
     setExpr("");
@@ -199,7 +294,7 @@ export function Calculator() {
     };
   }, [open]);
 
-  // Keyboard support — only while the keypad holds the keyboard.
+  // Keyboard support, only while the keypad holds the keyboard.
   useEffect(() => {
     if (!open) return;
     function onKey(ev: KeyboardEvent) {
@@ -236,6 +331,8 @@ export function Calculator() {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open, keypadActive, press]);
 
+  if (!available) return null;
+
   return (
     <>
       <button
@@ -251,7 +348,8 @@ export function Calculator() {
         aria-label={open ? "Close calculator" : "Open calculator"}
         aria-expanded={open}
         title="Calculator"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition hover:scale-105 hover:bg-bridge-700 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2"
+        style={{ transform: `translate(${nudge.x}px, ${nudge.y}px)` }}
+        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition hover:bg-bridge-700 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2"
       >
         {open ? <span className="text-2xl leading-none">✕</span> : <OperatorMark />}
       </button>
@@ -261,12 +359,20 @@ export function Calculator() {
           ref={panelRef}
           role="dialog"
           aria-label="Calculator"
-          className={`animate-modal-in fixed bottom-24 right-5 z-50 w-[19rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border bg-white p-3 shadow-2xl transition ${
+          className={`animate-fade-in fixed bottom-24 right-5 z-50 w-[19rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border bg-white p-3 shadow-2xl ${
             keypadActive ? "border-bridge-400 ring-2 ring-bridge-200" : "border-slate-200"
           }`}
+          style={{ transform: `translate(${nudge.x}px, ${nudge.y}px)` }}
         >
-          <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div
+            onPointerDown={onDragStart}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            onPointerCancel={onDragEnd}
+            className="mb-2 flex touch-none cursor-grab items-center justify-between px-1 active:cursor-grabbing"
+          >
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <span aria-hidden className="text-slate-300">⠿</span>
               Calculator
             </span>
             <button
@@ -293,7 +399,7 @@ export function Calculator() {
             </div>
           </div>
 
-          {/* Who has the keyboard. Worth saying out loud — otherwise a student
+          {/* Who has the keyboard. Worth saying out loud, otherwise a student
               types into the calculator and wonders why the answer box is empty. */}
           <p
             aria-live="polite"

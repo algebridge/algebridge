@@ -11,14 +11,9 @@ const STEPS = [
     body: "Every skill starts with a quick lesson from a top math teacher on YouTube.",
   },
   {
-    emoji: "📐",
-    title: "Visualize it",
-    body: "Spot the correct graph to build real intuition — it's quick, and it really helps the math click.",
-  },
-  {
     emoji: "✏️",
     title: "Practice a few problems",
-    body: "Answer at least 3 problems with 80%+ correct to complete a skill. Stuck? Message a real tutor any time from the Tutors page — they can even hop on a video call with you.",
+    body: "Get five right in a row and the skill is done. A wrong answer starts the run again, so there's no faking it. Stuck? Message a real tutor any time from the Tutors page, they can even hop on a video call with you.",
   },
   {
     emoji: "🏆",

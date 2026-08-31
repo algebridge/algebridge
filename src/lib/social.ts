@@ -15,7 +15,7 @@ export function socialConfigured(): boolean {
 
 // Every realtime subscription must use a UNIQUE channel topic. supabase-js
 // returns the SAME channel instance for a repeated topic, and calling .on()
-// on an already-subscribed channel throws — which crashed the messages screen
+// on an already-subscribed channel throws, which crashed the messages screen
 // because the Header and the open thread both subscribed to incoming messages.
 let channelSeq = 0;
 
@@ -81,7 +81,7 @@ export async function uploadAvatar(
 // Directories
 // ---------------------------------------------------------------------------
 
-/** Every tutor — visible to any signed-in user (students browse tutors). */
+/** Every tutor, visible to any signed-in user (students browse tutors). */
 export async function listTutors(): Promise<TutorDirectoryEntry[]> {
   const supabase = createClient();
   if (!supabase) return [];
@@ -98,7 +98,7 @@ export async function listTutors(): Promise<TutorDirectoryEntry[]> {
   }));
 }
 
-/** Every student — only readable by tutor accounts (RLS enforced). */
+/** Every student, only readable by tutor accounts (RLS enforced). */
 export async function listAllStudents(): Promise<StudentDirectoryEntry[]> {
   const supabase = createClient();
   if (!supabase) return [];
@@ -392,7 +392,7 @@ export async function markCallBridgeysAwarded(callSessionId: string): Promise<bo
     .eq("id", callSessionId)
     .eq("bridgeys_awarded", false)
     .select("id");
-  // Returns a row only if THIS update flipped the flag — prevents double pay.
+  // Returns a row only if THIS update flipped the flag, prevents double pay.
   return !error && !!data && data.length > 0;
 }
 
@@ -464,7 +464,7 @@ export interface RingPayload {
 
 // removeChannel() is async (it round-trips an unsubscribe). If we create a
 // channel on the same FIXED topic immediately after, supabase-js hands back the
-// still-present, now-"leaving" channel and .subscribe() no-ops — so listeners
+// still-present, now-"leaving" channel and .subscribe() no-ops, so listeners
 // bind to a dying channel. We therefore AWAIT removal before re-creating.
 async function removeStaleChannels(topic: string): Promise<void> {
   const supabase = createClient();

@@ -6,7 +6,7 @@ interface BridgeysLogoProps {
   className?: string;
 }
 
-/** Bridgeys currency logo — coin mark used across shop, HUD, and header. */
+/** Bridgeys currency logo, coin mark used across shop, HUD, and header. */
 export function BridgeysLogo({ size = 32, showText = false, className = "" }: BridgeysLogoProps) {
   return (
     <div className={`inline-flex items-center gap-2 ${className}`}>

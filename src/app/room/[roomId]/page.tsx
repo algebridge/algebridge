@@ -197,7 +197,7 @@ export default function CallRoomPage() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch {
-        setMediaError("Camera/mic unavailable — you can still use the whiteboard, notebook, and chat.");
+        setMediaError("Camera/mic unavailable. You can still use the whiteboard, notebook, and chat.");
       }
       if (cancelled) {
         stream?.getTracks().forEach((t) => t.stop());

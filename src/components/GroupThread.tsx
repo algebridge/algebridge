@@ -82,7 +82,7 @@ export function GroupThread({ groupId }: { groupId: string }) {
           <p className="text-center text-sm text-slate-400">Loading…</p>
         ) : messages.length === 0 ? (
           <p className="mt-8 text-center text-sm text-slate-400">
-            No messages yet — start the conversation! 👋
+            No messages yet, start the conversation! 👋
           </p>
         ) : (
           messages.map((m) => {

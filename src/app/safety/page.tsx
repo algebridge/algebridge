@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Safety & Trust — AlgeBridge" };
+export const metadata = { title: "Safety & Trust, AlgeBridge" };
 
 export default function SafetyPage() {
   return (
@@ -18,7 +18,7 @@ export default function SafetyPage() {
           { e: "📞", t: "You control calls", d: "Only tutors can start a call, and it only rings if you're online. You can decline any call, and video is never recorded." },
           { e: "🗑️", t: "Delete anytime", d: "You can permanently delete your account and all your data from your profile in one click." },
           { e: "🙅", t: "No ads, no selling data", d: "AlgeBridge is free and does not sell your information or show third-party ads." },
-          { e: "🚩", t: "Report problems", d: "See something wrong? Email us and we'll act on it — abusive accounts are removed." },
+          { e: "🚩", t: "Report problems", d: "See something wrong? Email us and we'll act on it, abusive accounts are removed." },
         ].map((c) => (
           <div key={c.t} className="card">
             <div className="text-2xl">{c.e}</div>

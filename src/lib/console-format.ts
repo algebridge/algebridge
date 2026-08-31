@@ -1,6 +1,6 @@
 /** Small formatters shared by the admin console and the tutor calendar. */
 
-/** "4m", "3h", "6d", "2mo" — compact enough for a dense table. */
+/** "4m", "3h", "6d", "2mo", compact enough for a dense table. */
 export function shortAgo(iso: string | null): string {
   if (!iso) return "never";
   const ms = Date.now() - new Date(iso).getTime();
@@ -18,7 +18,7 @@ export function shortAgo(iso: string | null): string {
 }
 
 export function fullDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString(undefined, {
     year: "numeric",
     month: "short",

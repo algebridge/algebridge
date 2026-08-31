@@ -74,7 +74,7 @@ export default function TutorHubPage() {
         <div>
           <h1 className="page-title">Tutor Hub</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Every student on AlgeBridge — message or call anyone who needs help.
+            Every student on AlgeBridge, message or call anyone who needs help.
           </p>
         </div>
         <Link href="/messages" className="btn-secondary text-sm">💬 Inbox</Link>

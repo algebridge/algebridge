@@ -1,5 +1,5 @@
 // A small, safe arithmetic expression evaluator for the on-screen calculator.
-// It intentionally does NOT use eval()/Function() — it tokenizes the input,
+// It intentionally does NOT use eval()/Function(), it tokenizes the input,
 // converts it to Reverse Polish Notation with a shunting-yard algorithm, and
 // evaluates that. This keeps kid-typed input from ever running as code.
 
@@ -103,7 +103,7 @@ export function tokenize(input: string): CalcToken[] {
       if (ch === "-" && isUnaryContext) {
         tokens.push({ type: "unary", value: "-" });
       } else if (ch === "+" && isUnaryContext) {
-        // Unary plus is a no-op — just skip it.
+        // Unary plus is a no-op, just skip it.
       } else {
         tokens.push({ type: "op", value: ch });
       }

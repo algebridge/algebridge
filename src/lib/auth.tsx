@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return "Cloud login is not configured yet. Progress is saved locally.";
 
     // Every AlgeBridge account is identified by a real name, so validate it
-    // before creating the auth user — no half-made accounts.
+    // before creating the auth user, no half-made accounts.
     const nameCheck = checkFullName(fullName);
     if (!nameCheck.ok) return nameCheck.error;
 
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // explicitly too so the name is right even on an older database schema.
     await setDisplayName(nameCheck.formatted);
 
-    // Upload local progress right away using the new user's id directly —
+    // Upload local progress right away using the new user's id directly -
     // React's `user` state hasn't re-rendered yet at this point, so
     // syncProgress() (which reads `user` from state) would silently no-op.
     await supabase.from(PROGRESS_TABLE).upsert(
@@ -230,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userId = data.user?.id;
     if (!userId) return "Sign-in succeeded, but no session was established. Please try again.";
     // Start from a clean slate so a previous user's local progress on this
-    // (possibly shared) device can never be mistaken for — or synced into —
+    // (possibly shared) device can never be mistaken for, or synced into -
     // the account that just signed in. The account's own cloud data loads next.
     clearLocalProgress();
     await loadCloudProgress(userId);

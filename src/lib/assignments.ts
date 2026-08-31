@@ -11,7 +11,7 @@ export function assignmentSkillIds(assignment: ClassAssignment): string[] {
   return unit.skills.map((s) => s.id);
 }
 
-/** Display title — the teacher's own wording wins, otherwise the curriculum's. */
+/** Display title, the teacher's own wording wins, otherwise the curriculum's. */
 export function assignmentTitle(assignment: ClassAssignment): string {
   if (assignment.title) return assignment.title;
   if (assignment.skillId) {

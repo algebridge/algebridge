@@ -2,9 +2,6 @@ import type { FurnitureItem, FurnitureSlot, HouseStyle, PlacedFurnitureEntry } f
 
 export const STARTER_HOUSE_ID = "cottage";
 
-/** AI-generated cartoon yard scene (houses are overlaid on top). */
-export const YARD_CARTOON_BG = "/house/yard-cartoon-bg.png";
-
 export const ROOM_WIDTH = 800;
 export const ROOM_HEIGHT = 500;
 
@@ -23,11 +20,10 @@ export const HOUSE_STYLES: HouseStyle[] = [
     name: "Cozy Cottage",
     emoji: "🏡",
     price: 0,
-    description: "Your free starter home — warm wood floors and sunny windows.",
+    description: "Your free starter home, warm wood floors and sunny windows.",
     wallColor: "#fef3c7",
     floorColor: "#d97706",
     accentColor: "#92400e",
-    exteriorImage: "/house/models/cottage-card.webp",
   },
   {
     id: "treehouse",
@@ -38,7 +34,6 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#dcfce7",
     floorColor: "#92400e",
     accentColor: "#365314",
-    exteriorImage: "/house/models/treehouse-card.webp",
   },
   {
     id: "loft",
@@ -49,7 +44,6 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#e2e8f0",
     floorColor: "#475569",
     accentColor: "#0f172a",
-    exteriorImage: "/house/models/loft-card.webp",
   },
   {
     id: "beach",
@@ -60,7 +54,6 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#bae6fd",
     floorColor: "#fcd34d",
     accentColor: "#0369a1",
-    exteriorImage: "/house/models/beach-card.webp",
   },
   {
     id: "castle",
@@ -71,7 +64,6 @@ export const HOUSE_STYLES: HouseStyle[] = [
     wallColor: "#e9d5ff",
     floorColor: "#5b21b6",
     accentColor: "#4c1d95",
-    exteriorImage: "/house/models/castle-card.webp",
   },
 ];
 

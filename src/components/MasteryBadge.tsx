@@ -6,7 +6,7 @@ interface MasteryBadgeProps {
   size?: "sm" | "md";
 }
 
-/** @deprecated Use ProgressStatus — kept for compatibility */
+/** @deprecated Use ProgressStatus, kept for compatibility */
 export function MasteryBadge({ level, size }: MasteryBadgeProps) {
   return <ProgressStatus level={level} size={size} />;
 }

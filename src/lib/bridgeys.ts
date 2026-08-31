@@ -1,5 +1,5 @@
 import { getOrnament, getUnplacedOrnamentIds } from "@/data/ornament-catalog";
-import { clampToPad } from "@/lib/yard-camera";
+import { clampToYard } from "@/lib/dollhouse";
 import {
   getBestOwnedFurniture,
   getFurnitureItem,
@@ -27,7 +27,7 @@ function ensureBridgeyFields(progress: UserProgress): void {
   if (!progress.placedFurnitureItems) progress.placedFurnitureItems = [];
   if (!progress.ownedTitles) progress.ownedTitles = [];
   if (!progress.bridgeyRewardsClaimed) {
-    progress.bridgeyRewardsClaimed = { visual: [], complete: [] };
+    progress.bridgeyRewardsClaimed = { complete: [] };
   }
   if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = true;
 
@@ -55,15 +55,6 @@ export function awardBridgeys(progress: UserProgress, amount: number): number {
   progress.bridgeys += amount;
   progress.bridgeysLifetime = (progress.bridgeysLifetime ?? 0) + amount;
   return amount;
-}
-
-/** 5 Bridgeys for finishing Visualize It on a skill (once per skill). */
-export function tryAwardVisualBridgeys(progress: UserProgress, skillId: string): number {
-  ensureBridgeyFields(progress);
-  const claimed = progress.bridgeyRewardsClaimed!;
-  if (claimed.visual.includes(skillId)) return 0;
-  claimed.visual.push(skillId);
-  return awardBridgeys(progress, BRIDGEY_REWARDS.visualCompleted);
 }
 
 /** 10 Bridgeys for completing a skill/lesson (once per skill). */
@@ -236,7 +227,7 @@ export { getUnplacedFurnitureIds };
 
 /* ── Garden ornaments ───────────────────────────────────────────
    The outdoor half of the House. Unlike furniture, ornaments can be owned
-   more than once — a picket fence is only useful in multiples — so buying is
+   more than once, a picket fence is only useful in multiples, so buying is
    an append rather than a membership test, and placement is matched against
    the owned list by count. */
 
@@ -268,7 +259,7 @@ export function placeOrnamentAt(itemId: string, x: number, z: number): PurchaseR
     return { ok: false, message: `You have no spare ${item.name} to put down.` };
   }
 
-  const spot = clampToPad({ x, z });
+  const spot = clampToYard({ x, z });
   progress.placedOrnaments = [
     ...placed,
     { instanceId: `orn-${Date.now()}-${placed.length}`, itemId, x: spot.x, z: spot.z },

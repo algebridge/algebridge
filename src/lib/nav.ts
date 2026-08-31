@@ -46,7 +46,7 @@ export function buildNav({
   else classroom.push({ href: "/classes", label: "My classes", icon: "classes" });
   if (isTutor) classroom.push({ href: "/tutor-hub", label: "Students", icon: "students" });
   else classroom.push({ href: "/tutors", label: "Find a tutor", icon: "tutors" });
-  // The shared tutoring calendar. Staff only — students have no view yet.
+  // The shared tutoring calendar. Staff only, students have no view yet.
   if (isTutor || isAdmin) classroom.push({ href: "/calendar", label: "Calendar", icon: "clock" });
   if (signedIn) {
     classroom.push({ href: "/messages", label: "Messages", icon: "messages", badge: unreadCount });
@@ -65,8 +65,10 @@ export function buildNav({
     { title: "Progress", items: progress },
   ];
 
-  if (isAdmin) {
-    sections.push({ title: "Staff", items: [{ href: "/admin", label: "Admin", icon: "admin" }] });
+  if (isTutor || isAdmin) {
+    const staff: NavItem[] = [{ href: "/workspace", label: "Workspace", icon: "teach" }];
+    if (isAdmin) staff.push({ href: "/admin", label: "Admin", icon: "admin" });
+    sections.push({ title: "Staff", items: staff });
   }
 
   return sections;

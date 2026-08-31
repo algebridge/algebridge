@@ -1,5 +1,5 @@
 /**
- * Garden ornaments — the outdoor half of the House.
+ * Garden ornaments, the outdoor half of the House.
  *
  * Sizes are in metres, and they matter: an ornament is projected onto the yard
  * by the same camera that rendered it, so `height` is what decides how large

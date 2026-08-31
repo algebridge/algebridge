@@ -11,7 +11,7 @@ interface CartoonFurnitureArtProps {
   variant?: "room" | "shop";
 }
 
-/** Transparent PNG furniture sprites — no white backgrounds. */
+/** Transparent PNG furniture sprites, no white backgrounds. */
 export function CartoonFurnitureArt({
   itemId,
   className = "",

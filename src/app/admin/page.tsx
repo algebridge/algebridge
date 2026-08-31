@@ -226,7 +226,7 @@ export default function AdminPage() {
 
           <div className="sbc-stats">
             <article className="sbc-stat">
-              <strong>{overview?.total ?? "—"}</strong>
+              <strong>{overview?.total ?? "-"}</strong>
               <span>Accounts</span>
               <b className="is-quiet">
                 {overview
@@ -235,31 +235,31 @@ export default function AdminPage() {
               </b>
             </article>
             <article className="sbc-stat">
-              <strong>{overview?.active1d ?? "—"}</strong>
+              <strong>{overview?.active1d ?? "-"}</strong>
               <span>Active · 24 hours</span>
             </article>
             <article className="sbc-stat">
-              <strong>{overview?.active7d ?? "—"}</strong>
+              <strong>{overview?.active7d ?? "-"}</strong>
               <span>Active · 7 days</span>
             </article>
             <article className="sbc-stat">
-              <strong>{overview?.active30d ?? "—"}</strong>
+              <strong>{overview?.active30d ?? "-"}</strong>
               <span>Active · 30 days</span>
             </article>
           </div>
 
           <div className="sbc-stats">
             <article className="sbc-stat">
-              <strong>{overview?.new7d ?? "—"}</strong>
+              <strong>{overview?.new7d ?? "-"}</strong>
               <span>Joined · 7 days</span>
               <b className="is-quiet">{overview ? `${overview.new30d} in 30 days` : ""}</b>
             </article>
             <article className="sbc-stat">
-              <strong>{overview?.dormant ?? "—"}</strong>
+              <strong>{overview?.dormant ?? "-"}</strong>
               <span>Dormant · 30 days+</span>
             </article>
             <article className="sbc-stat">
-              <strong>{overview?.sessionsNext7 ?? "—"}</strong>
+              <strong>{overview?.sessionsNext7 ?? "-"}</strong>
               <span>Calendar · next 7 days</span>
               <b className="is-quiet">{overview ? `${overview.sessions7d} in the last 7` : ""}</b>
             </article>

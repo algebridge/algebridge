@@ -8,7 +8,7 @@ interface PracticeGateProps {
   activity?: string;
   /**
    * Reassurance line about what's still free here. Only pass it where it's
-   * true — /review has nothing above the gate to fall back to.
+   * true, /review has nothing above the gate to fall back to.
    */
   freeNote?: string;
 }

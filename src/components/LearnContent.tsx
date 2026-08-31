@@ -7,7 +7,6 @@ import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
-import { VisualizeExercise } from "@/components/VisualizeExercise";
 import { ProgressStatus } from "@/components/ProgressStatus";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -32,7 +31,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const { stats, mounted } = useProgress();
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
   const [videoWatched, setVideoWatched] = useState(false);
-  const [visualized, setVisualized] = useState(false);
   const [practiceStats, setPracticeStats] = useState({
     attempted: 0,
     correct: 0,
@@ -45,7 +43,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
     const prog = getSkillProgress(skill.id);
     setMastery(prog.level);
     setVideoWatched(prog.videoWatched);
-    setVisualized(!!prog.visualized);
     setPracticeStats(getSkillPracticeStats(skill.id));
   }
 
@@ -74,7 +71,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
       showToast({
         emoji: "🎬",
         title: `+${result.xpGained} XP`,
-        description: "Nice — you watched the lesson video.",
+        description: "Nice, you watched the lesson video.",
       });
     }
     for (const badge of result.newBadges) {
@@ -94,7 +91,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const isSkillComplete =
     mastery === "proficient" || mastery === "mastered";
   // If a student already nails the practice problems, don't force them to sit
-  // through the video too — they've shown they know it.
+  // through the video too, they've shown they know it.
   const videoStepSatisfied = videoWatched || isSkillComplete;
 
   return (
@@ -151,21 +148,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   {videoWatched
                     ? "Done!"
                     : isSkillComplete
-                      ? "Skipped — you already know this!"
+                      ? "Skipped, you already know this!"
                       : "Start here (or skip if you already know it)"}
-                </p>
-              </div>
-            </div>
-            <div
-              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-                visualized ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
-              }`}
-            >
-              <span className="text-xl">{visualized ? "✅" : "2️⃣"}</span>
-              <div>
-                <p className="font-medium text-slate-900">Visualize it</p>
-                <p className="text-xs text-slate-500">
-                  {visualized ? "Done!" : "Explore it, then spot the correct graph"}
                 </p>
               </div>
             </div>
@@ -176,14 +160,14 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   : "border-slate-200 bg-white"
               }`}
             >
-              <span className="text-xl">{isSkillComplete ? "✅" : "3️⃣"}</span>
+              <span className="text-xl">{isSkillComplete ? "✅" : "2️⃣"}</span>
               <div>
                 <p className="font-medium text-slate-900">Practice problems</p>
                 <p className="text-xs text-slate-500">
                   {isSkillComplete
                     ? "Skill complete!"
                     : practiceStats.attempted === 0
-                      ? "Answer 3 problems (80%+ correct)"
+                      ? "Get 5 right in a row"
                       : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
                 </p>
               </div>
@@ -202,15 +186,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               </section>
 
               <section>
-                <h2 className="section-title mb-3">Step 2: Visualize</h2>
-                <p className="mb-3 text-sm text-slate-500">
-                  Play with the interactive model to <em>see</em> how the math works, then test yourself by spotting the correct graph.
-                </p>
-                <VisualizeExercise skill={skill} onCompleted={refreshSkillState} />
-              </section>
-
-              <section>
-                <h2 className="section-title mb-3">Step 3: Practice</h2>
+                <h2 className="section-title mb-3">Step 2: Practice</h2>
                 <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
               </section>
 
@@ -221,7 +197,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                     <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
                     <p className="mt-1 text-sm text-slate-600">
                       Message any tutor, or hop on a video call with a shared whiteboard,
-                      your notebook, and a calculator — right here on AlgeBridge.
+                      your notebook, and a calculator, right here on AlgeBridge.
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
@@ -246,9 +222,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <p className="font-medium text-slate-800">How to complete this skill:</p>
                   <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
                     <li>Watch the video above</li>
-                    <li>Try the visualize exercise (optional)</li>
-                    <li>Answer at least 3 practice problems</li>
-                    <li>Get 80% or more correct</li>
+                    <li>Answer practice problems until you get 5 right in a row</li>
+                    <li>A wrong answer starts the run again, so take your time</li>
                   </ol>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">

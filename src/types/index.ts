@@ -71,8 +71,8 @@ export interface SkillProgress {
   videoWatched: boolean;
   /** True only once real playback tracking (or a time-gated manual confirm) verified the watch. */
   videoWatchedVerified?: boolean;
-  /** True once the student has completed the "Visualize It" diagram exercise for this skill. */
-  visualized?: boolean;
+  /** Correct answers in an unbroken run. Five of these completes the skill. */
+  correctStreak?: number;
 }
 
 export interface UserProgress {
@@ -100,16 +100,16 @@ export interface UserProgress {
   ownedHouseStyles: string[];
   /** Furniture item IDs purchased but not necessarily placed. */
   ownedFurniture: string[];
-  /** Legacy slot-based placement — migrated to placedFurnitureItems. */
+  /** Legacy slot-based placement, migrated to placedFurnitureItems. */
   placedFurniture: Record<string, string>;
-  /** Free-position furniture inside the house (percent coords 0–100). */
+  /** Free-position furniture inside the house (percent coords 0-100). */
   placedFurnitureItems?: PlacedFurnitureEntry[];
   /** Purchasable display titles (separate from XP level titles). */
   ownedTitles: string[];
   /** Title shown on profile and leaderboard. */
   equippedTitleId?: string;
   /** Skill IDs that already paid out Bridgey rewards (prevents double-claim). */
-  bridgeyRewardsClaimed?: { visual: string[]; complete: string[] };
+  bridgeyRewardsClaimed?: { complete: string[] };
   /** Share stats on the nationwide leaderboard (requires sign-in). */
   leaderboardOptIn?: boolean;
   /** One-time migration: backfill Bridgey economy fields for older saves. */
@@ -139,9 +139,9 @@ export interface PlacedOrnamentEntry {
 export interface PlacedFurnitureEntry {
   instanceId: string;
   itemId: string;
-  /** Horizontal position as % of room width (0–100). */
+  /** Horizontal position as % of room width (0-100). */
   x: number;
-  /** Vertical position as % of room height (0–100). */
+  /** Vertical position as % of room height (0-100). */
   y: number;
 }
 
@@ -154,8 +154,6 @@ export interface HouseStyle {
   wallColor: string;
   floorColor: string;
   accentColor: string;
-  /** Cartoon exterior illustration for shop / outside view. */
-  exteriorImage?: string;
   /** Cartoon interior room background. */
   interiorImage?: string;
 }
@@ -165,7 +163,7 @@ export interface FurnitureItem {
   name: string;
   emoji: string;
   price: number;
-  /** @deprecated Legacy slot id — only used when migrating old saves. */
+  /** @deprecated Legacy slot id, only used when migrating old saves. */
   slot: FurnitureSlot;
   /** Prestige value used for "best item in house" on the leaderboard. */
   prestige: number;
@@ -201,61 +199,6 @@ export interface LeaderboardEntry {
   bestFurnitureValue: number;
   equippedTitle: string | null;
   rank: number;
-}
-
-// ---------------------------------------------------------------------------
-// "Visualize It" diagram exercises — pick the graph/diagram that matches the
-// math, to build visual intuition alongside symbolic practice.
-// ---------------------------------------------------------------------------
-
-export type NumberLineMark =
-  | { kind: "point"; value: number }
-  | { kind: "ray"; boundary: number; direction: "left" | "right"; inclusive: boolean }
-  | { kind: "segment"; low: number; high: number; inclusiveLow: boolean; inclusiveHigh: boolean };
-
-export interface NumberLineSpec {
-  type: "number-line";
-  min: number;
-  max: number;
-  mark: NumberLineMark;
-}
-
-export interface GraphLine {
-  slope: number;
-  intercept: number;
-  color?: string;
-  dashed?: boolean;
-}
-
-export interface GraphPoint {
-  x: number;
-  y: number;
-  label?: string;
-}
-
-export interface CoordinateSpec {
-  type: "coordinate";
-  range: number;
-  lines?: GraphLine[];
-  points?: GraphPoint[];
-  shade?: "above" | "below";
-  parabola?: { a: number; h: number; k: number };
-}
-
-export type DiagramSpec = NumberLineSpec | CoordinateSpec;
-
-export interface VisualOption {
-  id: string;
-  diagram: DiagramSpec;
-}
-
-export interface VisualExercise {
-  skillId: string;
-  prompt: string;
-  hint: string;
-  explanation: string;
-  options: VisualOption[];
-  correctOptionId: string;
 }
 
 export type UserRole = "student" | "teacher" | "tutor";
@@ -399,7 +342,7 @@ export interface GeneratedProblem {
   hint: string;
   answer: string | number;
   choices?: string[];
-  /** See PracticeProblem.decimalPlaces — rounding place for numeric answers. */
+  /** See PracticeProblem.decimalPlaces, rounding place for numeric answers. */
   decimalPlaces?: number;
   explanation: string;
 }

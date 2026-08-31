@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { YardViewer } from "@/components/house/YardViewer";
-import { RoomPanorama } from "@/components/house/RoomPanorama";
+import { Dollhouse } from "@/components/house/Dollhouse";
 import type { UserProgress } from "@/types";
 
 interface HouseRoomProps {
@@ -10,25 +8,10 @@ interface HouseRoomProps {
   onUpdate: () => void;
 }
 
+/**
+ * Inside and outside are one flat picture now, so there is nothing left to
+ * switch between, the front of the house opens where it stands.
+ */
 export function HouseRoom({ progress, onUpdate }: HouseRoomProps) {
-  const [inside, setInside] = useState(false);
-
-  if (inside) {
-    return (
-      <RoomPanorama
-        progress={progress}
-        onUpdate={onUpdate}
-        onExit={() => setInside(false)}
-      />
-    );
-  }
-
-  return (
-    // Every style has a turntable, so the yard is walk-around-able.
-    <YardViewer
-      progress={progress}
-      onUpdate={onUpdate}
-      onEnter={() => setInside(true)}
-    />
-  );
+  return <Dollhouse progress={progress} onUpdate={onUpdate} />;
 }

@@ -17,11 +17,11 @@ const WATCH_THRESHOLD = 0.85;
 // If the real YouTube API can't attach (blocked script, offline, etc.) fall
 // back to a manual confirm button that unlocks after most of the runtime.
 const API_TIMEOUT_MS = 4000;
-// Used when a video's duration can't be determined for some reason — keeps
+// Used when a video's duration can't be determined for some reason, keeps
 // the fallback/verification gates from accidentally unlocking in seconds.
 const FALLBACK_DURATION_SECONDS = 300;
 // Absolute floor: never mark a video watched faster than this, no matter what
-// any API/timer reports — a real ~85% watch of a multi-minute lesson always
+// any API/timer reports, a real ~85% watch of a multi-minute lesson always
 // takes at least this long, so this catches any tracking glitch or race.
 const MIN_SECONDS_BEFORE_WATCHED = 20;
 
@@ -38,7 +38,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
   const apiTimeoutRef = useRef<number | null>(null);
   const fallbackTimeoutRef = useRef<number | null>(null);
   const watchedRef = useRef(false);
-  // Real wall-clock seconds confirmed as "actively playing" — accumulated by
+  // Real wall-clock seconds confirmed as "actively playing", accumulated by
   // the poll ticking while state === PLAYING, never trusted from a single
   // getCurrentTime()/getDuration() read (those can glitch/report stale values).
   const secondsWatchedRef = useRef(0);
@@ -61,7 +61,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
 
   function markWatched() {
     if (watchedRef.current) return;
-    // Defense in depth: don't trust any single signal (API state, timers) —
+    // Defense in depth: don't trust any single signal (API state, timers) -
     // require real elapsed time to have passed since the video actually loaded.
     if (elapsedSinceLoad() < MIN_SECONDS_BEFORE_WATCHED) return;
     watchedRef.current = true;
@@ -133,7 +133,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
                 const isEnded = event.data === YT.PlayerState.ENDED;
 
                 if (isEnded) {
-                  // Ignore spurious/instant "ended" events — only trust it once
+                  // Ignore spurious/instant "ended" events, only trust it once
                   // we've independently confirmed a meaningful chunk of real
                   // playback time via the poll below.
                   if (secondsWatchedRef.current >= requiredSeconds() * 0.5) {
@@ -238,7 +238,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
             </div>
             <p className="mt-1 text-xs text-slate-400">
               {watchPercent > 0
-                ? `${watchPercent}% watched — press play to keep tracking your progress`
+                ? `${watchPercent}% watched, press play to keep tracking your progress`
                 : "Press ▶ play to start tracking your progress"}
             </p>
           </div>
@@ -249,7 +249,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
             <p className="text-xs text-slate-400">
               {fallbackUnlocked
                 ? "Finished the video? Confirm below."
-                : "Keep watching — this unlocks once you've seen most of the video."}
+                : "Keep watching, this unlocks once you've seen most of the video."}
             </p>
             <button
               type="button"

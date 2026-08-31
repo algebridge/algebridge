@@ -70,7 +70,7 @@ export default function ProfilePage() {
         <h1 className="page-title">Your Profile</h1>
         <p className="mt-1 text-sm text-slate-500">
           {isTutor
-            ? "Students see this on the Tutors page — add a friendly photo and bio."
+            ? "Students see this on the Tutors page, add a friendly photo and bio."
             : "Add a photo and a short bio so tutors know who they're helping."}
         </p>
       </div>

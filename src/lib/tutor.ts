@@ -16,7 +16,7 @@ export interface TutorChatMessage {
 
 /**
  * Strips markdown emphasis syntax (**bold**, __bold__, *italic*, _italic_) so
- * hint text never shows literal asterisks/underscores — the tutor UI renders
+ * hint text never shows literal asterisks/underscores, the tutor UI renders
  * plain text, not markdown. Keeps the wrapped words, just drops the markers.
  */
 export function stripMarkdownEmphasis(text: string): string {
@@ -28,7 +28,7 @@ export function stripMarkdownEmphasis(text: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Problem analysis — lets the built-in tutor give guidance specific to THIS
+// Problem analysis, lets the built-in tutor give guidance specific to THIS
 // problem (which operation to undo first, whether to flip an inequality, …)
 // rather than only restating the generic hint. Never reveals the final answer.
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ function firstStepFor(prompt: string): string | null {
 
   // inequality
   if (/[<>]=?|≤|≥/.test(p) && /x/.test(p)) {
-    return `Solve it just like an equation to get x by itself — but remember: if you multiply or divide both sides by a NEGATIVE number, flip the inequality sign.`;
+    return `Solve it just like an equation to get x by itself, but remember: if you multiply or divide both sides by a NEGATIVE number, flip the inequality sign.`;
   }
 
   // quadrant / coordinate
@@ -72,7 +72,7 @@ function firstStepFor(prompt: string): string | null {
 
   // slope between two points
   if (/slope/i.test(p) && /\(.*\).*\(.*\)/.test(p)) {
-    return `Slope = rise over run = (change in y) ÷ (change in x). Subtract the y-values on top, the x-values on the bottom — keep the points in the same order.`;
+    return `Slope = rise over run = (change in y) ÷ (change in x). Subtract the y-values on top, the x-values on the bottom, keep the points in the same order.`;
   }
 
   return null;
@@ -96,15 +96,15 @@ export function buildLocalChatReply(ctx: TutorContext, messages: TutorChatMessag
   const wantsNext = /\b(next|then what|after that|now what|what now)\b/.test(text);
 
   if (isGreeting) {
-    return `Hey! I'm your Bridge Tutor for ${ctx.skillTitle}. 👋 Tell me where you're stuck on "${ctx.problemPrompt}" — or just say "give me a hint" and we'll take it one step at a time. I won't hand you the answer, but I'll get you there.`;
+    return `Hey! I'm your Bridge Tutor for ${ctx.skillTitle}. 👋 Tell me where you're stuck on "${ctx.problemPrompt}", or just say "give me a hint" and we'll take it one step at a time. I won't hand you the answer, but I'll get you there.`;
   }
 
   if (claimsAnswer) {
-    return `Nice — instead of me telling you if that's right, let's PROVE it: take your value and substitute it back into "${ctx.problemPrompt}". If both sides come out equal, you nailed it. Does it check out? Show me what you get when you plug it in.`;
+    return `Nice, instead of me telling you if that's right, let's PROVE it: take your value and substitute it back into "${ctx.problemPrompt}". If both sides come out equal, you nailed it. Does it check out? Show me what you get when you plug it in.`;
   }
 
   if (wantsWhy) {
-    return `Good question — that's the important part. The key idea here: ${ctx.keyIdea}\n\nDoes that help it click? If not, tell me which part feels fuzzy and I'll zoom in.`;
+    return `Good question, that's the important part. The key idea here: ${ctx.keyIdea}\n\nDoes that help it click? If not, tell me which part feels fuzzy and I'll zoom in.`;
   }
 
   if (wantsNext) {
@@ -113,9 +113,9 @@ export function buildLocalChatReply(ctx: TutorContext, messages: TutorChatMessag
 
   if (wantsHint || priorTutorTurns === 0) {
     if (priorTutorTurns <= 1) {
-      return `Let's start here: ${ctx.keyIdea}\n\n${firstStep ? firstStep : `Look at "${ctx.problemPrompt}" — what's the first operation you'd undo?`}\n\nTry just that first step and tell me what you get.`;
+      return `Let's start here: ${ctx.keyIdea}\n\n${firstStep ? firstStep : `Look at "${ctx.problemPrompt}", what's the first operation you'd undo?`}\n\nTry just that first step and tell me what you get.`;
     }
-    return `More specific nudge: ${ctx.hint}\n\nApply that one small step and show me the result — we'll take the next one together.`;
+    return `More specific nudge: ${ctx.hint}\n\nApply that one small step and show me the result, we'll take the next one together.`;
   }
 
   // Default: treat their message as a work-in-progress and keep them moving.

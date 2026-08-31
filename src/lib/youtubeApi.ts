@@ -1,4 +1,4 @@
-// Minimal loader/typings for the YouTube IFrame Player API — used to detect
+// Minimal loader/typings for the YouTube IFrame Player API, used to detect
 // real playback progress instead of just "the iframe loaded".
 
 export interface YTPlayer {

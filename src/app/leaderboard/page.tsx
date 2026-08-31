@@ -82,7 +82,7 @@ export default function LeaderboardPage() {
 
       {user && !configured && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Cloud sync isn&apos;t configured on this server — leaderboard data is local only.
+          Cloud sync isn&apos;t configured on this server, leaderboard data is local only.
         </div>
       )}
 
@@ -144,7 +144,7 @@ export default function LeaderboardPage() {
       ) : entries.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
           <p className="text-4xl">🌉</p>
-          <p className="mt-3 font-semibold">No rankings yet — be the first!</p>
+          <p className="mt-3 font-semibold">No rankings yet, be the first!</p>
           <p className="mt-1 text-sm">Complete lessons, earn Bridgeys, and sync your account.</p>
         </div>
       ) : (
@@ -180,7 +180,7 @@ export default function LeaderboardPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 hidden text-slate-600 sm:table-cell">
-                      {entry.equippedTitle ?? "—"}
+                      {entry.equippedTitle ?? "-"}
                     </td>
                     <td className="px-4 py-3 font-semibold">{entry.completedSkills}</td>
                     <td className="px-4 py-3 hidden md:table-cell">🪙 {entry.bridgeys}</td>
@@ -188,7 +188,7 @@ export default function LeaderboardPage() {
                       {entry.bestFurnitureName ? (
                         <span>{entry.bestFurnitureName} ★{entry.bestFurnitureValue}</span>
                       ) : (
-                        "—"
+                        "-"
                       )}
                     </td>
                   </tr>

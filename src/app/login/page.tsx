@@ -63,7 +63,7 @@ function LoginPageInner() {
       }
       await syncProgress();
       if (next) router.push(next);
-      else setMessage("You're all set — your progress now saves to your account.");
+      else setMessage("You're all set, your progress now saves to your account.");
       return;
     }
 
@@ -401,7 +401,7 @@ function LoginPageInner() {
                   </div>
                 </div>
                 <p className="-mt-2 text-xs text-slate-500">
-                  Use your real name, not a username — it&apos;s how your teacher finds
+                  Use your real name, not a username, it&apos;s how your teacher finds
                   you on the roster and how tutors greet you on a call.
                 </p>
               </>

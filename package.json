@@ -7,14 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "yards": "node --experimental-strip-types scripts/gen-yards.ts",
-    "birds": "node --experimental-strip-types scripts/gen-birds.ts",
-    "critters": "node --experimental-strip-types scripts/gen-critters.ts",
-    "houses": "node --experimental-strip-types scripts/gen-houses.ts",
-    "turntable": "node --experimental-strip-types scripts/gen-turntable.ts",
     "ornaments": "node --experimental-strip-types scripts/gen-ornaments.ts",
-    "check:yard": "node --experimental-strip-types scripts/check-yard.ts",
-    "interiors": "node --experimental-strip-types scripts/gen-interiors.ts"
+    "test:helper": "node --experimental-strip-types src/lib/__tests__/helper.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

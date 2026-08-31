@@ -12,9 +12,10 @@ import { AppInit } from "@/components/AppInit";
 import { AuthProvider } from "@/lib/auth";
 import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
+import { StudyHelper } from "@/components/StudyHelper";
 import { IncomingCall } from "@/components/IncomingCall";
 
-// Bold condensed display font — matches the AlgeBridge wordmark.
+// Bold condensed display font, matches the AlgeBridge wordmark.
 const anton = Anton({
   subsets: ["latin"],
   weight: "400",
@@ -28,7 +29,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AlgeBridge — Learn Algebra 1",
+  title: "AlgeBridge - Learn Algebra 1",
   description:
     "Bridge the gap from arithmetic to algebra. Free Algebra 1 learning with videos, practice, live tutors, and mastery tracking.",
 };
@@ -49,7 +50,7 @@ export default function RootLayout({
             <SideNav />
 
             {/* Page texture: an even, quiet dot field behind everything.
-                Fixed, so it stays put while the page scrolls over it. No mask —
+                Fixed, so it stays put while the page scrolls over it. No mask -
                 a fade would land under the header, where nothing can see it. */}
             <DotPattern
               width={22}
@@ -65,7 +66,7 @@ export default function RootLayout({
                 {children}
               </main>
               <footer className="border-t border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 sm:px-6">
-                <p>Free forever. Videos, practice, and real tutors — Algebra 1, grades 7–10.</p>
+                <p>Free forever. Videos, practice, and real tutors. Algebra 1, grades 7-10.</p>
                 <nav className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
                   <Link href="/privacy" className="hover:text-bridge-600">Privacy Policy</Link>
                   <Link href="/terms" className="hover:text-bridge-600">Terms of Service</Link>
@@ -80,6 +81,7 @@ export default function RootLayout({
               </footer>
             </div>
             <Calculator />
+            <StudyHelper />
           </AppNavProvider>
         </AuthProvider>
       </body>
