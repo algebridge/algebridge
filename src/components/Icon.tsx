@@ -27,7 +27,9 @@ export type IconName =
   | "trash"
   | "archive"
   | "copy"
-  | "lock";
+  | "lock"
+  | "eye"
+  | "eye-off";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -151,6 +153,20 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M6.5 10.5h11a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1Z" />
       <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="M10.6 6.7A8.6 8.6 0 0 1 12 6.6c6 0 9.5 5.4 9.5 5.4a16.6 16.6 0 0 1-3.4 3.9" />
+      <path d="M6.4 8.2A16.4 16.4 0 0 0 2.5 12s3.5 5.4 9.5 5.4a8.7 8.7 0 0 0 3.4-.7" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="m4 4 16 16" />
     </>
   ),
 };
