@@ -129,22 +129,58 @@ async function callGemini(
   throw new Error(errors.join("; "));
 }
 
-async function callGroq(key: string, sys: string, msgs: HelperMessage[]): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "system", content: sys }, ...msgs],
-      max_tokens: 300,
-      temperature: 0.6,
-    }),
-  });
-  if (!res.ok) throw new Error("groq failed");
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (!text) throw new Error("groq empty");
-  return text;
+/**
+ * Groq's free tier is the highest request-per-day allowance of the free
+ * options, which matters for a helper every student can open.
+ *
+ * Same list-of-models reasoning as Gemini: model ids are retired regularly
+ * and a 404 is indistinguishable from a missing key from the outside. The
+ * bigger model is tried first for answer quality; the small one is the
+ * fallback and carries a much higher daily allowance.
+ */
+const GROQ_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "openai/gpt-oss-20b",
+  "gemma2-9b-it",
+];
+
+async function callGroq(
+  key: string,
+  sys: string,
+  msgs: HelperMessage[]
+): Promise<{ text: string; model: string }> {
+  const preferred = process.env.GROQ_MODEL;
+  const models = preferred ? [preferred, ...GROQ_MODELS] : GROQ_MODELS;
+  const errors: string[] = [];
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "system", content: sys }, ...msgs],
+          max_tokens: 300,
+          temperature: 0.7,
+        }),
+      });
+      if (!res.ok) {
+        errors.push(`${model}: ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (!text) {
+        errors.push(`${model}: empty`);
+        continue;
+      }
+      return { text, model };
+    } catch (e) {
+      errors.push(`${model}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  throw new Error(errors.join("; "));
 }
 
 async function callOpenAICompatible(
@@ -178,12 +214,21 @@ async function askModel(
   const gemini = process.env.GEMINI_API_KEY;
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
+  // HELPER_PROVIDER settles it when more than one key is present.
+  const pick = (process.env.HELPER_PROVIDER ?? "").toLowerCase();
   try {
+    if (groq && (pick === "groq" || !gemini)) {
+      const r = await callGroq(groq, sys, msgs);
+      return { text: r.text, provider: `groq:${r.model}` };
+    }
     if (gemini) {
       const r = await callGemini(gemini, sys, msgs);
       return { text: r.text, provider: `gemini:${r.model}` };
     }
-    if (groq) return { text: await callGroq(groq, sys, msgs), provider: "groq" };
+    if (groq) {
+      const r = await callGroq(groq, sys, msgs);
+      return { text: r.text, provider: `groq:${r.model}` };
+    }
     if (openai)
       return {
         text: await callOpenAICompatible(

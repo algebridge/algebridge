@@ -11,6 +11,13 @@ import { NextResponse } from "next/server";
  * happened when it was used. Safe to hit from a browser.
  */
 
+const GROQ_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "openai/gpt-oss-20b",
+  "gemma2-9b-it",
+];
+
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
@@ -36,11 +43,11 @@ export async function GET() {
 
   const tried: { model: string; ok: boolean; detail: string }[] = [];
 
-  if (gemini) {
+  async function probeGemini(key: string) {
     for (const model of GEMINI_MODELS) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(gemini)}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -51,27 +58,69 @@ export async function GET() {
           }
         );
         if (!res.ok) {
-          const body = await res.text();
-          tried.push({ model, ok: false, detail: `HTTP ${res.status}: ${body.slice(0, 160)}` });
+          tried.push({ model: `gemini:${model}`, ok: false, detail: `HTTP ${res.status}: ${(await res.text()).slice(0, 140)}` });
           continue;
         }
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = (await res.json())?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) {
-          tried.push({ model, ok: false, detail: "200 but no text in the response" });
+          tried.push({ model: `gemini:${model}`, ok: false, detail: "200 but no text" });
           continue;
         }
-        return NextResponse.json({
-          answering: true,
-          provider: `gemini:${model}`,
-          configured,
-          sample: String(text).trim().slice(0, 80),
-          tried,
-          verdict: `Gemini is answering on ${model}. The helper will use it and the answer filter still applies.`,
-        });
+        return { provider: `gemini:${model}`, sample: String(text).trim().slice(0, 80) };
       } catch (e) {
-        tried.push({ model, ok: false, detail: e instanceof Error ? e.message : String(e) });
+        tried.push({ model: `gemini:${model}`, ok: false, detail: e instanceof Error ? e.message : String(e) });
       }
+    }
+    return null;
+  }
+
+  async function probeGroq(key: string) {
+    for (const model of GROQ_MODELS) {
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: "Reply with the single word: ready" }],
+            max_tokens: 200,
+          }),
+        });
+        if (!res.ok) {
+          tried.push({ model: `groq:${model}`, ok: false, detail: `HTTP ${res.status}: ${(await res.text()).slice(0, 140)}` });
+          continue;
+        }
+        const text = (await res.json())?.choices?.[0]?.message?.content;
+        if (!text) {
+          tried.push({ model: `groq:${model}`, ok: false, detail: "200 but no text" });
+          continue;
+        }
+        return { provider: `groq:${model}`, sample: String(text).trim().slice(0, 80) };
+      } catch (e) {
+        tried.push({ model: `groq:${model}`, ok: false, detail: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return null;
+  }
+
+  // Probe in the same order the helper itself resolves a provider.
+  const pick = (process.env.HELPER_PROVIDER ?? "").toLowerCase();
+  const order: (() => Promise<{ provider: string; sample: string } | null>)[] = [];
+  if (groq && (pick === "groq" || !gemini)) order.push(() => probeGroq(groq));
+  if (gemini) order.push(() => probeGemini(gemini));
+  if (groq && !order.length) order.push(() => probeGroq(groq));
+
+  for (const probe of order) {
+    const hit = await probe();
+    if (hit) {
+      return NextResponse.json({
+        answering: true,
+        provider: hit.provider,
+        configured,
+        sample: hit.sample,
+        tried,
+        verdict: `${hit.provider} is answering. The helper will use it and the answer filter still applies.`,
+      });
     }
   }
 
