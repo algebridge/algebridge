@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { fetchEnabledProviders } from "@/lib/auth-providers";
-import { Suspense, useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { OAUTH_PENDING_KEY, useAuth } from "@/lib/auth";
 import { exportProgressForSync, importProgressFromSync } from "@/lib/progress";
-import { checkFullName } from "@/lib/name";
+import { checkFullName, isRealName } from "@/lib/name";
+import { Icon } from "@/components/Icon";
 import { RealNameForm } from "@/components/RealNameForm";
 import type { UserRole } from "@/types";
 
@@ -22,7 +23,7 @@ export default function LoginPage() {
 function LoginPageInner() {
   const {
     user, profile, configured, needsRealName, signUp, signIn, signInWithGoogle,
-    signOut, syncProgress, switchRole, deleteAccount, loading,
+    signOut, syncProgress, switchRole, deleteAccount, loading, saveRealName,
   } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
@@ -41,6 +42,7 @@ function LoginPageInner() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>("student");
   const [roleCode, setRoleCode] = useState("");
   const [switchCode, setSwitchCode] = useState("");
@@ -49,6 +51,43 @@ function LoginPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  // Finish a Google sign-in. The OAuth redirect unloads this page, so the work
+  // handleSubmit does inline after an email sign-in never runs on that path:
+  // local progress is never merged into the account, and ?next= is dropped, so
+  // a student sent here from a gated lesson just lands back on the login page.
+  const oauthSettled = useRef(false);
+  useEffect(() => {
+    if (oauthSettled.current || loading || !user || !profile) return;
+
+    let pending: string | null = null;
+    try {
+      pending = window.sessionStorage.getItem(OAUTH_PENDING_KEY);
+    } catch {
+      // Private mode. Nothing was stored, so there is nothing to finish.
+    }
+    if (pending === null) return;
+
+    oauthSettled.current = true;
+    void (async () => {
+      try {
+        window.sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      } catch {}
+
+      // Google already handed us their name, so don't make them retype it in
+      // the real-name form. The signup trigger only ever sets the email prefix.
+      if (!isRealName(profile.displayName)) {
+        const meta = user.user_metadata as { full_name?: string; name?: string } | null;
+        const fromGoogle = checkFullName(meta?.full_name ?? meta?.name ?? "");
+        if (fromGoogle.ok) await saveRealName(fromGoogle.formatted);
+      }
+
+      await syncProgress();
+
+      if (pending) router.push(pending);
+      else setMessage("Signed in with Google. Your progress is synced.");
+    })();
+  }, [loading, user, profile, router, saveRealName, syncProgress]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,7 +127,7 @@ function LoginPageInner() {
 
   async function handleGoogle() {
     setError("");
-    const err = await signInWithGoogle();
+    const err = await signInWithGoogle(next ?? undefined);
     if (err) setError(err);
   }
 
@@ -434,18 +473,32 @@ function LoginPageInner() {
               <label htmlFor="password" className="label">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                disabled={!configured}
-                className="field mt-1"
-                placeholder="At least 8 characters"
-              />
+              <div className="relative mt-1">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  disabled={!configured}
+                  className="field pr-11"
+                  placeholder="At least 8 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  disabled={!configured}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  aria-controls="password"
+                  title={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-0 flex items-center rounded-r-lg px-3 text-slate-400 transition hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon name={showPassword ? "eye-off" : "eye"} size={18} />
+                </button>
+              </div>
             </div>
             <button type="submit" className="btn-primary w-full" disabled={!configured || submitting}>
               {submitting

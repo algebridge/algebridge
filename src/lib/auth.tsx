@@ -35,7 +35,7 @@ interface AuthContextValue {
     code?: string
   ) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signInWithGoogle: () => Promise<string | null>;
+  signInWithGoogle: (next?: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   syncProgress: () => Promise<void>;
   switchRole: (role: UserRole, code?: string) => Promise<string | null>;
@@ -47,6 +47,20 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const PROGRESS_TABLE = "user_progress";
+
+/**
+ * Where an in-flight Google sign-in wants to land, held across the redirect.
+ *
+ * The OAuth round trip unloads the page, so everything handleSubmit does after
+ * an email sign-in (sync the local progress, honour ?next=) is simply skipped
+ * on the Google path unless it is picked up again on the way back. Its presence
+ * is also the "we just came back from Google" flag: an empty string means
+ * signed in with no particular destination.
+ *
+ * sessionStorage rather than the redirect URL, so Supabase's redirect
+ * allow-list only ever needs the one exact /login entry, with no query string.
+ */
+export const OAUTH_PENDING_KEY = "algebridge-oauth-pending";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -197,16 +211,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  async function signInWithGoogle(): Promise<string | null> {
+  async function signInWithGoogle(next?: string): Promise<string | null> {
     const supabase = createClient();
     if (!supabase) return "Cloud login is not configured yet.";
-    const redirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+    if (typeof window === "undefined") return "Google sign-in needs a browser.";
+
+    try {
+      window.sessionStorage.setItem(OAUTH_PENDING_KEY, next ?? "");
+    } catch {
+      // Private mode. Losing the destination is survivable, blocking the
+      // sign-in over it is not.
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: { redirectTo: `${window.location.origin}/login` },
     });
-    return error?.message ?? null;
+
+    if (error) {
+      // No redirect is happening, so the flag would go stale and fire on the
+      // next unrelated sign-in in this tab.
+      try {
+        window.sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      } catch {}
+      return error.message;
+    }
+    return null;
   }
 
   async function deleteAccount(): Promise<string | null> {
