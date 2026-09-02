@@ -15,6 +15,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SITE="https://learn.algebridge.org"
+SCOPE="algebridgeproject"   # the Algebridge Vercel account, not the personal one
+PROJECT="algebridge"        # the project serving learn.algebridge.org
 
 say() { printf "\n\033[1m%s\033[0m\n" "$1"; }
 fail() { printf "\n\033[31m%s\033[0m\n" "$1"; exit 1; }
@@ -80,22 +82,39 @@ if [ -z "$VAR" ]; then
 fi
 printf "     Accepted by %s, setting %s.\n" "$WHO" "$VAR"
 
-say "3/5  Checking the Vercel link."
-if ! npx --yes vercel whoami >/dev/null 2>&1; then
-  printf "     Not logged in. A browser will open, sign in as algebridgeproject.\n"
+say "3/5  Making sure we are on the Algebridge account, not your personal one."
+printf "     target: scope %s, project %s\n" "$SCOPE" "$PROJECT"
+
+# The personal account and the Algebridge account are different logins, and
+# every previous attempt drifted onto the personal one. Rather than trusting
+# whoever happens to be logged in, prove this login can see the Algebridge
+# project and refuse to touch anything if it cannot.
+has_scope() { npx --yes vercel project ls --scope "$SCOPE" >/dev/null 2>&1; }
+
+if ! has_scope; then
+  WHO="$(npx --yes vercel whoami 2>/dev/null | tail -1 || echo "nobody")"
+  printf "     Logged in as '%s', which cannot see %s. Switching.\n" "$WHO" "$SCOPE"
+  npx --yes vercel logout >/dev/null 2>&1 || true
+  printf "     A browser will open. Sign in as the account that owns Algebridge,\n"
+  printf "     the one whose avatar reads 'algebridge', NOT ivandubovyi.\n\n"
   npx --yes vercel login
 fi
-if [ ! -f .vercel/project.json ]; then
-  printf "     Project not linked yet, linking now.\n"
-  npx --yes vercel link
-fi
 
-say "4/5  Storing $VAR on production and deploying."
-npx --yes vercel env rm "$VAR" production --yes >/dev/null 2>&1 || true
-printf "%s" "$KEY" | npx --yes vercel env add "$VAR" production >/dev/null
+if ! has_scope; then
+  WHO="$(npx --yes vercel whoami 2>/dev/null | tail -1 || echo "nobody")"
+  fail "Still signed in as '$WHO', which has no access to $SCOPE. Nothing was changed. Sign in with the account that owns learn.algebridge.org and rerun."
+fi
+printf "     Confirmed: this login can see %s.\n" "$SCOPE"
+
+say "4/5  Storing the key on $PROJECT and deploying."
+# Every call is pinned to the scope and project, so none of them can land on
+# the personal account even if a default is set elsewhere.
+npx --yes vercel link --yes --scope "$SCOPE" --project "$PROJECT" >/dev/null
+npx --yes vercel env rm "$VAR" production --yes --scope "$SCOPE" >/dev/null 2>&1 || true
+printf "%s" "$KEY" | npx --yes vercel env add "$VAR" production --scope "$SCOPE" >/dev/null
 unset KEY
-npx --yes vercel --prod >/dev/null
-printf "     Deployed. The key is not written to this machine.\n"
+npx --yes vercel --prod --scope "$SCOPE" >/dev/null
+printf "     Deployed to %s. The key is not written to this machine.\n" "$PROJECT"
 
 say "5/5  Asking the site whether a model is actually answering."
 for i in 1 2 3 4 5 6; do
