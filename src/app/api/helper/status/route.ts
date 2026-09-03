@@ -106,7 +106,7 @@ export async function GET() {
   // Probe in the same order the helper itself resolves a provider.
   const pick = (process.env.HELPER_PROVIDER ?? "").toLowerCase();
   const order: (() => Promise<{ provider: string; sample: string } | null>)[] = [];
-  if (groq && (pick === "groq" || !gemini)) order.push(() => probeGroq(groq));
+  if (groq && pick !== "gemini") order.push(() => probeGroq(groq));
   if (gemini) order.push(() => probeGemini(gemini));
   if (groq && !order.length) order.push(() => probeGroq(groq));
 

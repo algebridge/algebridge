@@ -69,8 +69,10 @@ If the student proposes an answer, do not confirm or deny it. Have them check it
 }
 
 /**
- * Google's free tier is the most generous of the free options and needs no
- * card, so it is tried first.
+ * Gemini is the fallback, not the first choice. Measured on the live account,
+ * the free tier is 20 requests per day and 5 per minute on every flash model,
+ * which is about four student conversations. It is kept because it costs
+ * nothing to hold in reserve for when Groq 429s.
  *
  * The model list is a list on purpose. Google retires and renames flash
  * aliases regularly, and a 404 on one name would otherwise look identical to
@@ -214,10 +216,13 @@ async function askModel(
   const gemini = process.env.GEMINI_API_KEY;
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
-  // HELPER_PROVIDER settles it when more than one key is present.
+  // With both keys set, Groq wins by default. Gemini's free tier is 20
+  // requests per day on every flash model, which is roughly four students,
+  // once each. Groq's allowance is the reason it is here at all, so defaulting
+  // to the smaller one would waste it. HELPER_PROVIDER=gemini overrides.
   const pick = (process.env.HELPER_PROVIDER ?? "").toLowerCase();
   try {
-    if (groq && (pick === "groq" || !gemini)) {
+    if (groq && pick !== "gemini") {
       const r = await callGroq(groq, sys, msgs);
       return { text: r.text, provider: `groq:${r.model}` };
     }
