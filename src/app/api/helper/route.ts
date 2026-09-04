@@ -135,16 +135,19 @@ async function callGemini(
  * Groq's free tier is the highest request-per-day allowance of the free
  * options, which matters for a helper every student can open.
  *
- * Same list-of-models reasoning as Gemini: model ids are retired regularly
- * and a 404 is indistinguishable from a missing key from the outside. The
- * bigger model is tried first for answer quality; the small one is the
- * fallback and carries a much higher daily allowance.
+ * Model ids here are retired often, and fast. Every Llama id this list
+ * originally held was already gone by the time a key was issued, which made a
+ * perfectly valid key look rejected. These four were verified against a live
+ * account; the order is largest first for answer quality.
+ *
+ * qwen3.6-27b is deliberately absent: it emits its chain of thought inside
+ * <think> tags, which is not something to show a student.
  */
 const GROQ_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
+  "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
-  "gemma2-9b-it",
+  "qwen/qwen3.8-27b",
+  "groq/compound-mini",
 ];
 
 async function callGroq(
