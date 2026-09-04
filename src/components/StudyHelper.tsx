@@ -83,6 +83,12 @@ export function StudyHelper() {
 
   const onDragStart = useCallback(
     (e: React.PointerEvent) => {
+      // The close button lives inside this drag handle. Without this guard a
+      // press on it starts a drag and calls setPointerCapture, which retargets
+      // the pointer events to the handle so the button's click never fires.
+      // A perfectly still click closes the panel; a real one, with a pixel or
+      // two of drift, just nudges it. That is the "it will not close" bug.
+      if ((e.target as HTMLElement).closest("button")) return;
       dragRef.current = { px: e.clientX, py: e.clientY, from: pos };
       (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     },
@@ -110,6 +116,15 @@ export function StudyHelper() {
       return p;
     });
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   useEffect(() => {
     const onResize = () => setPos((p) => clamp(p));
