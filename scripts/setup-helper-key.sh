@@ -43,16 +43,15 @@ fi
 say "2/5  Checking which provider accepts this key."
 
 probe_gemini() {
-  curl -s -o /dev/null -w '%{http_code}' -X POST \
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$1" \
-    -H 'Content-Type: application/json' \
-    -d '{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"maxOutputTokens":100}}'
+  curl -s -o /dev/null -w '%{http_code}' \
+    "https://generativelanguage.googleapis.com/v1beta/models?key=$1"
 }
+# Ask whether the key authenticates, not whether one hardcoded model exists.
+# A retired model id returns 404 and looks exactly like a rejected key, which
+# is how a valid Groq key got turned away here once already.
 probe_groq() {
-  curl -s -o /dev/null -w '%{http_code}' -X POST \
-    "https://api.groq.com/openai/v1/chat/completions" \
-    -H "Authorization: Bearer $1" -H 'Content-Type: application/json' \
-    -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"hi"}],"max_tokens":50}'
+  curl -s -o /dev/null -w '%{http_code}' \
+    "https://api.groq.com/openai/v1/models" -H "Authorization: Bearer $1"
 }
 probe_openai() {
   curl -s -o /dev/null -w '%{http_code}' -X POST \

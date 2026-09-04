@@ -12,10 +12,10 @@ import { NextResponse } from "next/server";
  */
 
 const GROQ_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
+  "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
-  "gemma2-9b-it",
+  "qwen/qwen3.8-27b",
+  "groq/compound-mini",
 ];
 
 const GEMINI_MODELS = [
