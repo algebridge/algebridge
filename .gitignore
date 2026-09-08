@@ -18,3 +18,8 @@ npm-debug.log*
 
 # supabase CLI local metadata
 supabase/.temp/
+.vercel
+.env*
+
+# Claude Code local config
+.claude/
