@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getUnit, units } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
-import { SkillListItem } from "@/components/SkillListItem";
+import { UnitPath } from "@/components/UnitPath";
 import { UnitProgressHeader } from "@/components/UnitProgressHeader";
+import { hueVars, unitHue } from "@/lib/hues";
 
 export function generateStaticParams() {
   return units.map((unit) => ({ unitId: unit.id }));
@@ -19,35 +20,23 @@ export default async function UnitPage({
   if (!unit) notFound();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
         <span className="mx-2">/</span>
         <span className="text-slate-800">Unit {unit.number}</span>
       </nav>
 
-      {/* The unit's title and description stay open so a shared link still says
-          what it leads to. The skills behind it need an account. */}
-      <header>
-        <p className="eyebrow">Unit {unit.number} of {units.length}</p>
-        <h1 className="page-title mt-1">{unit.title}</h1>
-        <p className="page-subtitle">{unit.description}</p>
-      </header>
+      {/* The unit's banner stays open so a shared link still says what it
+          leads to. The skills behind it need an account. */}
+      <UnitProgressHeader unit={unit} />
 
       <CourseGate>
         <div className="space-y-6">
-          <UnitProgressHeader unit={unit} />
 
-          <div className="space-y-2">
-            <h2 className="eyebrow">Skills in this unit</h2>
-            {unit.skills.map((skill, index) => (
-              <SkillListItem
-                key={skill.id}
-                skill={skill}
-                unitId={unit.id}
-                index={index + 1}
-              />
-            ))}
+          <div>
+            <h2 className="eyebrow mb-2">Your path through this unit</h2>
+            <UnitPath unit={unit} />
           </div>
 
           <div className="flex justify-between border-t border-slate-200 pt-4">

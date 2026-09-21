@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Icon } from "@/components/Icon";
 import { useAuth } from "@/lib/auth";
 import { createSessionRequest } from "@/lib/sessions";
+import { getCalculatorRect, getServerCalculatorRect, subscribeCalculatorAccess } from "@/lib/calculator-access";
+import { EDGE, keepOnScreen, readOffset, saveOffset, type Offset } from "@/lib/floating-panel";
+import {
+  getHelperContext,
+  getHelperOpenRequests,
+  getServerHelperOpenRequests,
+  subscribeHelperBridge,
+} from "@/lib/helper-bridge";
 import {
   advanceScheduler,
   isNo,
@@ -27,16 +36,17 @@ import {
 
 const POSITION_KEY = "algebridge-helper-position";
 
+/** Where the panel rests, from the right edge, when nothing is in the way. */
+const REST_RIGHT = 20;
+/** The gap it keeps from an open calculator it moves beside. */
+const GAP = 12;
+
 const MODES: { id: HelperMode; label: string; blurb: string }[] = [
   { id: "tutor", label: "Tutor", blurb: "Work through a problem one step at a time." },
   { id: "reminder", label: "Reminder", blurb: "Get a formula back, with a way to keep it." },
   { id: "scheduler", label: "Scheduler", blurb: "Book time with a real tutor." },
 ];
 
-interface Position {
-  x: number;
-  y: number;
-}
 
 export function StudyHelper() {
   const { user } = useAuth();
@@ -48,37 +58,93 @@ export function StudyHelper() {
   const [scheduler, setScheduler] = useState<SchedulerState | null>(null);
   const [note, setNote] = useState("");
 
-  const [pos, setPos] = useState<Position>({ x: 0, y: 0 });
-  const dragRef = useRef<{ px: number; py: number; from: Position } | null>(null);
+  const [pos, setPos] = useState<Offset>({ x: 0, y: 0 });
+  const appliedRef = useRef(pos);
+  appliedRef.current = pos;
+  const dragRef = useRef<{ px: number; py: number; from: Offset; last: Offset } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(POSITION_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as Position;
-        if (typeof saved?.x === "number" && typeof saved?.y === "number") setPos(saved);
+  // Both panels rest in the bottom-right corner. When the calculator is open
+  // where the helper would sit, the helper rests beside it: to its left, or
+  // to its right if it was dragged to the left edge. Measured from where the
+  // calculator really is, since it can be dragged anywhere.
+  const calculator = useSyncExternalStore(subscribeCalculatorAccess, getCalculatorRect, getServerCalculatorRect);
+  const [restRight, setRestRight] = useState(REST_RIGHT);
+  const restRightRef = useRef(restRight);
+  restRightRef.current = restRight;
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const box = panelRef.current?.getBoundingClientRect();
+      if (!calculator || !box) {
+        setRestRight(REST_RIGHT);
+        return;
       }
-    } catch {
-      /* a blocked store just means it opens in the corner */
-    }
+      const vw = window.innerWidth;
+      // The panel as it would sit with each resting spot, same height.
+      const clearAt = (right: number) => {
+        const shift = restRightRef.current - right;
+        const left = box.left + shift;
+        const r = box.right + shift;
+        const overlaps =
+          left < calculator.right && calculator.left < r && box.top < calculator.bottom && calculator.top < box.bottom;
+        return left >= EDGE && r <= vw - EDGE && !overlaps;
+      };
+      const spots = [
+        REST_RIGHT,
+        vw - calculator.left + GAP + appliedRef.current.x,
+        vw - calculator.right - GAP - box.width + appliedRef.current.x,
+      ];
+      setRestRight(spots.find(clearAt) ?? REST_RIGHT);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open, calculator]);
+
+  // Practice asks the helper to open when a student has missed a few. It opens
+  // on the problem they are on, in tutor mode, already asking the question.
+  const openRequests = useSyncExternalStore(
+    subscribeHelperBridge,
+    getHelperOpenRequests,
+    getServerHelperOpenRequests
+  );
+  const seenRequests = useRef(0);
+  useEffect(() => {
+    if (openRequests === 0 || openRequests === seenRequests.current) return;
+    seenRequests.current = openRequests;
+    setOpen(true);
+    setMode("tutor");
+    setScheduler(null);
+    setNote("");
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "I can see the problem you are on. What have you tried so far, or which step feels shaky? I will coach you through it one step at a time.",
+      },
+    ]);
+  }, [openRequests]);
+
+  useEffect(() => {
+    const saved = readOffset(POSITION_KEY);
+    if (saved) setPos(saved);
   }, []);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [messages, scheduler]);
 
-  // Anchored to a corner with a clamped offset, so a window resize can never
-  // strand the panel off-screen.
-  const clamp = useCallback((p: Position): Position => {
+  // Anchored to a corner with an offset kept on screen, so a window resize or
+  // a spot saved on a bigger window can never strand the panel.
+  const settle = useCallback(() => {
     const box = panelRef.current?.getBoundingClientRect();
-    const w = box?.width ?? 340;
-    const h = box?.height ?? 460;
-    return {
-      x: Math.min(0, Math.max(-(window.innerWidth - w - 24), p.x)),
-      y: Math.min(0, Math.max(-(window.innerHeight - h - 24), p.y)),
-    };
+    if (!box) return;
+    setPos((p) => {
+      const next = keepOnScreen(box, appliedRef.current, p);
+      return next.x === p.x && next.y === p.y ? p : next;
+    });
   }, []);
 
   const onDragStart = useCallback(
@@ -89,32 +155,25 @@ export function StudyHelper() {
       // A perfectly still click closes the panel; a real one, with a pixel or
       // two of drift, just nudges it. That is the "it will not close" bug.
       if ((e.target as HTMLElement).closest("button")) return;
-      dragRef.current = { px: e.clientX, py: e.clientY, from: pos };
+      dragRef.current = { px: e.clientX, py: e.clientY, from: pos, last: pos };
       (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     },
     [pos]
   );
 
-  const onDragMove = useCallback(
-    (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      setPos(clamp({ x: d.from.x + (e.clientX - d.px), y: d.from.y + (e.clientY - d.py) }));
-    },
-    [clamp]
-  );
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const want = { x: d.from.x + (e.clientX - d.px), y: d.from.y + (e.clientY - d.py) };
+    d.last = keepOnScreen(panelRef.current?.getBoundingClientRect(), appliedRef.current, want);
+    setPos(d.last);
+  }, []);
 
   const onDragEnd = useCallback(() => {
-    if (!dragRef.current) return;
+    const d = dragRef.current;
+    if (!d) return;
     dragRef.current = null;
-    setPos((p) => {
-      try {
-        window.localStorage.setItem(POSITION_KEY, JSON.stringify(p));
-      } catch {
-        /* not remembering where it was put is not worth an error */
-      }
-      return p;
-    });
+    saveOffset(POSITION_KEY, d.last);
   }, []);
 
   useEffect(() => {
@@ -126,11 +185,14 @@ export function StudyHelper() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  useEffect(() => {
-    const onResize = () => setPos((p) => clamp(p));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [clamp]);
+  // On opening, on moving beside the calculator, and on resizing: back on
+  // screen if it is not.
+  useLayoutEffect(() => {
+    if (!open) return;
+    settle();
+    window.addEventListener("resize", settle);
+    return () => window.removeEventListener("resize", settle);
+  }, [open, restRight, settle]);
 
   function push(role: HelperMessage["role"], content: string) {
     setMessages((m) => [...m, { role, content }]);
@@ -178,7 +240,14 @@ export function StudyHelper() {
       const res = await fetch("/api/helper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, context: {}, messages: [...messages, { role: "user", content: text }] }),
+        // The problem on screen, when there is one. Without it the helper
+        // cannot see what the student means and the answer filter has
+        // nothing to guard.
+        body: JSON.stringify({
+          mode,
+          context: getHelperContext() ?? {},
+          messages: [...messages, { role: "user", content: text }],
+        }),
       });
       const data = (await res.json()) as { message: string; offerTutor?: boolean };
       push("assistant", data.message);
@@ -209,9 +278,9 @@ export function StudyHelper() {
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close the study helper" : "Open the study helper"}
         aria-expanded={open}
-        className="fixed bottom-5 right-24 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-xl text-white shadow-lg transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+        className="fixed bottom-5 right-24 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
       >
-        ✳
+        {open ? <Icon name="close" size={22} /> : <Icon name="helper" size={24} />}
       </button>
 
       {open && (
@@ -219,8 +288,8 @@ export function StudyHelper() {
           ref={panelRef}
           role="dialog"
           aria-label="Study helper"
-          className="animate-fade-in fixed bottom-24 right-5 z-50 flex w-[21rem] max-w-[calc(100vw-2.5rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl"
-          style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+          className="animate-fade-in fixed bottom-24 z-50 flex max-h-[calc(100dvh-1rem)] w-[21rem] max-w-[calc(100vw-1rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          style={{ right: restRight, transform: `translate(${pos.x}px, ${pos.y}px)` }}
         >
           <div
             onPointerDown={onDragStart}
@@ -230,16 +299,16 @@ export function StudyHelper() {
             className="flex touch-none cursor-grab items-center justify-between px-3 py-2 active:cursor-grabbing"
           >
             <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <span aria-hidden className="text-slate-300">⠿</span>
+              <Icon name="grip" size={14} className="text-slate-300" />
               Study helper
             </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close the study helper"
-              className="rounded-md px-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
-              ✕
+              <Icon name="close" size={16} />
             </button>
           </div>
 
@@ -260,13 +329,14 @@ export function StudyHelper() {
             ))}
           </div>
 
-          <div ref={logRef} className="max-h-72 min-h-[9rem] space-y-2 overflow-y-auto p-3">
+          <div ref={logRef} className="max-h-72 min-h-[6rem] flex-1 space-y-2 overflow-y-auto p-3">
             {messages.length === 0 && (
               <p className="px-1 text-sm text-slate-500">
                 {note || MODES.find((m) => m.id === mode)?.blurb}
                 <br />
                 <span className="text-xs text-slate-400">
-                  I will not give you an answer. Ask for a step, a formula, or a tutor.
+                  I&apos;m an AI study helper, not a person. I won&apos;t give you an answer, ask
+                  for a step, a formula, or a real tutor.
                 </span>
               </p>
             )}

@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/Avatar";
 import { Notebook } from "@/components/Notebook";
 import { Whiteboard, type WhiteboardHandle, type WbSegment } from "@/components/Whiteboard";
+import { participantsFromRoom } from "@/lib/call-utils";
 import {
   getPublicProfile,
   finishCallSession,
@@ -44,9 +45,19 @@ export default function CallRoomPage() {
   const params = useParams();
   const search = useSearchParams();
   const roomId = Array.isArray(params.roomId) ? params.roomId[0] : (params.roomId as string);
-  const otherId = search.get("with") ?? "";
+  const withParam = search.get("with") ?? "";
 
   const { user, profile, loading } = useAuth();
+
+  // The room id encodes both participants (roomIdFor sorts the two user ids
+  // and joins them with "--"). Derive the peer from the topic and require the
+  // signed-in user to actually be one of the two. A forged ?with= or a guessed
+  // room id therefore can't drop a stranger into a call or mislabel who is on
+  // the other end: the identity shown is always the id that is really here.
+  const roomPair = participantsFromRoom(roomId);
+  const iAmParticipant = !!user && !!roomPair && roomPair.includes(user.id);
+  const otherId =
+    user && roomPair ? (roomPair[0] === user.id ? roomPair[1] : roomPair[0]) : withParam;
   const [other, setOther] = useState<PublicProfile | null>(null);
   const [status, setStatus] = useState<Status>("init");
   const [tab, setTab] = useState<Tab>("whiteboard");
@@ -176,9 +187,17 @@ export default function CallRoomPage() {
     getPublicProfile(otherId).then(setOther);
   }, [otherId]);
 
+  // Refuse a call link that isn't for this account (see roomPair above).
+  useEffect(() => {
+    if (!loading && user && roomPair && !iAmParticipant) {
+      setStatus("error");
+      setMediaError("This call link isn't for your account.");
+    }
+  }, [loading, user, roomPair, iAmParticipant]);
+
   // ---- main setup (once we know who we are) ----
   useEffect(() => {
-    if (loading || !user || !otherId || !other) return;
+    if (loading || !user || !otherId || !other || !iAmParticipant) return;
     const supabase = createClient();
     if (!supabase) {
       setStatus("error");
@@ -191,6 +210,9 @@ export default function CallRoomPage() {
 
     (async () => {
       setStatus("connecting");
+      // Private Realtime channels are authorized per-topic by RLS, so the
+      // token has to be attached before subscribing.
+      await supabase.realtime.setAuth();
 
       // 1) Local media (camera + mic). Degrade gracefully if denied.
       let stream: MediaStream | null = null;
@@ -245,7 +267,7 @@ export default function CallRoomPage() {
         await supabase.removeChannel(c);
       }
       const channel = supabase.channel(`room-${roomId}`, {
-        config: { broadcast: { self: false }, presence: { key: user.id } },
+        config: { broadcast: { self: false }, presence: { key: user.id }, private: true },
       });
       channelRef.current = channel;
 

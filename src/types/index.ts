@@ -1,3 +1,5 @@
+import type { InterestProfile } from "@/lib/interests";
+
 export type MasteryLevel = "locked" | "attempted" | "familiar" | "proficient" | "mastered";
 
 export type ProblemType =
@@ -71,8 +73,14 @@ export interface SkillProgress {
   videoWatched: boolean;
   /** True only once real playback tracking (or a time-gated manual confirm) verified the watch. */
   videoWatchedVerified?: boolean;
-  /** Correct answers in an unbroken run. Five of these completes the skill. */
+  /** Legacy: the run of correct answers from the five-in-a-row rule. Only read to carry old saves over. */
   correctStreak?: number;
+  /** Problems answered right on the first try. Five of these completes the skill. */
+  solved?: number;
+  /** Opened ahead of the learning path by passing "Show what you know". */
+  openedBy?: "check";
+  /** The day (YYYY-MM-DD) of the last "Show what you know" try, one a day. */
+  checkedOn?: string;
 }
 
 export interface UserProgress {
@@ -116,6 +124,8 @@ export interface UserProgress {
   bridgeyEconomyMigratedV1?: boolean;
   /** One-time migration: slot furniture → free-position coords. */
   housePlacementMigratedV2?: boolean;
+  /** What the student is into; practice problems are set in these. */
+  interests?: InterestProfile;
   /** Garden ornaments the student owns. */
   ownedOrnaments?: string[];
   /** Ornaments standing in the yard, in world metres around the pad. */

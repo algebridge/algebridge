@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "ornaments": "node --experimental-strip-types scripts/gen-ornaments.ts",
-    "test:helper": "node --experimental-strip-types src/lib/__tests__/helper.test.ts"
+    "test:helper": "node --experimental-strip-types src/lib/__tests__/helper.test.ts",
+    "test:practice": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/practice.test.ts",
+    "stories:warm": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/warm-story-library.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

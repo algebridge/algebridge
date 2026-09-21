@@ -20,7 +20,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [optIn, setOptIn] = useState(true);
+  const [optIn, setOptIn] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   async function loadBoard(currentSort: LeaderboardSort) {
@@ -32,14 +32,14 @@ export default function LeaderboardPage() {
   }
 
   useEffect(() => {
-    setOptIn(getProgress().leaderboardOptIn ?? true);
+    setOptIn(getProgress().leaderboardOptIn ?? false);
     setMounted(true);
     loadBoard(sort);
   }, [sort]);
 
   useEffect(() => {
     function refresh() {
-      setOptIn(getProgress().leaderboardOptIn ?? true);
+      setOptIn(getProgress().leaderboardOptIn ?? false);
     }
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);

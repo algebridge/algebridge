@@ -29,7 +29,7 @@ function ensureBridgeyFields(progress: UserProgress): void {
   if (!progress.bridgeyRewardsClaimed) {
     progress.bridgeyRewardsClaimed = { complete: [] };
   }
-  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = true;
+  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
 
   if (!progress.housePlacementMigratedV2 && Object.keys(progress.placedFurniture).length > 0) {
     const migrated = migrateSlotPlacements(progress.placedFurniture);
@@ -219,7 +219,7 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
     bestFurnitureValue: best?.prestige ?? 0,
     bestFurnitureName: best?.name ?? null,
     equippedTitle: getEquippedTitleLabel(progress),
-    leaderboardOptIn: progress.leaderboardOptIn ?? true,
+    leaderboardOptIn: progress.leaderboardOptIn ?? false,
   };
 }
 

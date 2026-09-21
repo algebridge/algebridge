@@ -7,8 +7,9 @@ import { getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
+import { Icon } from "@/components/Icon";
+import { LockedSkill } from "@/components/LockedSkill";
 import { ProgressStatus } from "@/components/ProgressStatus";
-import { ProgressBar } from "@/components/ProgressBar";
 import {
   markVideoWatched,
   getSkillProgress,
@@ -18,7 +19,24 @@ import {
 } from "@/lib/progress";
 import { getBackupVideoForSkill, getVideoForSkill } from "@/data/videos";
 import { useProgress } from "@/hooks/useProgress";
+import { useCourseAccess } from "@/hooks/useCourseAccess";
+import { hueVars, unitHue } from "@/lib/hues";
+import { canTryCheck, CHECK_LENGTH } from "@/lib/path";
 import { showToast } from "@/lib/notify";
+import { UnitMark } from "@/components/UnitMark";
+
+/** A step of the lesson checklist: its number, or a check once it is done. */
+function StepMark({ n, done }: { n: number; done: boolean }) {
+  return done ? (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+      <Icon name="check" size={16} />
+    </span>
+  ) : (
+    <span className="hue-ink hue-line flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-white text-sm font-semibold">
+      {n}
+    </span>
+  );
+}
 
 interface LearnContentProps {
   unit: Unit;
@@ -46,10 +64,31 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
     setPracticeStats(getSkillPracticeStats(skill.id));
   }
 
+  // The learning path decides whether this lesson opens. Nothing shows until
+  // the account's progress has loaded, so a skill never flashes locked.
+  const access = useCourseAccess();
+  const state = access.ready ? access.skill(skill.id) : null;
+  const isOpen = state?.open === true;
+  /**
+   * "Just practicing": the lesson of a locked skill, open to look around.
+   * Nothing in it writes to progress, so the path stays where it is. Held
+   * per visit: a reload comes back to the locked screen, which says so.
+   */
+  const [practiceOnly, setPracticeOnly] = useState(false);
+  const [practiceRight, setPracticeRight] = useState(0);
+  const [backToCheck, setBackToCheck] = useState(false);
+  const looking = practiceOnly && state?.open === false;
+
   useEffect(() => {
-    unlockSkill(skill.id);
-    refreshSkillState();
+    setPracticeOnly(false);
+    setPracticeRight(0);
+    setBackToCheck(false);
   }, [skill.id]);
+
+  useEffect(() => {
+    if (isOpen) unlockSkill(skill.id);
+    refreshSkillState();
+  }, [skill.id, isOpen]);
 
   useEffect(() => {
     if (mounted) refreshSkillState();
@@ -57,6 +96,9 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
   const prev = getPrevSkill(unitId, skillId);
   const next = getNextSkill(unitId, skillId);
+  const nextOpen = !!next && access.ready && access.skill(next.skill.id).open;
+  // A teacher sees every lesson; this says which ones their students wait for.
+  const studentState = access.staff ? access.forStudents(skill.id) : null;
   const video = getVideoForSkill(skill.id, skill.video);
   const backupVideo = getBackupVideoForSkill(skill.id) ?? skill.backupVideo;
   const unitProgress = mounted
@@ -69,15 +111,17 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
     refreshSkillState();
     if (result.xpGained > 0) {
       showToast({
-        emoji: "🎬",
+        icon: "play",
+        tone: "info",
         title: `+${result.xpGained} XP`,
-        description: "Nice, you watched the lesson video.",
+        description: "Lesson video watched.",
       });
     }
     for (const badge of result.newBadges) {
       showToast({
-        emoji: badge.emoji,
-        title: `Badge unlocked: ${badge.title}`,
+        icon: "trophy",
+        tone: "reward",
+        title: `Badge: ${badge.title}`,
         description: badge.description,
       });
     }
@@ -95,7 +139,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const videoStepSatisfied = videoWatched || isSkillComplete;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
         <span className="mx-2">/</span>
@@ -107,27 +151,94 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
       </nav>
 
       {/* Title and description stay open so a shared lesson link still
-          says what it leads to. The lesson itself needs an account. */}
-      <header>
-        <h1 className="page-title">{skill.title}</h1>
-        <p className="page-subtitle">{skill.description}</p>
+          says what it leads to. The lesson itself needs an account. The
+          unit's color and mark say where in the course this is. */}
+      <header className="flex items-start gap-4">
+        <Link
+          href={`/unit/${unitId}`}
+          title={`Unit ${unit.number}: ${unit.title}`}
+          className="hue-wash flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition hover:scale-105"
+        >
+          <UnitMark unitId={unit.id} size={24} />
+        </Link>
+        <div className="min-w-0">
+          <p className="hue-ink text-xs font-semibold uppercase tracking-[0.08em]">
+            Unit {unit.number} · Skill {skillIndex} of {unit.skills.length}
+          </p>
+          <h1 className="page-title mt-0.5">{skill.title}</h1>
+          <p className="page-subtitle">{skill.description}</p>
+        </div>
       </header>
 
       <CourseGate>
+        {!state ? (
+          <div className="space-y-4" aria-busy="true">
+            <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+            <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+          </div>
+        ) : !state.open && !looking ? (
+          <LockedSkill
+            skill={skill}
+            after={state.after}
+            startChecking={backToCheck}
+            onPractice={() => {
+              setBackToCheck(false);
+              setPracticeOnly(true);
+            }}
+          />
+        ) : (
         <div className="space-y-6">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          {looking && state && !state.open && (
+            <div className="hue-tint rounded-xl border px-4 py-3 sm:flex sm:items-center sm:gap-4">
+              <div className="min-w-0 sm:flex-1">
+                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Icon name="eye" size={16} className="hue-ink" />
+                  Practice mode
+                </p>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {practiceRight >= CHECK_LENGTH && canTryCheck(getSkillProgress(skill.id))
+                    ? `${practiceRight} right already. Show what you know, ${CHECK_LENGTH} in a row, and this skill opens for real.`
+                    : `You are ahead of your path, so this is for practice only and your progress stays as it is. Finish ${state.after.title} and this skill opens.`}
+                </p>
+              </div>
+              <div className="mt-3 flex shrink-0 flex-wrap gap-2 sm:mt-0">
+                {practiceRight >= CHECK_LENGTH && canTryCheck(getSkillProgress(skill.id)) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBackToCheck(true);
+                      setPracticeOnly(false);
+                    }}
+                    className="hue-solid inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-semibold shadow-sm transition hover:brightness-110"
+                  >
+                    Show what you know
+                  </button>
+                ) : (
+                  <Link href={`/learn/${state.after.unitId}/${state.after.skillId}`} className="btn-secondary btn-sm">
+                    Go to {state.after.title}
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+          {studentState && !studentState.open && (
+            <p className="notice-info flex items-center gap-2 text-sm">
+              <Icon name="lock" size={15} />
+              Teacher view: students open this skill after finishing {studentState.after.title}, or when you assign it.
+            </p>
+          )}
+          <div className="hue-tint rounded-xl border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-slate-600">
-                Unit {unit.number} · Skill {skillIndex} of {unit.skills.length}
+              <p className="text-sm text-slate-700">
+                <span className="font-semibold">{unit.title}</span>
+                <span className="text-slate-500"> · {unitProgress.completed} of {unitProgress.total} skills done</span>
               </p>
               <ProgressStatus level={mastery} />
             </div>
-            <div className="mt-2">
-              <ProgressBar
-                value={unitProgress.completed}
-                max={unitProgress.total}
-                showFraction={false}
-                size="sm"
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
+              <div
+                className="hue-bar h-full rounded-full transition-all duration-500"
+                style={{ width: `${unitProgress.total ? (unitProgress.completed / unitProgress.total) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -136,20 +247,18 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           <div className="grid gap-4 sm:grid-cols-3">
             <div
               className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-                videoStepSatisfied
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-bridge-200 bg-bridge-50"
+                videoStepSatisfied ? "border-emerald-200 bg-emerald-50" : "hue-tint"
               }`}
             >
-              <span className="text-xl">{videoStepSatisfied ? "✅" : "1️⃣"}</span>
+              <StepMark n={1} done={videoStepSatisfied} />
               <div>
                 <p className="font-medium text-slate-900">Watch the video</p>
                 <p className="text-xs text-slate-500">
                   {videoWatched
-                    ? "Done!"
+                    ? "Done"
                     : isSkillComplete
-                      ? "Skipped, you already know this!"
-                      : "Start here (or skip if you already know it)"}
+                      ? "Skipped, since you already know this"
+                      : "Start here, or skip it if you know this"}
                 </p>
               </div>
             </div>
@@ -160,15 +269,17 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   : "border-slate-200 bg-white"
               }`}
             >
-              <span className="text-xl">{isSkillComplete ? "✅" : "2️⃣"}</span>
+              <StepMark n={2} done={isSkillComplete} />
               <div>
                 <p className="font-medium text-slate-900">Practice problems</p>
                 <p className="text-xs text-slate-500">
-                  {isSkillComplete
-                    ? "Skill complete!"
-                    : practiceStats.attempted === 0
-                      ? "Get 5 right in a row"
-                      : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
+                  {looking
+                    ? "Practice only, for now"
+                    : isSkillComplete
+                      ? "Skill complete"
+                      : practiceStats.attempted === 0
+                        ? "Get 5 right"
+                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
                 </p>
               </div>
             </div>
@@ -181,13 +292,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 <VideoPlayer
                   video={video}
                   backupVideo={backupVideo}
-                  onWatched={handleVideoWatched}
+                  // In practice mode the watch shows on this page and goes no further.
+                  onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
                 />
               </section>
 
               <section>
                 <h2 className="section-title mb-3">Step 2: Practice</h2>
-                <PracticePanel skill={skill} onMasteryChange={handleMasteryChange} />
+                <PracticePanel
+                  skill={skill}
+                  onMasteryChange={handleMasteryChange}
+                  practiceOnly={looking}
+                  onPracticeRight={setPracticeRight}
+                />
               </section>
 
               <section>
@@ -218,14 +335,24 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <h3 className="font-bold text-slate-900">Key idea</h3>
                   <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
                 </div>
-                <div className="rounded-xl bg-bridge-50 p-3 text-sm text-slate-600">
-                  <p className="font-medium text-slate-800">How to complete this skill:</p>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
-                    <li>Watch the video above</li>
-                    <li>Answer practice problems until you get 5 right in a row</li>
-                    <li>A wrong answer starts the run again, so take your time</li>
-                  </ol>
-                </div>
+                {looking && state && !state.open ? (
+                  <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
+                    <p className="font-medium text-slate-800">You are looking ahead.</p>
+                    <p className="mt-1.5 text-xs leading-relaxed">
+                      This skill opens after {state.after.title}, or the moment you show what you know. Once it is open,
+                      5 right on the first try completes it.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
+                    <p className="font-medium text-slate-800">How to complete this skill:</p>
+                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
+                      <li>Watch the video above</li>
+                      <li>Get 5 practice problems right on the first try</li>
+                      <li>Every one you get right stays banked, even after a miss</li>
+                    </ol>
+                  </div>
+                )}
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
                   Overall: {stats.completedSkills}/{stats.totalSkills} skills complete
                 </div>
@@ -244,13 +371,18 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             ) : (
               <span />
             )}
-            {next ? (
+            {next && nextOpen ? (
               <Link
                 href={`/learn/${next.unitId}/${next.skill.id}`}
                 className="btn-primary text-sm"
               >
-                {isSkillComplete ? "Next skill →" : "Skip to next →"}
+                Next skill →
               </Link>
+            ) : next ? (
+              <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                <Icon name="lock" size={15} />
+                Finish this skill to open {next.skill.title}
+              </span>
             ) : (
               <Link href="/" className="btn-primary text-sm">
                 Back to course
@@ -258,6 +390,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             )}
           </div>
         </div>
+        )}
       </CourseGate>
     </div>
   );

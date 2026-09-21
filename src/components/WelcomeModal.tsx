@@ -3,22 +3,23 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getProgress, markOnboarded } from "@/lib/progress";
+import { Icon, type IconName } from "@/components/Icon";
 
-const STEPS = [
+const STEPS: { icon: IconName; title: string; body: string }[] = [
   {
-    emoji: "🎬",
+    icon: "play",
     title: "Watch a short video",
     body: "Every skill starts with a quick lesson from a top math teacher on YouTube.",
   },
   {
-    emoji: "✏️",
-    title: "Practice a few problems",
-    body: "Get five right in a row and the skill is done. A wrong answer starts the run again, so there's no faking it. Stuck? Message a real tutor any time from the Tutors page, they can even hop on a video call with you.",
+    icon: "check",
+    title: "Practice until it clicks",
+    body: "Get five right on the first try and the skill is done. Every one you get stays banked, even after a miss. Stuck? Ask the AI helper, or message a real tutor from the Tutors page.",
   },
   {
-    emoji: "🏆",
-    title: "Earn XP, streaks & badges",
-    body: "Every correct answer earns XP, levels you up, and can unlock fun badges. Keep a daily streak going!",
+    icon: "lock",
+    title: "Follow your path",
+    body: "Skills open in order, each one building on the last. Know one already? Show what you know and it opens early. XP and a daily streak track your work as you go.",
   },
 ];
 
@@ -60,7 +61,9 @@ export function WelcomeModal() {
         </div>
 
         <div className="mt-6 rounded-2xl bg-bridge-50 p-5 text-center">
-          <span className="text-4xl">{current.emoji}</span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600">
+            <Icon name={current.icon} size={24} />
+          </span>
           <h3 className="mt-2 font-bold text-slate-900">{current.title}</h3>
           <p className="mt-1 text-sm text-slate-600">{current.body}</p>
         </div>
@@ -87,7 +90,7 @@ export function WelcomeModal() {
             onClick={() => (isLast ? close() : setStep((s) => s + 1))}
             className="btn-primary flex-1"
           >
-            {isLast ? "Let's go! 🚀" : "Next"}
+            {isLast ? "Start learning" : "Next"}
           </button>
         </div>
         {!isLast && (

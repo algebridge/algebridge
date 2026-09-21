@@ -13,7 +13,8 @@ import {
   type AdminOverview,
   type AdminUserRow,
 } from "@/lib/admin";
-import { adminDeleteUser } from "@/lib/social";
+import { adminDeleteUser, adminSetRole } from "@/lib/social";
+import type { UserRole } from "@/types";
 
 type Tab = "overview" | "people";
 type RoleFilter = "all" | "student" | "tutor" | "teacher" | "nontutor";
@@ -141,6 +142,22 @@ export default function AdminPage() {
     if (failures.length) setErr(`${failures.length} could not be deleted. ${failures[0]}`);
     setMsg(`Deleted ${done} account${done === 1 ? "" : "s"}.`);
     await refresh();
+  }
+
+  async function changeRole(u: AdminUserRow, role: UserRole) {
+    if (role === u.role) return;
+    if (!window.confirm(`Set ${u.displayName ?? u.email ?? "this account"} to the ${role} role?`))
+      return;
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    const e = await adminSetRole(u.id, role);
+    setBusy(false);
+    if (e) setErr(e);
+    else {
+      setMsg(`${u.displayName ?? u.email} is now a ${role}.`);
+      await refresh();
+    }
   }
 
   async function deleteOne(u: AdminUserRow) {
@@ -455,6 +472,18 @@ export default function AdminPage() {
                           {shortAgo(u.createdAt)}
                         </td>
                         <td className="sbc-cell-actions">
+                          <select
+                            aria-label={`Role for ${u.displayName ?? u.email ?? "account"}`}
+                            value={u.role}
+                            disabled={busy || u.id === user.id}
+                            title={u.id === user.id ? "Change your own role from the account menu" : "Set role"}
+                            onChange={(e) => void changeRole(u, e.target.value as UserRole)}
+                            style={{ marginRight: 6, fontSize: 12, padding: "2px 4px" }}
+                          >
+                            <option value="student">student</option>
+                            <option value="tutor">tutor</option>
+                            <option value="teacher">teacher</option>
+                          </select>
                           <Link href={`/messages/${u.id}`} className="sbc-btn is-small">
                             Message
                           </Link>{" "}

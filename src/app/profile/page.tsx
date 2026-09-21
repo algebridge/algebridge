@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { updateMyProfile, uploadAvatar } from "@/lib/social";
+import { InterestsPicker } from "@/components/InterestsPicker";
+import { getInterests } from "@/lib/progress";
+import type { InterestProfile } from "@/lib/interests";
 
 export default function ProfilePage() {
   const { user, profile, loading, configured, refreshProfile } = useAuth();
@@ -16,6 +19,9 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  // Read after mount: interests live in this browser's copy of the progress.
+  const [interests, setInterests] = useState<InterestProfile | null | undefined>(undefined);
+  useEffect(() => setInterests(getInterests()), []);
 
   useEffect(() => {
     if (profile) {
@@ -153,6 +159,18 @@ export default function ProfilePage() {
         {err && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
         {msg && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{msg}</p>}
       </div>
+
+      {!isTutor && interests !== undefined && (
+        <div id="interests" className="panel scroll-mt-24">
+          <div className="panel-head">
+            <p className="panel-title">What you&apos;re into</p>
+            <span className="badge-brand">Sets your practice problems</span>
+          </div>
+          <div className="panel-body">
+            <InterestsPicker initial={interests} showHeading={false} />
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Link href="/messages" className="btn-secondary">💬 Messages</Link>

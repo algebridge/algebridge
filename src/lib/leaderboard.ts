@@ -5,6 +5,20 @@ export type LeaderboardSort = "lessons" | "bridgeys" | "prestige";
 
 const LEADERBOARD_TABLE = "leaderboard_stats";
 
+/**
+ * The leaderboard is readable by every signed-in account, and most of them
+ * belong to minors, so it must never carry a student's full real name. Show
+ * the first name and a last initial ("Jordyn Harwood" -> "Jordyn H.").
+ */
+export function publicLeaderboardName(name: string | null | undefined): string {
+  const clean = (name ?? "").trim();
+  if (!clean) return "Anonymous Student";
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const last = parts[parts.length - 1];
+  return `${parts[0]} ${last[0].toUpperCase()}.`;
+}
+
 export async function syncLeaderboardStats(
   userId: string,
   displayName: string | null,
@@ -24,7 +38,7 @@ export async function syncLeaderboardStats(
   await supabase.from(LEADERBOARD_TABLE).upsert(
     {
       user_id: userId,
-      display_name: displayName ?? "Anonymous Student",
+      display_name: publicLeaderboardName(displayName),
       bridgeys: snapshot.bridgeys,
       completed_skills: snapshot.completedSkills,
       best_furniture_value: snapshot.bestFurnitureValue,

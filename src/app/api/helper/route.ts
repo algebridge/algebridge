@@ -5,6 +5,7 @@ import {
   ESCALATION_OFFER,
   forbiddenValues,
   leaksAnswer,
+  leaksAnswerText,
   parseArithmetic,
   generalReply,
   refuseAnswer,
@@ -66,69 +67,6 @@ Worked solution, for your context only and never to be revealed: ${ctx.explanati
 Absolute rule: never state the final answer, and never state an intermediate value the student is working towards.
 Guide with one small next step and end with a question.
 If the student proposes an answer, do not confirm or deny it. Have them check it by substituting back.`;
-}
-
-/**
- * Gemini is the fallback, not the first choice. Measured on the live account,
- * the free tier is 20 requests per day and 5 per minute on every flash model,
- * which is about four student conversations. It is kept because it costs
- * nothing to hold in reserve for when Groq 429s.
- *
- * The model list is a list on purpose. Google retires and renames flash
- * aliases regularly, and a 404 on one name would otherwise look identical to
- * "no key configured": the helper would quietly serve canned replies and the
- * key would appear not to work. Trying each in turn and reporting which one
- * answered removes that whole class of confusion.
- */
-const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
-  "gemini-1.5-flash",
-];
-
-async function callGeminiModel(
-  key: string,
-  model: string,
-  sys: string,
-  msgs: HelperMessage[]
-): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sys }] },
-        contents: msgs.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }],
-        })),
-        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
-      }),
-    }
-  );
-  if (!res.ok) throw new Error(`gemini ${model}: ${res.status}`);
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error(`gemini ${model}: empty`);
-  return text;
-}
-
-async function callGemini(
-  key: string,
-  sys: string,
-  msgs: HelperMessage[]
-): Promise<{ text: string; model: string }> {
-  const errors: string[] = [];
-  for (const model of GEMINI_MODELS) {
-    try {
-      return { text: await callGeminiModel(key, model, sys, msgs), model };
-    } catch (e) {
-      errors.push(String(e instanceof Error ? e.message : e));
-    }
-  }
-  throw new Error(errors.join("; "));
 }
 
 /**
@@ -216,23 +154,14 @@ async function askModel(
   sys: string,
   msgs: HelperMessage[]
 ): Promise<{ text: string; provider: string } | null> {
-  const gemini = process.env.GEMINI_API_KEY;
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
-  // With both keys set, Groq wins by default. Gemini's free tier is 20
-  // requests per day on every flash model, which is roughly four students,
-  // once each. Groq's allowance is the reason it is here at all, so defaulting
-  // to the smaller one would waste it. HELPER_PROVIDER=gemini overrides.
-  const pick = (process.env.HELPER_PROVIDER ?? "").toLowerCase();
+  // Gemini is deliberately NOT called, even if GEMINI_API_KEY is set. Google's
+  // API terms forbid use in a service "likely to be accessed by individuals
+  // under the age of 18", which is exactly what AlgeBridge is, and that clause
+  // binds the service, not the session. Groq is the default; OpenAI backs it
+  // up. The key should also be removed from the deployment.
   try {
-    if (groq && pick !== "gemini") {
-      const r = await callGroq(groq, sys, msgs);
-      return { text: r.text, provider: `groq:${r.model}` };
-    }
-    if (gemini) {
-      const r = await callGemini(gemini, sys, msgs);
-      return { text: r.text, provider: `gemini:${r.model}` };
-    }
     if (groq) {
       const r = await callGroq(groq, sys, msgs);
       return { text: r.text, provider: `groq:${r.model}` };
@@ -340,7 +269,9 @@ export async function POST(request: Request) {
 
   if (raw) {
     const forbidden = forbiddenValues(ctx);
-    if (!leaksAnswer(raw, forbidden)) return reply(raw, "ai", { intent, provider: answered!.provider });
+    if (!leaksAnswer(raw, forbidden) && !leaksAnswerText(raw, ctx)) {
+      return reply(raw, "ai", { intent, provider: answered!.provider });
+    }
     // The model gave away a value the student was meant to reach. Discard it
     // entirely rather than trying to patch it, and answer deterministically.
     return reply(localFallback(ctx, messages), "local", { intent, filtered: true, provider: answered!.provider });

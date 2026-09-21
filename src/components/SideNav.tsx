@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { buildNav, isActivePath, type NavSection } from "@/lib/nav";
 import { useAppNavState } from "@/components/AppNavProvider";
+import { UnitMark } from "@/components/UnitMark";
+import { hueVars, unitHue } from "@/lib/hues";
 
 /**
  * Persistent left rail on desktop. Keeps the course, the classroom and the
@@ -33,12 +35,19 @@ export function SideNav() {
       </nav>
 
       {continueTarget && (
-        <div className="border-t border-slate-200 p-3">
+        <div className="border-t border-slate-200 p-3" style={hueVars(unitHue(continueTarget.unitId))}>
+          {/* Where the student is, in that unit's color, with one tap to get back. */}
           <Link
             href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-            className="btn-primary w-full"
+            className="hue-banner flex items-center gap-3 rounded-xl px-3 py-3 transition duration-150 ease-out hover:scale-[1.02] hover:brightness-110"
           >
-            Continue learning
+            <span className="hue-chip flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+              <UnitMark unitId={continueTarget.unitId} size={20} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide opacity-80">Continue</span>
+              <span className="block truncate text-sm font-semibold">{continueTarget.skillTitle}</span>
+            </span>
           </Link>
         </div>
       )}

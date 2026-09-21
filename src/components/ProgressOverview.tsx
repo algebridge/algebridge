@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { useProgress } from "@/hooks/useProgress";
 import { useAuth } from "@/lib/auth";
@@ -44,7 +45,8 @@ export function ProgressOverview() {
           <div className="flex flex-wrap gap-2">
             {stats.streak > 0 && (
               <span className="badge bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-100">
-                🔥 {stats.streak}-day streak
+                <Icon name="flame" size={13} />
+                {stats.streak}-day streak
               </span>
             )}
             <span className="badge-neutral">
