@@ -9,6 +9,10 @@ import {
   withSeededGeneration,
 } from "@/lib/problem-utils";
 
+function gcd(a: number, b: number): number {
+  return b === 0 ? Math.abs(a) : gcd(b, a % b);
+}
+
 function fmtSigned(n: number): string {
   return n >= 0 ? `${n}` : `${n}`;
 }
@@ -1087,7 +1091,11 @@ const generators: Record<string, SkillGenerator> = {
       const squares = [4, 9, 16, 25, 36, 49, 64, 81, 100];
       const square = squares[i % squares.length];
       const root = Math.sqrt(square);
-      const inside = square * randInt(2, 12);
+      // The leftover factor must itself have no square in it, or the "right"
+      // choice is not simplest form: 100 x 12 gave √1200 = 10√12, when the
+      // answer a student who simplifies fully reaches is 20√3.
+      const squareFree = [2, 3, 5, 6, 7, 10, 11];
+      const inside = square * squareFree[randInt(0, squareFree.length - 1)];
       if (i % 3 !== 0) {
         return {
           id: "",
@@ -1325,18 +1333,22 @@ const generators: Record<string, SkillGenerator> = {
         };
       }
       const a = randInt(2, 4);
+      // Keep a and n with no common factor. With one, "9x² − 9" factors
+      // further (to 9(x + 1)(x − 1)) and the listed answer is not complete.
+      let m = n;
+      while (gcd(a, m) > 1) m += 1;
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Factor ${a * a}x² − ${n * n}`,
+        prompt: `Factor ${a * a}x² − ${m * m}`,
         hint: "Difference of squares works with coefficients, factor out the square root of each term.",
-        answer: `(${a}x + ${n})(${a}x − ${n})`,
-        choices: mcChoices(`(${a}x + ${n})(${a}x − ${n})`, [
-          `(${a}x − ${n})²`,
-          `(${a}x + ${n})²`,
+        answer: `(${a}x + ${m})(${a}x − ${m})`,
+        choices: mcChoices(`(${a}x + ${m})(${a}x − ${m})`, [
+          `(${a}x − ${m})²`,
+          `(${a}x + ${m})²`,
           "Cannot factor",
         ]),
-        explanation: `${a * a}x² − ${n * n} = (${a}x + ${n})(${a}x − ${n})`,
+        explanation: `${a * a}x² − ${m * m} = (${a}x + ${m})(${a}x − ${m})`,
       };
     }),
 

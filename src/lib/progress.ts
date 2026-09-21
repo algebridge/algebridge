@@ -5,7 +5,7 @@ import {
   evaluateNewBadges,
   getLevelInfo,
   RECENT_WINDOW,
-  REQUIRED_STREAK,
+  REQUIRED_CORRECT,
   XP_REWARDS,
   type Badge,
 } from "@/lib/gamification";
@@ -14,6 +14,7 @@ import {
   tryAwardSkillCompleteBridgeys,
 } from "@/lib/bridgeys";
 import { STARTER_HOUSE_ID } from "@/data/house-catalog";
+import type { InterestProfile } from "@/lib/interests";
 
 export { BADGES, getLevelInfo };
 export type { Badge };
@@ -52,29 +53,33 @@ export interface ContinueTarget {
 export interface SkillPracticeStats {
   attempted: number;
   correct: number;
-  /** Correct answers in the current unbroken run, this is what finishes a skill. */
-  streak: number;
-  /** How long that run has to get. */
+  /** Problems right on the first try. This is what finishes a skill. */
+  solved: number;
+  /** How many that has to reach. */
   required: number;
   /** Attempts within the rolling window (see RECENT_WINDOW) */
   recentAttempted: number;
   recentCorrect: number;
   /** Accuracy over the rolling window. Shown to the student, but it no longer
-   *  decides anything, the run does. */
+   *  decides anything, the solved count does. */
   accuracy: number;
   problemsNeeded: number;
   isComplete: boolean;
 }
 
-/** Correct answers a skill has finished in a row. */
-export function currentStreak(prog: SkillProgress): number {
-  if (typeof prog.correctStreak === "number") return prog.correctStreak;
-  // Saves from before the run rule existed: read the run off the tail of the
-  // window they did keep, so nobody's progress resets on the way in.
-  const recent = prog.recentResults ?? [];
-  let n = 0;
-  for (let i = recent.length - 1; i >= 0 && recent[i]; i -= 1) n += 1;
-  return n;
+/**
+ * Problems in this skill answered right on the first try.
+ *
+ * Saves from before this field existed never recorded first tries, so they
+ * are carried over as generously as the data allows: the larger of the old
+ * run and the correct answers in the recent window. That can never finish a
+ * skill on its own (five correct in the window would already have been a
+ * finished run), and it means nobody's progress drops on the way in.
+ */
+export function solvedCount(prog: SkillProgress): number {
+  if (typeof prog.solved === "number") return prog.solved;
+  const inWindow = (prog.recentResults ?? []).filter(Boolean).length;
+  return Math.max(prog.correctStreak ?? 0, inWindow);
 }
 
 export interface AttemptResult {
@@ -114,12 +119,17 @@ const DEFAULT_PROGRESS: UserProgress = {
   placedFurnitureItems: [],
   ownedTitles: [],
   bridgeyRewardsClaimed: { complete: [] },
-  leaderboardOptIn: true,
+  // Off by default: a student opts in to the public leaderboard, they are not
+  // opted in for them. Most accounts belong to minors.
+  leaderboardOptIn: false,
 };
 
 /** Fills in any missing fields (e.g. from an older save, or a remotely-fetched student record) with safe defaults. */
 export function normalizeProgress(raw: Partial<UserProgress> | null | undefined): UserProgress {
-  const merged = { ...DEFAULT_PROGRESS, ...raw, skills: { ...(raw?.skills ?? {}) } };
+  // A fresh copy of the defaults every time. Handing out DEFAULT_PROGRESS
+  // itself let the first answer on a new device write into the shared
+  // default, which then leaked into whoever signed in next in the same tab.
+  const merged = { ...structuredClone(DEFAULT_PROGRESS), ...raw, skills: { ...(raw?.skills ?? {}) } };
   return normalizeBridgeyProgress(merged);
 }
 
@@ -172,10 +182,10 @@ function migrateBridgeyEconomy(progress: UserProgress): UserProgress {
 }
 
 export function getProgress(): UserProgress {
-  if (typeof window === "undefined") return DEFAULT_PROGRESS;
+  if (typeof window === "undefined") return structuredClone(DEFAULT_PROGRESS);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PROGRESS;
+    if (!raw) return structuredClone(DEFAULT_PROGRESS);
     let normalized = normalizeProgress(JSON.parse(raw));
     if (!normalized.videoTrackingMigratedV1) {
       normalized = migrateProgress(normalized);
@@ -187,7 +197,7 @@ export function getProgress(): UserProgress {
     }
     return normalized;
   } catch {
-    return DEFAULT_PROGRESS;
+    return structuredClone(DEFAULT_PROGRESS);
   }
 }
 
@@ -249,23 +259,21 @@ export function recordProblemAttempt(
   const recentResults = [...(existing.recentResults ?? []), correct].slice(
     -RECENT_WINDOW
   );
-  const streak = correct ? currentStreak(existing) + 1 : 0;
+  // Only a first try counts toward finishing. A retry still earns XP and still
+  // teaches, it just is not evidence the student could do it cold.
+  const solved = solvedCount(existing) + (correct && opts?.firstTry ? 1 : 0);
 
-  // A skill is finished by a run of REQUIRED_STREAK correct answers, not by an
-  // accuracy percentage over a window. The percentage was the wrong mechanism
-  // for two reasons: a student could finish a skill while still getting one in
-  // five wrong, and the number itself was unreadable mid-session, nobody can
-  // tell from "80% of the last five" what to do next. A run of five is a
-  // target you can see, and one you have to actually earn in a row.
+  // Five right finishes a skill, in any order. A miss costs nothing already
+  // banked: the old five-in-a-row rule wiped up to four earned answers for
+  // one slip, which read to students as being punished rather than measured.
   let level: MasteryLevel = existing.level === "locked" ? "attempted" : existing.level;
   const wasFinished = level === "proficient" || level === "mastered";
-  if (streak >= REQUIRED_STREAK) {
+  if (!wasFinished && solved >= REQUIRED_CORRECT) {
     // Never missing at all on the way there is worth its own tier.
     level = correctCount === attempted ? "mastered" : "proficient";
   } else if (!wasFinished) {
-    // Finishing is permanent, so a later slip never takes a skill back off the
-    // student, it only means the next run starts again from zero.
-    level = streak >= 3 ? "familiar" : "attempted";
+    // Finishing is permanent, so a later slip never takes a skill back.
+    level = solved >= 3 ? "familiar" : "attempted";
   }
 
   progress.skills[skillId] = {
@@ -274,7 +282,7 @@ export function recordProblemAttempt(
     problemsAttempted: attempted,
     problemsCorrect: correctCount,
     recentResults,
-    correctStreak: streak,
+    solved,
     lastPracticed: new Date().toISOString(),
     videoWatched: existing.videoWatched,
   };
@@ -379,6 +387,16 @@ export function setMusicEnabled(enabled: boolean): void {
   saveProgress(progress);
 }
 
+export function getInterests(): InterestProfile | null {
+  return getProgress().interests ?? null;
+}
+
+/** Saved into the progress document, which the account sync already carries. */
+export function saveInterests(profile: InterestProfile): void {
+  const progress = getProgress();
+  saveProgress({ ...progress, interests: profile });
+}
+
 export function markOnboarded(): void {
   const progress = getProgress();
   progress.onboarded = true;
@@ -392,6 +410,21 @@ export function unlockSkill(skillId: string): void {
     progress.skills[skillId] = { ...existing, level: "attempted" };
     saveProgress(progress);
   }
+}
+
+/**
+ * A "Show what you know" try on a skill ahead of the learning path: one a
+ * day, and passing opens the skill. See src/lib/path.ts.
+ */
+export function recordSkillCheck(skillId: string, passed: boolean, day: string): void {
+  const progress = getProgress();
+  const existing = getSkillProgress(skillId);
+  progress.skills[skillId] = {
+    ...existing,
+    checkedOn: day,
+    ...(passed ? { openedBy: "check" as const, level: existing.level === "locked" ? ("attempted" as const) : existing.level } : {}),
+  };
+  saveProgress(progress);
 }
 
 export function dismissLoginPrompt(): void {
@@ -445,16 +478,14 @@ export function getSkillPracticeStats(skillId: string): SkillPracticeStats {
   const accuracy = recentAttempted > 0 ? recentCorrect / recentAttempted : 0;
   const isComplete = prog.level === "proficient" || prog.level === "mastered";
 
-  // With a run-of-five rule this is just subtraction, where the old accuracy
-  // rule needed a simulation to answer "how many more?" at all.
-  const streak = currentStreak(prog);
-  const problemsNeeded = isComplete ? 0 : REQUIRED_STREAK - streak;
+  const solved = Math.min(solvedCount(prog), REQUIRED_CORRECT);
+  const problemsNeeded = isComplete ? 0 : Math.max(0, REQUIRED_CORRECT - solved);
 
   return {
     attempted: prog.problemsAttempted,
     correct: prog.problemsCorrect,
-    streak,
-    required: REQUIRED_STREAK,
+    solved: isComplete ? REQUIRED_CORRECT : solved,
+    required: REQUIRED_CORRECT,
     recentAttempted,
     recentCorrect,
     accuracy,

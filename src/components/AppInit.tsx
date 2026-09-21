@@ -8,6 +8,7 @@ import { showToast } from "@/lib/notify";
 import { Confetti } from "@/components/Confetti";
 import { ToastHost } from "@/components/ToastHost";
 import { WelcomeModal } from "@/components/WelcomeModal";
+import { InterestsPrompt } from "@/components/InterestsPrompt";
 
 /** Mounted once in the root layout: handles daily streak tracking and global overlays. */
 export function AppInit() {
@@ -34,15 +35,17 @@ export function AppInit() {
     const { streak, newBadges } = ensureDailyStreak();
     if (streak >= 2) {
       showToast({
-        emoji: "🔥",
-        title: `${streak}-day streak!`,
-        description: "Keep practicing every day to grow your streak.",
+        icon: "flame",
+        tone: "reward",
+        title: `${streak}-day streak`,
+        description: "Practice again tomorrow to keep it going.",
       });
     }
     for (const badge of newBadges) {
       showToast({
-        emoji: badge.emoji,
-        title: `Badge unlocked: ${badge.title}`,
+        icon: "trophy",
+        tone: "reward",
+        title: `Badge: ${badge.title}`,
         description: badge.description,
       });
     }
@@ -53,6 +56,7 @@ export function AppInit() {
       <Confetti />
       <ToastHost />
       <WelcomeModal />
+      <InterestsPrompt />
     </>
   );
 }

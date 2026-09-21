@@ -23,3 +23,6 @@ supabase/.temp/
 
 # Claude Code local config
 .claude/
+
+# Story templates cached by the dev server (src/lib/story-store.ts)
+.cache/

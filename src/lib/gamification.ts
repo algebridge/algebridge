@@ -5,13 +5,18 @@ import { units, TOTAL_SKILLS } from "@/data/curriculum";
 export const RECENT_WINDOW = 5;
 
 /**
- * Correct answers in a row that finish a skill.
+ * Problems a student must get right, on the first try, to finish a skill.
  *
- * This replaced an "at least 3 attempts at 80% accuracy over a rolling window"
- * rule. Same order of effort, but a student can read this one off the screen
- * and knows exactly what a wrong answer costs.
+ * History: 80% accuracy over a rolling window, then five right IN A ROW, now
+ * five right in any order. The run rule made one slip cost up to four earned
+ * answers, which is a punishment for being twelve, not a measure of skill.
+ *
+ * First tries only, because a retry on a multiple-choice problem is a
+ * process of elimination: with credit for retries, about a third of the
+ * course (the skills that are all multiple choice) could be finished by
+ * clicking every option in turn.
  */
-export const REQUIRED_STREAK = 5;
+export const REQUIRED_CORRECT = 5;
 
 export const XP_REWARDS = {
   correctAnswer: 10,
@@ -107,9 +112,8 @@ function countVideosWatched(progress: UserProgress): number {
 /**
  * A skill finished without ever getting one wrong.
  *
- * This used to check for any five correct in a row, which every finished skill
- * now satisfies by definition, the badge would have fired on the same event
- * as completion and meant nothing. Never missing at all still means something.
+ * Deliberately stricter than finishing: five right with misses in between
+ * completes a skill, never missing at all earns this.
  */
 function hasFlawlessSkill(progress: UserProgress): boolean {
   return Object.values(progress.skills).some(

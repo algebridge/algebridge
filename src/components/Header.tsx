@@ -87,9 +87,10 @@ export function Header() {
             {stats.streak > 0 && (
               <span
                 title={`${stats.streak}-day streak`}
-                className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700"
+                className="flex items-center gap-1 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700"
               >
-                🔥 {stats.streak}
+                <Icon name="flame" size={14} />
+                {stats.streak}
               </span>
             )}
             <Link
@@ -243,7 +244,10 @@ export function Header() {
             {stats.bridgeys.toLocaleString()}
           </span>
           {stats.streak > 0 && (
-            <span className="shrink-0 font-semibold text-orange-600">🔥{stats.streak}</span>
+            <span className="flex shrink-0 items-center gap-0.5 font-semibold text-orange-600">
+              <Icon name="flame" size={13} />
+              {stats.streak}
+            </span>
           )}
         </div>
       )}
@@ -365,7 +369,7 @@ function UtilityToggles({
             musicEnabled ? "text-bridge-600" : "text-slate-400 hover:text-slate-700"
           }`}
         >
-          🎵
+          <Icon name="music" size={17} />
         </button>
       )}
       {soundMounted && (
@@ -377,7 +381,7 @@ function UtilityToggles({
           aria-label={soundEnabled ? "Mute sound effects" : "Turn on sound effects"}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
         >
-          {soundEnabled ? "🔊" : "🔇"}
+          <Icon name={soundEnabled ? "speaker" : "speaker-off"} size={17} />
         </button>
       )}
     </div>

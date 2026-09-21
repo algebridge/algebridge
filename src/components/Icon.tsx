@@ -29,7 +29,20 @@ export type IconName =
   | "copy"
   | "lock"
   | "eye"
-  | "eye-off";
+  | "eye-off"
+  | "close"
+  | "grip"
+  | "helper"
+  | "flame"
+  | "coin"
+  | "play"
+  | "speaker"
+  | "speaker-off"
+  | "music"
+  | "hint"
+  | "external"
+  | "spark"
+  | "x-circle";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -159,6 +172,70 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
       <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  flame: <path d="M12 3c.4 2.9 3.6 4.6 3.6 8.3a3.6 3.6 0 0 1-7.2 0c0-1.3.5-2.2 1.1-3C7.6 9.7 6 11.8 6 14.6A6 6 0 0 0 12 21a6 6 0 0 0 6-6.3C18 9.2 13.4 7 12 3Z" />,
+  coin: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+    </>
+  ),
+  play: <path d="M8.5 5.8v12.4a.8.8 0 0 0 1.2.7l9.6-6.2a.8.8 0 0 0 0-1.4L9.7 5.1a.8.8 0 0 0-1.2.7Z" />,
+  speaker: (
+    <>
+      <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4Z" />
+      <path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10" />
+    </>
+  ),
+  "speaker-off": (
+    <>
+      <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4Z" />
+      <path d="m16 10 4 4M20 10l-4 4" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M9 17.5V6l10-2v11.5" />
+      <circle cx="6.5" cy="17.5" r="2.5" />
+      <circle cx="16.5" cy="15.5" r="2.5" />
+    </>
+  ),
+  hint: (
+    <>
+      <path d="M9.5 18h5M10.5 21h3" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.2 1.1 2V16h5v-.2c0-.8.5-1.5 1.1-2A6 6 0 0 0 12 3Z" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M14 5h5v5M19 5l-8 8" />
+      <path d="M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4" />
+    </>
+  ),
+  spark: <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9Z" />,
+  "x-circle": (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6" />
+    </>
+  ),
+  grip: (
+    <>
+      <circle cx="9" cy="6" r="1" />
+      <circle cx="15" cy="6" r="1" />
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="9" cy="18" r="1" />
+      <circle cx="15" cy="18" r="1" />
+    </>
+  ),
+  helper: (
+    <>
+      <path d="M20 12a7 7 0 0 1-7 7H8l-4 3v-4.6A7 7 0 0 1 11 5h2a7 7 0 0 1 7 7Z" />
+      <path d="M10 10.2a2 2 0 1 1 2.9 1.8c-.6.3-.9.8-.9 1.4" />
+      <path d="M12 15.6h.01" />
     </>
   ),
   "eye-off": (

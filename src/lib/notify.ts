@@ -1,9 +1,15 @@
+import type { IconName } from "@/components/Icon";
+
 export const TOAST_EVENT = "algebridge-toast";
 export const CONFETTI_EVENT = "algebridge-confetti";
 
 export interface ToastPayload {
   id: string;
-  emoji: string;
+  /** A line icon; the learning screens use these. */
+  icon?: IconName;
+  /** Rewards (badges, the house) still carry their own emoji. */
+  emoji?: string;
+  tone?: "success" | "reward" | "info";
   title: string;
   description?: string;
 }

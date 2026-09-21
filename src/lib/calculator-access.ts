@@ -36,11 +36,63 @@ export function subscribeCalculatorAccess(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
+/**
+ * Whether the calculator panel is open. The study helper reads this so the
+ * two panels, which rest in the same corner, sit side by side instead of the
+ * helper landing exactly on top of the calculator.
+ */
+let open = false;
+
+export function setCalculatorOpen(next: boolean): void {
+  if (open === next) return;
+  open = next;
+  listeners.forEach((fn) => fn());
+}
+
+export function getCalculatorOpen(): boolean {
+  return open;
+}
+
+export function getServerCalculatorOpen(): boolean {
+  return false;
+}
+
+/**
+ * Where the open calculator panel is on screen, so the study helper can rest
+ * beside it wherever it was dragged, instead of beside the corner it starts in.
+ */
+export interface PanelRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+let rect: PanelRect | null = null;
+
+export function setCalculatorRect(next: PanelRect | null): void {
+  const same =
+    rect === next ||
+    (!!rect && !!next && rect.left === next.left && rect.top === next.top && rect.right === next.right && rect.bottom === next.bottom);
+  if (same) return;
+  rect = next;
+  listeners.forEach((fn) => fn());
+}
+
+export function getCalculatorRect(): PanelRect | null {
+  return rect;
+}
+
+export function getServerCalculatorRect(): PanelRect | null {
+  return null;
+}
+
 /** Any number in the text, including decimals and negatives. */
 const NUMBER = /-?\d+(?:\.\d+)?/g;
 
 /**
- * Does this problem earn a calculator?
+ * Does this problem earn a calculator? Practice asks this of a whole skill's
+ * bank (see skillOffersCalculator) rather than of each problem as it comes up.
  *
  * The test is whether the arithmetic is incidental to the skill or is the
  * skill. Small whole numbers are the skill, that is mental arithmetic a

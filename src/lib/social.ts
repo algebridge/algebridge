@@ -452,6 +452,14 @@ export async function adminDeleteUser(userId: string): Promise<string | null> {
   return error?.message ?? null;
 }
 
+/** Admin-only: set another account's role (RPC enforces the admin check). */
+export async function adminSetRole(userId: string, role: UserRole): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud accounts are not configured.";
+  const { error } = await supabase.rpc("set_user_role", { target: userId, new_role: role });
+  return error?.message ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Incoming-call ringing (realtime broadcast per user)
 // ---------------------------------------------------------------------------
@@ -481,7 +489,8 @@ export function ringUser(targetId: string, payload: RingPayload): void {
   const topic = `ring-${targetId}`;
   (async () => {
     await removeStaleChannels(topic);
-    const ch = supabase.channel(topic);
+    await supabase.realtime.setAuth();
+    const ch = supabase.channel(topic, { config: { private: true } });
     ch.subscribe((st) => {
       if (st === "SUBSCRIBED") {
         ch.send({ type: "broadcast", event: "ring", payload });
@@ -498,7 +507,8 @@ export function sendCallDecline(callerId: string, byName: string): void {
   const topic = `ring-${callerId}`;
   (async () => {
     await removeStaleChannels(topic);
-    const ch = supabase.channel(topic);
+    await supabase.realtime.setAuth();
+    const ch = supabase.channel(topic, { config: { private: true } });
     ch.subscribe((st) => {
       if (st === "SUBSCRIBED") {
         ch.send({ type: "broadcast", event: "decline", payload: { byName } });
@@ -522,8 +532,9 @@ export function subscribeToRing(
   (async () => {
     await removeStaleChannels(topic);
     if (cancelled) return;
+    await supabase.realtime.setAuth();
     channel = supabase
-      .channel(topic)
+      .channel(topic, { config: { private: true } })
       .on("broadcast", { event: "ring" }, ({ payload }) => onRing(payload as RingPayload))
       .on("broadcast", { event: "decline" }, ({ payload }) =>
         onDecline((payload as { byName?: string }).byName ?? "They")

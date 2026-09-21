@@ -25,6 +25,12 @@ export interface HelperContext {
    * values the reply is not allowed to contain.
    */
   explanation?: string;
+  /**
+   * The answer key, for the filter only. Explanations do not always state
+   * the final value, and a multiple-choice answer ("y = 3x - 2") is text the
+   * number filter cannot see.
+   */
+  answer?: string;
 }
 
 export interface HelperMessage {
@@ -161,11 +167,37 @@ export function formatNumber(n: number): string {
  */
 export function forbiddenValues(ctx: HelperContext): string[] {
   const fromSolution = (ctx.explanation ?? "").match(/-?\d+(?:\.\d+)?/g) ?? [];
+  const fromAnswer: string[] = [];
+  const key = Number((ctx.answer ?? "").trim());
+  if ((ctx.answer ?? "").trim() !== "" && Number.isFinite(key)) {
+    fromAnswer.push(formatNumber(key));
+    // 16.666... is said out loud as 16.67 or 16.7.
+    if (!Number.isInteger(key)) fromAnswer.push(key.toFixed(2), key.toFixed(1));
+  }
   const inProblem = new Set((ctx.problemPrompt ?? "").match(/-?\d+(?:\.\d+)?/g) ?? []);
-  return Array.from(new Set(fromSolution)).filter(
+  return Array.from(new Set([...fromSolution, ...fromAnswer])).filter(
     // 0 and 1 appear everywhere and blocking them would gag the helper.
     (v) => !inProblem.has(v) && v !== "0" && v !== "1" && v !== "-1"
   );
+}
+
+function squash(s: string): string {
+  return s.toLowerCase().replace(/\u2212/g, "-").replace(/\s+/g, "");
+}
+
+/**
+ * The text form of the same rule, for answers that are not a number:
+ * "Quadrant II", "(x + 3)(x + 4)", "y = 3x - 2". Single words are left out,
+ * because "dashed" or "up" also turn up in any honest hint about the choice.
+ */
+export function leaksAnswerText(reply: string, ctx: HelperContext): boolean {
+  const answer = (ctx.answer ?? "").trim();
+  if (!answer || Number.isFinite(Number(answer))) return false;
+  const worthGuarding = /[\d=()^²√]/.test(answer) || /\s/.test(answer);
+  if (!worthGuarding) return false;
+  const a = squash(answer);
+  if (a.length < 3 || squash(ctx.problemPrompt ?? "").includes(a)) return false;
+  return squash(reply).includes(a);
 }
 
 /**

@@ -155,6 +155,51 @@ body {
   .notice-success {
     @apply notice border-emerald-200 bg-emerald-50 text-emerald-800;
   }
+
+  /* ---- Hues -------------------------------------------------------
+     A unit or an interest sets the --hue-* variables on a wrapper (see
+     src/lib/hues.ts); these classes read them, so one set of styles
+     serves all thirteen colors. Every pairing is contrast-tested. */
+  .hue-banner {
+    background-image: linear-gradient(135deg, var(--hue-solid), var(--hue-deep));
+    color: var(--hue-on-solid);
+  }
+
+  .hue-chip {
+    background-color: var(--hue-chip);
+    color: var(--hue-on-solid);
+  }
+
+  .hue-tint {
+    background-color: var(--hue-tint);
+    border-color: var(--hue-line);
+  }
+
+  .hue-wash {
+    background-color: var(--hue-wash);
+    color: var(--hue-ink);
+  }
+
+  .hue-ink {
+    color: var(--hue-ink);
+  }
+
+  .hue-line {
+    border-color: var(--hue-line);
+  }
+
+  .hue-solid {
+    background-color: var(--hue-solid);
+    color: var(--hue-on-solid);
+  }
+
+  .hue-bar {
+    background-color: var(--hue-bar);
+  }
+
+  .hue-ring {
+    box-shadow: 0 0 0 3px var(--hue-line);
+  }
 }
 
 /* ── Lenis smooth scroll ─────────────────────────────────────

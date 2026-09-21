@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/Icon";
 import { useEffect, useRef, useState } from "react";
 import type { Video } from "@/types";
 import { parseDurationToSeconds, youtubeEmbedUrl, youtubeWatchUrl } from "@/data/videos";
@@ -210,9 +211,10 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
             href={watchUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-slate-200 hover:text-white"
+            className="inline-flex items-center gap-1 text-xs text-slate-200 hover:text-white"
           >
-            Open on YouTube ↗
+            Open on YouTube
+            <Icon name="external" size={13} />
           </a>
           {backupVideo && (
             <button
@@ -239,7 +241,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
             <p className="mt-1 text-xs text-slate-400">
               {watchPercent > 0
                 ? `${watchPercent}% watched, press play to keep tracking your progress`
-                : "Press ▶ play to start tracking your progress"}
+                : "Press play to start tracking your progress"}
             </p>
           </div>
         )}
@@ -255,15 +257,19 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
               type="button"
               disabled={!fallbackUnlocked}
               onClick={markWatched}
-              className="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 disabled:bg-slate-600"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40 disabled:bg-slate-600"
             >
-              ✓ I watched it
+              <Icon name="check" size={14} />
+              I watched it
             </button>
           </div>
         )}
 
         {watched && (
-          <p className="mt-2 text-xs text-emerald-400">✓ Video marked as watched</p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-400">
+            <Icon name="check" size={14} />
+            Video marked as watched
+          </p>
         )}
       </div>
     </div>
