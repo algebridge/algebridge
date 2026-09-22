@@ -3,6 +3,7 @@ import {
   fillToCount,
   hashString,
   mcChoices,
+  withUniqueChoices,
   PROBLEMS_PER_SKILL,
   randInt,
   uniqueByPrompt,
@@ -1620,10 +1621,8 @@ export function generateProblemBank(
 ): PracticeProblem[] {
   return withSeededGeneration((hashString(skillId) ^ seed) >>> 0, () => {
     const generator = generators[skillId];
-    if (generator) {
-      return generator(seedProblems);
-    }
-    return genericNumericGenerator(skillId, seedProblems);
+    const bank = generator ? generator(seedProblems) : genericNumericGenerator(skillId, seedProblems);
+    return bank.map(withUniqueChoices);
   });
 }
 

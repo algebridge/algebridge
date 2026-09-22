@@ -1,6 +1,7 @@
 import { getOrnament, getUnplacedOrnamentIds } from "@/data/ornament-catalog";
 import { clampToYard } from "@/lib/dollhouse";
 import {
+  canHang,
   getBestOwnedFurniture,
   getFurnitureItem,
   getHouseStyle,
@@ -16,7 +17,7 @@ import { units } from "@/data/curriculum";
 import { getSwatch, USABLE } from "@/data/furniture-art";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, touchActivity } from "@/lib/progress";
-import type { HouseFloor, PlacedFurnitureEntry, UserProgress } from "@/types";
+import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
   | { ok: true; message: string }
@@ -223,9 +224,32 @@ export function floorOf(entry: PlacedFurnitureEntry): HouseFloor {
   return entry.floor === "up" ? "up" : "down";
 }
 
-export function placeFurnitureAt(itemId: string, x: number, y: number, floor: HouseFloor = "down"): PurchaseResult {
+/** The surface a placed piece is on; older saves have none and are on the floor. */
+export function surfaceOf(entry: PlacedFurnitureEntry): HouseSurface {
+  return entry.surface === "wall" ? "wall" : "floor";
+}
+
+/** A wall piece's position is clamped a little differently: it may reach the edges of the wall. */
+function clampPlacement(x: number, y: number, surface: HouseSurface): { x: number; y: number } {
+  if (surface === "wall") return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  return { x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(92, y)) };
+}
+
+function describePlace(name: string, floor: HouseFloor, surface: HouseSurface): string {
+  if (surface === "wall") return `${name} is on the wall ${floor === "up" ? "upstairs" : "downstairs"}.`;
+  return floor === "up" ? `${name} placed upstairs.` : `${name} placed!`;
+}
+
+export function placeFurnitureAt(
+  itemId: string,
+  x: number,
+  y: number,
+  floor: HouseFloor = "down",
+  surface: HouseSurface = "floor"
+): PurchaseResult {
   const item = getFurnitureItem(itemId);
   if (!item) return { ok: false, message: "That furniture item doesn't exist." };
+  if (surface === "wall" && !canHang(itemId)) return { ok: false, message: `The ${item.name} stands on the floor. Click a floor to put it down.` };
 
   const progress = getProgress();
   ensureBridgeyFields(progress);
@@ -238,33 +262,46 @@ export function placeFurnitureAt(itemId: string, x: number, y: number, floor: Ho
     return { ok: false, message: "That item is already placed. Click it in the room to pick it up first." };
   }
 
-  const clampedX = Math.max(5, Math.min(95, x));
-  const clampedY = Math.max(10, Math.min(92, y));
-
+  const at = clampPlacement(x, y, surface);
   progress.placedFurnitureItems!.push({
     instanceId: `${itemId}-${Date.now()}`,
     itemId,
-    x: clampedX,
-    y: clampedY,
+    x: at.x,
+    y: at.y,
     floor,
+    surface,
   });
   saveProgress(progress);
-  return { ok: true, message: floor === "up" ? `${item.name} placed upstairs.` : `${item.name} placed!` };
+  return { ok: true, message: describePlace(item.name, floor, surface) };
 }
 
-/** Slides a placed piece to a new spot, on the same floor or the other one. */
-export function moveFurniture(instanceId: string, x: number, y: number, floor?: HouseFloor): PurchaseResult {
+/** Slides a placed piece to a new spot: the same floor or the other, the floor or the wall. */
+export function moveFurniture(instanceId: string, x: number, y: number, floor?: HouseFloor, surface?: HouseSurface): PurchaseResult {
   const progress = getProgress();
   ensureBridgeyFields(progress);
   const entry = progress.placedFurnitureItems!.find((p) => p.instanceId === instanceId);
   if (!entry) return { ok: false, message: "That piece is not in the house." };
   const item = getFurnitureItem(entry.itemId);
   const to = floor ?? floorOf(entry);
-  const moved: PlacedFurnitureEntry = { ...entry, x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(92, y)), floor: to };
+  const onto = surface ?? surfaceOf(entry);
+  if (onto === "wall" && !canHang(entry.itemId)) return { ok: false, message: `The ${item?.name ?? "piece"} stands on the floor.` };
+  const at = clampPlacement(x, y, onto);
+  const moved: PlacedFurnitureEntry = { ...entry, x: at.x, y: at.y, floor: to, surface: onto };
   progress.placedFurnitureItems = progress.placedFurnitureItems!.map((p) => (p.instanceId === instanceId ? moved : p));
   saveProgress(progress);
-  const changedFloor = to !== floorOf(entry);
-  return { ok: true, message: changedFloor ? `${item?.name ?? "It"} is ${to === "up" ? "upstairs" : "downstairs"} now.` : `${item?.name ?? "It"} moved.` };
+  const name = item?.name ?? "It";
+  if (onto !== surfaceOf(entry)) return { ok: true, message: onto === "wall" ? `${name} is on the wall.` : `${name} is on the floor.` };
+  if (to !== floorOf(entry)) return { ok: true, message: `${name} is ${to === "up" ? "upstairs" : "downstairs"} now.` };
+  return { ok: true, message: `${name} moved.` };
+}
+
+/** Hangs a placed piece on the wall of its floor, or sets it back down. */
+export function moveFurnitureToSurface(instanceId: string, surface: HouseSurface): PurchaseResult {
+  const progress = getProgress();
+  const entry = (progress.placedFurnitureItems ?? []).find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That piece is not in the house." };
+  // The middle of the wall, or the middle of the floor: a fresh spot either way.
+  return moveFurniture(instanceId, entry.x, 50, floorOf(entry), surface);
 }
 
 /** Sends a placed piece to the other floor, keeping its spot in the room. */

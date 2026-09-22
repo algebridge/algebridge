@@ -99,7 +99,7 @@ export function Header() {
               className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition duration-150 ease-out hover:scale-105 hover:bg-amber-100"
             >
               <BridgeysLogo size={16} />
-              {profile?.unlimitedBridgeys ? "Unlimited" : stats.bridgeys.toLocaleString()}
+              {profile?.unlimitedBridgeys || profile?.isAdmin ? "Unlimited" : stats.bridgeys.toLocaleString()}
             </Link>
           </div>
         )}
@@ -241,7 +241,7 @@ export function Header() {
           </div>
           <span className="flex shrink-0 items-center gap-1 font-semibold text-amber-700">
             <BridgeysLogo size={14} />
-            {profile?.unlimitedBridgeys ? "Unlimited" : stats.bridgeys.toLocaleString()}
+            {profile?.unlimitedBridgeys || profile?.isAdmin ? "Unlimited" : stats.bridgeys.toLocaleString()}
           </span>
           {stats.streak > 0 && (
             <span className="flex shrink-0 items-center gap-0.5 font-semibold text-orange-600">

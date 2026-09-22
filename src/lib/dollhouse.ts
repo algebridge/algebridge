@@ -17,7 +17,7 @@
  * existed before this still comes back exactly as it was left.
  */
 
-import type { HouseFloor } from "@/types";
+import type { HouseFloor, HouseSurface } from "@/types";
 
 export const SCENE_W = 1200;
 export const SCENE_H = 800;
@@ -191,6 +191,57 @@ export function roomPoint(sx: number, sy: number, floor: HouseFloor = "down"): {
   const centre = (ROOM.left + ROOM.right) / 2;
   const xPct = ((sx - centre) / (width * (0.9 + 0.2 * t)) + 0.5) * 100;
   return { x: clamp(xPct, 0, 100), y: t * 100 };
+}
+
+/**
+ * The wall above each floor's band, where a picture or a shelf can hang.
+ * `top` leaves the ceiling line clear; a hung piece's bottom edge sits
+ * between `hang` (headroom for the tallest pieces) and `bottom`.
+ */
+export function wallBand(floor: HouseFloor): { top: number; hang: number; bottom: number } {
+  const b = FLOORS[floor];
+  return { top: b.ceiling + 6, hang: b.ceiling + 86, bottom: b.floorTop - 4 };
+}
+
+/** Stored wall percentages → where the piece's bottom edge is drawn. */
+export function wallSpot(xPct: number, yPct: number, floor: HouseFloor): Spot {
+  const w = wallBand(floor);
+  const width = ROOM.right - ROOM.left;
+  return {
+    x: ROOM.left + 36 + clamp01(xPct / 100) * (width - 72),
+    y: w.hang + clamp01(yPct / 100) * (w.bottom - w.hang),
+    // Nothing on a wall is nearer or further, so one size, a touch larger
+    // than a floor piece at the back of the room.
+    scale: 1.05,
+    depth: 0,
+  };
+}
+
+/** A point on a wall → the percentages to store. */
+export function wallPoint(sx: number, sy: number, floor: HouseFloor): { x: number; y: number } {
+  const w = wallBand(floor);
+  const width = ROOM.right - ROOM.left;
+  return {
+    x: clamp(((sx - ROOM.left - 36) / (width - 72)) * 100, 0, 100),
+    y: clamp(((sy - w.hang) / (w.bottom - w.hang)) * 100, 0, 100),
+  };
+}
+
+/** What a click inside the house landed on: a floor, the wall above one, or nothing. */
+export function surfaceAt(sx: number, sy: number): { floor: HouseFloor; surface: HouseSurface } | null {
+  const floor = floorAt(sx, sy);
+  if (floor) return { floor, surface: "floor" };
+  if (sx < ROOM.left || sx > ROOM.right) return null;
+  for (const f of ["up", "down"] as const) {
+    const w = wallBand(f);
+    if (sy >= w.top && sy < FLOORS[f].floorTop - 10) return { floor: f, surface: "wall" };
+  }
+  return null;
+}
+
+/** Where a placed piece is drawn, whichever surface it is on. */
+export function placedSpot(xPct: number, yPct: number, floor: HouseFloor, surface: HouseSurface): Spot {
+  return surface === "wall" ? wallSpot(xPct, yPct, floor) : roomSpot(xPct, yPct, floor);
 }
 
 /** Which floor a click landed on, or null for a wall, the roof or outside. */

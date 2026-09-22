@@ -177,6 +177,23 @@ export const FURNITURE_ITEMS: FurnitureItem[] = [
   { id: "prize-zigzag", name: "Piecewise Neon", price: 0, earnedBy: "absolute-value-piecewise", slot: "back-center", prestige: 180, rarity: "legendary", displayWidth: 90, blurb: "A different rule on every stretch." },
 ];
 
+/**
+ * Pieces that go on a wall as well as the floor: pictures, shelves, lights,
+ * anything with a hook. Kept as a list rather than a flag on each row so the
+ * set is easy to read in one place.
+ */
+export const WALL_MOUNTED = new Set([
+  "poster", "clock", "whiteboard", "wall-shelf", "string-lights", "pinboard", "hoop", "neon-sign", "vinyl-wall",
+  "bike", "projector", "window-plant", "chandelier", "disco-ball",
+  "prize-graph", "prize-neon-line", "prize-zigzag", "prize-vine",
+]);
+for (const item of FURNITURE_ITEMS) if (WALL_MOUNTED.has(item.id)) item.mount = "wall";
+
+/** Can this piece hang on a wall? */
+export function canHang(itemId: string): boolean {
+  return WALL_MOUNTED.has(itemId);
+}
+
 /** The furniture a student can buy. Unit prizes are earned instead. */
 export const SHOP_ITEMS: FurnitureItem[] = FURNITURE_ITEMS.filter((i) => !i.earnedBy);
 

@@ -11,13 +11,14 @@ import { Veronica } from "@/components/house/Veronica";
 import { getRinkItem } from "@/data/rink-catalog";
 import { primaryHex, SWATCHES, swatchHex, USABLE } from "@/data/furniture-art";
 import { RINK, RINK_SLOTS } from "@/lib/rink";
-import { getFurnitureItem, getHouseStyle, getUnplacedFurnitureIds } from "@/data/house-catalog";
+import { canHang, getFurnitureItem, getHouseStyle, getUnplacedFurnitureIds } from "@/data/house-catalog";
 import { ORNAMENTS, getOrnament, getUnplacedOrnamentIds, ornamentImage } from "@/data/ornament-catalog";
 import {
   clearRinkSlot,
   floorOf,
   moveFurniture,
   moveFurnitureToFloor,
+  moveFurnitureToSurface,
   placeFurnitureAt,
   placeOrnamentAt,
   placeRinkItem,
@@ -25,6 +26,7 @@ import {
   removePlacedOrnament,
   setHouseNight,
   setItemColor,
+  surfaceOf,
   toggleFurniture,
   unplacedRinkItems,
 } from "@/lib/bridgeys";
@@ -40,13 +42,15 @@ import {
   onYard,
   pctX,
   pctY,
+  placedSpot,
   roomPoint,
-  roomSpot,
+  surfaceAt,
+  wallPoint,
   yardPoint,
   yardSpot,
 } from "@/lib/dollhouse";
 import { showToast } from "@/lib/notify";
-import type { HouseFloor, PlacedFurnitureEntry, UserProgress } from "@/types";
+import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 interface DollhouseProps {
   progress: UserProgress;
@@ -64,6 +68,16 @@ interface Dragging {
   x: number;
   y: number;
   floor: HouseFloor;
+  surface: HouseSurface;
+}
+
+/** Where a point inside the house would put a piece: a floor, or a wall if the piece can hang. */
+function placementFor(itemId: string, sx: number, sy: number): { x: number; y: number; floor: HouseFloor; surface: HouseSurface } | null {
+  const s = surfaceAt(sx, sy);
+  if (!s) return null;
+  if (s.surface === "wall" && canHang(itemId)) return { ...wallPoint(sx, sy, s.floor), floor: s.floor, surface: "wall" };
+  if (s.surface === "wall") return null;
+  return { ...roomPoint(sx, sy, s.floor), floor: s.floor, surface: "floor" };
 }
 
 /**
@@ -178,7 +192,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     if (!placing) return;
     const pt = scenePoint(e.clientX, e.clientY);
     if (!pt) return;
-    const valid = mode === "room" ? floorAt(pt.x, pt.y) !== null : onYard(pt.y);
+    const valid = mode === "room" ? placementFor(placing, pt.x, pt.y) !== null : onYard(pt.y);
     setHover(valid ? pt : null);
   }
 
@@ -192,13 +206,19 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     if (!pt) return;
 
     if (mode === "room") {
-      const floor = floorAt(pt.x, pt.y);
-      if (!floor) {
-        showToast({ icon: "x-circle", tone: "info", title: "Put it down on a floor inside the house, upstairs or down." });
+      const at = placementFor(placing, pt.x, pt.y);
+      if (!at) {
+        const onWall = surfaceAt(pt.x, pt.y)?.surface === "wall";
+        showToast({
+          icon: "x-circle",
+          tone: "info",
+          title: onWall
+            ? `The ${getFurnitureItem(placing)?.name ?? "piece"} stands on the floor. Click a floor, upstairs or down.`
+            : "Put it down on a floor inside the house, or on a wall if it hangs.",
+        });
         return;
       }
-      const at = roomPoint(pt.x, pt.y, floor);
-      const res = placeFurnitureAt(placing, at.x, at.y, floor);
+      const res = placeFurnitureAt(placing, at.x, at.y, at.floor, at.surface);
       showToast({ icon: res.ok ? "check" : "x-circle", tone: res.ok ? "success" : "info", title: res.message });
       if (res.ok) {
         stopPlacing();
@@ -240,9 +260,15 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     d.moved = true;
     const pt = scenePoint(e.clientX, e.clientY);
     if (!pt) return;
-    const floor = floorAt(pt.x, pt.y) ?? floorOf(entry);
-    const at = roomPoint(pt.x, pt.y, floor);
-    const next = { id: d.id, x: at.x, y: at.y, floor };
+    // Over a wall, a piece that hangs goes on it; anything else stays on the
+    // floor of whichever room the pointer is in.
+    const at =
+      placementFor(entry.itemId, pt.x, pt.y) ??
+      (() => {
+        const floor = surfaceAt(pt.x, pt.y)?.floor ?? floorAt(pt.x, pt.y) ?? floorOf(entry);
+        return { ...roomPoint(pt.x, pt.y, floor), floor, surface: "floor" as HouseSurface };
+      })();
+    const next = { id: d.id, x: at.x, y: at.y, floor: at.floor, surface: at.surface };
     dragLatest.current = next;
     setDragging(next);
     closeActions();
@@ -257,8 +283,8 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     dragLatest.current = null;
     setDragging(null);
     if (d.moved && latest) {
-      const res = moveFurniture(latest.id, latest.x, latest.y, latest.floor);
-      if (res.ok && latest.floor !== floorOf(entry)) showToast({ icon: "check", tone: "success", title: res.message });
+      const res = moveFurniture(latest.id, latest.x, latest.y, latest.floor, latest.surface);
+      if (res.ok && (latest.floor !== floorOf(entry) || latest.surface !== surfaceOf(entry))) showToast({ icon: "check", tone: "success", title: res.message });
       if (res.ok) onUpdate();
       return;
     }
@@ -291,8 +317,9 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         .map((entry) => {
           const live = dragging && dragging.id === entry.instanceId ? dragging : null;
           const floor = live ? live.floor : floorOf(entry);
-          const at = live ? roomSpot(live.x, live.y, floor) : roomSpot(entry.x, entry.y, floor);
-          return { entry, at, floor, live: !!live };
+          const surface = live ? live.surface : surfaceOf(entry);
+          const at = live ? placedSpot(live.x, live.y, floor, surface) : placedSpot(entry.x, entry.y, floor, surface);
+          return { entry, at, floor, surface, live: !!live };
         })
         .sort((a, b) => a.at.depth - b.at.depth),
     [furniture, dragging]
@@ -302,11 +329,12 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
 
   const ghostOrnament = mode === "yard" && placing ? getOrnament(placing) : null;
   const ghostFurniture = mode === "room" && placing ? getFurnitureItem(placing) : null;
-  const hoverFloor = hover && mode === "room" ? floorAt(hover.x, hover.y) : null;
+  const hoverPlace = hover && mode === "room" && placing ? placementFor(placing, hover.x, hover.y) : null;
+  const hoverFloor = hoverPlace?.floor ?? null;
   const ghostAt = hover
     ? mode === "room"
-      ? hoverFloor
-        ? roomSpot(roomPoint(hover.x, hover.y, hoverFloor).x, roomPoint(hover.x, hover.y, hoverFloor).y, hoverFloor)
+      ? hoverPlace
+        ? placedSpot(hoverPlace.x, hoverPlace.y, hoverPlace.floor, hoverPlace.surface)
         : null
       : yardSpot(clampToYard(yardPoint(hover.x, hover.y)))
     : null;
@@ -321,8 +349,12 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
       : placing
         ? mode === "room"
           ? hoverFloor
-            ? `Click to put it down ${FLOOR_LABEL[hoverFloor]}`
-            : "Click a floor to put it down"
+            ? hoverPlace?.surface === "wall"
+              ? `Click to hang it on the wall ${FLOOR_LABEL[hoverFloor]}`
+              : `Click to put it down ${FLOOR_LABEL[hoverFloor]}`
+            : placing && canHang(placing)
+              ? "Click a floor or a wall"
+              : "Click a floor to put it down"
           : "Click the lawn to place it"
         : open
           ? furniture.length
@@ -459,12 +491,13 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         {/* ── Inside ─────────────────────────────────────────────── */}
         {view === "front" &&
           open &&
-          drawnFurniture.map(({ entry, at, live }) => {
+          drawnFurniture.map(({ entry, at, surface, live }) => {
             const item = getFurnitureItem(entry.itemId);
             if (!item) return null;
             const w = (item.displayWidth ?? 110) * 0.92 * at.scale;
             const lit = USABLE.has(entry.itemId) && !entry.off;
             const isSelected = selected === entry.instanceId;
+            const onWall = surface === "wall";
             return (
               <button
                 key={entry.instanceId}
@@ -488,7 +521,8 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                   top: pctY(at.y),
                   width: pctX(w),
                   aspectRatio: "1 / 1",
-                  zIndex: live ? 800 : 200 + Math.round(at.depth * 100),
+                  // Wall pieces hang behind whatever stands on the floor.
+                  zIndex: live ? 800 : onWall ? 150 : 200 + Math.round(at.depth * 100),
                 }}
               >
                 <CartoonFurnitureArt
@@ -496,7 +530,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                   fill
                   color={colors[entry.itemId]}
                   off={!!entry.off}
-                  className="drop-shadow-[0_5px_6px_rgba(0,0,0,0.35)]"
+                  className={onWall ? "drop-shadow-[0_3px_3px_rgba(0,0,0,0.3)]" : "drop-shadow-[0_5px_6px_rgba(0,0,0,0.35)]"}
                 />
               </button>
             );
@@ -507,6 +541,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
           <PieceActions
             piece={selectedPiece.entry}
             floor={selectedPiece.floor}
+            surface={selectedPiece.surface}
             at={{ x: selectedPiece.at.x, top: selectedPiece.at.y - (getFurnitureItem(selectedPiece.entry.itemId)?.displayWidth ?? 110) * 0.92 * selectedPiece.at.scale }}
             color={colors[selectedPiece.entry.itemId] ?? null}
             showColors={showColors}
@@ -514,6 +549,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
             onColor={(swatch) => act(() => setItemColor(selectedPiece.entry.itemId, swatch))}
             onToggle={() => act(() => toggleFurniture(selectedPiece.entry.instanceId))}
             onFloor={(floor) => act(() => moveFurnitureToFloor(selectedPiece.entry.instanceId, floor))}
+            onSurface={(surface) => act(() => moveFurnitureToSurface(selectedPiece.entry.instanceId, surface))}
             onPickUp={() => {
               const name = getFurnitureItem(selectedPiece.entry.itemId)?.name ?? "It";
               removePlacedFurniture(selectedPiece.entry.instanceId);
@@ -674,7 +710,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
           <p className="mt-2 text-sm text-slate-600">
             {ornaments.length + furniture.length === 0
               ? `Furniture and ${ORNAMENTS.length} garden ornaments are in the Shop. Two floors to fill.`
-              : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, send it up the stairs, or pick it up.`}
+              : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs, ${furniture.filter((f) => surfaceOf(f) === "wall").length} on the walls), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, hang it, send it up the stairs, or pick it up.`}
           </p>
         )}
         {mode === "off" && view === "back" && (
@@ -703,10 +739,11 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
   );
 }
 
-/** The little bar over a tapped piece: paint it, switch it, move floors, pick it up. */
+/** The little bar over a tapped piece: paint it, switch it, hang it, move floors, pick it up. */
 function PieceActions({
   piece,
   floor,
+  surface,
   at,
   color,
   showColors,
@@ -714,11 +751,13 @@ function PieceActions({
   onColor,
   onToggle,
   onFloor,
+  onSurface,
   onPickUp,
   onClose,
 }: {
   piece: PlacedFurnitureEntry;
   floor: HouseFloor;
+  surface: HouseSurface;
   at: { x: number; top: number };
   color: string | null;
   showColors: boolean;
@@ -726,12 +765,14 @@ function PieceActions({
   onColor: (swatch: string | null) => void;
   onToggle: () => void;
   onFloor: (floor: HouseFloor) => void;
+  onSurface: (surface: HouseSurface) => void;
   onPickUp: () => void;
   onClose: () => void;
 }) {
   const item = getFurnitureItem(piece.itemId);
   if (!item) return null;
   const usable = USABLE.has(piece.itemId);
+  const hangs = canHang(piece.itemId);
   const other: HouseFloor = floor === "up" ? "down" : "up";
   // Kept inside the stage: the bar is centred on the piece unless that would
   // push it off an edge.
@@ -756,6 +797,13 @@ function PieceActions({
             <ActionButton label={piece.off ? "Turn on" : "Turn off"} onClick={onToggle}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                 <path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0" />
+              </svg>
+            </ActionButton>
+          )}
+          {hangs && (
+            <ActionButton label={surface === "wall" ? "To the floor" : "On the wall"} onClick={() => onSurface(surface === "wall" ? "floor" : "wall")}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                {surface === "wall" ? <path d="M4 20h16M6 20V9l6-5 6 5v11" /> : <path d="M4 4h16v12H4zM9 20h6M12 16v4" />}
               </svg>
             </ActionButton>
           )}
@@ -892,7 +940,7 @@ function Tray({
           ? `Ornaments stand on the lawn within ${PAD_LIMIT} m of the house.`
           : kind === "rink"
             ? "Pick a piece, then click one of the spots that light up around the rink."
-            : "Pick a piece, then click a floor, upstairs or down. Nearer the front means larger."}
+            : "Pick a piece, then click a floor, upstairs or down. Pictures, shelves and lights can go on a wall too. Nearer the front means larger."}
       </p>
     </>
   );

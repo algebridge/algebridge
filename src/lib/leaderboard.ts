@@ -51,36 +51,47 @@ export async function syncLeaderboardStats(
   );
 }
 
-export async function fetchNationwideLeaderboard(
-  sort: LeaderboardSort = "lessons"
-): Promise<{ entries: LeaderboardEntry[]; error: string | null }> {
+const SORT_COLUMN: Record<LeaderboardSort, "bridgeys" | "best_furniture_value" | "completed_skills"> = {
+  bridgeys: "bridgeys",
+  prestige: "best_furniture_value",
+  lessons: "completed_skills",
+};
+
+export interface LeaderboardResult {
+  entries: LeaderboardEntry[];
+  /** How many students are on the board in all, beyond the rows returned. */
+  total: number;
+  error: string | null;
+}
+
+export async function fetchNationwideLeaderboard(sort: LeaderboardSort = "bridgeys"): Promise<LeaderboardResult> {
   if (!isSupabaseConfigured()) {
-    return { entries: [], error: "Cloud leaderboard requires sign-in. Progress is saved locally." };
+    return { entries: [], total: 0, error: "Cloud leaderboard requires sign-in. Progress is saved locally." };
   }
 
   const supabase = createClient();
   if (!supabase) {
-    return { entries: [], error: "Could not connect to leaderboard." };
+    return { entries: [], total: 0, error: "Could not connect to leaderboard." };
   }
 
-  const sortColumn =
-    sort === "bridgeys"
-      ? "bridgeys"
-      : sort === "prestige"
-        ? "best_furniture_value"
-        : "completed_skills";
+  const sortColumn = SORT_COLUMN[sort];
 
-  const { data, error } = await supabase
+  // Ties break on the other two measures, then on who got there first, so
+  // two students never share a rank by accident of row order.
+  const { data, error, count } = await supabase
     .from(LEADERBOARD_TABLE)
     .select(
-      "user_id, display_name, bridgeys, completed_skills, best_furniture_value, best_furniture_name, equipped_title"
+      "user_id, display_name, bridgeys, completed_skills, best_furniture_value, best_furniture_name, equipped_title",
+      { count: "exact" }
     )
     .eq("leaderboard_opt_in", true)
     .order(sortColumn, { ascending: false })
+    .order(sortColumn === "completed_skills" ? "bridgeys" : "completed_skills", { ascending: false })
+    .order("updated_at", { ascending: true })
     .limit(100);
 
   if (error) {
-    return { entries: [], error: "Leaderboard table not set up yet. Ask your teacher to run the latest database schema." };
+    return { entries: [], total: 0, error: "Leaderboard table not set up yet. Ask your teacher to run the latest database schema." };
   }
 
   const entries: LeaderboardEntry[] = (data ?? []).map((row, i) => ({
@@ -94,5 +105,33 @@ export async function fetchNationwideLeaderboard(
     rank: i + 1,
   }));
 
-  return { entries, error: null };
+  return { entries, total: count ?? entries.length, error: null };
+}
+
+/**
+ * Where one student stands on the board, whether or not they are in the rows
+ * shown: one more than the number of students ahead of them. Null when they
+ * are not on the board (opted out, or never synced).
+ */
+export async function fetchMyStanding(
+  sort: LeaderboardSort,
+  userId: string
+): Promise<{ rank: number; value: number } | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = createClient();
+  if (!supabase) return null;
+  const col = SORT_COLUMN[sort];
+  const { data: me } = await supabase
+    .from(LEADERBOARD_TABLE)
+    .select("bridgeys, completed_skills, best_furniture_value, leaderboard_opt_in")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!me || !me.leaderboard_opt_in) return null;
+  const value = Number(me[col] ?? 0);
+  const { count } = await supabase
+    .from(LEADERBOARD_TABLE)
+    .select("user_id", { count: "exact", head: true })
+    .eq("leaderboard_opt_in", true)
+    .gt(col, value);
+  return { rank: (count ?? 0) + 1, value };
 }

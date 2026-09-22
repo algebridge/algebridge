@@ -1,5 +1,5 @@
 import type { PracticeProblem } from "@/types";
-import { shuffleArray } from "@/lib/problem-utils";
+import { shuffleArray, withUniqueChoices } from "@/lib/problem-utils";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { problemAllowsCalculator } from "@/lib/calculator-access";
 
@@ -53,8 +53,10 @@ export function getFreshProblemsForSkill(
   seed = Math.floor(Math.random() * 0xffffffff)
 ): PracticeProblem[] {
   const bank = generateProblemBank(skillId, seedProblems, seed);
-  if (bank.length === 0) return shuffleArray(getProblemBank(skillId, seedProblems));
-  return shuffleArray(bank);
+  // Every card that reaches a student has its choices made unique, whichever
+  // bank it came from.
+  if (bank.length === 0) return shuffleArray(getProblemBank(skillId, seedProblems)).map(withUniqueChoices);
+  return shuffleArray(bank).map(withUniqueChoices);
 }
 
 export function getProblemBankSize(skillId: string): number {
