@@ -25,6 +25,7 @@ import { setCalculatorAccess } from "@/lib/calculator-access";
 import { answerIsRight } from "@/lib/grading";
 import { HUES, hueVars, topicHue } from "@/lib/hues";
 import { PromptText } from "@/components/PromptText";
+import { Scratchpad } from "@/components/Scratchpad";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
 import {
@@ -736,19 +737,23 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             Problem {(problemIndex % allProblems.length) + 1}
             {scene?.topic && <span className="hue-wash rounded-full px-2 py-0.5 font-semibold normal-case tracking-normal">{scene.topic}</span>}
           </p>
-          {speechSupported && !pending && (
-            <button
-              type="button"
-              onClick={() => (speaking ? stopSpeech() : speak(displayPrompt))}
-              title={speaking ? "Stop reading aloud" : "Read the problem aloud"}
-              aria-label={speaking ? "Stop reading the problem aloud" : "Read the problem aloud"}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 ${
-                speaking ? "animate-pulse text-bridge-600" : "text-slate-400 hover:text-slate-600"
-              }`}
-            >
-              <Icon name="speaker" size={19} />
-            </button>
-          )}
+          <div className="flex shrink-0 items-center">
+            {/* Working out, on the screen: marks clear with the next problem. */}
+            {!pending && <Scratchpad compact resetKey={`${skill.id}:${problem.id}:${problemIndex}`} />}
+            {speechSupported && !pending && (
+              <button
+                type="button"
+                onClick={() => (speaking ? stopSpeech() : speak(displayPrompt))}
+                title={speaking ? "Stop reading aloud" : "Read the problem aloud"}
+                aria-label={speaking ? "Stop reading the problem aloud" : "Read the problem aloud"}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 ${
+                  speaking ? "animate-pulse text-bridge-600" : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <Icon name="speaker" size={19} />
+              </button>
+            )}
+          </div>
         </div>
 
         {pending ? (

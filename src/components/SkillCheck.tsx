@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PracticeProblem, Skill } from "@/types";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { PromptText } from "@/components/PromptText";
+import { Scratchpad } from "@/components/Scratchpad";
 import { Icon } from "@/components/Icon";
 import { answerIsRight } from "@/lib/grading";
 import { CHECK_LENGTH, today } from "@/lib/path";
@@ -114,10 +115,11 @@ export function SkillCheck({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <p className="eyebrow">
           Question {index + 1} of {problems.length}
         </p>
+        <Scratchpad resetKey={`${skill.id}:${problem.id}:${index}`} />
         <span className="flex gap-1" aria-hidden>
           {problems.map((_, i) => (
             <span

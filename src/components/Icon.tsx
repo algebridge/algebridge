@@ -42,7 +42,9 @@ export type IconName =
   | "hint"
   | "external"
   | "spark"
-  | "x-circle";
+  | "x-circle"
+  | "pen"
+  | "eraser";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -215,6 +217,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   spark: <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9Z" />,
+  pen: (
+    <>
+      <path d="M4 20l4.5-1.2L19 8.3a2 2 0 0 0 0-2.8l-.5-.5a2 2 0 0 0-2.8 0L5.2 15.5Z" />
+      <path d="M13.5 7.3l3.2 3.2" />
+    </>
+  ),
+  eraser: (
+    <>
+      <path d="M7 20h11" />
+      <path d="M5.5 15.5 14 7a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12.5 18.5H9L5.5 15.5Z" />
+      <path d="M10 11l5 5" />
+    </>
+  ),
   "x-circle": (
     <>
       <circle cx="12" cy="12" r="8.5" />
