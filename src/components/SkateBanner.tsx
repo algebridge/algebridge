@@ -55,11 +55,14 @@ export function SkateBanner() {
         <div className="relative w-36 shrink-0 sm:w-56" aria-hidden>
           <svg viewBox="0 0 220 140" className="w-full">
             <ellipse cx="110" cy="112" rx="104" ry="26" fill="#0f172a" opacity="0.25" />
-            <ellipse cx="110" cy="104" rx="104" ry="26" fill="#e2e8f0" />
-            <ellipse cx="110" cy="100" rx="96" ry="22" fill="#93c5fd" />
-            <ellipse cx="110" cy="100" rx="88" ry="18" fill="#bfdbfe" />
-            <ellipse cx="110" cy="100" rx="52" ry="10" fill="none" stroke="#93c5fd" strokeWidth="3" />
-            <path d="M40 96 Q110 78 180 96 Q110 86 40 96Z" fill="#ffffff" opacity="0.5" />
+            <ellipse cx="110" cy="104" rx="104" ry="26" fill="#cbd5e1" />
+            <ellipse cx="110" cy="101" rx="104" ry="26" fill="#dc2626" />
+            <ellipse cx="110" cy="101" rx="99" ry="23" fill="#f1f5f9" />
+            <ellipse cx="110" cy="100" rx="94" ry="20" fill="#dbe7f3" />
+            <ellipse cx="110" cy="99" rx="90" ry="17" fill="#f4f8fc" />
+            <ellipse cx="110" cy="100" rx="34" ry="7" fill="none" stroke="#3b82f6" strokeWidth="2.5" opacity="0.7" />
+            <rect x="109" y="84" width="2" height="32" fill="#dc2626" opacity="0.5" />
+            <path d="M40 96 Q110 78 180 96 Q110 86 40 96Z" fill="#ffffff" opacity="0.6" />
             {/* Motion, the way a skate leaves a line. */}
             <path d="M24 92 q18 -6 40 2" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
             <path d="M30 100 q14 -4 30 1" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
