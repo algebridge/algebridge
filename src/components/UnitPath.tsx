@@ -7,6 +7,8 @@ import { Icon } from "@/components/Icon";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { useProgress } from "@/hooks/useProgress";
 import { getSimpleStatus, getSkillProgress } from "@/lib/progress";
+import { bridgeysForSkill } from "@/lib/gamification";
+import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 
 /**
  * A unit's skills as a path: a rail down the left with a node per skill,
@@ -76,6 +78,17 @@ export function UnitPath({ unit }: { unit: Unit }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className={`font-semibold ${locked ? "text-slate-600" : "text-slate-900"}`}>{skill.title}</h3>
+                  {/* What finishing it pays, so the trade is visible before the work. */}
+                  <span
+                    className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                      done ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+                    }`}
+                    title={done ? "Bridgeys earned" : "Bridgeys for finishing this skill"}
+                  >
+                    <BridgeysLogo size={13} />
+                    {done ? "" : "+"}
+                    {bridgeysForSkill(skill.id)}
+                  </span>
                   {ready ? (
                     done ? (
                       <span className="badge-success">Complete</span>

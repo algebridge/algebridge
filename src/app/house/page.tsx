@@ -7,11 +7,14 @@ import { HouseRoom } from "@/components/HouseRoom";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
+import { units } from "@/data/curriculum";
+import { hueVars, unitHue } from "@/lib/hues";
 import { HouseThumb } from "@/components/house/HouseThumb";
 import {
-  FURNITURE_ITEMS,
   HOUSE_STYLES,
   getFurnitureItem,
+  SHOP_ITEMS,
+  UNIT_PRIZES,
 } from "@/data/house-catalog";
 import { DISPLAY_TITLES } from "@/data/titles-catalog";
 import { ORNAMENTS, ornamentImage } from "@/data/ornament-catalog";
@@ -77,9 +80,11 @@ export default function HousePage() {
       (sum, id) => sum + (getFurnitureItem(id)?.prestige ?? 0),
       0
     );
+    const shopIds = new Set(SHOP_ITEMS.map((i) => i.id));
     return {
-      owned: progress.ownedFurniture.length,
-      total: FURNITURE_ITEMS.length,
+      owned: progress.ownedFurniture.filter((id) => shopIds.has(id)).length,
+      total: SHOP_ITEMS.length,
+      prizes: progress.ownedFurniture.filter((id) => !shopIds.has(id)).length,
       placed: placed.length,
       prestige,
       houses: progress.ownedHouseStyles.length,
@@ -180,9 +185,11 @@ export default function HousePage() {
             <NextStepCard
               title="Decorate it"
               body={
-                stats.owned === 0
-                  ? "You have no furniture yet. Everything in the shop is bought with Bridgeys you already earned."
-                  : `You own ${stats.owned} ${stats.owned === 1 ? "piece" : "pieces"} and have placed ${stats.placed}. Open the house to move things around.`
+                stats.owned + stats.prizes === 0
+                  ? "Your first pieces are in the shop, bought with Bridgeys you earn from skills. Finishing a whole unit earns its prize."
+                  : `You own ${stats.owned + stats.prizes} ${stats.owned + stats.prizes === 1 ? "piece" : "pieces"}${
+                      stats.prizes ? ` (${stats.prizes} ${stats.prizes === 1 ? "unit prize" : "unit prizes"})` : ""
+                    } and have placed ${stats.placed}. Open the house to move things around.`
               }
               action={
                 <button type="button" onClick={() => setTab("shop")} className="btn-primary btn-sm">
@@ -273,6 +280,52 @@ export default function HousePage() {
             </div>
           </section>
 
+          {/* ── Unit prizes: earned, never sold ────────────────────── */}
+          <section>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="section-title">Unit prizes</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  One piece for each unit you finish, made for that unit. These are earned, so the shop keeps its hands off them.
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 tabular-nums">
+                {stats.prizes} of {UNIT_PRIZES.length} earned
+              </p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {UNIT_PRIZES.map((item) => {
+                const unit = units.find((u) => u.id === item.earnedBy);
+                const earned = progress.ownedFurniture.includes(item.id);
+                const hue = unit ? unitHue(unit.id) : null;
+                return (
+                  <article key={item.id} style={hue ? hueVars(hue) : undefined} className="card flex flex-col overflow-hidden p-0">
+                    <div className={`hue-tint flex h-28 items-center justify-center border-b ${earned ? "" : "grayscale opacity-60"}`}>
+                      <CartoonFurnitureArt itemId={item.id} size={84} variant="room" />
+                    </div>
+                    <div className="flex flex-1 flex-col p-3.5">
+                      <p className="hue-ink text-[11px] font-semibold uppercase tracking-[0.08em]">
+                        Unit {unit?.number}
+                      </p>
+                      <h3 className="mt-0.5 text-sm font-semibold text-slate-900">{item.name}</h3>
+                      <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{item.blurb}</p>
+                      <div className="mt-3 flex flex-1 items-end justify-between gap-2">
+                        <p className="text-xs text-slate-500 tabular-nums">{item.prestige} prestige</p>
+                        {earned ? (
+                          <span className="badge-success">Earned</span>
+                        ) : (
+                          <Link href={`/unit/${item.earnedBy}`} className="btn-secondary btn-sm" title={unit?.title}>
+                            Finish Unit {unit?.number}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
           {/* ── Furniture, grouped by tier ─────────────────────────── */}
           <section>
             <div className="flex flex-wrap items-end justify-between gap-2">
@@ -289,7 +342,7 @@ export default function HousePage() {
 
             <div className="mt-4 space-y-6">
               {RARITY_TIERS.map((tier) => {
-                const items = FURNITURE_ITEMS.filter((i) => i.rarity === tier.id);
+                const items = SHOP_ITEMS.filter((i) => i.rarity === tier.id);
                 if (items.length === 0) return null;
                 return (
                   <div key={tier.id}>

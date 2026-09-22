@@ -28,9 +28,19 @@ export const XP_REWARDS = {
 
 /** Bridgeys, in-game currency earned from lessons. */
 export const BRIDGEY_REWARDS = {
-  /** Completing a full skill/lesson (once per skill). */
+  /** Completing a skill in Unit 1 (once per skill). */
   skillComplete: 10,
+  /** Each later unit pays this much more per skill, so the course pays more as it gets harder. */
+  perUnitStep: 2,
+  /** Finishing every skill in a unit, on top of its prize. */
+  unitComplete: 40,
 };
+
+/** What finishing a skill pays: 10 in Unit 1, 34 by Unit 13. */
+export function bridgeysForSkill(skillId: string): number {
+  const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
+  return BRIDGEY_REWARDS.skillComplete + BRIDGEY_REWARDS.perUnitStep * Math.max(0, (unit?.number ?? 1) - 1);
+}
 
 export interface LevelInfo {
   level: number;

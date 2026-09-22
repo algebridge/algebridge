@@ -470,6 +470,47 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("every unit has a line mark", unmarked.length === 0, unmarked.join());
 }
 
+// --- The house: catalog, art, prizes and pay ---------------------------------
+{
+  const cat = await import("../../data/house-catalog.ts");
+  const art = await import("../../data/furniture-art.ts");
+  const G = await import("../gamification.ts");
+  const B = await import("../bridgeys.ts");
+  const { normalizeProgress } = await import("../progress.ts");
+  const { DISPLAY_TITLES } = await import("../../data/titles-catalog.ts");
+  const { existsSync } = await import("node:fs");
+  const ids = cat.FURNITURE_ITEMS.map((i) => i.id);
+  ok(`furniture ids are unique (${ids.length} pieces)`, new Set(ids).size === ids.length);
+  ok("the shop has 90 pieces to buy", cat.SHOP_ITEMS.length === 90, String(cat.SHOP_ITEMS.length));
+  const noArt = ids.filter((id) => !art.furnitureSvg(id));
+  ok("every piece has art", noArt.length === 0, noArt.join());
+  const noPng = ids.filter((id) => !existsSync(new URL(`../../../public/house/furniture/${id}.png`, import.meta.url)));
+  ok("every piece has its PNG exported", noPng.length === 0, noPng.join());
+  const noStroke = ids.filter((id) => /stroke="#1e293b" stroke-width="2\.5"/.test(art.furnitureSvg(id)!));
+  ok("no piece is drawn with the old outline", noStroke.length === 0, noStroke.join());
+  ok("every unit has exactly one prize", units.every((u) => cat.UNIT_PRIZES.filter((p) => p.earnedBy === u.id).length === 1));
+  ok("prizes cost nothing and are out of the shop", cat.UNIT_PRIZES.every((p) => p.price === 0) && cat.SHOP_ITEMS.every((p) => !p.earnedBy));
+  ok("shop prices rise with rarity", (() => {
+    const max = (r: string) => Math.max(...cat.SHOP_ITEMS.filter((i) => i.rarity === r).map((i) => i.price));
+    const min = (r: string) => Math.min(...cat.SHOP_ITEMS.filter((i) => i.rarity === r).map((i) => i.price));
+    return max("common") < min("rare") && max("rare") < min("legendary");
+  })());
+  const titleIds = DISPLAY_TITLES.map((t) => t.id);
+  ok(`title ids are unique (${titleIds.length} titles)`, new Set(titleIds).size === titleIds.length && titleIds.length === 38);
+  // Pay grows with the unit.
+  ok("unit 1 skills pay 10", G.bridgeysForSkill(units[0].skills[0].id) === 10);
+  ok("unit 13 skills pay 34", G.bridgeysForSkill(units[12].skills[0].id) === 34);
+  // A prize is granted once, on the unit's completion, and backfilled for old saves.
+  const done = normalizeProgress({});
+  for (const s of units[0].skills) done.skills[s.id] = { skillId: s.id, level: "proficient", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
+  ok("finishing a unit grants its prize", B.grantUnitPrize(done, units[0].id) === "prize-ruler" && done.ownedFurniture.includes("prize-ruler"));
+  ok("and only once", B.grantUnitPrize(done, units[0].id) === null && done.ownedFurniture.filter((id) => id === "prize-ruler").length === 1);
+  const old = normalizeProgress({ skills: Object.fromEntries(units[1].skills.map((s) => [s.id, { skillId: s.id, level: "mastered", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true }])) });
+  ok("a unit finished before prizes existed gets its prize on load", old.ownedFurniture.includes("prize-scale") && !old.ownedFurniture.includes("prize-ruler"));
+  ok("a unit bonus pays once", B.tryAwardUnitCompleteBridgeys(done, units[0].id) === 40 && B.tryAwardUnitCompleteBridgeys(done, units[0].id) === 0);
+  ok("a prize cannot be bought", !B.buyFurniture("prize-ruler").ok);
+}
+
 // --- The learning path ---------------------------------------------------------
 {
   const L = await import("../path.ts");

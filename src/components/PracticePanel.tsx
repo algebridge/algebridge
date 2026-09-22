@@ -13,7 +13,8 @@ import {
 import { getFreshProblemsForSkill, skillOffersCalculator } from "@/data/problem-banks";
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
-import { REQUIRED_CORRECT } from "@/lib/gamification";
+import { BRIDGEY_REWARDS, bridgeysForSkill, REQUIRED_CORRECT } from "@/lib/gamification";
+import { getFurnitureItem } from "@/data/house-catalog";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -511,27 +512,25 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       }
       if (result.skillJustCompleted) {
         fireConfetti(result.unitJustCompleted ? "big" : "small");
+        const paid = result.unitJustCompleted ? bridgeysForSkill(skill.id) : result.bridgeysGained;
         showToast({
           icon: "check",
           tone: "success",
-          title: "Skill complete",
-          description: `${skill.title} is done, and the next skill on your path is open.`,
-        });
-      }
-      if (result.bridgeysGained > 0) {
-        showToast({
-          icon: "coin",
-          tone: "reward",
-          title: `+${result.bridgeysGained} Bridgeys`,
-          description: "Spend them in your house shop.",
+          title: `Skill complete · +${paid} Bridgeys`,
+          description: result.unitJustCompleted
+            ? `${skill.title} is done.`
+            : `${skill.title} is done, and the next skill on your path is open.`,
         });
       }
       if (result.unitJustCompleted) {
+        const prize = result.unitPrizeId ? getFurnitureItem(result.unitPrizeId) : null;
         showToast({
           icon: "trophy",
-          tone: "success",
-          title: "Unit complete",
-          description: "Every skill in this unit is done.",
+          tone: "reward",
+          title: `Unit complete · +${BRIDGEY_REWARDS.unitComplete} Bridgeys`,
+          description: prize
+            ? `The ${prize.name} is yours. Place it in your house.`
+            : "Every skill in this unit is done.",
         });
       }
       for (const badge of result.newBadges) {

@@ -9,7 +9,9 @@ import {
   STARTER_HOUSE_ID,
 } from "@/data/house-catalog";
 import { getDisplayTitle } from "@/data/titles-catalog";
-import { BRIDGEY_REWARDS } from "@/lib/gamification";
+import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
+import { units } from "@/data/curriculum";
+import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 import { getProgress, saveProgress } from "@/lib/progress";
 import type { PlacedFurnitureEntry, UserProgress } from "@/types";
 
@@ -28,6 +30,15 @@ function ensureBridgeyFields(progress: UserProgress): void {
   if (!progress.ownedTitles) progress.ownedTitles = [];
   if (!progress.bridgeyRewardsClaimed) {
     progress.bridgeyRewardsClaimed = { complete: [] };
+  }
+  if (!progress.bridgeyRewardsClaimed.units) progress.bridgeyRewardsClaimed.units = [];
+  // Prizes for units finished before prizes existed, or on another device.
+  for (const unit of units) {
+    const done = unit.skills.every((s) => {
+      const lvl = progress.skills[s.id]?.level;
+      return lvl === "proficient" || lvl === "mastered";
+    });
+    if (done) grantUnitPrize(progress, unit.id);
   }
   if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
 
@@ -57,13 +68,40 @@ export function awardBridgeys(progress: UserProgress, amount: number): number {
   return amount;
 }
 
-/** 10 Bridgeys for completing a skill/lesson (once per skill). */
+/** Bridgeys for completing a skill (once per skill); see bridgeysForSkill for how much. */
 export function tryAwardSkillCompleteBridgeys(progress: UserProgress, skillId: string): number {
   ensureBridgeyFields(progress);
   const claimed = progress.bridgeyRewardsClaimed!;
   if (claimed.complete.includes(skillId)) return 0;
   claimed.complete.push(skillId);
-  return awardBridgeys(progress, BRIDGEY_REWARDS.skillComplete);
+  return awardBridgeys(progress, bridgeysForSkill(skillId));
+}
+
+/**
+ * The prize for finishing a unit, into the student's furniture, once. Returns
+ * the prize's id when it was just granted, so the moment can be celebrated.
+ */
+export function grantUnitPrize(progress: UserProgress, unitId: string): string | null {
+  const prize = getUnitPrize(unitId);
+  if (!prize) return null;
+  if (!progress.ownedFurniture) progress.ownedFurniture = [];
+  if (progress.ownedFurniture.includes(prize.id)) return null;
+  progress.ownedFurniture.push(prize.id);
+  return prize.id;
+}
+
+/** Bridgeys for finishing every skill in a unit, once per unit. */
+export function tryAwardUnitCompleteBridgeys(progress: UserProgress, unitId: string): number {
+  ensureBridgeyFields(progress);
+  const claimed = progress.bridgeyRewardsClaimed!;
+  if (claimed.units!.includes(unitId)) return 0;
+  claimed.units!.push(unitId);
+  return awardBridgeys(progress, BRIDGEY_REWARDS.unitComplete);
+}
+
+/** Every unit prize, with whether this student has earned it. */
+export function unitPrizeStatus(progress: UserProgress): { prize: (typeof UNIT_PRIZES)[number]; earned: boolean }[] {
+  return UNIT_PRIZES.map((prize) => ({ prize, earned: (progress.ownedFurniture ?? []).includes(prize.id) }));
 }
 
 function spendBridgeys(progress: UserProgress, price: number): PurchaseResult | null {
@@ -102,6 +140,7 @@ export function buyHouseStyle(styleId: string): PurchaseResult {
 export function buyFurniture(itemId: string): PurchaseResult {
   const item = getFurnitureItem(itemId);
   if (!item) return { ok: false, message: "That furniture item doesn't exist." };
+  if (item.earnedBy) return { ok: false, message: `${item.name} is a prize for finishing a unit, so it is earned rather than bought.` };
 
   const progress = getProgress();
   ensureBridgeyFields(progress);
@@ -116,7 +155,7 @@ export function buyFurniture(itemId: string): PurchaseResult {
   saveProgress(progress);
   return {
     ok: true,
-    message: `${item.emoji} ${item.name} is yours! Enter your house to place it.`,
+    message: `${item.name} is yours. Enter your house to place it.`,
   };
 }
 
