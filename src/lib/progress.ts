@@ -143,21 +143,38 @@ export function normalizeProgress(raw: Partial<UserProgress> | null | undefined)
  * opening the app never counts, so the
  * streak always reflects actual practice days. Idempotent within a day.
  */
-function applyStreakForActivity(progress: UserProgress): void {
-  const now = new Date();
-  const todayKey = now.toDateString();
-  const previousKey = progress.lastVisit ? new Date(progress.lastVisit).toDateString() : null;
+/** Whole days between two moments, by the calendar rather than by 24-hour blocks. */
+export function daysBetween(earlier: Date, later: Date): number {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.round((new Date(later.toDateString()).getTime() - new Date(earlier.toDateString()).getTime()) / msPerDay);
+}
 
-  if (previousKey !== todayKey) {
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const diffDays = previousKey
-      ? Math.round((new Date(todayKey).getTime() - new Date(previousKey).getTime()) / msPerDay)
-      : null;
-    // A streak survives being exactly one day apart (yesterday → today);
-    // any bigger gap (or no prior activity at all) starts a fresh streak of 1.
-    progress.streak = diffDays === 1 ? (progress.streak || 0) + 1 : 1;
-  }
+/**
+ * The streak after a real learning action at `now`: the same as before on a
+ * day already counted, one more the day after the last one, and back to 1
+ * after any gap or when there was no last day.
+ */
+export function streakAfterActivity(streak: number, lastVisit: string | undefined, now: Date): number {
+  if (!lastVisit) return 1;
+  const gap = daysBetween(new Date(lastVisit), now);
+  if (gap === 0) return streak || 1;
+  return gap === 1 ? (streak || 0) + 1 : 1;
+}
+
+/** The streak as it stands at `now`, before any action today: 0 once a day was missed. */
+export function streakStanding(streak: number, lastVisit: string | undefined, now: Date): number {
+  if (!streak || !lastVisit) return streak || 0;
+  return daysBetween(new Date(lastVisit), now) > 1 ? 0 : streak;
+}
+
+function applyStreakForActivity(progress: UserProgress, now = new Date()): void {
+  progress.streak = streakAfterActivity(progress.streak, progress.lastVisit, now);
   progress.lastVisit = now.toISOString();
+}
+
+/** A real learning action outside practice (the rink) counts for the streak too. */
+export function touchActivity(progress: UserProgress, now = new Date()): void {
+  applyStreakForActivity(progress, now);
 }
 
 /**
@@ -212,8 +229,10 @@ export function getProgress(): UserProgress {
   }
 }
 
-export function saveProgress(progress: UserProgress): void {
+export function saveProgress(progress: UserProgress, opts: { stamp?: boolean } = {}): void {
   if (typeof window === "undefined") return;
+  // Every write is dated, so two copies of the same account can be compared.
+  if (opts.stamp !== false) progress.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   window.dispatchEvent(new Event(PROGRESS_UPDATED_EVENT));
 }
@@ -362,32 +381,16 @@ export function recordProblemAttempt(
  * streak that's already been broken, so the header/achievements never show a
  * stale streak from many days ago.
  */
-export function ensureDailyStreak(): { streak: number; newBadges: Badge[] } {
+export function ensureDailyStreak(now = new Date()): { streak: number; newBadges: Badge[] } {
   const progress = getProgress();
-  if (!progress.streak || !progress.lastVisit) {
-    return { streak: progress.streak || 0, newBadges: [] };
-  }
-
-  const now = new Date();
-  const todayKey = now.toDateString();
-  const lastKey = new Date(progress.lastVisit).toDateString();
-  if (lastKey === todayKey) {
-    return { streak: progress.streak, newBadges: [] };
-  }
-
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const diffDays = Math.round(
-    (new Date(todayKey).getTime() - new Date(lastKey).getTime()) / msPerDay
-  );
-
-  // A streak survives one skipped calendar day (e.g. practiced late last
-  // night); a bigger gap with no activity at all means it's broken.
-  if (diffDays > 1) {
-    progress.streak = 0;
+  const standing = streakStanding(progress.streak, progress.lastVisit, now);
+  // A missed day ends the streak on sight, rather than showing yesterday's
+  // number until the next answer knocks it down to 1.
+  if (standing !== (progress.streak || 0)) {
+    progress.streak = standing;
     saveProgress(progress);
   }
-
-  return { streak: progress.streak, newBadges: [] };
+  return { streak: standing, newBadges: [] };
 }
 
 export function setSoundEnabled(enabled: boolean): void {
@@ -617,14 +620,32 @@ export function exportProgressForSync(): string {
   return JSON.stringify(getProgress());
 }
 
-export function importProgressFromSync(data: string): boolean {
+/**
+ * Brings an account's cloud copy into this browser. It keeps the copy's own
+ * date, so a later comparison with the cloud is honest.
+ */
+export function importProgressFromSync(data: string, updatedAt?: string): boolean {
   try {
     const parsed = JSON.parse(data) as Partial<UserProgress>;
-    saveProgress(normalizeProgress(parsed));
+    const normalized = normalizeProgress(parsed);
+    if (updatedAt) normalized.updatedAt = updatedAt;
+    saveProgress(normalized, { stamp: !updatedAt });
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Which copy of an account's progress to keep when this browser and the
+ * cloud disagree: the newer one. This browser's copy is newer when an upload
+ * failed and the page was reloaded, which used to lose the work; the cloud's
+ * is newer after practice on another device.
+ */
+export function newerCopy(local: UserProgress, cloudUpdatedAt: string | null): "local" | "cloud" {
+  if (!cloudUpdatedAt) return "local";
+  if (!local.updatedAt) return "cloud";
+  return Date.parse(local.updatedAt) > Date.parse(cloudUpdatedAt) ? "local" : "cloud";
 }
 
 /** Wipe this browser's saved progress back to a clean slate. Used on sign-out

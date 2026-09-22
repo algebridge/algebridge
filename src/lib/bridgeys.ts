@@ -14,7 +14,7 @@ import { getRinkSlot, RINK_DAILY_CAP, rinkPayFor, rinkRemainingToday } from "@/l
 import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
 import { units } from "@/data/curriculum";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
-import { getProgress, saveProgress } from "@/lib/progress";
+import { getProgress, saveProgress, touchActivity } from "@/lib/progress";
 import type { PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
@@ -34,14 +34,6 @@ function ensureBridgeyFields(progress: UserProgress): void {
     progress.bridgeyRewardsClaimed = { complete: [] };
   }
   if (!progress.bridgeyRewardsClaimed.units) progress.bridgeyRewardsClaimed.units = [];
-  // Prizes for units finished before prizes existed, or on another device.
-  for (const unit of units) {
-    const done = unit.skills.every((s) => {
-      const lvl = progress.skills[s.id]?.level;
-      return lvl === "proficient" || lvl === "mastered";
-    });
-    if (done) grantUnitPrize(progress, unit.id);
-  }
   if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
   if (!progress.ownedRinkItems) progress.ownedRinkItems = [];
   if (!progress.rinkDecor) progress.rinkDecor = {};
@@ -61,6 +53,16 @@ function ensureBridgeyFields(progress: UserProgress): void {
 /** Call after loading progress to fill in Bridgey economy defaults. */
 export function normalizeBridgeyProgress(progress: UserProgress): UserProgress {
   ensureBridgeyFields(progress);
+  // Prizes for units finished before prizes existed, or on another device.
+  // Only here, at load: during an answer the grant happens in
+  // recordProblemAttempt, which needs to be the one to see it.
+  for (const unit of units) {
+    const done = unit.skills.every((s) => {
+      const lvl = progress.skills[s.id]?.level;
+      return lvl === "proficient" || lvl === "mastered";
+    });
+    if (done) grantUnitPrize(progress, unit.id);
+  }
   return progress;
 }
 
@@ -393,6 +395,8 @@ export function awardRinkBridgeys(skillId: string, day: string): { paid: number;
   r.earned += paid;
   r.solved += 1;
   progress.rink = r;
+  // Solving on the rink is a day of practice too.
+  touchActivity(progress);
   saveProgress(progress);
   return { paid, remaining: Math.max(0, RINK_DAILY_CAP - r.earned), solved: r.solved };
 }

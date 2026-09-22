@@ -33,7 +33,20 @@ export function AppInit() {
 
   useEffect(() => {
     const { streak, newBadges } = ensureDailyStreak();
-    if (streak >= 2) {
+    // Once a day per browser: the header shows the number all the time.
+    const today = new Date().toDateString();
+    let shownFor: string | null = null;
+    try {
+      shownFor = window.sessionStorage.getItem("algebridge-streak-toast");
+    } catch {
+      /* no session storage: the toast shows once per page load */
+    }
+    if (streak >= 2 && shownFor !== today) {
+      try {
+        window.sessionStorage.setItem("algebridge-streak-toast", today);
+      } catch {
+        /* fine */
+      }
       showToast({
         icon: "flame",
         tone: "reward",

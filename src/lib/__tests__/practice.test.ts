@@ -511,6 +511,69 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a prize cannot be bought", !B.buyFurniture("prize-ruler").ok);
 }
 
+// --- Saving, paying and streaks, end to end through the real functions ---------
+{
+  const Pr = await import("../progress.ts");
+  const B = await import("../bridgeys.ts");
+  const G = await import("../gamification.ts");
+  const R = await import("../rink.ts");
+  store.clear();
+  const u1 = units[0];
+  const first = u1.skills[0].id;
+  const start = Pr.getProgress().bridgeys;
+  ok("a new student starts with 25 Bridgeys", start === 25, String(start));
+
+  // Five right on the first try: the skill completes and pays exactly once.
+  let last: ReturnType<typeof recordProblemAttempt> | null = null;
+  for (let i = 0; i < 5; i += 1) last = recordProblemAttempt(first, true, { firstTry: true });
+  ok("five first tries finish the skill", last!.skillJustCompleted && last!.newLevel === "mastered");
+  ok("finishing it pays its Bridgeys", last!.bridgeysGained === G.bridgeysForSkill(first) && Pr.getProgress().bridgeys === 25 + G.bridgeysForSkill(first));
+  ok("the pay is recorded as claimed", Pr.getProgress().bridgeyRewardsClaimed!.complete.includes(first));
+  const again = recordProblemAttempt(first, true, { firstTry: true });
+  ok("a sixth answer pays nothing more", again.bridgeysGained === 0 && !again.skillJustCompleted);
+  ok("the work is in storage, dated", (() => { const raw = JSON.parse(store.get("algebridge-progress")!); return raw.skills[first].level === "mastered" && raw.skills[first].solved >= 5 && typeof raw.updatedAt === "string"; })());
+  ok("a reload reads it back", Pr.getProgress().skills[first].problemsAttempted === 6);
+
+  // Finish the rest of the unit: the bonus and the prize arrive once.
+  let unitResult: ReturnType<typeof recordProblemAttempt> | null = null;
+  for (const sk of u1.skills.slice(1)) for (let i = 0; i < 5; i += 1) unitResult = recordProblemAttempt(sk.id, true, { firstTry: true });
+  const expected = 25 + u1.skills.reduce((n, sk) => n + G.bridgeysForSkill(sk.id), 0) + G.BRIDGEY_REWARDS.unitComplete;
+  ok("finishing the unit pays every skill plus the unit bonus", unitResult!.unitJustCompleted && Pr.getProgress().bridgeys === expected, `${Pr.getProgress().bridgeys} vs ${expected}`);
+  ok("and hands over the unit prize", unitResult!.unitPrizeId === "prize-ruler" && Pr.getProgress().ownedFurniture.includes("prize-ruler"));
+  ok("the unit bonus is claimed once", Pr.getProgress().bridgeyRewardsClaimed!.units!.length === 1);
+
+  // The rink pays per solve until the day's cap, then keeps counting solves.
+  const before = Pr.getProgress().bridgeys;
+  const r1 = B.awardRinkBridgeys(first, "2026-09-21");
+  ok("a rink solve pays", r1.paid === R.rinkPayFor(first) && Pr.getProgress().bridgeys === before + r1.paid && r1.remaining === R.RINK_DAILY_CAP - r1.paid);
+  for (let i = 0; i < 30; i += 1) B.awardRinkBridgeys(first, "2026-09-21");
+  const capped = B.awardRinkBridgeys(first, "2026-09-21");
+  ok("the rink stops paying at the daily cap", capped.paid === 0 && capped.remaining === 0 && Pr.getProgress().bridgeys === before + R.RINK_DAILY_CAP);
+  ok("a new day pays again", B.awardRinkBridgeys(first, "2026-09-22").paid === R.rinkPayFor(first));
+  ok("spending takes it back out", (() => { const b = Pr.getProgress().bridgeys; const res = B.buyFurniture("rug"); return res.ok && Pr.getProgress().bridgeys === b - 15; })());
+
+  // Streaks: by the calendar, from real activity only.
+  const d = (s: string) => new Date(s);
+  ok("first activity starts a streak of 1", Pr.streakAfterActivity(0, undefined, d("2026-09-21T15:00")) === 1);
+  ok("the day after adds one", Pr.streakAfterActivity(3, "2026-09-20T22:50:00", d("2026-09-21T07:00")) === 4);
+  ok("a second answer the same day changes nothing", Pr.streakAfterActivity(4, "2026-09-21T07:00:00", d("2026-09-21T21:00")) === 4);
+  ok("late night then early morning still counts as consecutive days", Pr.streakAfterActivity(1, "2026-09-20T23:59:00", d("2026-09-21T00:10")) === 2);
+  ok("a missed day starts over at 1", Pr.streakAfterActivity(9, "2026-09-18T12:00:00", d("2026-09-21T12:00")) === 1);
+  ok("a streak stands while today or yesterday was active", Pr.streakStanding(5, "2026-09-20T20:00:00", d("2026-09-21T09:00")) === 5 && Pr.streakStanding(5, "2026-09-21T08:00:00", d("2026-09-21T09:00")) === 5);
+  ok("and reads 0 once a day was missed", Pr.streakStanding(5, "2026-09-19T20:00:00", d("2026-09-21T09:00")) === 0);
+  ok("the streak in storage moved with today's answers", Pr.getProgress().streak >= 1 && !!Pr.getProgress().lastVisit);
+  ok("a rink solve counts as a day of practice", (() => { const p = Pr.getProgress(); p.streak = 2; p.lastVisit = new Date(Date.now() - 86_400_000).toISOString(); saveProgress(p); B.awardRinkBridgeys(first, "2026-09-23"); return Pr.getProgress().streak === 3; })());
+
+  // Which copy to keep when this browser and the cloud disagree.
+  const local = { ...Pr.getProgress(), updatedAt: "2026-09-21T10:10:00.000Z" };
+  ok("a newer local copy beats an older cloud row", Pr.newerCopy(local, "2026-09-21T10:00:00.000Z") === "local");
+  ok("a newer cloud row beats an older local copy", Pr.newerCopy(local, "2026-09-21T10:30:00.000Z") === "cloud");
+  ok("no cloud row keeps the local copy", Pr.newerCopy(local, null) === "local");
+  ok("an undated local copy yields to the cloud", Pr.newerCopy({ ...local, updatedAt: undefined }, "2020-01-01T00:00:00.000Z") === "cloud");
+  ok("an import keeps the cloud's date", (() => { Pr.importProgressFromSync(JSON.stringify({ ...local, xp: 1 }), "2026-09-21T10:30:00.000Z"); return Pr.getProgress().updatedAt === "2026-09-21T10:30:00.000Z"; })());
+  store.clear();
+}
+
 // --- The rink ------------------------------------------------------------------
 {
   const R = await import("../rink.ts");
