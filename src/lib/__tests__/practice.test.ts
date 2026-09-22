@@ -844,5 +844,76 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("the house is two storeys tall", D.HOUSE.base - D.HOUSE.wallTop > 440 && D.ROOF_APEX > 0);
 }
 
+// --- No card offers the same answer twice --------------------------------------
+{
+  const U = await import("../problem-utils.ts");
+  const { getFreshProblemsForSkill } = await import("../../data/problem-banks.ts");
+  const key = (s: string) => s.replace(/\s+/g, "").replace(/−/g, "-").toLowerCase();
+  let cards = 0;
+  const bad: string[] = [];
+  const thin: string[] = [];
+  for (const u of units) {
+    for (const s of u.skills) {
+      for (const seed of [1, 2, 3]) {
+        for (const p of generateProblemBank(s.id, s.problems, seed)) {
+          if (p.type !== "multiple-choice" || !p.choices) continue;
+          cards += 1;
+          if (new Set(p.choices.map(key)).size < p.choices.length) bad.push(`${s.id}: ${JSON.stringify(p.choices)}`);
+          if (p.choices.length < 3) thin.push(`${s.id}: ${JSON.stringify(p.choices)}`);
+          if (!p.choices.some((c) => key(c) === key(String(p.answer)))) bad.push(`${s.id}: answer missing ${JSON.stringify(p.choices)}`);
+        }
+      }
+      for (const p of getFreshProblemsForSkill(s.id, s.problems)) {
+        if (p.type === "multiple-choice" && p.choices && new Set(p.choices.map(key)).size < p.choices.length) bad.push(`fresh ${s.id}`);
+      }
+    }
+  }
+  ok(`no multiple-choice card repeats an answer (${cards} cards, 3 seeds each)`, bad.length === 0, bad.slice(0, 3).join(" | "));
+  ok("every card still offers at least three answers", thin.length === 0, thin.slice(0, 3).join(" | "));
+  ok("a wrong answer equal to the right one is dropped", U.dedupeChoices(["3", "-3", "3", "0"], "-3").length === 4 && new Set(U.dedupeChoices(["3", "-3", "3", "0"], "-3")).size === 4);
+  ok("and the card is filled back up with nearby numbers", U.dedupeChoices(["7", "7", "7", "7"], "7").length === 4);
+  ok("Unicode minus counts as the same answer", U.dedupeChoices(["−3", "-3", "3"], "−3").length === 4 && U.dedupeChoices(["−3", "-3", "3"], "−3").filter((c) => c.replace("−", "-") === "-3").length === 1);
+  ok("word answers are only deduplicated", U.dedupeChoices(["Quadrant I", "Quadrant II", "Quadrant I", "Quadrant III"], "Quadrant I").join() === "Quadrant I,Quadrant II,Quadrant III");
+  ok("the answer is always on the card", U.dedupeChoices(["1", "2"], "9").includes("9"));
+  ok("a card with no repeats is left as is", (() => { const p = { id: "x", type: "multiple-choice" as const, prompt: "", answer: "a", choices: ["a", "b", "c"] }; return U.withUniqueChoices(p) === p; })());
+}
+
+// --- On the walls ----------------------------------------------------------------
+{
+  const D = await import("../dollhouse.ts");
+  const B = await import("../bridgeys.ts");
+  const Pr = await import("../progress.ts");
+  const cat = await import("../../data/house-catalog.ts");
+  const art = await import("../../data/furniture-art.ts");
+  ok("wall pieces exist and have art", cat.WALL_MOUNTED.size >= 15 && [...cat.WALL_MOUNTED].every((id) => cat.getFurnitureItem(id)?.mount === "wall" && art.furnitureSvg(id)));
+  ok("a poster hangs, a bed does not", cat.canHang("poster") && !cat.canHang("bed"));
+  for (const f of ["up", "down"] as const) {
+    const w = D.wallBand(f);
+    const s = D.wallSpot(50, 50, f);
+    ok(`the wall ${f} sits between the ceiling and the floor`, w.top >= D.FLOORS[f].ceiling && w.bottom <= D.FLOORS[f].floorTop && s.y > w.top && s.y <= w.bottom && s.y < D.FLOORS[f].floorTop);
+    const back = D.wallPoint(s.x, s.y, f);
+    ok(`wallPoint inverts wallSpot ${f}`, Math.abs(back.x - 50) < 0.01 && Math.abs(back.y - 50) < 0.01);
+    ok(`a click on the wall ${f} says so`, D.surfaceAt(600, w.top + 20)?.surface === "wall" && D.surfaceAt(600, w.top + 20)?.floor === f);
+    ok(`a click on the floor ${f} says so`, D.surfaceAt(600, D.FLOORS[f].floor - 5)?.surface === "floor");
+  }
+  ok("outside the house is nothing", D.surfaceAt(50, 500) === null && D.surfaceAt(600, 30) === null);
+
+  store.clear();
+  const p = Pr.getProgress();
+  p.bridgeys = 5000;
+  Pr.saveProgress(p);
+  B.buyFurniture("poster");
+  B.buyFurniture("bed");
+  ok("a bed refuses the wall", !B.placeFurnitureAt("bed", 50, 50, "down", "wall").ok);
+  ok("a poster hangs upstairs", B.placeFurnitureAt("poster", 20, 40, "up", "wall").ok && (() => { const e = Pr.getProgress().placedFurnitureItems!.find((f) => f.itemId === "poster")!; return e.surface === "wall" && e.floor === "up" && e.x === 20; })());
+  const poster = () => Pr.getProgress().placedFurnitureItems!.find((f) => f.itemId === "poster")!;
+  ok("a wall piece can reach the edges", B.moveFurniture(poster().instanceId, 0, 100).ok && poster().x === 0 && poster().y === 100 && B.surfaceOf(poster()) === "wall");
+  ok("and comes back down to the floor", B.moveFurnitureToSurface(poster().instanceId, "floor").ok && B.surfaceOf(poster()) === "floor" && poster().y === 50);
+  ok("and back up on the wall", B.moveFurnitureToSurface(poster().instanceId, "wall").ok && B.surfaceOf(poster()) === "wall");
+  ok("an old save with no surface is on the floor", B.surfaceOf({ instanceId: "x", itemId: "poster", x: 1, y: 1 }) === "floor");
+  const spot = D.placedSpot(poster().x, poster().y, "up", "wall");
+  ok("a hung piece draws on the wall, behind the floor band", spot.y < D.FLOORS.up.floorTop && spot.depth === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

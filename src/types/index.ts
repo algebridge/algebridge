@@ -167,11 +167,14 @@ export interface PlacedFurnitureEntry {
   y: number;
   /** Which floor it stands on. Older saves have no floor and are downstairs. */
   floor?: HouseFloor;
+  /** On the floor (the default) or hung on the wall above it. */
+  surface?: HouseSurface;
   /** Switched off: a lamp dark, a screen blank. Pieces that light up only. */
   off?: boolean;
 }
 
 export type HouseFloor = "down" | "up";
+export type HouseSurface = "floor" | "wall";
 
 export interface HouseStyle {
   id: string;
@@ -205,6 +208,8 @@ export interface FurnitureItem {
   imageSrc?: string;
   /** Display width in the room (px at 800 reference width). */
   displayWidth?: number;
+  /** Can hang on a wall as well as stand on the floor: pictures, shelves, lights. */
+  mount?: "wall";
 }
 
 export type FurnitureSlot =

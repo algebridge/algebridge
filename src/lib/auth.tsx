@@ -75,6 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const configured = isSupabaseConfigured();
+  /** The current display name, for the autosave below, which outlives any one render. */
+  const nameRef = useRef<string | null>(null);
+  useEffect(() => {
+    nameRef.current = profile?.displayName ?? null;
+  }, [profile]);
   /**
    * Whose cloud progress this browser holds. Set once that account's copy has
    * been read, and it is what lets the autosave write: a browser that has not
@@ -243,7 +248,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       dirtyRef.current = false;
       void uploadProgress(userId).then((ok) => {
         inFlight = false;
-        if (ok) return;
+        if (ok) {
+          // The leaderboard row rides along with every save, so rankings
+          // follow what students do rather than waiting for a sync button.
+          void syncLeaderboardStats(userId, nameRef.current, getLeaderboardSnapshot(getProgress()));
+          return;
+        }
         // Kept as unsaved, and tried again shortly (and on the next change).
         dirtyRef.current = true;
         window.clearTimeout(retry);
@@ -460,8 +470,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // The shop's allowance follows the profile the database handed back, so it
   // is on for every one of the founder's accounts and off the moment anyone
   // else signs in on the same browser.
+  // Admin accounts count too (the database vouches for admin through
+  // is_admin()), so the founder's accounts have it before the migration that
+  // adds the column has been run, and any account he names gets it after.
   useEffect(() => {
-    setUnlimitedBridgeys(!!user && !!profile?.unlimitedBridgeys);
+    setUnlimitedBridgeys(!!user && !!profile && (profile.unlimitedBridgeys || profile.isAdmin));
   }, [user, profile]);
 
   // A signed-in account whose stored name is still auto-generated (or was
