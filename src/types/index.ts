@@ -136,6 +136,8 @@ export interface UserProgress {
   rinkDecor?: Record<string, string>;
   /** The rink's day: what it has paid today, and the best run. */
   rink?: { day: string; earned: number; solved: number; best: number };
+  /** When this copy was last written, so the newer of two copies can be kept. */
+  updatedAt?: string;
 }
 
 /**

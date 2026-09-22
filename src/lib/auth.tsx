@@ -4,11 +4,12 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import {
-  exportProgressForSync,
-  importProgressFromSync,
-  clearLocalProgress,
-  getProgress,
   PROGRESS_UPDATED_EVENT,
+  clearLocalProgress,
+  exportProgressForSync,
+  getProgress,
+  importProgressFromSync,
+  newerCopy,
 } from "@/lib/progress";
 import { getLeaderboardSnapshot } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
@@ -81,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const loadedFor = useRef<string | null>(null);
   const loadingFor = useRef<string | null>(null);
+  /** The session's token, kept where a closing tab can reach it without waiting. */
+  const tokenRef = useRef<string | null>(null);
+  /** Progress changed since the last upload that succeeded. */
+  const dirtyRef = useRef(false);
   /** The account whose saved progress has been read, as state so pages re-render. */
   const [progressFor, setProgressFor] = useState<string | null>(null);
 
@@ -102,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      tokenRef.current = session?.access_token ?? null;
       setUser(session?.user ?? null);
       setLoading(false);
       if (session?.user) {
@@ -119,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      tokenRef.current = session?.access_token ?? null;
       setUser(session?.user ?? null);
       if (session?.user) {
         void ensureCloudProgress(session.user.id);
@@ -132,23 +139,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [configured]);
 
-  async function loadCloudProgress(userId: string) {
-    if (!configured) return;
+  /**
+   * Reads the account's cloud copy, trying three times, and keeps whichever
+   * of it and this browser's copy is newer. Returns false only when the read
+   * failed every time, in which case the autosave stays off until a later
+   * read succeeds: this browser must never write over progress it has not
+   * seen.
+   */
+  async function loadCloudProgress(userId: string): Promise<boolean> {
+    if (!configured) return false;
     const supabase = createClient();
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from(PROGRESS_TABLE)
-      .select("progress_json")
-      .eq("user_id", userId)
-      .maybeSingle();
-    // A failed read leaves loadedFor unset, which keeps the autosave from
-    // writing this browser's copy over progress it never saw.
-    if (error) return;
-
-    if (data?.progress_json) {
-      importProgressFromSync(JSON.stringify(data.progress_json));
+    if (!supabase) return false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt) await new Promise((r) => setTimeout(r, 600 * attempt));
+      const { data, error } = await supabase
+        .from(PROGRESS_TABLE)
+        .select("progress_json, updated_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) continue;
+      const local = getProgress();
+      const cloudAt = data?.updated_at ? String(data.updated_at) : null;
+      if (data?.progress_json && newerCopy(local, cloudAt) === "cloud") {
+        importProgressFromSync(JSON.stringify(data.progress_json), cloudAt ?? undefined);
+      } else if (local.updatedAt) {
+        // This browser is ahead of the cloud (an earlier upload failed, or
+        // there is no row yet): send it up rather than let it drift.
+        dirtyRef.current = true;
+      }
+      loadedFor.current = userId;
+      return true;
     }
-    loadedFor.current = userId;
+    return false;
   }
 
   /** Loads an account's cloud progress once, not on every auth event. */
@@ -158,26 +180,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loadedFor.current && loadedFor.current !== userId) clearLocalProgress();
     loadedFor.current = null;
     loadingFor.current = userId;
+    let ok = false;
     try {
-      await loadCloudProgress(userId);
+      ok = await loadCloudProgress(userId);
     } finally {
       if (loadingFor.current === userId) loadingFor.current = null;
       // A failed read still ends the wait: this browser's copy is all there is.
       setProgressFor(userId);
     }
+    // Try the read again later, so a blip at load never disables saving for the session.
+    if (!ok) window.setTimeout(() => void ensureCloudProgress(userId), 30_000);
   }
 
-  async function uploadProgress(userId: string) {
-    const supabase = createClient();
-    if (!supabase) return;
-    await supabase.from(PROGRESS_TABLE).upsert(
-      {
-        user_id: userId,
-        progress_json: JSON.parse(exportProgressForSync()),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
+  /**
+   * Writes this browser's copy to the account. A plain request, and marked
+   * keepalive, so the browser finishes it even when the tab is closing; the
+   * upsert that the client library made was dropped on close, which is how a
+   * skill finished just before leaving went unsaved.
+   */
+  async function uploadProgress(userId: string): Promise<boolean> {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const token = tokenRef.current;
+    if (!url || !anon || !token) return false;
+    try {
+      const res = await fetch(`${url}/rest/v1/${PROGRESS_TABLE}?on_conflict=user_id`, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: anon,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          progress_json: JSON.parse(exportProgressForSync()),
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   // Autosave. Progress used to reach the account only at sign-in, sign-out and
@@ -188,30 +233,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!configured || !userId) return;
     let timer: number | undefined;
+    let retry: number | undefined;
+    let inFlight = false;
     const flush = () => {
-      if (timer === undefined) return;
       window.clearTimeout(timer);
       timer = undefined;
-      if (loadedFor.current !== userId) return;
-      void uploadProgress(userId);
+      if (!dirtyRef.current || inFlight || loadedFor.current !== userId) return;
+      inFlight = true;
+      dirtyRef.current = false;
+      void uploadProgress(userId).then((ok) => {
+        inFlight = false;
+        if (ok) return;
+        // Kept as unsaved, and tried again shortly (and on the next change).
+        dirtyRef.current = true;
+        window.clearTimeout(retry);
+        retry = window.setTimeout(flush, 8_000);
+      });
     };
     const schedule = () => {
+      dirtyRef.current = true;
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        timer = -1;
-        flush();
-      }, 2500);
+      timer = window.setTimeout(flush, 2500);
     };
     const onHide = () => {
       if (document.visibilityState === "hidden") flush();
     };
+    // Anything that arrived before the cloud copy was read goes up once it has been.
+    const catchUp = window.setInterval(flush, 20_000);
     window.addEventListener(PROGRESS_UPDATED_EVENT, schedule);
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", flush);
+    window.addEventListener("online", flush);
     return () => {
       window.removeEventListener(PROGRESS_UPDATED_EVENT, schedule);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", flush);
+      window.removeEventListener("online", flush);
+      window.clearInterval(catchUp);
+      window.clearTimeout(retry);
       flush();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -278,6 +337,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       { onConflict: "user_id" }
     );
+    // The cloud now holds exactly this copy, so the autosave can start.
+    loadedFor.current = data.user.id;
 
     const snapshot = getLeaderboardSnapshot(getProgress());
     await syncLeaderboardStats(data.user.id, nameCheck.formatted, snapshot);
