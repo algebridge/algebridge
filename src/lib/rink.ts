@@ -2,8 +2,8 @@
  * The backyard rink: where it sits, what stands around it, which problems
  * Veronica skates you into, and what solving them pays.
  *
- * The rink is a roller rink on the lawn behind the house, drawn on the same
- * 1200 x 800 plane as the front (see dollhouse.ts). Problems come from the
+ * The rink is an ice rink on the lawn behind the house, boards and all,
+ * drawn on the same 1200 x 800 plane as the front (see dollhouse.ts). Problems come from the
  * skills the student has already finished, which makes the rink the place
  * finished work comes back to: spaced review that feels like a game.
  */

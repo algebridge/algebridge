@@ -311,15 +311,21 @@ html.lenis body {
   animation: v-stride var(--stride) ease-in-out infinite;
   animation-delay: calc(var(--stride) / -2);
 }
-.veronica-moving .v-arm-back {
-  animation: v-swing var(--stride) ease-in-out infinite;
+/* Gliding, the arms are held out, front one pointing the way, and sway a little. */
+.veronica-skate .v-arm-front {
+  transform: rotate(-98deg);
+}
+.veronica-skate .v-arm-back {
+  transform: rotate(74deg);
 }
 .veronica-moving .v-arm-front {
-  animation: v-swing var(--stride) ease-in-out infinite;
-  animation-delay: calc(var(--stride) / -2);
+  animation: v-glide-front var(--stride) ease-in-out infinite;
+}
+.veronica-moving .v-arm-back {
+  animation: v-glide-back var(--stride) ease-in-out infinite;
 }
 .veronica-moving .v-body {
-  transform: rotate(6deg);
+  transform: rotate(7deg);
 }
 .veronica-idle .v-body {
   animation: v-bob 2.6s ease-in-out infinite;
@@ -361,9 +367,13 @@ html.lenis body {
   0%, 100% { transform: rotate(-24deg); }
   50% { transform: rotate(24deg); }
 }
-@keyframes v-swing {
-  0%, 100% { transform: rotate(22deg); }
-  50% { transform: rotate(-22deg); }
+@keyframes v-glide-front {
+  0%, 100% { transform: rotate(-98deg); }
+  50% { transform: rotate(-88deg); }
+}
+@keyframes v-glide-back {
+  0%, 100% { transform: rotate(74deg); }
+  50% { transform: rotate(84deg); }
 }
 @keyframes v-bob {
   0%, 100% { transform: translateY(0); }

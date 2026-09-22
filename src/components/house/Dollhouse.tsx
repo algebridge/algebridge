@@ -67,7 +67,8 @@ type View = "front" | "back";
 export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhouseProps) {
   const house = getHouseStyle(progress.houseStyleId) ?? getHouseStyle("cottage")!;
 
-  const [open, setOpen] = useState(false);
+  // Open from the start: arriving at your house should mean being in it.
+  const [open, setOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("off");
   const [placing, setPlacing] = useState<string | null>(null);
   /** Front of the house, or the backyard with the rink. */

@@ -4,9 +4,10 @@ import { BACK_HOUSE, BOARD, RINK } from "@/lib/rink";
 
 /**
  * The backyard, drawn flat on the same plane as the front. The back of the
- * house stands at the top, a fence runs either side of it, and the rink
- * takes the lawn. The same palette as the front, so it is the same house
- * seen from behind rather than a second house.
+ * house stands at the top, a fence runs either side of it, and the ice rink
+ * takes the lawn, boards with a red rail around white ice. The same palette
+ * as the front, so it is the same house seen from behind rather than a
+ * second house.
  */
 export function BackyardScene({ styleId }: { styleId: string }) {
   const art = getHouseArt(styleId);
@@ -89,21 +90,28 @@ export function BackyardScene({ styleId }: { styleId: string }) {
         opacity="0.8"
       />
 
-      {/* The rink: boards, then the floor, then its markings. */}
+      {/* The rink: boards with a red rail, then the ice, then its lines. */}
       <ellipse cx={RINK.cx} cy={RINK.cy + 10} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#1f2937" opacity="0.14" />
-      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#94a3b8" />
-      <ellipse cx={RINK.cx} cy={RINK.cy - 4} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#e2e8f0" />
-      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx} ry={RINK.ry} fill="#93c5fd" />
-      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx - 6} ry={RINK.ry - 6} fill="#bfdbfe" />
-      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx * 0.62} ry={RINK.ry * 0.62} fill="none" stroke="#93c5fd" strokeWidth="5" />
-      <ellipse cx={RINK.cx} cy={RINK.cy} rx="40" ry="14" fill="#93c5fd" />
-      <rect x={RINK.cx - 2.5} y={RINK.cy - RINK.ry + 6} width="5" height={RINK.ry * 2 - 12} fill="#93c5fd" opacity="0.7" />
-      {/* Sheen: a flat lighter band, the way the floor catches the light. */}
+      <ellipse cx={RINK.cx} cy={RINK.cy + 4} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#cbd5e1" />
+      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#f1f5f9" />
+      <ellipse cx={RINK.cx} cy={RINK.cy - 3} rx={RINK.rx + BOARD} ry={RINK.ry + BOARD} fill="#dc2626" />
+      <ellipse cx={RINK.cx} cy={RINK.cy - 3} rx={RINK.rx + 4} ry={RINK.ry + 4} fill="#f1f5f9" />
+      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx} ry={RINK.ry} fill="#dbe7f3" />
+      <ellipse cx={RINK.cx} cy={RINK.cy - 2} rx={RINK.rx - 4} ry={RINK.ry - 4} fill="#f4f8fc" />
+      {/* Hockey lines: the blue circle at centre and a red line across. */}
+      <ellipse cx={RINK.cx} cy={RINK.cy} rx={RINK.rx * 0.36} ry={RINK.ry * 0.36} fill="none" stroke="#3b82f6" strokeWidth="4" opacity="0.8" />
+      <circle cx={RINK.cx} cy={RINK.cy} r="5" fill="#3b82f6" opacity="0.8" />
+      <rect x={RINK.cx - 2} y={RINK.cy - RINK.ry + 8} width="4" height={RINK.ry * 2 - 16} fill="#dc2626" opacity="0.55" />
+      <rect x={RINK.cx - RINK.rx * 0.55 - 2} y={RINK.cy - RINK.ry * 0.83} width="4" height={RINK.ry * 1.66} fill="#3b82f6" opacity="0.5" />
+      <rect x={RINK.cx + RINK.rx * 0.55 - 2} y={RINK.cy - RINK.ry * 0.83} width="4" height={RINK.ry * 1.66} fill="#3b82f6" opacity="0.5" />
+      {/* Skate marks and sheen: flat, the way ice catches the light. */}
       <path
         d={`M${RINK.cx - RINK.rx * 0.9} ${RINK.cy - 10} Q${RINK.cx} ${RINK.cy - RINK.ry * 0.9} ${RINK.cx + RINK.rx * 0.9} ${RINK.cy - 10} Q${RINK.cx} ${RINK.cy - RINK.ry * 0.55} ${RINK.cx - RINK.rx * 0.9} ${RINK.cy - 10}Z`}
         fill="#ffffff"
-        opacity="0.35"
+        opacity="0.55"
       />
+      <path d={`M${RINK.cx - 260} ${RINK.cy + 40} q60 -30 130 -6`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+      <path d={`M${RINK.cx + 40} ${RINK.cy + 70} q80 -40 170 -20`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
     </svg>
   );
 }

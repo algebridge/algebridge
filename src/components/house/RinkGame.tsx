@@ -345,7 +345,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-slate-500">In your head, or draw it out. No calculator on the rink.</p>
+                <p className="text-xs font-medium text-slate-500">In your head, or draw it out. No calculator on the ice.</p>
                 <Scratchpad resetKey={`${open.skillId}:${problem.id}:${problem.prompt}`} />
               </div>
               <PromptText text={stripVariantTag(problem.prompt)} />
