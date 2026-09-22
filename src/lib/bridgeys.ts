@@ -13,13 +13,39 @@ import { getRinkItem } from "@/data/rink-catalog";
 import { getRinkSlot, RINK_DAILY_CAP, rinkPayFor, rinkRemainingToday } from "@/lib/rink";
 import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
 import { units } from "@/data/curriculum";
+import { getSwatch, USABLE } from "@/data/furniture-art";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
-import { getProgress, saveProgress, touchActivity } from "@/lib/progress";
-import type { PlacedFurnitureEntry, UserProgress } from "@/types";
+import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, touchActivity } from "@/lib/progress";
+import type { HouseFloor, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
   | { ok: true; message: string }
   | { ok: false; message: string };
+
+/* ── The founder's allowance ─────────────────────────────────────────
+   Some accounts are charged nothing in the shop. Which ones is decided in
+   the database (profiles.unlimited_bridgeys, admin-set and trigger-guarded)
+   and handed to the app with the profile; it is never written into progress,
+   so it cannot be copied from one save to another or switched on by editing
+   local storage. The balance itself is untouched: earning still counts. */
+
+let unlimited = false;
+
+/** Set from the signed-in profile by AuthProvider. */
+export function setUnlimitedBridgeys(on: boolean): void {
+  if (unlimited === on) return;
+  unlimited = on;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PROGRESS_UPDATED_EVENT));
+}
+
+export function hasUnlimitedBridgeys(): boolean {
+  return unlimited;
+}
+
+/** What the shop can spend: the balance, or no limit at all. */
+export function spendable(progress: UserProgress): number {
+  return unlimited ? Infinity : progress.bridgeys ?? 0;
+}
 
 function ensureBridgeyFields(progress: UserProgress): void {
   if (progress.bridgeys == null) progress.bridgeys = 25;
@@ -112,6 +138,7 @@ export function unitPrizeStatus(progress: UserProgress): { prize: (typeof UNIT_P
 
 function spendBridgeys(progress: UserProgress, price: number): PurchaseResult | null {
   ensureBridgeyFields(progress);
+  if (unlimited) return null;
   if (price > progress.bridgeys) {
     return {
       ok: false,
@@ -143,7 +170,7 @@ export function buyHouseStyle(styleId: string): PurchaseResult {
   return { ok: true, message: `Welcome to your new ${style.name}! ${style.emoji}` };
 }
 
-export function buyFurniture(itemId: string): PurchaseResult {
+export function buyFurniture(itemId: string, color?: string | null): PurchaseResult {
   const item = getFurnitureItem(itemId);
   if (!item) return { ok: false, message: "That furniture item doesn't exist." };
   if (item.earnedBy) return { ok: false, message: `${item.name} is a prize for finishing a unit, so it is earned rather than bought.` };
@@ -158,6 +185,8 @@ export function buyFurniture(itemId: string): PurchaseResult {
   if (cantAfford) return cantAfford;
 
   progress.ownedFurniture.push(itemId);
+  // The colour it was chosen in comes home with it.
+  if (getSwatch(color)) progress.itemColors = { ...(progress.itemColors ?? {}), [itemId]: color as string };
   saveProgress(progress);
   return {
     ok: true,
@@ -165,7 +194,36 @@ export function buyFurniture(itemId: string): PurchaseResult {
   };
 }
 
-export function placeFurnitureAt(itemId: string, x: number, y: number): PurchaseResult {
+/** Is this an item the student owns, in any of the House's catalogs? */
+function ownsItem(progress: UserProgress, itemId: string): boolean {
+  return (progress.ownedFurniture ?? []).includes(itemId) || (progress.ownedRinkItems ?? []).includes(itemId);
+}
+
+/**
+ * Paint a piece the student owns in one of the swatches, or hand it back its
+ * own colour with null. Furniture and rink pieces alike.
+ */
+export function setItemColor(itemId: string, swatch: string | null): PurchaseResult {
+  const item = getFurnitureItem(itemId) ?? getRinkItem(itemId);
+  if (!item) return { ok: false, message: "That piece doesn't exist." };
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  if (!ownsItem(progress, itemId)) return { ok: false, message: `Buy the ${item.name} first, then paint it.` };
+  if (swatch !== null && !getSwatch(swatch)) return { ok: false, message: "That colour is not on the card." };
+  const colors = { ...(progress.itemColors ?? {}) };
+  if (swatch === null) delete colors[itemId];
+  else colors[itemId] = swatch;
+  progress.itemColors = colors;
+  saveProgress(progress);
+  return { ok: true, message: swatch === null ? `${item.name}, back in its own colour.` : `${item.name}, now in ${getSwatch(swatch)!.name.toLowerCase()}.` };
+}
+
+/** The floor a placed piece stands on; older saves have no floor and are downstairs. */
+export function floorOf(entry: PlacedFurnitureEntry): HouseFloor {
+  return entry.floor === "up" ? "up" : "down";
+}
+
+export function placeFurnitureAt(itemId: string, x: number, y: number, floor: HouseFloor = "down"): PurchaseResult {
   const item = getFurnitureItem(itemId);
   if (!item) return { ok: false, message: "That furniture item doesn't exist." };
 
@@ -188,9 +246,55 @@ export function placeFurnitureAt(itemId: string, x: number, y: number): Purchase
     itemId,
     x: clampedX,
     y: clampedY,
+    floor,
   });
   saveProgress(progress);
-  return { ok: true, message: `${item.name} placed!` };
+  return { ok: true, message: floor === "up" ? `${item.name} placed upstairs.` : `${item.name} placed!` };
+}
+
+/** Slides a placed piece to a new spot, on the same floor or the other one. */
+export function moveFurniture(instanceId: string, x: number, y: number, floor?: HouseFloor): PurchaseResult {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const entry = progress.placedFurnitureItems!.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That piece is not in the house." };
+  const item = getFurnitureItem(entry.itemId);
+  const to = floor ?? floorOf(entry);
+  const moved: PlacedFurnitureEntry = { ...entry, x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(92, y)), floor: to };
+  progress.placedFurnitureItems = progress.placedFurnitureItems!.map((p) => (p.instanceId === instanceId ? moved : p));
+  saveProgress(progress);
+  const changedFloor = to !== floorOf(entry);
+  return { ok: true, message: changedFloor ? `${item?.name ?? "It"} is ${to === "up" ? "upstairs" : "downstairs"} now.` : `${item?.name ?? "It"} moved.` };
+}
+
+/** Sends a placed piece to the other floor, keeping its spot in the room. */
+export function moveFurnitureToFloor(instanceId: string, floor: HouseFloor): PurchaseResult {
+  const progress = getProgress();
+  const entry = (progress.placedFurnitureItems ?? []).find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That piece is not in the house." };
+  return moveFurniture(instanceId, entry.x, entry.y, floor);
+}
+
+/** Flips a lamp, a screen, a sign: on to off and back. Only pieces with a switch. */
+export function toggleFurniture(instanceId: string): PurchaseResult {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const entry = progress.placedFurnitureItems!.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That piece is not in the house." };
+  if (!USABLE.has(entry.itemId)) return { ok: false, message: "That one has no switch." };
+  const item = getFurnitureItem(entry.itemId);
+  const off = !entry.off;
+  progress.placedFurnitureItems = progress.placedFurnitureItems!.map((p) => (p.instanceId === instanceId ? { ...p, off } : p));
+  saveProgress(progress);
+  return { ok: true, message: `${item?.name ?? "It"} is ${off ? "off" : "on"}.` };
+}
+
+/** Night falls on the house, or morning comes. */
+export function setHouseNight(night: boolean): void {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  progress.houseNight = night;
+  saveProgress(progress);
 }
 
 export function removePlacedFurniture(instanceId: string): void {
@@ -328,7 +432,7 @@ export function removePlacedOrnament(instanceId: string): PurchaseResult {
 
 /* ── The rink ───────────────────────────────────────────────────────── */
 
-export function buyRinkItem(itemId: string): PurchaseResult {
+export function buyRinkItem(itemId: string, color?: string | null): PurchaseResult {
   const item = getRinkItem(itemId);
   if (!item) return { ok: false, message: "That rink piece doesn't exist." };
   const progress = getProgress();
@@ -339,6 +443,7 @@ export function buyRinkItem(itemId: string): PurchaseResult {
   const cantAfford = spendBridgeys(progress, item.price);
   if (cantAfford) return cantAfford;
   progress.ownedRinkItems!.push(itemId);
+  if (getSwatch(color)) progress.itemColors = { ...(progress.itemColors ?? {}), [itemId]: color as string };
   saveProgress(progress);
   return { ok: true, message: `${item.name} is yours. It goes in the backyard, by the rink.` };
 }

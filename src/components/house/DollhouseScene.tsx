@@ -1,6 +1,7 @@
 import { BACKDROPS, getHouseArt } from "@/data/house-art";
 import type { HousePalette } from "@/data/house-art";
-import { EAVE, FLOOR_TOP, HOUSE, HORIZON_Y, ROOF_APEX, ROOM, SCENE_H, SCENE_W, YARD_TOP } from "@/lib/dollhouse";
+import { NightSky, nightWash } from "@/components/house/NightSky";
+import { EAVE, FLOORS, HOUSE, HORIZON_Y, ROOF_APEX, ROOM, SCENE_H, SCENE_W, SLAB, YARD_TOP } from "@/lib/dollhouse";
 
 interface DollhouseSceneProps {
   styleId: string;
@@ -8,6 +9,8 @@ interface DollhouseSceneProps {
   open: boolean;
   /** Crop, for places too small to carry the whole landscape. */
   frame?: "scene" | "house";
+  /** Night: a dark sky, stars, and the windows lit. */
+  night?: boolean;
 }
 
 /** Tight on the building, in the aspect a shop card actually is. */
@@ -24,9 +27,10 @@ const SPLIT = (HOUSE.left + HOUSE.right) / 2;
  * gesture as a real dollhouse, and the reason nothing here needs a camera.
  * Inside and outside are the same view, which is what the turntable and the
  * panorama could never be: those were two places, and you travelled between
- * them.
+ * them. Two storeys now: a room downstairs, a room upstairs, and the stairs
+ * between them on the back wall.
  */
-export function DollhouseScene({ styleId, open, frame = "scene" }: DollhouseSceneProps) {
+export function DollhouseScene({ styleId, open, frame = "scene", night = false }: DollhouseSceneProps) {
   const art = getHouseArt(styleId);
   const p = art.palette;
   const r = art.room;
@@ -42,14 +46,14 @@ export function DollhouseScene({ styleId, open, frame = "scene" }: DollhouseScen
     >
       <defs>
         <linearGradient id={`${uid}-sky`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={art.sky[0]} />
-          <stop offset="100%" stopColor={art.sky[1]} />
+          <stop offset="0%" stopColor={night ? "#0b1020" : art.sky[0]} />
+          <stop offset="100%" stopColor={night ? "#1e2a4a" : art.sky[1]} />
         </linearGradient>
         {/* The only gradients in the scene are atmosphere: sky, and the wash
             that fades the far lawn into the horizon. Every surface is flat. */}
         <linearGradient id={`${uid}-haze`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={art.sky[1]} stopOpacity="0.55" />
-          <stop offset="100%" stopColor={art.sky[1]} stopOpacity="0" />
+          <stop offset="0%" stopColor={night ? "#1e2a4a" : art.sky[1]} stopOpacity="0.55" />
+          <stop offset="100%" stopColor={night ? "#1e2a4a" : art.sky[1]} stopOpacity="0" />
         </linearGradient>
         <clipPath id={`${uid}-room`}>
           <rect x={ROOM.left} y={ROOM.ceiling} width={ROOM.right - ROOM.left} height={ROOM.floor - ROOM.ceiling} />
@@ -58,7 +62,7 @@ export function DollhouseScene({ styleId, open, frame = "scene" }: DollhouseScen
 
       {/* ── Sky and distance ───────────────────────────────────── */}
       <rect x="0" y="0" width={SCENE_W} height={HORIZON_Y + 2} fill={`url(#${uid}-sky)`} />
-      <Sun uid={uid} kind={art.backdrop} />
+      {night ? <NightSky uid={uid} moon={{ x: 150, y: 132 }} /> : <Sun uid={uid} kind={art.backdrop} />}
       <path d={back.far} fill={art.far} />
       <path d={back.near} fill={art.near} />
       <rect x="0" y={HORIZON_Y - 90} width={SCENE_W} height="92" fill={`url(#${uid}-haze)`} />
@@ -70,7 +74,7 @@ export function DollhouseScene({ styleId, open, frame = "scene" }: DollhouseScen
       <MidGround art={art} />
       <Path uid={uid} art={art} />
 
-      <Clouds art={art} />
+      {!night && <Clouds art={art} />}
 
       {/* ── The house ──────────────────────────────────────────── */}
       {/* Its shadow on the lawn, flat and offset the way the light is. */}
@@ -92,10 +96,16 @@ export function DollhouseScene({ styleId, open, frame = "scene" }: DollhouseScen
         height={HOUSE.base - HOUSE.wallTop}
         fill={p.wallShade}
       />
-      <Interior uid={uid} room={r} palette={p} />
+      <Interior uid={uid} room={r} palette={p} night={night} />
       <Roof art={art} uid={uid} />
-      <FrontWall art={art} open={open} />
+      <FrontWall art={art} open={open} night={night} />
       <Extras art={art} styleId={styleId} open={open} />
+
+      {/* Night falls on everything at once, then the lit windows come back
+          on top of it (see FrontWall), which is what makes it night rather
+          than a dim afternoon. */}
+      {night && <rect x="0" y="0" width={SCENE_W} height={SCENE_H} fill={nightWash.fill} opacity={nightWash.opacity} style={{ mixBlendMode: "multiply" }} />}
+      {night && !open && <LitWindows p={p} />}
     </svg>
   );
 }
@@ -181,7 +191,7 @@ function MidGround({ art }: { art: ReturnType<typeof getHouseArt> }) {
       <g>
         <rect x="0" y={y} width={SCENE_W} height="26" fill={art.mid} />
         <rect x="0" y={y} width={SCENE_W} height="6" fill={art.midLight} />
-        {[92, 288, 912, 1108].map((x, i) => (
+        {[92, 1108].map((x, i) => (
           <g key={i}>
             <rect x={x} y={y - 92} width="7" height="92" fill={art.mid} />
             <rect x={x - 16} y={y - 100} width="39" height="12" rx="5" fill={art.mid} />
@@ -197,13 +207,13 @@ function MidGround({ art }: { art: ReturnType<typeof getHouseArt> }) {
   // a committed tone darker than the lawn, with trunks that are actually wood.
   return (
     <g>
-      {[40, 132, 224, 316, 884, 976, 1068, 1160].map((x, i) => (
+      {[40, 132, 1068, 1160].map((x, i) => (
         <ellipse key={i} cx={x} cy={y + 14} rx="62" ry="27" fill={art.mid} />
       ))}
       <rect x="0" y={y + 12} width={SCENE_W} height="4" fill={art.mid} opacity="0.6" />
       {[
-        { x: 146, r: 62 },
-        { x: 1062, r: 54 },
+        { x: 118, r: 58 },
+        { x: 1090, r: 52 },
       ].map((t, i) => (
         <g key={i}>
           <rect x={t.x - 10} y={y - t.r + 6} width="20" height={t.r + 16} fill="#7b5535" />
@@ -237,59 +247,110 @@ function Interior({
   uid,
   room,
   palette,
+  night,
 }: {
   uid: string;
   room: ReturnType<typeof getHouseArt>["room"];
   palette: ReturnType<typeof getHouseArt>["palette"];
+  night: boolean;
 }) {
   const w = ROOM.right - ROOM.left;
   return (
     <g clipPath={`url(#${uid}-room)`}>
-      {/* Back wall, then the floor it meets. */}
-      <rect x={ROOM.left} y={ROOM.ceiling} width={w} height={FLOOR_TOP - ROOM.ceiling} fill={room.wall} />
-      <rect x={ROOM.left} y={FLOOR_TOP - 46} width={w} height="46" fill={room.wallShade} opacity="0.55" />
-      <rect x={ROOM.left} y={FLOOR_TOP} width={w} height={ROOM.floor - FLOOR_TOP} fill={room.floor} />
+      {(["up", "down"] as const).map((floor) => {
+        const band = FLOORS[floor];
+        return (
+          <g key={floor}>
+            {/* Back wall, then the floor it meets. */}
+            <rect x={ROOM.left} y={band.ceiling} width={w} height={band.floorTop - band.ceiling} fill={room.wall} />
+            <rect x={ROOM.left} y={band.floorTop - 40} width={w} height="40" fill={room.wallShade} opacity="0.55" />
+            <rect x={ROOM.left} y={band.floorTop} width={w} height={band.floor - band.floorTop} fill={room.floor} />
 
-      {/* Floorboards run away from the viewer, which is what tells you the
-          floor is a floor and not a wall of the same colour. */}
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-        <path
-          key={i}
-          d={`M${ROOM.left + (i * w) / 8} ${ROOM.floor} L${ROOM.left + w * 0.12 + (i * w * 0.76) / 8} ${FLOOR_TOP}`}
-          stroke={room.floorShade}
-          strokeWidth="2.5"
-          opacity="0.55"
-        />
+            {/* Floorboards run away from the viewer, which is what tells you
+                the floor is a floor and not a wall of the same colour. */}
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <path
+                key={i}
+                d={`M${ROOM.left + (i * w) / 8} ${band.floor} L${ROOM.left + w * 0.12 + (i * w * 0.76) / 8} ${band.floorTop}`}
+                stroke={room.floorShade}
+                strokeWidth="2.5"
+                opacity="0.55"
+              />
+            ))}
+            <rect x={ROOM.left} y={band.floorTop} width={w} height="5" fill={room.skirting} opacity="0.9" />
+            <rect x={ROOM.left} y={band.floorTop - 14} width={w} height="14" fill={room.skirting} />
+
+            {/* A rug, so the middle of the floor is not a flat plain. */}
+            <ellipse cx={ROOM.left + w / 2} cy={band.floorTop + (band.floor - band.floorTop) * 0.62} rx={w * 0.27} ry="26" fill={room.rug} opacity="0.85" />
+            <ellipse cx={ROOM.left + w / 2} cy={band.floorTop + (band.floor - band.floorTop) * 0.62} rx={w * 0.2} ry="18" fill={room.rugShade} opacity="0.7" />
+
+            {/* Back-wall dressing: a window that looks out, and a picture. */}
+            <g>
+              <rect x={ROOM.left + w * 0.64} y={band.ceiling + 24} width="118" height="84" rx="4" fill={palette.frame} />
+              <rect x={ROOM.left + w * 0.64 + 8} y={band.ceiling + 32} width="102" height="68" fill={night ? "#1e2a4a" : palette.glass} />
+              {!night && <rect x={ROOM.left + w * 0.64 + 8} y={band.ceiling + 32} width="102" height="34" fill={palette.glassShade} opacity="0.5" />}
+              {night && <circle cx={ROOM.left + w * 0.64 + 86} cy={band.ceiling + 50} r="9" fill="#fef3c7" opacity="0.9" />}
+              <rect x={ROOM.left + w * 0.64 + 56} y={band.ceiling + 32} width="6" height="68" fill={palette.frame} />
+            </g>
+            <g>
+              <rect x={ROOM.left + w * 0.14} y={band.ceiling + 30} width="84" height="62" rx="3" fill={palette.trim} />
+              <rect x={ROOM.left + w * 0.14 + 7} y={band.ceiling + 37} width="70" height="48" fill={room.rug} opacity="0.75" />
+              <path
+                d={
+                  floor === "down"
+                    ? `M${ROOM.left + w * 0.14 + 7} ${band.ceiling + 85} L${ROOM.left + w * 0.14 + 30} ${band.ceiling + 56} L${ROOM.left + w * 0.14 + 48} ${band.ceiling + 72} L${ROOM.left + w * 0.14 + 66} ${band.ceiling + 50} L${ROOM.left + w * 0.14 + 77} ${band.ceiling + 85} Z`
+                    : `M${ROOM.left + w * 0.14 + 12} ${band.ceiling + 80} Q${ROOM.left + w * 0.14 + 42} ${band.ceiling + 40} ${ROOM.left + w * 0.14 + 72} ${band.ceiling + 80} Z`
+                }
+                fill={room.rugShade}
+              />
+            </g>
+          </g>
+        );
+      })}
+
+      {/* The upstairs floor, seen edge-on, with the stairs up to it painted
+          against the back wall of the room below. */}
+      <rect x={ROOM.left} y={SLAB.top} width={w} height={SLAB.bottom - SLAB.top} fill={palette.wallShade} />
+      <rect x={ROOM.left} y={SLAB.top} width={w} height="6" fill={palette.trim} opacity="0.8" />
+      <Stairs room={room} palette={palette} />
+    </g>
+  );
+}
+
+/** A flight of stairs on the back wall downstairs, up to the slab. */
+function Stairs({ room, palette }: { room: ReturnType<typeof getHouseArt>["room"]; palette: HousePalette }) {
+  const steps = 7;
+  const x0 = ROOM.right - 24;
+  const w = 118;
+  const top = SLAB.bottom;
+  const bottom = FLOORS.down.floorTop;
+  const rise = (bottom - top) / steps;
+  const run = w / steps;
+  return (
+    <g>
+      {Array.from({ length: steps }, (_, i) => (
+        <g key={i}>
+          <rect x={x0 - w + i * run} y={top + i * rise} width={w - i * run} height={rise} fill={room.floor} />
+          <rect x={x0 - w + i * run} y={top + i * rise} width={w - i * run} height="4" fill={room.floorShade} opacity="0.8" />
+        </g>
       ))}
-      <rect x={ROOM.left} y={FLOOR_TOP} width={w} height="5" fill={room.skirting} opacity="0.9" />
-      <rect x={ROOM.left} y={FLOOR_TOP - 16} width={w} height="16" fill={room.skirting} />
-
-      {/* A rug, so the middle of the floor is not a flat plain. */}
-      <ellipse cx={ROOM.left + w / 2} cy={FLOOR_TOP + (ROOM.floor - FLOOR_TOP) * 0.62} rx={w * 0.29} ry="34" fill={room.rug} opacity="0.85" />
-      <ellipse cx={ROOM.left + w / 2} cy={FLOOR_TOP + (ROOM.floor - FLOOR_TOP) * 0.62} rx={w * 0.22} ry="24" fill={room.rugShade} opacity="0.7" />
-
-      {/* Back-wall dressing: a window that looks out, and a picture. */}
-      <g>
-        <rect x={ROOM.left + w * 0.62} y={ROOM.ceiling + 54} width="132" height="104" rx="4" fill={palette.frame} />
-        <rect x={ROOM.left + w * 0.62 + 8} y={ROOM.ceiling + 62} width="116" height="88" fill={palette.glass} />
-        <rect x={ROOM.left + w * 0.62 + 8} y={ROOM.ceiling + 62} width="116" height="44" fill={palette.glassShade} opacity="0.5" />
-        <rect x={ROOM.left + w * 0.62 + 62} y={ROOM.ceiling + 62} width="6" height="88" fill={palette.frame} />
-      </g>
-      <g>
-        <rect x={ROOM.left + w * 0.16} y={ROOM.ceiling + 62} width="96" height="72" rx="3" fill={palette.trim} />
-        <rect x={ROOM.left + w * 0.16 + 7} y={ROOM.ceiling + 69} width="82" height="58" fill={room.rug} opacity="0.75" />
-        <path
-          d={`M${ROOM.left + w * 0.16 + 7} ${ROOM.ceiling + 127} L${ROOM.left + w * 0.16 + 34} ${ROOM.ceiling + 92} L${ROOM.left + w * 0.16 + 56} ${ROOM.ceiling + 112} L${ROOM.left + w * 0.16 + 78} ${ROOM.ceiling + 84} L${ROOM.left + w * 0.16 + 89} ${ROOM.ceiling + 127} Z`}
-          fill={room.rugShade}
-        />
-      </g>
+      {/* Banister. */}
+      <path d={`M${x0 - w + 6} ${bottom - 26} L${x0 - 6} ${top - 22}`} stroke={palette.trim} strokeWidth="5" strokeLinecap="round" fill="none" />
+      {Array.from({ length: 4 }, (_, i) => {
+        const x = x0 - w + 12 + i * (w / 4);
+        const y = top + ((x - (x0 - w)) / w) * (bottom - top);
+        return <rect key={i} x={x - 2} y={y - 24 + (bottom - y) * 0.05} width="4" height="24" fill={palette.trim} />;
+      })}
     </g>
   );
 }
 
 /* ── The front wall, in two halves ─────────────────────────────── */
 
-function FrontWall({ art, open }: { art: ReturnType<typeof getHouseArt>; open: boolean }) {
+/** Windows on the front, by storey: the top of each. */
+const FRONT_WINDOW_ROWS = [HOUSE.wallTop + 40, HOUSE.wallTop + 262];
+
+function FrontWall({ art, open, night }: { art: ReturnType<typeof getHouseArt>; open: boolean; night: boolean }) {
   const p = art.palette;
   const w = HOUSE.right - HOUSE.left;
   const h = HOUSE.base - HOUSE.wallTop;
@@ -328,10 +389,14 @@ function FrontWall({ art, open }: { art: ReturnType<typeof getHouseArt>; open: b
                 />
               ))}
 
-              {/* Two windows on each half, mirrored about the seam so the
-                  pairs sit the same distance from the door. */}
-              <Window p={p} x={winX(isLeft, x, half, 92)} y={HOUSE.wallTop + 48} w="92" h="98" />
-              <Window p={p} x={winX(isLeft, x, half, 92)} y={HOUSE.wallTop + 196} w="92" h="86" />
+              {/* A band where the upstairs floor is, so the two storeys read. */}
+              <rect x={x} y={SLAB.top + 4} width={half} height="10" fill={p.trim} opacity="0.55" />
+
+              {/* Two windows on each half, one per storey, mirrored about the
+                  seam so the pairs sit the same distance from the door. */}
+              {FRONT_WINDOW_ROWS.map((y, i) => (
+                <Window key={i} p={p} x={winX(isLeft, x, half, 92)} y={y} w="92" h={i === 0 ? "104" : "92"} night={night} />
+              ))}
 
               {/* Half a door each, meeting at the seam, so opening the house
                   splits the door, which is the whole point of the gesture. */}
@@ -346,10 +411,31 @@ function FrontWall({ art, open }: { art: ReturnType<typeof getHouseArt>; open: b
               <rect x={isLeft ? SPLIT - 52 : SPLIT + 46} y={HOUSE.base - 164} width="6" height="164" fill={p.trim} />
               <rect x={isLeft ? SPLIT - 52 : SPLIT} y={HOUSE.base - 170} width="52" height="8" fill={p.trim} />
               {isLeft && <circle cx={SPLIT - 14} cy={HOUSE.base - 74} r="5" fill={p.accent} />}
+              {/* A porch light by the door, on at night. */}
+              {!isLeft && <circle cx={SPLIT + 66} cy={HOUSE.base - 178} r="7" fill={night ? "#fde68a" : p.frame} />}
             </g>
           </g>
         );
       })}
+    </g>
+  );
+}
+
+/** The windows, lit from inside, drawn above the night wash. */
+function LitWindows({ p }: { p: HousePalette }) {
+  const w = HOUSE.right - HOUSE.left;
+  const half = w / 2;
+  return (
+    <g opacity="0.85">
+      {[-1, 1].map((side) => {
+        const isLeft = side === -1;
+        const x = isLeft ? HOUSE.left : SPLIT;
+        return FRONT_WINDOW_ROWS.map((y, i) => (
+          <rect key={`${side}-${i}`} x={winX(isLeft, x, half, 92)} y={y} width="92" height={i === 0 ? 104 : 92} fill="#fde68a" />
+        ));
+      })}
+      <circle cx={SPLIT + 66} cy={HOUSE.base - 178} r="16" fill="#fde68a" opacity="0.35" />
+      <title>{p.accent}</title>
     </g>
   );
 }
@@ -365,21 +451,23 @@ function Window({
   y,
   w,
   h,
+  night,
 }: {
   p: ReturnType<typeof getHouseArt>["palette"];
   x: number;
   y: number;
   w: string;
   h: string;
+  night: boolean;
 }) {
   const ww = Number(w);
   const hh = Number(h);
   return (
     <g>
       <rect x={x - 5} y={y - 5} width={ww + 10} height={hh + 10} rx="3" fill={p.frame} />
-      <rect x={x} y={y} width={ww} height={hh} fill={p.glass} />
+      <rect x={x} y={y} width={ww} height={hh} fill={night ? "#fde68a" : p.glass} />
       {/* A flat highlight across the top half reads as glass without a gradient. */}
-      <rect x={x} y={y} width={ww} height={hh / 2} fill={p.glassShade} opacity="0.55" />
+      {!night && <rect x={x} y={y} width={ww} height={hh / 2} fill={p.glassShade} opacity="0.55" />}
       <rect x={x + ww / 2 - 3} y={y} width="6" height={hh} fill={p.frame} />
       <rect x={x} y={y + hh / 2 - 3} width={ww} height="6" fill={p.frame} />
       <rect x={x - 8} y={y + hh + 5} width={ww + 16} height="7" rx="2" fill={p.trim} />
@@ -416,8 +504,8 @@ function Roof({ art, uid }: { art: ReturnType<typeof getHouseArt>; uid: string }
             cut rather than a texture pretending to be. */}
         <rect x={L} y={T - 34} width={R - L} height="34" fill={p.wall} />
         <rect x={L} y={T - 34} width={R - L} height="12" fill={p.wallShade} opacity="0.6" />
-        {Array.from({ length: 9 }, (_, i) => (
-          <rect key={i} x={L + 10 + i * 66} width="40" y={T - 60} height="26" fill={p.wall} />
+        {Array.from({ length: 10 }, (_, i) => (
+          <rect key={i} x={L + 10 + i * 70} width="40" y={T - 60} height="26" fill={p.wall} />
         ))}
         {[L + 6, R - 82].map((tx, i) => (
           <g key={i}>
@@ -435,7 +523,7 @@ function Roof({ art, uid }: { art: ReturnType<typeof getHouseArt>; uid: string }
     );
   }
 
-  const apex = art.roof === "thatch" ? ROOF_APEX + 44 : ROOF_APEX;
+  const apex = art.roof === "thatch" ? ROOF_APEX + 40 : ROOF_APEX;
   const thick = art.roof === "thatch" ? 30 : art.roof === "canopy" ? 22 : 16;
 
   return (
@@ -464,11 +552,11 @@ function Roof({ art, uid }: { art: ReturnType<typeof getHouseArt>; uid: string }
       <rect x={L - 10} y={T} width={R - L + 20} height={thick / 2} rx="3" fill={p.roof} opacity="0.55" />
 
       {/* An attic light in the gable. */}
-      <circle cx={SCENE_W / 2} cy={T - 62} r="30" fill={p.frame} />
-      <circle cx={SCENE_W / 2} cy={T - 62} r="23" fill={p.glass} />
-      <path d={`M${SCENE_W / 2 - 23} ${T - 62} a23 23 0 0 1 46 0 Z`} fill={p.glassShade} opacity="0.6" />
-      <rect x={SCENE_W / 2 - 23} y={T - 64} width="46" height="4" fill={p.frame} />
-      <rect x={SCENE_W / 2 - 2} y={T - 85} width="4" height="46" fill={p.frame} />
+      <circle cx={SCENE_W / 2} cy={T - 58} r="28" fill={p.frame} />
+      <circle cx={SCENE_W / 2} cy={T - 58} r="21" fill={p.glass} />
+      <path d={`M${SCENE_W / 2 - 21} ${T - 58} a21 21 0 0 1 42 0 Z`} fill={p.glassShade} opacity="0.6" />
+      <rect x={SCENE_W / 2 - 21} y={T - 60} width="42" height="4" fill={p.frame} />
+      <rect x={SCENE_W / 2 - 2} y={T - 79} width="4" height="42" fill={p.frame} />
 
       <title>{uid}</title>
     </g>
@@ -520,10 +608,9 @@ function Extras({
           <rect x={HOUSE.right + 42} y={HOUSE.wallTop + 40} width="54" height={HOUSE.base - HOUSE.wallTop - 40} fill="#7a4e2c" />
         </g>
         <g>
-          <rect x={HOUSE.left - 92} y={HOUSE.base - 200} width="46" height="9" fill="#a9713f" />
-          <rect x={HOUSE.left - 92} y={HOUSE.base - 148} width="46" height="9" fill="#a9713f" />
-          <rect x={HOUSE.left - 92} y={HOUSE.base - 96} width="46" height="9" fill="#a9713f" />
-          <rect x={HOUSE.left - 92} y={HOUSE.base - 44} width="46" height="9" fill="#a9713f" />
+          {[200, 148, 96, 44].map((dy) => (
+            <rect key={dy} x={HOUSE.left - 92} y={HOUSE.base - dy} width="46" height="9" fill="#a9713f" />
+          ))}
         </g>
         <circle cx={HOUSE.left - 108} cy={ROOF_APEX + 56} r="86" fill="#4f7d5c" />
         <circle cx={HOUSE.right + 118} cy={ROOF_APEX + 34} r="98" fill="#456f52" />
@@ -555,7 +642,7 @@ function Extras({
     return (
       <g>
         <rect x={HOUSE.left - 44} y={HOUSE.base - 12} width={HOUSE.right - HOUSE.left + 88} height="12" fill="#9aa2ac" />
-        {Array.from({ length: 7 }, (_, i) => (
+        {Array.from({ length: 8 }, (_, i) => (
           <rect key={i} x={HOUSE.left - 30 + i * 92} y={HOUSE.base - 96} width="6" height="84" fill={p.frame} opacity="0.85" />
         ))}
         <rect x={HOUSE.left - 36} y={HOUSE.base - 100} width={HOUSE.right - HOUSE.left + 72} height="7" rx="3" fill={p.frame} />

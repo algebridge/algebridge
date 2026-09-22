@@ -485,3 +485,82 @@ html.lenis body {
     transition: none !important;
   }
 }
+
+/* ── Furniture that moves ────────────────────────────────────
+   Pieces are inline SVG, so a part that moves is a <g class="fa fa-*"> with
+   its pivot set inline in the piece's own 100x100 units. Everything here is
+   opacity or a transform; nothing is repainted per frame. */
+.fa { transform-box: view-box; }
+@keyframes fa-spin { to { transform: rotate(360deg); } }
+.fa-spin { animation: fa-spin 3s linear infinite; }
+.fa-spin-fast { animation: fa-spin 0.9s linear infinite; }
+.fa-spin-slow { animation: fa-spin 14s linear infinite; }
+.fa-spin-60 { animation: fa-spin 60s linear infinite; }
+@keyframes fa-flicker { 0%, 46%, 54%, 100% { opacity: 1; } 50% { opacity: 0.8; } 80% { opacity: 0.93; } }
+.fa-flicker { animation: fa-flicker 2.8s ease-in-out infinite; }
+@keyframes fa-blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0.25; } }
+.fa-blink { animation: fa-blink 1.6s steps(1) infinite; }
+.fa-blink-alt { animation: fa-blink 1.6s steps(1) infinite; animation-delay: -0.8s; }
+@keyframes fa-blink-slow { 0%, 92%, 100% { opacity: 1; } 95% { opacity: 0.1; } }
+.fa-blink-slow { animation: fa-blink-slow 4.2s ease-in-out infinite; }
+@keyframes fa-neon { 0%, 10%, 100% { opacity: 1; } 8% { opacity: 0.65; } 60% { opacity: 0.94; } }
+.fa-neon { animation: fa-neon 3.6s ease-in-out infinite; }
+@keyframes fa-glow { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+.fa-glow { animation: fa-glow 2.4s ease-in-out infinite; }
+@keyframes fa-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.fa-twinkle { animation: fa-twinkle 1.4s ease-in-out infinite; }
+.fa-twinkle-alt { animation: fa-twinkle 1.4s ease-in-out infinite; animation-delay: -0.7s; }
+@keyframes fa-shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.fa-shimmer { animation: fa-shimmer 1.8s ease-in-out infinite; }
+@keyframes fa-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.fa-pulse { animation: fa-pulse 1.6s ease-in-out infinite; }
+@keyframes fa-rise { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.fa-rise { animation: fa-rise 3.2s ease-in-out infinite; }
+.fa-rise-alt { animation: fa-rise 3.2s ease-in-out infinite; animation-delay: -1.6s; }
+@keyframes fa-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.fa-hover { animation: fa-hover 2.2s ease-in-out infinite; }
+.fa-bob { animation: fa-hover 1.8s ease-in-out infinite; }
+@keyframes fa-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.fa-sway { animation: fa-sway 3.4s ease-in-out infinite; }
+@keyframes fa-swing { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.fa-swing { animation: fa-swing 4s ease-in-out infinite; }
+@keyframes fa-flame { 0%, 100% { transform: scale(1, 1); } 30% { transform: scale(0.96, 1.08); } 60% { transform: scale(1.04, 0.94); } }
+.fa-flame { animation: fa-flame 0.9s ease-in-out infinite; }
+@keyframes fa-swim { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+.fa-swim { animation: fa-swim 4.4s ease-in-out infinite; }
+.fa-swim-alt { animation: fa-swim 5.2s ease-in-out infinite reverse; }
+@keyframes fa-wag { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.fa-wag { animation: fa-wag 0.6s ease-in-out infinite; }
+@keyframes fa-wobble { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-3deg); } 40% { transform: rotate(3deg); } 60% { transform: rotate(-1.5deg); } 80% { transform: rotate(1.5deg); } }
+.fa-wobble { animation: fa-wobble 5s ease-in-out infinite; }
+@keyframes fa-drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+.fa-drift { animation: fa-drift 3s ease-in-out infinite; }
+@keyframes fa-steam { 0% { transform: translateY(0); opacity: 0.9; } 100% { transform: translateY(-8px); opacity: 0; } }
+.fa-steam { animation: fa-steam 2.4s ease-out infinite; }
+
+/* A shop full of moving pieces stays cheap: cards off screen are not drawn. */
+.shop-card { content-visibility: auto; contain-intrinsic-size: 240px 260px; }
+
+/* ── The house at night ──────────────────────────────────────
+   A piece that is switched off, or has no light of its own, sits in the dark;
+   one that is on keeps its colour and throws a little light. */
+.dh-night .dh-piece { filter: brightness(0.55) saturate(0.85); }
+.dh-night .dh-piece.dh-lit { filter: none; }
+.dh-night .dh-piece.dh-lit::before {
+  content: "";
+  position: absolute;
+  inset: -18% -22% -6%;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(253, 224, 130, 0.42), rgba(253, 224, 130, 0));
+  pointer-events: none;
+}
+.dh-piece.dh-dragging { transition: none; cursor: grabbing; opacity: 0.85; }
+
+/* The little bar of actions over a piece you tapped. */
+.dh-actions {
+  animation: dh-settle 200ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fa { animation: none !important; }
+}

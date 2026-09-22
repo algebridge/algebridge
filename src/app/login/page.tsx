@@ -7,7 +7,7 @@ import { fetchEnabledProviders } from "@/lib/auth-providers";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { OAUTH_PENDING_KEY, useAuth } from "@/lib/auth";
 import { exportProgressForSync, importProgressFromSync } from "@/lib/progress";
-import { checkFullName, isRealName } from "@/lib/name";
+import { checkFullName, checkNameParts, formatName, isRealName } from "@/lib/name";
 import { Icon } from "@/components/Icon";
 import { RealNameForm } from "@/components/RealNameForm";
 import type { UserRole } from "@/types";
@@ -95,11 +95,14 @@ function LoginPageInner() {
     setMessage("");
 
     if (mode === "signup") {
-      const check = checkFullName(`${firstName} ${lastName}`);
+      const check = checkNameParts(firstName, lastName);
       if (!check.ok) {
         setError(check.error);
         return;
       }
+      // Show the tidied name back, so "maria" reads "Maria" before they go on.
+      setFirstName(formatName(firstName));
+      setLastName(formatName(lastName));
       setSubmitting(true);
       const err = await signUp(email, password, check.formatted, role, roleCode.trim() || undefined);
       setSubmitting(false);
@@ -423,6 +426,7 @@ function LoginPageInner() {
                       id="first-name"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
+                      onBlur={() => setFirstName((v) => formatName(v))}
                       required
                       autoComplete="given-name"
                       disabled={!configured}
@@ -438,6 +442,7 @@ function LoginPageInner() {
                       id="last-name"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
+                      onBlur={() => setLastName((v) => formatName(v))}
                       required
                       autoComplete="family-name"
                       disabled={!configured}
@@ -447,8 +452,8 @@ function LoginPageInner() {
                   </div>
                 </div>
                 <p className="-mt-2 text-xs text-slate-500">
-                  Use your real name, not a username, it&apos;s how your teacher finds
-                  you on the roster and how tutors greet you on a call.
+                  Your full first and last name, not a username or an initial. It&apos;s how your
+                  teacher finds you on the roster and how tutors greet you on a call.
                 </p>
               </>
             )}

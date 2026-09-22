@@ -138,6 +138,10 @@ export interface UserProgress {
   rink?: { day: string; earned: number; solved: number; best: number };
   /** When this copy was last written, so the newer of two copies can be kept. */
   updatedAt?: string;
+  /** The colour a student chose for a piece, by item id: a swatch id from furniture-art. */
+  itemColors?: Record<string, string>;
+  /** The house at night, with the lamps on. */
+  houseNight?: boolean;
 }
 
 /**
@@ -161,7 +165,13 @@ export interface PlacedFurnitureEntry {
   x: number;
   /** Vertical position as % of room height (0-100). */
   y: number;
+  /** Which floor it stands on. Older saves have no floor and are downstairs. */
+  floor?: HouseFloor;
+  /** Switched off: a lamp dark, a screen blank. Pieces that light up only. */
+  off?: boolean;
 }
+
+export type HouseFloor = "down" | "up";
 
 export interface HouseStyle {
   id: string;
@@ -234,6 +244,11 @@ export interface Profile {
   avatarUrl: string | null;
   bio: string | null;
   isAdmin: boolean;
+  /**
+   * Set by an admin in the database, never by the client: the shop charges
+   * this account nothing. For the founder's own accounts.
+   */
+  unlimitedBridgeys: boolean;
 }
 
 export interface GroupInfo {

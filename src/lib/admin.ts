@@ -39,6 +39,8 @@ export interface AdminUserRow {
   createdAt: string;
   lastSeenAt: string | null;
   isAdmin: boolean;
+  /** The shop charges this account nothing (an admin-set allowance). */
+  unlimitedBridgeys: boolean;
 }
 
 function num(v: unknown): number {
@@ -85,7 +87,22 @@ export async function fetchAdminUserRows(): Promise<AdminUserRow[]> {
     createdAt: String(r.created_at),
     lastSeenAt: (r.last_seen_at as string) ?? null,
     isAdmin: Boolean(r.is_admin),
+    unlimitedBridgeys: Boolean(r.unlimited_bridgeys),
   }));
+}
+
+/**
+ * Give an account unlimited Bridgeys, or take the allowance back. Admin-only in
+ * the database (set_unlimited_bridgeys checks is_admin()), and the column is
+ * guarded by a trigger, so no account can grant it to itself.
+ */
+export async function setUnlimitedBridgeysFor(userId: string, enabled: boolean): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud accounts are not configured.";
+  const { error } = await supabase.rpc("set_unlimited_bridgeys", { target: userId, enabled });
+  if (!error) return null;
+  if (error.code === "PGRST202") return "Run supabase/schema-2026-09-22.sql first: the allowance lives in the database.";
+  return error.message;
 }
 
 /** Promote an existing account to admin. Fails unless the caller is an admin. */

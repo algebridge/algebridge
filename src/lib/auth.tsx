@@ -11,7 +11,7 @@ import {
   importProgressFromSync,
   newerCopy,
 } from "@/lib/progress";
-import { getLeaderboardSnapshot } from "@/lib/bridgeys";
+import { getLeaderboardSnapshot, setUnlimitedBridgeys } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
 import { getMyProfile, setMyRole } from "@/lib/teacher";
 import { claimRole, ensureAllTutorsMembership } from "@/lib/social";
@@ -456,6 +456,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await refreshProfile(user.id);
     return err;
   }
+
+  // The shop's allowance follows the profile the database handed back, so it
+  // is on for every one of the founder's accounts and off the moment anyone
+  // else signs in on the same browser.
+  useEffect(() => {
+    setUnlimitedBridgeys(!!user && !!profile?.unlimitedBridgeys);
+  }, [user, profile]);
 
   // A signed-in account whose stored name is still auto-generated (or was
   // never loaded) can browse, but not practice, until it's a real name.

@@ -22,7 +22,13 @@ export const shade = (hex: string, t = 0.24): string => mix(hex, [0, 0, 0], t);
 /** The lighter tone, for a highlight strip. */
 export const tint = (hex: string, t = 0.3): string => mix(hex, [255, 255, 255], t);
 
-const C = {
+/**
+ * The palette every piece is drawn in. It is a plain object on purpose: a
+ * student's colour choice is applied by swapping one entry while the piece
+ * is drawn (see furnitureSvg), and every shade and tint of that entry follows,
+ * because both are computed from it at draw time.
+ */
+const BASE = {
   wood: "#c2793a",
   walnut: "#7c4a1e",
   pine: "#e2a15c",
@@ -47,6 +53,61 @@ const C = {
   gold: "#eab308",
   brass: "#d4a017",
 };
+type ColorKey = keyof typeof BASE;
+const C: Record<ColorKey, string> = { ...BASE };
+
+/**
+ * The colours a student can paint a piece. Each is one of the palette's own
+ * entries, so a repainted piece still belongs to the set.
+ */
+export const SWATCHES: { id: string; name: string; key: ColorKey }[] = [
+  { id: "red", name: "Red", key: "red" },
+  { id: "orange", name: "Orange", key: "orange" },
+  { id: "gold", name: "Yellow", key: "gold" },
+  { id: "green", name: "Green", key: "green" },
+  { id: "teal", name: "Teal", key: "teal" },
+  { id: "sky", name: "Sky", key: "sky" },
+  { id: "blue", name: "Blue", key: "blue" },
+  { id: "indigo", name: "Indigo", key: "indigo" },
+  { id: "purple", name: "Purple", key: "purple" },
+  { id: "pink", name: "Pink", key: "pink" },
+  { id: "rose", name: "Rose", key: "rose" },
+  { id: "walnut", name: "Walnut", key: "walnut" },
+  { id: "ink", name: "Black", key: "ink" },
+  { id: "paper", name: "White", key: "paper" },
+];
+
+export function getSwatch(id: string | null | undefined) {
+  return id ? SWATCHES.find((s) => s.id === id) : undefined;
+}
+
+/** The hex a swatch paints with, for a colour dot in the UI. */
+export function swatchHex(id: string): string {
+  const s = getSwatch(id);
+  return s ? BASE[s.key] : BASE.ink;
+}
+
+/** Whether a piece is switched on: lamps lit, screens showing, bulbs bright. */
+const STATE = { on: true };
+
+/**
+ * A part that moves: a group with a CSS animation class (see globals.css,
+ * the .fa-* rules) and its pivot in scene units.
+ */
+function anim(kind: string, inner: string, origin = "50px 50px"): string {
+  return `<g class="fa fa-${kind}" style="transform-origin:${origin}">${inner}</g>`;
+}
+/** Drawn only while the piece is on. */
+const lit = (s: string) => (STATE.on ? s : "");
+/** A bulb: its colour while on, dead glass while off. */
+const bulb = (color: string) => (STATE.on ? color : C.chrome);
+/** A neon tube: its colour while on, bare glass while off. */
+const tube = (color: string) => (STATE.on ? color : C.steel);
+const neon = (s: string) => (STATE.on ? anim("neon", s) : s);
+const glint = (s: string) => (STATE.on ? anim("shimmer", s) : s);
+const spin = (s: string, origin: string, kind = "spin") => (STATE.on ? anim(kind, s, origin) : s);
+const pulse = (s: string, origin: string) => (STATE.on ? anim("pulse", s, origin) : s);
+const twinkle = (i: number, s: string) => (STATE.on ? anim(i % 2 ? "twinkle" : "twinkle-alt", s) : s);
 
 // --- Shapes -----------------------------------------------------------------
 
@@ -132,10 +193,10 @@ function books(x: number, y: number, h: number, colors: string[], w = 7, gap = 1
 
 /** A screen: dark bezel, lit panel, a highlight bar. */
 function screen(x: number, y: number, w: number, h: number, glow = C.sky): string {
+  if (!STATE.on) return block(x, y, w, h, C.ink, { rx: 3, depth: 2 }) + rect(x + 3, y + 3, w - 6, h - 8, shade(C.ink, 0.35), 2);
   return (
     block(x, y, w, h, C.ink, { rx: 3, depth: 2 }) +
-    rect(x + 3, y + 3, w - 6, h - 8, glow, 2) +
-    rect(x + 5, y + 5, w * 0.35, 2.5, tint(glow, 0.55), 1)
+    anim("flicker", rect(x + 3, y + 3, w - 6, h - 8, glow, 2) + rect(x + 5, y + 5, w * 0.35, 2.5, tint(glow, 0.55), 1))
   );
 }
 
@@ -152,16 +213,13 @@ const ART: Record<string, () => string> = {
   plant: () =>
     block(36, 66, 28, 22, C.orange, { rx: 3, depth: 4, right: 3 }) +
     rect(34, 62, 32, 6, shade(C.orange, 0.1), 2) +
-    ball(50, 44, 20, C.green) +
-    ball(34, 40, 11, C.leaf) +
-    ball(66, 38, 12, C.lime) +
-    ball(50, 26, 9, tint(C.green)),
+    anim("sway", ball(50, 44, 20, C.green) + ball(34, 40, 11, C.leaf) + ball(66, 38, 12, C.lime) + ball(50, 26, 9, tint(C.green)), "50px 66px"),
   lamp: () =>
     block(45, 58, 10, 30, C.steel, { depth: 2, right: 2 }) +
     ellipse(50, 88, 16, 4, shade(C.steel)) +
     poly([[24, 58], [76, 58], [64, 22], [36, 22]], C.gold) +
     poly([[64, 58], [76, 58], [64, 22], [58, 22]], shade(C.gold)) +
-    ellipse(50, 66, 22, 5, tint(C.yellow, 0.5)),
+    lit(anim("glow", ellipse(50, 66, 22, 5, tint(C.yellow, 0.5)))),
   poster: () =>
     block(20, 14, 60, 72, C.cream, { rx: 2, depth: 3, right: 2 }) +
     rect(26, 20, 46, 54, C.paper, 1) +
@@ -193,6 +251,7 @@ const ART: Record<string, () => string> = {
     }) +
     line(50, 50, 50, 26, C.ink, 3.5) +
     line(50, 50, 68, 50, C.ink, 3) +
+    anim("spin-60", line(50, 50, 50, 28, C.rose, 1.2), "50px 50px") +
     disc(50, 50, 3.5, C.rose),
   "yoga-mat": () =>
     block(18, 40, 64, 30, C.teal, { rx: 10, depth: 5, right: 3 }) +
@@ -210,8 +269,9 @@ const ART: Record<string, () => string> = {
     block(38, 70, 24, 14, C.steel, { rx: 3, depth: 3, right: 2 }) +
     poly([[40, 70], [60, 70], [57, 20], [43, 20]], C.indigo) +
     poly([[54, 70], [60, 70], [57, 20], [52, 20]], shade(C.indigo)) +
-    oval(50, 56, 7, 10, C.rose) +
-    oval(49, 36, 5, 8, C.pink) +
+    (STATE.on
+      ? anim("rise", oval(50, 56, 7, 10, C.rose)) + anim("rise-alt", oval(49, 36, 5, 8, C.pink))
+      : oval(50, 62, 8, 9, shade(C.rose, 0.4))) +
     block(43, 14, 14, 7, C.steel, { rx: 2, depth: 2 }),
   "homework-station": () =>
     block(14, 50, 72, 8, C.wood, { rx: 2, depth: 3, right: 2 }) +
@@ -265,13 +325,10 @@ const ART: Record<string, () => string> = {
   hammock: () =>
     block(10, 16, 6, 70, C.walnut, { depth: 2, right: 2 }) +
     block(84, 16, 6, 70, C.walnut, { depth: 2, right: 2 }) +
-    path("M16 26 Q50 78 84 26 L84 32 Q50 84 16 32Z", C.pink) +
-    path("M22 30 Q50 74 78 30", tint(C.pink, 0.35)) +
-    ellipse(50, 52, 22, 8, tint(C.pink, 0.55)),
+    anim("swing", path("M16 26 Q50 78 84 26 L84 32 Q50 84 16 32Z", C.pink) + path("M22 30 Q50 74 78 30", tint(C.pink, 0.35)) + ellipse(50, 52, 22, 8, tint(C.pink, 0.55)), "50px 26px"),
   robot: () =>
     block(28, 28, 44, 38, C.chrome, { rx: 8, depth: 4, right: 3 }) +
-    ball(40, 44, 6, C.sky) +
-    ball(60, 44, 6, C.sky) +
+    anim("blink-slow", ball(40, 44, 6, C.sky) + ball(60, 44, 6, C.sky)) +
     rect(36, 56, 28, 4, C.ink, 2) +
     block(36, 66, 12, 22, C.steel, { depth: 3, right: 2 }) +
     block(52, 66, 12, 22, C.steel, { depth: 3, right: 2 }) +
@@ -290,9 +347,7 @@ const ART: Record<string, () => string> = {
   arcade: () =>
     block(20, 16, 60, 70, C.purple, { rx: 8, depth: 4, right: 3 }) +
     screen(28, 24, 44, 30, C.ink) +
-    rect(34, 30, 8, 8, C.green, 2) +
-    rect(46, 36, 6, 6, C.gold, 1) +
-    rect(56, 30, 8, 8, C.rose, 2) +
+    lit(anim("blink", rect(34, 30, 8, 8, C.green, 2) + rect(46, 36, 6, 6, C.gold, 1)) + anim("blink-alt", rect(56, 30, 8, 8, C.rose, 2))) +
     ball(38, 70, 6, C.red) +
     ball(62, 70, 6, C.green) +
     rect(48, 62, 4, 10, C.steel, 2) +
@@ -300,15 +355,19 @@ const ART: Record<string, () => string> = {
   "disco-ball": () =>
     line(50, 6, 50, 20, C.steel, 2.5) +
     ball(50, 48, 30, C.chrome) +
-    repeat(5, (i) => rect(22 + i * 12, 30, 8, 8, tint(C.chrome, 0.5), 1)) +
-    repeat(6, (i) => rect(20 + i * 11, 44, 8, 8, i % 2 ? tint(C.chrome, 0.5) : shade(C.chrome, 0.1), 1)) +
-    repeat(4, (i) => rect(30 + i * 11, 58, 8, 8, tint(C.chrome, 0.5), 1)),
+    glint(
+      repeat(5, (i) => rect(22 + i * 12, 30, 8, 8, tint(C.chrome, 0.5), 1)) +
+        repeat(6, (i) => rect(20 + i * 11, 44, 8, 8, i % 2 ? tint(C.chrome, 0.5) : shade(C.chrome, 0.1), 1)) +
+        repeat(4, (i) => rect(30 + i * 11, 58, 8, 8, tint(C.chrome, 0.5), 1))
+    ),
   "neon-sign": () =>
     block(10, 30, 80, 36, C.ink, { rx: 6, depth: 4, right: 3 }) +
-    stroke("M18 54 L18 40 L24 50 L30 40 L30 54", C.pink, 3) +
-    stroke("M36 54 L42 40 L48 54 M38.5 48 L45.5 48", C.pink, 3) +
-    stroke("M54 40 L64 40 M59 40 L59 54", C.sky, 3) +
-    stroke("M70 40 L70 54 M82 40 L82 54 M70 47 L82 47", C.sky, 3),
+    neon(
+      stroke("M18 54 L18 40 L24 50 L30 40 L30 54", tube(C.pink), 3) +
+        stroke("M36 54 L42 40 L48 54 M38.5 48 L45.5 48", tube(C.pink), 3) +
+        stroke("M54 40 L64 40 M59 40 L59 54", tube(C.sky), 3) +
+        stroke("M70 40 L70 54 M82 40 L82 54 M70 47 L82 47", tube(C.sky), 3)
+    ),
   // ---- Legendary ----------------------------------------------------------
   "trophy-case": () =>
     block(18, 14, 64, 74, C.walnut, { rx: 3, depth: 4, right: 3 }) +
@@ -331,7 +390,7 @@ const ART: Record<string, () => string> = {
     oval(50, 30, 28, 10, C.gold) +
     repeat(3, (i) => {
       const x = 32 + i * 18;
-      return line(x, 32, x, 44, C.brass, 2) + ball(x, 50, 7, C.yellow) + ellipse(x, 60, 6, 2.5, tint(C.yellow, 0.6));
+      return line(x, 32, x, 44, C.brass, 2) + ball(x, 50, 7, bulb(C.yellow)) + lit(twinkle(i, ellipse(x, 60, 6, 2.5, tint(C.yellow, 0.6))));
     }),
   "science-lab": () =>
     block(16, 50, 68, 10, C.steel, { rx: 2, depth: 3, right: 2 }) +
@@ -339,15 +398,13 @@ const ART: Record<string, () => string> = {
     repeat(3, (i) => {
       const x = 28 + i * 16;
       const c = [C.green, C.sky, C.pink][i];
-      return block(x, 24, 12, 28, c, { rx: 4, depth: 3, right: 2 }) + rect(x + 2, 26, 8, 8, tint(c, 0.5), 2) + ball(x + 6, 18, 4, tint(c, 0.4));
+      return block(x, 24, 12, 28, c, { rx: 4, depth: 3, right: 2 }) + rect(x + 2, 26, 8, 8, tint(c, 0.5), 2) + anim(i % 2 ? "rise" : "rise-alt", ball(x + 6, 18, 4, tint(c, 0.4)));
     }),
   aquarium: () =>
     block(16, 22, 68, 54, C.sky, { rx: 5, depth: 4, right: 3 }) +
     rect(20, 26, 60, 44, tint(C.sky, 0.25), 3) +
-    oval(36, 46, 10, 6, C.orange) +
-    poly([[26, 46], [30, 41], [30, 51]], C.orange) +
-    oval(60, 40, 8, 5, C.purple) +
-    poly([[68, 40], [72, 36], [72, 44]], C.purple) +
+    anim("swim", oval(36, 46, 10, 6, C.orange) + poly([[26, 46], [30, 41], [30, 51]], C.orange)) +
+    anim("swim-alt", oval(60, 40, 8, 5, C.purple) + poly([[68, 40], [72, 36], [72, 44]], C.purple)) +
     ball(48, 56, 5, C.gold) +
     repeat(3, (i) => rect(26 + i * 20, 60, 4, 10, C.green, 2)) +
     block(16, 76, 68, 8, C.steel, { rx: 2, depth: 2, right: 2 }),
@@ -360,10 +417,8 @@ const ART: Record<string, () => string> = {
     repeat(4, (i) => poly([[28 + i * 10, 44 - i * 2], [34 + i * 10, 34 - i * 2], [38 + i * 10, 44 - i * 2]], C.leaf)),
   portal: () =>
     ball(50, 50, 40, C.indigo) +
-    ball(50, 50, 30, C.purple) +
-    ball(50, 50, 20, C.pink) +
-    ball(50, 50, 10, tint(C.pink, 0.6)) +
-    disc(50, 50, 4, C.paper),
+    anim("spin-slow", ball(50, 50, 30, C.purple) + ball(50, 50, 20, C.pink), "50px 50px") +
+    anim("pulse", ball(50, 50, 10, tint(C.pink, 0.6)) + disc(50, 50, 4, C.paper), "50px 50px"),
   "golden-calculator": () =>
     block(26, 16, 48, 68, C.gold, { rx: 8, depth: 4, right: 3 }) +
     rect(32, 22, 36, 18, tint(C.yellow, 0.55), 3) +
@@ -375,7 +430,7 @@ const ART: Record<string, () => string> = {
     block(16, 36, 10, 26, C.brass, { rx: 2, depth: 3 }) +
     block(74, 36, 10, 26, C.brass, { rx: 2, depth: 3 }) +
     poly([[36, 26], [42, 12], [50, 22], [58, 12], [64, 26]], C.gold) +
-    ball(50, 18, 4, C.sky) +
+    anim("pulse", ball(50, 18, 4, C.sky), "50px 18px") +
     legs(32, 62, 78, 10, C.walnut),
   "unicorn-statue": () =>
     oval(48, 64, 28, 22, C.pink) +
@@ -391,24 +446,26 @@ const ART: Record<string, () => string> = {
     ball(50, 34, 11, C.sky) +
     poly([[32, 60], [20, 84], [38, 70]], C.orange) +
     poly([[68, 60], [80, 84], [62, 70]], C.orange) +
-    poly([[44, 62], [56, 62], [50, 90]], C.gold) +
-    poly([[47, 62], [53, 62], [50, 78]], C.yellow),
+    anim("flame", poly([[44, 62], [56, 62], [50, 90]], C.gold) + poly([[47, 62], [53, 62], [50, 78]], C.yellow), "50px 62px"),
   "dragon-egg": () =>
-    oval(50, 54, 26, 34, C.indigo) +
-    repeat(6, (i) => oval(38 + (i % 3) * 12, 36 + Math.floor(i / 3) * 18, 6, 8, i % 2 ? C.purple : tint(C.indigo, 0.2))) +
-    ball(50, 26, 5, C.gold) +
+    anim(
+      "wobble",
+      oval(50, 54, 26, 34, C.indigo) +
+        repeat(6, (i) => oval(38 + (i % 3) * 12, 36 + Math.floor(i / 3) * 18, 6, 8, i % 2 ? C.purple : tint(C.indigo, 0.2))) +
+        ball(50, 26, 5, C.gold),
+      "50px 88px"
+    ) +
     oval(50, 88, 30, 5, C.walnut),
   "infinity-pool": () =>
     block(8, 40, 84, 44, C.chrome, { rx: 10, depth: 5, right: 3 }) +
     rect(14, 46, 72, 30, C.sky, 6) +
     rect(14, 46, 72, 6, tint(C.sky, 0.4), 6) +
-    stroke("M20 60 Q30 54 40 60 T60 60 T80 60", tint(C.sky, 0.7), 3) +
-    ball(66, 66, 6, C.orange),
+    anim("drift", stroke("M20 60 Q30 54 40 60 T60 60 T80 60", tint(C.sky, 0.7), 3)) +
+    anim("bob", ball(66, 66, 6, C.orange)),
   "time-machine": () =>
     oval(50, 54, 36, 28, C.steel) +
     oval(50, 54, 24, 18, C.chrome) +
-    ball(50, 54, 10, C.sky) +
-    ring(50, 54, 15, 2, tint(C.sky, 0.5)) +
+    pulse(ball(50, 54, 10, C.sky) + ring(50, 54, 15, 2, tint(C.sky, 0.5)), "50px 54px") +
     block(46, 16, 8, 16, C.steel, { depth: 2, right: 2 }) +
     ball(50, 12, 6, C.gold) +
     repeat(3, (i) => ball(24 + i * 26, 82, 4, C.chrome)),
@@ -437,7 +494,7 @@ const ART: Record<string, () => string> = {
     repeat(6, (i) => {
       const x = 14 + i * 14;
       const y = [36, 50, 42, 36, 50, 42][i] + 2;
-      return rect(x - 2, y - 4, 4, 4, C.steel, 1) + ball(x, y + 4, 5, [C.gold, C.rose, C.sky, C.green, C.purple, C.orange][i]);
+      return rect(x - 2, y - 4, 4, 4, C.steel, 1) + twinkle(i, ball(x, y + 4, 5, bulb([C.gold, C.rose, C.sky, C.green, C.purple, C.orange][i])));
     }),
   "coat-rack": () =>
     block(46, 12, 8, 74, C.walnut, { rx: 2, depth: 2, right: 2 }) +
@@ -467,10 +524,7 @@ const ART: Record<string, () => string> = {
     stroke("M40 46 L44 66 M60 46 L56 66 M40 46 Q50 50 60 46 M42 54 Q50 58 58 54 M44 62 Q50 65 56 62", C.chrome, 1.5),
   "record-player": () =>
     block(14, 46, 72, 26, C.walnut, { rx: 4, depth: 4, right: 3 }) +
-    ball(42, 50, 20, C.ink) +
-    ring(42, 50, 12, 1, C.steel) +
-    disc(42, 50, 6, C.rose) +
-    disc(42, 50, 1.5, C.ink) +
+    spin(ball(42, 50, 20, C.ink) + ring(42, 50, 12, 1, C.steel) + disc(42, 50, 6, C.rose) + disc(42, 42, 1.2, C.steel) + disc(42, 50, 1.5, C.ink), "42px 50px") +
     line(74, 40, 60, 54, C.chrome, 3) +
     ball(74, 40, 4, C.chrome) +
     ball(72, 62, 3, C.gold),
@@ -485,7 +539,7 @@ const ART: Record<string, () => string> = {
     block(48, 40, 4, 46, C.steel, { right: 1 }) +
     stroke("M50 40 Q50 18 72 18", C.steel, 4) +
     block(60, 18, 24, 14, C.gold, { rx: 7, depth: 3, right: 2 }) +
-    ellipse(72, 40, 14, 5, tint(C.yellow, 0.55)),
+    lit(anim("glow", ellipse(72, 40, 14, 5, tint(C.yellow, 0.55)))),
   dumbbells: () =>
     block(18, 70, 64, 16, C.steel, { rx: 3, depth: 3, right: 3 }) +
     repeat(2, (i) => {
@@ -502,14 +556,18 @@ const ART: Record<string, () => string> = {
     poly([[48, 56], [58, 36], [68, 56]], C.green) +
     disc(64, 32, 4, C.gold),
   "window-plant": () =>
-    line(50, 4, 50, 24, C.steel, 2) +
-    stroke("M32 40 L50 22 L68 40", C.steel, 2) +
-    block(30, 38, 40, 16, C.orange, { rx: 5, depth: 4, right: 3 }) +
-    ball(50, 34, 13, C.green) +
-    ball(38, 36, 8, C.leaf) +
-    ball(62, 36, 8, C.lime) +
-    stroke("M36 54 Q30 66 36 78 M50 54 Q52 68 46 82 M64 54 Q70 66 66 76", C.green, 3) +
-    repeat(6, (i) => ball([33, 38, 49, 46, 67, 68][i], [62, 76, 64, 80, 62, 74][i], 4, i % 2 ? C.leaf : C.lime)),
+    anim(
+      "sway",
+      line(50, 4, 50, 24, C.steel, 2) +
+        stroke("M32 40 L50 22 L68 40", C.steel, 2) +
+        block(30, 38, 40, 16, C.orange, { rx: 5, depth: 4, right: 3 }) +
+        ball(50, 34, 13, C.green) +
+        ball(38, 36, 8, C.leaf) +
+        ball(62, 36, 8, C.lime) +
+        stroke("M36 54 Q30 66 36 78 M50 54 Q52 68 46 82 M64 54 Q70 66 66 76", C.green, 3) +
+        repeat(6, (i) => ball([33, 38, 49, 46, 67, 68][i], [62, 76, 64, 80, 62, 74][i], 4, i % 2 ? C.leaf : C.lime)),
+      "50px 4px"
+    ),
   pinboard: () =>
     block(16, 18, 68, 56, C.wood, { rx: 3, depth: 3, right: 3 }) +
     rect(21, 23, 58, 46, C.pine) +
@@ -522,7 +580,7 @@ const ART: Record<string, () => string> = {
     rect(48, 58, 4, 18, C.steel) +
     ball(50, 44, 24, C.chrome) +
     disc(50, 44, 18, tint(C.sky, 0.55)) +
-    repeat(3, (i) => `<g transform="rotate(${i * 120} 50 44)">${oval(50, 32, 5, 11, C.sky)}</g>`) +
+    spin(repeat(3, (i) => `<g transform="rotate(${i * 120} 50 44)">${oval(50, 32, 5, 11, C.sky)}</g>`), "50px 44px", "spin-fast") +
     ball(50, 44, 4, C.ink),
   keyboard: () =>
     block(10, 40, 80, 24, C.ink, { rx: 4, depth: 4, right: 3 }) +
@@ -562,8 +620,9 @@ const ART: Record<string, () => string> = {
     legs(12, 82, 66, 20, C.steel) +
     screen(16, 22, 50, 34, C.purple) +
     block(70, 30, 20, 28, C.ink, { rx: 3, depth: 3, right: 2 }) +
-    rect(73, 34, 14, 2, C.rose, 1) +
-    rect(73, 40, 14, 2, C.sky, 1) +
+    (STATE.on
+      ? anim("blink", rect(73, 34, 14, 2, C.rose, 1)) + anim("blink-alt", rect(73, 40, 14, 2, C.sky, 1))
+      : rect(73, 34, 14, 2, C.steel, 1) + rect(73, 40, 14, 2, C.steel, 1)) +
     block(26, 50, 30, 5, C.steel, { rx: 2, depth: 1 }),
   vending: () =>
     block(24, 12, 52, 76, C.blue, { rx: 5, depth: 4, right: 3 }) +
@@ -613,22 +672,27 @@ const ART: Record<string, () => string> = {
     block(12, 20, 76, 66, C.chrome, { rx: 3, depth: 4, right: 3 }) +
     rect(12, 20, 76, 8, C.wood, 2) +
     rect(24, 34, 52, 44, C.ink, 3) +
-    path("M38 78 Q34 60 46 54 Q42 66 50 62 Q56 52 62 60 Q66 70 60 78Z", C.orange) +
-    path("M44 78 Q42 66 50 60 Q50 68 56 66 Q58 74 54 78Z", C.gold) +
+    lit(anim("flame", path("M38 78 Q34 60 46 54 Q42 66 50 62 Q56 52 62 60 Q66 70 60 78Z", C.orange) + path("M44 78 Q42 66 50 60 Q50 68 56 66 Q58 74 54 78Z", C.gold), "50px 78px")) +
     repeat(3, (i) => rect(30 + i * 14, 74, 12, 6, C.walnut, 3)),
   "swing-chair": () =>
     line(50, 4, 50, 22, C.steel, 3) +
-    path("M22 46 Q50 8 78 46 Q76 84 50 86 Q24 84 22 46Z", C.pine) +
-    path("M28 50 Q50 20 72 50 Q70 80 50 80 Q30 80 28 50Z", C.cream) +
-    oval(50, 70, 18, 10, C.rose) +
-    repeat(5, (i) => stroke(`M${30 + i * 10} 26 L${30 + i * 10} 50`, C.wood, 1.5)),
+    anim(
+      "sway",
+      path("M22 46 Q50 8 78 46 Q76 84 50 86 Q24 84 22 46Z", C.pine) +
+        path("M28 50 Q50 20 72 50 Q70 80 50 80 Q30 80 28 50Z", C.cream) +
+        oval(50, 70, 18, 10, C.rose) +
+        repeat(5, (i) => stroke(`M${30 + i * 10} 26 L${30 + i * 10} 50`, C.wood, 1.5)),
+      "50px 4px"
+    ),
   pinball: () =>
     block(22, 34, 56, 52, C.rose, { rx: 4, depth: 4, right: 3 }) +
     rect(28, 40, 44, 34, C.ink, 2) +
-    repeat(5, (i) => ball(36 + (i % 3) * 14, 48 + Math.floor(i / 3) * 12, 4, [C.gold, C.sky, C.green, C.purple, C.orange][i])) +
+    (STATE.on
+      ? anim("blink", repeat(5, (i) => ball(36 + (i % 3) * 14, 48 + Math.floor(i / 3) * 12, 4, [C.gold, C.sky, C.green, C.purple, C.orange][i])))
+      : repeat(5, (i) => ball(36 + (i % 3) * 14, 48 + Math.floor(i / 3) * 12, 4, C.steel))) +
     ball(50, 70, 3, C.chrome) +
     block(28, 10, 44, 24, C.ink, { rx: 3, depth: 3, right: 2 }) +
-    stroke("M34 22 L66 22", C.pink, 3) +
+    neon(stroke("M34 22 L66 22", tube(C.pink), 3)) +
     legs(26, 68, 86, 6, C.steel, 6),
   foosball: () =>
     block(12, 40, 76, 28, C.green, { rx: 3, depth: 4, right: 3 }) +
@@ -640,26 +704,29 @@ const ART: Record<string, () => string> = {
   projector: () =>
     block(14, 12, 72, 6, C.steel, { rx: 2, depth: 2, right: 2 }) +
     block(18, 18, 64, 44, C.paper, { rx: 2, depth: 3, right: 2 }) +
-    rect(24, 24, 52, 32, tint(C.sky, 0.3), 1) +
-    poly([[36, 52], [50, 30], [64, 52]], C.green) +
-    disc(64, 32, 5, C.gold) +
+    (STATE.on
+      ? anim("flicker", rect(24, 24, 52, 32, tint(C.sky, 0.3), 1) + poly([[36, 52], [50, 30], [64, 52]], C.green) + disc(64, 32, 5, C.gold))
+      : rect(24, 24, 52, 32, shade(C.paper, 0.08), 1)) +
     block(38, 74, 24, 12, C.ink, { rx: 3, depth: 3, right: 2 }) +
-    ball(46, 80, 3, C.sky),
+    ball(46, 80, 3, bulb(C.sky)),
   "ring-light": () =>
     block(44, 66, 12, 20, C.steel, { depth: 2, right: 2 }) +
     ellipse(50, 88, 18, 4, shade(C.steel)) +
     ring(50, 40, 28, 8, C.cream) +
-    ring(50, 40, 28, 3, tint(C.yellow, 0.4)) +
+    lit(anim("glow", ring(50, 40, 28, 3, tint(C.yellow, 0.4)))) +
     block(42, 30, 16, 20, C.ink, { rx: 3, depth: 2, right: 2 }) +
     rect(45, 33, 10, 12, C.sky, 1),
   drone: () =>
     block(20, 74, 60, 12, C.steel, { rx: 3, depth: 3, right: 3 }) +
-    block(38, 44, 24, 16, C.ink, { rx: 5, depth: 3, right: 2 }) +
-    stroke("M42 48 L20 36 M58 48 L80 36", C.steel, 4) +
-    ellipse(20, 34, 12, 3, C.chrome) +
-    ellipse(80, 34, 12, 3, C.chrome) +
-    ball(50, 52, 4, C.rose) +
-    legs(40, 56, 60, 12, C.steel, 4),
+    anim(
+      "hover",
+      block(38, 44, 24, 16, C.ink, { rx: 5, depth: 3, right: 2 }) +
+        stroke("M42 48 L20 36 M58 48 L80 36", C.steel, 4) +
+        ellipse(20, 34, 12, 3, C.chrome) +
+        ellipse(80, 34, 12, 3, C.chrome) +
+        ball(50, 52, 4, C.rose) +
+        legs(40, 56, 60, 12, C.steel, 4)
+    ),
 
   // ---- New pieces, legendary ----------------------------------------------
   jukebox: () =>
@@ -667,14 +734,15 @@ const ART: Record<string, () => string> = {
     path("M28 86 L28 42 Q28 20 50 20 Q72 20 72 42 L72 86Z", C.orange) +
     path("M34 40 Q34 26 50 26 Q66 26 66 40Z", tint(C.sky, 0.4)) +
     rect(34, 48, 32, 18, C.ink, 3) +
-    repeat(4, (i) => rect(38 + i * 7, 52, 4, 10, [C.gold, C.green, C.sky, C.pink][i], 1)) +
+    (STATE.on
+      ? anim("blink", repeat(4, (i) => rect(38 + i * 7, 52, 4, 10, [C.gold, C.green, C.sky, C.pink][i], 1)))
+      : repeat(4, (i) => rect(38 + i * 7, 52, 4, 10, C.steel, 1))) +
     rect(34, 72, 32, 8, C.gold, 2) +
     rect(22, 86, 56, 4, C.walnut, 1),
   "claw-machine": () =>
     block(22, 10, 56, 78, C.pink, { rx: 5, depth: 4, right: 3 }) +
     rect(28, 20, 44, 44, tint(C.sky, 0.55), 2) +
-    line(50, 20, 50, 34, C.steel, 2) +
-    stroke("M42 40 L50 34 L58 40 M46 44 L50 34 L54 44", C.steel, 3) +
+    anim("hover", line(50, 20, 50, 34, C.steel, 2) + stroke("M42 40 L50 34 L58 40 M46 44 L50 34 L54 44", C.steel, 3)) +
     repeat(6, (i) => ball(36 + (i % 3) * 14, 52 + Math.floor(i / 3) * 8, 5, [C.gold, C.green, C.purple, C.orange, C.sky, C.rose][i])) +
     rect(34, 70, 32, 12, C.ink, 2) +
     ball(58, 76, 3, C.gold) +
@@ -696,7 +764,7 @@ const ART: Record<string, () => string> = {
     disc(70, 60, 8, C.ink) +
     disc(70, 60, 2.5, C.sky) +
     repeat(3, (i) => rect(46, 50 + i * 8, 8, 3, [C.green, C.gold, C.rose][i], 1)) +
-    stroke("M14 34 L20 26 L26 34 L32 22 L38 34 M62 34 L68 26 L74 34 L80 22 L86 34", C.purple, 3) +
+    lit(anim("flicker", stroke("M14 34 L20 26 L26 34 L32 22 L38 34 M62 34 L68 26 L74 34 L80 22 L86 34", C.purple, 3))) +
     legs(14, 80, 78, 10, C.steel),
   "ball-pit": () =>
     block(10, 44, 80, 40, C.blue, { rx: 8, depth: 5, right: 3 }) +
@@ -706,8 +774,8 @@ const ART: Record<string, () => string> = {
   "hot-tub": () =>
     block(12, 46, 76, 36, C.walnut, { rx: 10, depth: 5, right: 3 }) +
     rect(18, 50, 64, 26, C.sky, 6) +
-    repeat(5, (i) => ring(28 + i * 11, 62, 3, 1.5, tint(C.sky, 0.7))) +
-    stroke("M30 40 Q34 34 30 28 M50 40 Q54 34 50 28 M70 40 Q74 34 70 28", tint(C.sky, 0.5), 2) +
+    anim("rise", repeat(5, (i) => ring(28 + i * 11, 62, 3, 1.5, tint(C.sky, 0.7)))) +
+    anim("steam", stroke("M30 40 Q34 34 30 28 M50 40 Q54 34 50 28 M70 40 Q74 34 70 28", tint(C.sky, 0.5), 2)) +
     ball(72, 56, 5, C.gold),
   planetarium: () =>
     path("M12 80 Q12 30 50 30 Q88 30 88 80Z", C.indigo) +
@@ -729,17 +797,16 @@ const ART: Record<string, () => string> = {
     block(62, 30, 22, 18, C.chrome, { rx: 6, depth: 3, right: 2 }) +
     rect(66, 36, 12, 4, C.sky, 2) +
     rect(76, 24, 4, 8, C.steel, 2) +
-    stroke("M26 46 Q14 40 12 30", C.steel, 4) +
-    ball(12, 28, 3, C.rose) +
+    anim("wag", stroke("M26 46 Q14 40 12 30", C.steel, 4) + ball(12, 28, 3, C.rose), "26px 46px") +
     legs(28, 40, 66, 20, C.steel, 6) +
     legs(52, 62, 66, 20, C.steel, 6),
   "holo-table": () =>
     block(14, 68, 72, 12, C.ink, { rx: 4, depth: 4, right: 3 }) +
     rect(20, 66, 60, 4, C.sky, 2) +
-    poly([[24, 66], [76, 66], [64, 20], [36, 20]], "rgba(56,189,248,0.28)") +
-    stroke("M36 52 L46 40 L54 46 L64 30", tint(C.sky, 0.5), 3) +
-    ring(50, 40, 10, 2, tint(C.sky, 0.5)) +
-    ball(50, 40, 4, C.paper) +
+    lit(
+      anim("flicker", poly([[24, 66], [76, 66], [64, 20], [36, 20]], "rgba(56,189,248,0.28)") + stroke("M36 52 L46 40 L54 46 L64 30", tint(C.sky, 0.5), 3)) +
+        anim("hover", ring(50, 40, 10, 2, tint(C.sky, 0.5)) + ball(50, 40, 4, C.paper))
+    ) +
     legs(22, 72, 80, 8, C.steel),
   slide: () =>
     block(16, 20, 8, 66, C.steel, { depth: 2, right: 2 }) +
@@ -801,16 +868,12 @@ const ART: Record<string, () => string> = {
   "prize-neon-line": () =>
     block(10, 30, 80, 40, C.ink, { rx: 6, depth: 4, right: 3 }) +
     stroke("M18 62 L18 38 M18 62 L82 62", tint(C.sky, 0.2), 2.5) +
-    stroke("M18 54 L78 36", C.gold, 4) +
-    ball(18, 54, 4, C.gold) +
-    ring(18, 54, 7, 1.5, tint(C.gold, 0.4)),
+    neon(stroke("M18 54 L78 36", tube(C.gold), 4) + ball(18, 54, 4, tube(C.gold)) + ring(18, 54, 7, 1.5, tube(tint(C.gold, 0.4)))),
   "prize-lasers": () =>
     block(12, 76, 22, 12, C.ink, { rx: 3, depth: 3, right: 2 }) +
     block(66, 76, 22, 12, C.ink, { rx: 3, depth: 3, right: 2 }) +
-    stroke("M22 76 L74 26", C.rose, 4) +
-    stroke("M78 76 L26 20", C.sky, 4) +
-    ball(50, 49, 6, C.paper) +
-    ring(50, 49, 10, 2, tint(C.purple, 0.4)),
+    neon(stroke("M22 76 L74 26", tube(C.rose), 4) + stroke("M78 76 L26 20", tube(C.sky), 4)) +
+    pulse(ball(50, 49, 6, STATE.on ? C.paper : C.steel) + ring(50, 49, 10, 2, tube(tint(C.purple, 0.4))), "50px 49px"),
   "prize-half-rug": () =>
     oval(50, 74, 44, 16, C.teal) +
     path("M50 58 Q94 58 94 74 Q94 90 50 90Z", shade(C.teal, 0.35)) +
@@ -854,8 +917,7 @@ const ART: Record<string, () => string> = {
     repeat(5, (i) => ball([26, 36, 50, 64, 74][i], [58, 36, 30, 36, 58][i], 3.5, C.gold)),
   "prize-zigzag": () =>
     block(10, 30, 80, 40, C.ink, { rx: 6, depth: 4, right: 3 }) +
-    stroke("M18 40 L34 60 L50 40 L66 60 L82 40", C.pink, 4) +
-    stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tint(C.pink, 0.5), 1.5),
+    neon(stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tube(C.pink), 4) + stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tube(tint(C.pink, 0.5)), 1.5)),
 };
 
 /**
@@ -877,14 +939,14 @@ const RINK_ART: Record<string, () => string> = {
   "rink-planter": () =>
     block(34, 64, 32, 22, C.teal, { rx: 3, depth: 4, right: 3 }) +
     rect(50, 34, 4, 30, C.walnut) +
-    repeat(5, (i) => `<g transform="rotate(${-70 + i * 35} 52 34)">${path("M52 34 Q66 20 82 30 Q68 30 52 34Z", i % 2 ? C.green : C.leaf)}</g>`) +
+    anim("sway", repeat(5, (i) => `<g transform="rotate(${-70 + i * 35} 52 34)">${path("M52 34 Q66 20 82 30 Q68 30 52 34Z", i % 2 ? C.green : C.leaf)}</g>`), "52px 34px") +
     ball(52, 32, 4, C.walnut),
   "rink-lamp": () =>
     oval(50, 88, 14, 4, C.steel) +
     block(47, 22, 6, 66, C.ink, { right: 2 }) +
     block(34, 10, 32, 16, C.ink, { rx: 3, depth: 3, right: 2 }) +
-    rect(38, 14, 24, 9, tint(C.yellow, 0.5), 2) +
-    ellipse(50, 40, 22, 6, tint(C.yellow, 0.7)),
+    rect(38, 14, 24, 9, bulb(tint(C.yellow, 0.5)), 2) +
+    lit(anim("glow", ellipse(50, 40, 22, 6, tint(C.yellow, 0.7)))),
   "rink-banner": () =>
     block(14, 14, 6, 74, C.steel, { right: 1.5 }) +
     block(80, 14, 6, 74, C.steel, { right: 1.5 }) +
@@ -900,7 +962,7 @@ const RINK_ART: Record<string, () => string> = {
       const a = Math.PI * (0.12 + (i * 0.76) / 6);
       const x = 50 - 36 * Math.cos(a);
       const y = 88 - 68 * Math.sin(a) * 1.0;
-      return ball(x, y, 4.5, [C.gold, C.rose, C.sky, C.green, C.purple, C.orange, C.gold][i]);
+      return twinkle(i, ball(x, y, 4.5, bulb([C.gold, C.rose, C.sky, C.green, C.purple, C.orange, C.gold][i])));
     }) +
     block(8, 84, 14, 6, C.steel, { rx: 2, depth: 2 }) +
     block(78, 84, 14, 6, C.steel, { rx: 2, depth: 2 }),
@@ -915,18 +977,16 @@ const RINK_ART: Record<string, () => string> = {
   "rink-scoreboard": () =>
     block(44, 56, 12, 32, C.steel, { depth: 2, right: 2 }) +
     block(12, 10, 76, 48, C.ink, { rx: 5, depth: 4, right: 3 }) +
-    rect(18, 16, 30, 16, C.green, 2) +
-    rect(52, 16, 30, 16, C.rose, 2) +
+    rect(18, 16, 30, 16, bulb(C.green), 2) +
+    rect(52, 16, 30, 16, bulb(C.rose), 2) +
     repeat(2, (i) => rect(22 + i * 34, 20, 10, 8, C.ink, 1) + rect(35 + i * 34, 20, 10, 8, C.ink, 1)) +
     rect(18, 38, 64, 14, tint(C.sky, 0.2), 2) +
-    repeat(4, (i) => rect(22 + i * 15, 42, 10, 6, C.sky, 1)),
+    lit(anim("blink", repeat(4, (i) => rect(22 + i * 15, 42, 10, 6, C.sky, 1)))),
   "rink-speakers": () =>
     block(30, 10, 40, 78, C.ink, { rx: 5, depth: 4, right: 3 }) +
     ball(50, 30, 12, C.steel) +
     disc(50, 30, 6, C.ink) +
-    ball(50, 62, 15, C.steel) +
-    disc(50, 62, 8, C.ink) +
-    ball(50, 62, 3, C.rose) +
+    pulse(ball(50, 62, 15, C.steel) + disc(50, 62, 8, C.ink) + ball(50, 62, 3, C.rose), "50px 62px") +
     rect(36, 44, 28, 4, C.chrome, 2),
   "rink-ramp": () =>
     path("M10 88 L10 46 Q14 78 50 84 L90 84 L90 88Z", C.chrome) +
@@ -948,21 +1008,25 @@ const RINK_ART: Record<string, () => string> = {
     ball(70, 60, 12, C.chrome) +
     disc(70, 60, 5, C.sky) +
     repeat(3, (i) => rect(46, 52 + i * 7, 8, 3, [C.green, C.gold, C.rose][i], 1)) +
-    stroke("M18 36 L24 28 L30 36 L36 22 L42 36 M58 36 L64 28 L70 36 L76 22 L82 36", C.purple, 3) +
+    lit(anim("flicker", stroke("M18 36 L24 28 L30 36 L36 22 L42 36 M58 36 L64 28 L70 36 L76 22 L82 36", C.purple, 3))) +
     legs(14, 80, 76, 12, C.steel),
   "rink-disco": () =>
     block(46, 4, 8, 22, C.steel, { right: 2 }) +
     stroke("M20 26 L80 26", C.steel, 4) +
     ball(50, 52, 26, C.chrome) +
-    repeat(4, (i) => rect(28 + i * 12, 40, 8, 8, tint(C.chrome, 0.5), 1)) +
-    repeat(5, (i) => rect(22 + i * 12, 52, 8, 8, i % 2 ? tint(C.chrome, 0.5) : shade(C.chrome, 0.1), 1)) +
-    repeat(4, (i) => rect(28 + i * 12, 64, 8, 8, tint(C.chrome, 0.5), 1)) +
-    repeat(4, (i) => ball([10, 90, 16, 84][i], [70, 66, 40, 44][i], 3, [C.rose, C.sky, C.gold, C.green][i])),
+    glint(
+      repeat(4, (i) => rect(28 + i * 12, 40, 8, 8, tint(C.chrome, 0.5), 1)) +
+        repeat(5, (i) => rect(22 + i * 12, 52, 8, 8, i % 2 ? tint(C.chrome, 0.5) : shade(C.chrome, 0.1), 1)) +
+        repeat(4, (i) => rect(28 + i * 12, 64, 8, 8, tint(C.chrome, 0.5), 1))
+    ) +
+    lit(anim("twinkle", repeat(4, (i) => ball([10, 90, 16, 84][i], [70, 66, 40, 44][i], 3, [C.rose, C.sky, C.gold, C.green][i])))),
   "rink-neon": () =>
     block(10, 12, 80, 76, C.ink, { rx: 6, depth: 4, right: 3 }) +
-    stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74 M34 76 L44 76 M58 76 L68 76", C.pink, 3.5) +
-    ball(52, 30, 6, C.pink) +
-    stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74", tint(C.pink, 0.6), 1.2),
+    neon(
+      stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74 M34 76 L44 76 M58 76 L68 76", tube(C.pink), 3.5) +
+        ball(52, 30, 6, tube(C.pink)) +
+        stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74", tube(tint(C.pink, 0.6)), 1.2)
+    ),
 };
 
 for (const [id, draw] of Object.entries(RINK_ART)) ART[id] = draw;
@@ -973,9 +1037,81 @@ export const RINK_ART_IDS: string[] = Object.keys(RINK_ART);
 /** Every id that has art, so the catalog and the export can be checked against it. */
 export const ART_IDS: string[] = Object.keys(ART);
 
-/** The SVG for a piece, or null when it has no art. */
-export function furnitureSvg(id: string): string | null {
+/**
+ * The colour a piece is painted in: the one entry of the palette a student's
+ * swatch replaces. Chosen by hand for each piece as the surface that reads as
+ * "the colour of it" (a beanbag's fabric, a lamp's shade, a pot), rather than
+ * the legs or the frame.
+ */
+export const PRIMARY: Record<string, ColorKey> = {
+  rug: "wood", plant: "orange", lamp: "gold", poster: "blue", chair: "gold", bookshelf: "walnut",
+  beanbag: "purple", clock: "cream", "yoga-mat": "teal", "calculator-bot": "steel", "lava-lamp": "indigo",
+  "homework-station": "wood", desk: "wood", bed: "blue", tv: "steel", whiteboard: "chrome", globe: "sky",
+  "snack-bar": "orange", "candy-machine": "red", hammock: "pink", robot: "chrome", telescope: "indigo",
+  "cloud-couch": "sky", arcade: "purple", "disco-ball": "chrome", "neon-sign": "pink", "trophy-case": "walnut",
+  piano: "ink", chandelier: "gold", "science-lab": "steel", aquarium: "sky", "dragon-statue": "green",
+  portal: "indigo", "golden-calculator": "gold", throne: "rose", "unicorn-statue": "pink", rocket: "red",
+  "dragon-egg": "indigo", "infinity-pool": "chrome", "time-machine": "steel",
+  cactus: "rose", "wall-shelf": "wood", "floor-cushion": "teal", "string-lights": "steel", "coat-rack": "walnut",
+  "side-table": "wood", "mini-fridge": "sky", skateboard: "gold", hoop: "rose", "record-player": "walnut", headphones: "rose", "floor-lamp": "gold",
+  dumbbells: "ink", easel: "wood", "window-plant": "orange", pinboard: "wood", fan: "sky", keyboard: "ink",
+  "gaming-chair": "rose", "bunk-bed": "rose", "drum-kit": "rose", "pc-setup": "purple", vending: "blue",
+  bike: "rose", guitar: "rose", "skate-ramp": "sky", "coffee-machine": "steel", terrarium: "wood",
+  "vinyl-wall": "rose", fireplace: "chrome", "swing-chair": "pine", pinball: "rose", foosball: "green",
+  projector: "steel", "ring-light": "cream", drone: "ink", jukebox: "rose", "claw-machine": "pink",
+  "sim-rig": "rose", "dj-booth": "ink", "ball-pit": "blue", "hot-tub": "walnut", planetarium: "indigo",
+  "dino-skeleton": "cream", "robot-dog": "chrome", "holo-table": "ink", slide: "gold", "ice-cream-cart": "pink",
+  greenhouse: "chrome", "block-castle": "red",
+  "prize-ruler": "gold", "prize-scale": "brass", "prize-graph": "walnut", "prize-neon-line": "gold",
+  "prize-lasers": "rose", "prize-half-rug": "teal", "prize-machine": "indigo", "prize-stairs": "orange",
+  "prize-bonsai": "teal", "prize-vine": "cream", "prize-area-table": "walnut", "prize-arch": "blue",
+  "prize-zigzag": "pink",
+  "rink-cones": "orange", "rink-bench": "wood", "rink-planter": "teal", "rink-lamp": "ink", "rink-banner": "rose",
+  "rink-arch": "ink", "rink-snacks": "gold", "rink-scoreboard": "ink", "rink-speakers": "ink", "rink-ramp": "sky",
+  "rink-booth": "pink", "rink-dj": "ink", "rink-disco": "chrome", "rink-neon": "pink",
+};
+
+/**
+ * Pieces with a switch: a lamp goes dark, a screen goes blank, bulbs go
+ * out, a fire goes cold. Everything else is always as it is.
+ */
+export const USABLE: ReadonlySet<string> = new Set([
+  "lamp", "floor-lamp", "rink-lamp", "tv", "desk", "pc-setup", "sim-rig", "arcade", "projector", "neon-sign",
+  "prize-neon-line", "prize-zigzag", "prize-lasers", "rink-neon", "string-lights", "rink-arch", "chandelier",
+  "fireplace", "lava-lamp", "jukebox", "holo-table", "ring-light", "pinball", "rink-scoreboard", "rink-speakers",
+  "rink-disco", "disco-ball", "record-player", "fan", "dj-booth", "rink-dj", "time-machine",
+]);
+
+export interface ArtOptions {
+  /** A swatch id from SWATCHES; anything else leaves the piece as drawn. */
+  color?: string | null;
+  /** Switched off (USABLE pieces only). */
+  off?: boolean;
+}
+
+/**
+ * The SVG for a piece, or null when it has no art. With a colour, the piece's
+ * primary surface is repainted in that swatch, shades and tints included; with
+ * `off`, a piece that has a switch is drawn dark.
+ */
+export function furnitureSvg(id: string, opts: ArtOptions = {}): string | null {
   const draw = ART[id];
   if (!draw) return null;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${draw()}</svg>`;
+  const key = PRIMARY[id];
+  const swatch = getSwatch(opts.color);
+  const saved = key ? C[key] : undefined;
+  if (key && swatch) C[key] = BASE[swatch.key];
+  STATE.on = !opts.off;
+  try {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="fa-art">${draw()}</svg>`;
+  } finally {
+    if (key && saved !== undefined) C[key] = saved;
+    STATE.on = true;
+  }
+}
+
+/** The colour a piece is drawn in before anyone repaints it. */
+export function primaryHex(id: string): string {
+  const key = PRIMARY[id];
+  return key ? BASE[key] : BASE.ink;
 }
