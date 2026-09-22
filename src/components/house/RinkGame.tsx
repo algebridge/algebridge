@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { PromptText } from "@/components/PromptText";
+import { Scratchpad } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
 import { useSound } from "@/hooks/useSound";
@@ -343,7 +344,10 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
               </p>
             </div>
             <div className="p-4">
-              <p className="text-xs font-medium text-slate-500">In your head. No calculator on the rink.</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-slate-500">In your head, or draw it out. No calculator on the rink.</p>
+                <Scratchpad resetKey={`${open.skillId}:${problem.id}:${problem.prompt}`} />
+              </div>
               <PromptText text={stripVariantTag(problem.prompt)} />
               {!verdict ? (
                 problem.type === "multiple-choice" && problem.choices ? (
