@@ -14,6 +14,7 @@ import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
 import { StudyHelper } from "@/components/StudyHelper";
 import { IncomingCall } from "@/components/IncomingCall";
+import { ScratchpadProvider } from "@/components/Scratchpad";
 
 // Bold condensed display font, matches the AlgeBridge wordmark.
 const anton = Anton({
@@ -44,6 +45,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-slate-50 font-body">
         <AuthProvider>
           <AppNavProvider>
+          <ScratchpadProvider>
             <SmoothScroll />
             <AppInit />
             <IncomingCall />
@@ -83,6 +85,7 @@ export default function RootLayout({
             </div>
             <Calculator />
             <StudyHelper />
+          </ScratchpadProvider>
           </AppNavProvider>
         </AuthProvider>
       </body>

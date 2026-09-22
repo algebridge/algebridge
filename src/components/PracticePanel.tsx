@@ -26,7 +26,7 @@ import { setCalculatorAccess } from "@/lib/calculator-access";
 import { answerIsRight } from "@/lib/grading";
 import { HUES, hueVars, topicHue } from "@/lib/hues";
 import { PromptText } from "@/components/PromptText";
-import { Scratchpad } from "@/components/Scratchpad";
+import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
 import {
@@ -132,6 +132,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [problemIndex, setProblemIndex] = useState(0);
   /** Right answers this session, only kept in practice-only mode. */
   const [sessionRight, setSessionRight] = useState(0);
+  // The screen is paper on every problem; a new problem is clean paper.
+  useScratchpadSurface(`${skill.id}:${problemIndex}`);
   const sessionRightRef = useRef(0);
   const [extraProblems, setExtraProblems] = useState<GeneratedProblem[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
@@ -740,7 +742,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </p>
           <div className="flex shrink-0 items-center">
             {/* Working out, on the screen: marks clear with the next problem. */}
-            {!pending && <Scratchpad resetKey={`${skill.id}:${problem.id}:${problemIndex}`} className="mr-1" />}
+            <ScratchpadButton className="mr-1" />
             {speechSupported && !pending && (
               <button
                 type="button"

@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 
 /**
- * Draw on the screen while solving. Press Draw and the whole page becomes
- * paper: scribble the working next to the problem with a finger, a pen or
- * the mouse, then press Done and the marks stay where they are while you
- * type the answer. Marks clear when the problem changes.
+ * Draw on the screen while solving.
  *
- * The canvas covers the viewport but only takes the pointer while drawing,
- * so nothing underneath is ever blocked for long.
+ * One drawing layer for the whole app, mounted at the root so it sits over
+ * everything and answers to nothing else's layout. Any page with a problem
+ * on it (a lesson, the rink, the check) registers itself, which puts a pen
+ * button in the corner; the problem cards carry a Draw button too, and all
+ * of them drive this one layer. Press Draw and the screen is paper: scribble
+ * next to the problem with a finger, a pen or the mouse, press Done and the
+ * marks stay while you type the answer. A new problem, or a new page, is
+ * clean paper.
  */
 
 type Tool = "ink" | "blue" | "rose" | "eraser";
@@ -27,23 +31,50 @@ interface Stroke {
   points: { x: number; y: number }[];
 }
 
-export function Scratchpad({
-  resetKey,
-  compact = false,
-  className = "",
-}: {
-  /** Marks are cleared whenever this changes, e.g. the problem's id. */
-  resetKey: string;
-  /** An icon-only trigger, for a crowded toolbar. */
-  compact?: boolean;
-  className?: string;
-}) {
+interface ScratchpadApi {
+  drawing: boolean;
+  hasMarks: boolean;
+  toggle: () => void;
+  stop: () => void;
+  clear: () => void;
+  /** A page with a problem on it says so, which shows the corner button. */
+  register: () => () => void;
+}
+
+const Ctx = createContext<ScratchpadApi | null>(null);
+
+export function useScratchpad(): ScratchpadApi {
+  const api = useContext(Ctx);
+  if (!api) throw new Error("useScratchpad needs ScratchpadProvider");
+  return api;
+}
+
+/**
+ * For a component that shows problems: puts the pen button in the corner
+ * while it is mounted, and clears the paper whenever `key` changes.
+ */
+export function useScratchpadSurface(key: string) {
+  const { register, clear } = useScratchpad();
+  useEffect(() => register(), [register]);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    clear();
+  }, [key, clear]);
+}
+
+export function ScratchpadProvider({ children }: { children: React.ReactNode }) {
   const [drawing, setDrawing] = useState(false);
   const [tool, setTool] = useState<Tool>("ink");
   const [hasMarks, setHasMarks] = useState(false);
+  const [surfaces, setSurfaces] = useState(0);
   const canvas = useRef<HTMLCanvasElement>(null);
   const strokes = useRef<Stroke[]>([]);
   const live = useRef<Stroke | null>(null);
+  const pathname = usePathname();
 
   const paint = useCallback(() => {
     const c = canvas.current;
@@ -69,9 +100,33 @@ export function Scratchpad({
     ctx.globalCompositeOperation = "source-over";
   }, []);
 
-  // The canvas is the viewport, at device resolution.
+  const clear = useCallback(() => {
+    strokes.current = [];
+    live.current = null;
+    setHasMarks(false);
+    setDrawing(false);
+    paint();
+  }, [paint]);
+
+  const stop = useCallback(() => setDrawing(false), []);
+  const toggle = useCallback(() => setDrawing((d) => !d), []);
+  const register = useCallback(() => {
+    setSurfaces((n) => n + 1);
+    return () => setSurfaces((n) => Math.max(0, n - 1));
+  }, []);
+
+  // A new page is clean paper.
+  const lastPath = useRef(pathname);
   useEffect(() => {
-    if (!drawing && !hasMarks) return;
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    clear();
+  }, [pathname, clear]);
+
+  // The canvas is the viewport, at device resolution.
+  const active = drawing || hasMarks;
+  useEffect(() => {
+    if (!active) return;
     const size = () => {
       const c = canvas.current;
       if (!c) return;
@@ -85,15 +140,7 @@ export function Scratchpad({
     size();
     window.addEventListener("resize", size);
     return () => window.removeEventListener("resize", size);
-  }, [drawing, hasMarks, paint]);
-
-  // A new problem is clean paper.
-  useEffect(() => {
-    strokes.current = [];
-    live.current = null;
-    setHasMarks(false);
-    setDrawing(false);
-  }, [resetKey]);
+  }, [active, paint]);
 
   useEffect(() => {
     if (!drawing) return;
@@ -111,6 +158,7 @@ export function Scratchpad({
 
   function down(e: React.PointerEvent) {
     if (!drawing) return;
+    e.preventDefault();
     try {
       (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     } catch {
@@ -131,84 +179,102 @@ export function Scratchpad({
     setHasMarks(true);
     paint();
   }
-  function clear() {
-    strokes.current = [];
-    live.current = null;
-    setHasMarks(false);
-    paint();
-  }
 
-  const active = drawing || hasMarks;
+  const api = useMemo<ScratchpadApi>(
+    () => ({ drawing, hasMarks, toggle, stop, clear, register }),
+    [drawing, hasMarks, toggle, stop, clear, register]
+  );
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setDrawing((d) => !d)}
-        aria-pressed={drawing}
-        title={drawing ? "Stop drawing" : "Draw on the screen"}
-        aria-label={drawing ? "Stop drawing" : "Draw on the screen"}
-        className={
-          compact
-            ? `flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 ${
-                drawing ? "bg-bridge-50 text-bridge-700" : "text-slate-400 hover:text-slate-600"
-              } ${className}`
-            : `inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
-                drawing ? "border-bridge-300 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              } ${className}`
-        }
-      >
-        <Icon name="pen" size={compact ? 19 : 15} />
-        {!compact && (drawing ? "Drawing" : "Draw")}
-      </button>
+    <Ctx.Provider value={api}>
+      {children}
+
+      {/* The corner pen, on any page with a problem on it. */}
+      {surfaces > 0 && !drawing && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="Draw on the screen"
+          title="Draw on the screen"
+          className={`fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2 ${
+            hasMarks ? "bg-bridge-600 text-white" : "bg-white text-slate-700 ring-1 ring-inset ring-slate-200"
+          }`}
+        >
+          <Icon name="pen" size={22} />
+        </button>
+      )}
 
       {active && (
-        <>
-          <canvas
-            ref={canvas}
-            aria-hidden
-            onPointerDown={down}
-            onPointerMove={move}
-            onPointerUp={up}
-            onPointerCancel={up}
-            className={`fixed inset-0 z-[700] ${drawing ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
-          />
-          {drawing && (
-            <div
-              role="toolbar"
-              aria-label="Drawing tools"
-              className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg backdrop-blur-sm"
-            >
-              {TOOLS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTool(t.id)}
-                  aria-pressed={tool === t.id}
-                  aria-label={t.label}
-                  title={t.label}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                    tool === t.id ? "ring-2 ring-bridge-500 ring-offset-1" : "hover:bg-slate-100"
-                  }`}
-                >
-                  {t.id === "eraser" ? (
-                    <Icon name="eraser" size={18} className="text-slate-600" />
-                  ) : (
-                    <span className="h-5 w-5 rounded-full" style={{ backgroundColor: t.color }} />
-                  )}
-                </button>
-              ))}
-              <span aria-hidden className="mx-0.5 h-6 w-px bg-slate-200" />
-              <button type="button" onClick={clear} className="btn-ghost h-9 px-2.5 text-xs">
-                Clear
-              </button>
-              <button type="button" onClick={() => setDrawing(false)} className="btn-primary h-9 px-3 py-0 text-xs">
-                Done
-              </button>
-            </div>
-          )}
-        </>
+        <canvas
+          ref={canvas}
+          aria-hidden
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          className={`fixed inset-0 z-[700] ${drawing ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
+        />
       )}
-    </>
+      {drawing && (
+        <div
+          role="toolbar"
+          aria-label="Drawing tools"
+          className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg backdrop-blur-sm"
+        >
+          {TOOLS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTool(t.id)}
+              aria-pressed={tool === t.id}
+              aria-label={t.label}
+              title={t.label}
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                tool === t.id ? "ring-2 ring-bridge-500 ring-offset-1" : "hover:bg-slate-100"
+              }`}
+            >
+              {t.id === "eraser" ? (
+                <Icon name="eraser" size={18} className="text-slate-600" />
+              ) : (
+                <span className="h-5 w-5 rounded-full" style={{ backgroundColor: t.color }} />
+              )}
+            </button>
+          ))}
+          <span aria-hidden className="mx-0.5 h-6 w-px bg-slate-200" />
+          <button type="button" onClick={clear} className="btn-ghost h-9 px-2.5 text-xs">
+            Clear
+          </button>
+          <button type="button" onClick={stop} className="btn-primary h-9 px-3 py-0 text-xs">
+            Done
+          </button>
+        </div>
+      )}
+    </Ctx.Provider>
+  );
+}
+
+/** A Draw button for a problem card. */
+export function ScratchpadButton({ compact = false, className = "" }: { compact?: boolean; className?: string }) {
+  const { drawing, toggle } = useScratchpad();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={drawing}
+      title={drawing ? "Stop drawing" : "Draw on the screen"}
+      aria-label={drawing ? "Stop drawing" : "Draw on the screen"}
+      className={
+        compact
+          ? `flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 ${
+              drawing ? "bg-bridge-50 text-bridge-700" : "text-slate-400 hover:text-slate-600"
+            } ${className}`
+          : `inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+              drawing ? "border-bridge-300 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            } ${className}`
+      }
+    >
+      <Icon name="pen" size={compact ? 19 : 15} />
+      {!compact && (drawing ? "Drawing" : "Draw")}
+    </button>
   );
 }

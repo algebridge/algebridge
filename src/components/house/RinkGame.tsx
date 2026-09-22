@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { PromptText } from "@/components/PromptText";
-import { Scratchpad } from "@/components/Scratchpad";
+import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
 import { useSound } from "@/hooks/useSound";
@@ -64,6 +64,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
   const [remaining, setRemaining] = useState(() => rinkRemainingToday(progress, day));
   const source = rinkSkillIds(progress);
+  useScratchpadSurface(open ? `${open.skillId}:${open.problem.id}` : "rink");
 
   const spawnRing = useCallback(() => {
     const item = pickRinkProblem(progress, seen.current);
@@ -346,7 +347,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
             <div className="p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-medium text-slate-500">In your head, or draw it out. No calculator on the ice.</p>
-                <Scratchpad resetKey={`${open.skillId}:${problem.id}:${problem.prompt}`} />
+                <ScratchpadButton />
               </div>
               <PromptText text={stripVariantTag(problem.prompt)} />
               {!verdict ? (
