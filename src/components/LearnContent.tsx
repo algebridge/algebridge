@@ -22,6 +22,8 @@ import { useProgress } from "@/hooks/useProgress";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { hueVars, unitHue } from "@/lib/hues";
 import { canTryCheck, CHECK_LENGTH } from "@/lib/path";
+import { bridgeysForSkill } from "@/lib/gamification";
+import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";
 import { UnitMark } from "@/components/UnitMark";
 
@@ -105,6 +107,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
     ? getUnitCompletion(unit.skills.map((s) => s.id))
     : { completed: 0, total: unit.skills.length, percent: 0 };
   const skillIndex = unit.skills.findIndex((s) => s.id === skillId) + 1;
+  const pay = bridgeysForSkill(skill.id);
+  const prize = getUnitPrize(unit.id);
 
   function handleVideoWatched() {
     const result = markVideoWatched(skill.id);
@@ -276,10 +280,10 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   {looking
                     ? "Practice only, for now"
                     : isSkillComplete
-                      ? "Skill complete"
+                      ? `Skill complete · ${pay} Bridgeys earned`
                       : practiceStats.attempted === 0
-                        ? "Get 5 right"
-                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far`}
+                        ? `Get 5 right · +${pay} Bridgeys`
+                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far · +${pay} Bridgeys`}
                 </p>
               </div>
             </div>
@@ -351,6 +355,17 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                       <li>Get 5 practice problems right on the first try</li>
                       <li>Every one you get right stays banked, even after a miss</li>
                     </ol>
+                    <p className="mt-3 border-t border-black/5 pt-2 text-xs">
+                      Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
+                      {prize ? (
+                        <>
+                          . Finish every skill in Unit {unit.number} for the{" "}
+                          <span className="font-semibold text-slate-800">{prize.name}</span>.
+                        </>
+                      ) : (
+                        "."
+                      )}
+                    </p>
                   </div>
                 )}
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">

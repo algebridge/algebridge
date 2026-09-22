@@ -6,6 +6,10 @@ import { useProgress } from "@/hooks/useProgress";
 import { useAuth } from "@/lib/auth";
 import { hueVars, unitHue } from "@/lib/hues";
 import { UnitMark } from "@/components/UnitMark";
+import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
+import { getUnitPrize } from "@/data/house-catalog";
+import { getProgress } from "@/lib/progress";
+import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 
 interface UnitProgressHeaderProps {
   unit: Unit;
@@ -21,6 +25,9 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
   const percent = total ? Math.round((completed / total) * 100) : 0;
   // Progress belongs to a signed-in student; a visitor sees the unit itself.
   const showProgress = mounted && user;
+  const prize = getUnitPrize(unit.id);
+  const prizeEarned = mounted && !!prize && (getProgress().ownedFurniture ?? []).includes(prize.id);
+  const unitPay = unit.skills.reduce((n, s) => n + bridgeysForSkill(s.id), 0) + BRIDGEY_REWARDS.unitComplete;
 
   return (
     <header style={hueVars(unitHue(unit.id))} className="hue-banner relative overflow-hidden rounded-2xl">
@@ -49,6 +56,28 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
             </div>
             <p className="shrink-0 text-sm font-semibold">
               {completed} of {total} done
+            </p>
+          </div>
+        )}
+
+        {/* The prize. What the unit pays is on the table before the work starts. */}
+        {prize && (
+          <div className="hue-chip mt-5 flex items-center gap-3 rounded-xl px-3 py-2.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/90">
+              <CartoonFurnitureArt itemId={prize.id} size={40} variant="room" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                {prizeEarned ? "Earned" : "Unit prize"}
+              </p>
+              <p className="truncate text-sm font-semibold">
+                {prize.name}
+                <span className="font-normal opacity-90"> · {prizeEarned ? "in your house" : `finish all ${total} skills`}</span>
+              </p>
+            </div>
+            <p className="shrink-0 text-right text-xs leading-tight opacity-90">
+              <span className="block text-sm font-semibold">{unitPay} Bridgeys</span>
+              across the unit
             </p>
           </div>
         )}

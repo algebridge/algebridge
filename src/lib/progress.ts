@@ -11,7 +11,9 @@ import {
 } from "@/lib/gamification";
 import {
   normalizeBridgeyProgress,
+  grantUnitPrize,
   tryAwardSkillCompleteBridgeys,
+  tryAwardUnitCompleteBridgeys,
 } from "@/lib/bridgeys";
 import { STARTER_HOUSE_ID } from "@/data/house-catalog";
 import type { InterestProfile } from "@/lib/interests";
@@ -87,6 +89,8 @@ export interface AttemptResult {
   newLevel: MasteryLevel;
   skillJustCompleted: boolean;
   unitJustCompleted: boolean;
+  /** The furniture prize just earned by finishing a unit, if any. */
+  unitPrizeId: string | null;
   xpGained: number;
   bridgeysGained: number;
   leveledUp: boolean;
@@ -186,7 +190,10 @@ export function getProgress(): UserProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_PROGRESS);
-    let normalized = normalizeProgress(JSON.parse(raw));
+    const parsed = JSON.parse(raw) as Partial<UserProgress>;
+    // Counted before normalizing, which grants prizes into this same array.
+    const ownedBefore = Array.isArray(parsed.ownedFurniture) ? parsed.ownedFurniture.length : 0;
+    let normalized = normalizeProgress(parsed);
     if (!normalized.videoTrackingMigratedV1) {
       normalized = migrateProgress(normalized);
     }
@@ -194,6 +201,10 @@ export function getProgress(): UserProgress {
       normalized = migrateBridgeyEconomy(normalized);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       window.dispatchEvent(new Event(PROGRESS_UPDATED_EVENT));
+    } else if ((normalized.ownedFurniture?.length ?? 0) > ownedBefore) {
+      // A unit prize granted on load (a unit finished before prizes existed):
+      // kept, without an event, since this is a read and nothing else changed.
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
     }
     return normalized;
   } catch {
@@ -300,7 +311,7 @@ export function recordProblemAttempt(
   }
   if (skillJustCompleted) xpGained += XP_REWARDS.skillComplete;
 
-  const bridgeysGained = skillJustCompleted
+  let bridgeysGained = skillJustCompleted
     ? tryAwardSkillCompleteBridgeys(progress, skillId)
     : 0;
 
@@ -308,6 +319,7 @@ export function recordProblemAttempt(
   progress.xp += xpGained;
 
   let unitJustCompleted = false;
+  let unitPrizeId: string | null = null;
   if (skillJustCompleted) {
     const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
     if (unit) {
@@ -318,6 +330,8 @@ export function recordProblemAttempt(
       if (allComplete) {
         unitJustCompleted = true;
         progress.xp += XP_REWARDS.unitComplete;
+        bridgeysGained += tryAwardUnitCompleteBridgeys(progress, unit.id);
+        unitPrizeId = grantUnitPrize(progress, unit.id);
       }
     }
   }
@@ -333,6 +347,7 @@ export function recordProblemAttempt(
     newLevel: level,
     skillJustCompleted,
     unitJustCompleted,
+    unitPrizeId,
     xpGained,
     bridgeysGained,
     leveledUp,

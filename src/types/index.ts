@@ -116,8 +116,8 @@ export interface UserProgress {
   ownedTitles: string[];
   /** Title shown on profile and leaderboard. */
   equippedTitleId?: string;
-  /** Skill IDs that already paid out Bridgey rewards (prevents double-claim). */
-  bridgeyRewardsClaimed?: { complete: string[] };
+  /** Skill and unit IDs that already paid out Bridgey rewards (prevents double-claim). */
+  bridgeyRewardsClaimed?: { complete: string[]; units?: string[] };
   /** Share stats on the nationwide leaderboard (requires sign-in). */
   leaderboardOptIn?: boolean;
   /** One-time migration: backfill Bridgey economy fields for older saves. */
@@ -171,8 +171,13 @@ export interface HouseStyle {
 export interface FurnitureItem {
   id: string;
   name: string;
-  emoji: string;
+  /** @deprecated The art is a drawing now; kept for old saves' messages. */
+  emoji?: string;
   price: number;
+  /** A prize for finishing this unit. Never sold; price is 0. */
+  earnedBy?: string;
+  /** One line under the name in the shop. */
+  blurb?: string;
   /** @deprecated Legacy slot id, only used when migrating old saves. */
   slot: FurnitureSlot;
   /** Prestige value used for "best item in house" on the leaderboard. */

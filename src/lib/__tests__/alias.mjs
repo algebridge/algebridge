@@ -19,7 +19,12 @@ registerHooks({
   resolve(specifier, context, next) {
     let base = null;
     if (specifier.startsWith("@/")) base = path.join(SRC, specifier.slice(2));
-    else if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL?.startsWith("file:")) {
+    // Only the app's own files: a package's relative requires are its own business.
+    else if (
+      (specifier.startsWith("./") || specifier.startsWith("../")) &&
+      context.parentURL?.startsWith("file:") &&
+      !context.parentURL.includes("/node_modules/")
+    ) {
       base = path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier);
     }
     if (base) {
