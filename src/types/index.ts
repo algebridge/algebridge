@@ -130,6 +130,12 @@ export interface UserProgress {
   ownedOrnaments?: string[];
   /** Ornaments standing in the yard, in world metres around the pad. */
   placedOrnaments?: PlacedOrnamentEntry[];
+  /** Rink decorations bought, by id. */
+  ownedRinkItems?: string[];
+  /** Rink decorations standing in the backyard, by slot id. */
+  rinkDecor?: Record<string, string>;
+  /** The rink's day: what it has paid today, and the best run. */
+  rink?: { day: string; earned: number; solved: number; best: number };
 }
 
 /**

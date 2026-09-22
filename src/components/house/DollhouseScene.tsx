@@ -1,6 +1,6 @@
 import { BACKDROPS, getHouseArt } from "@/data/house-art";
 import type { HousePalette } from "@/data/house-art";
-import { FLOOR_TOP, HOUSE, HORIZON_Y, ROOM, SCENE_H, SCENE_W, YARD_TOP } from "@/lib/dollhouse";
+import { EAVE, FLOOR_TOP, HOUSE, HORIZON_Y, ROOF_APEX, ROOM, SCENE_H, SCENE_W, YARD_TOP } from "@/lib/dollhouse";
 
 interface DollhouseSceneProps {
   styleId: string;
@@ -11,12 +11,10 @@ interface DollhouseSceneProps {
 }
 
 /** Tight on the building, in the aspect a shop card actually is. */
-const HOUSE_FRAME = "60 140 1080 560";
+const HOUSE_FRAME = `${HOUSE.left - 150} ${ROOF_APEX - 40} ${HOUSE.right - HOUSE.left + 300} ${HOUSE.base - ROOF_APEX + 80}`;
 
 /** The seam the front wall splits along when the house opens. */
 const SPLIT = (HOUSE.left + HOUSE.right) / 2;
-const ROOF_APEX = 154;
-const EAVE = 34;
 
 /**
  * The house, drawn flat.
@@ -110,8 +108,8 @@ function Sun({ uid, kind }: { uid: string; kind: string }) {
   const soft = kind === "skyline";
   return (
     <g>
-      <circle cx="196" cy="150" r={soft ? 150 : 118} fill="#ffffff" opacity={soft ? 0.5 : 0.34} />
-      {!soft && <circle cx="196" cy="150" r="52" fill="#fff6d8" opacity="0.95" />}
+      <circle cx="150" cy="132" r={soft ? 150 : 110} fill="#ffffff" opacity={soft ? 0.5 : 0.34} />
+      {!soft && <circle cx="150" cy="132" r="48" fill="#fff6d8" opacity="0.95" />}
       <title>{uid}</title>
     </g>
   );
@@ -318,7 +316,7 @@ function FrontWall({ art, open }: { art: ReturnType<typeof getHouseArt>; open: b
               {!isLeft && <rect x={x} y={HOUSE.wallTop} width={half} height={h} fill={p.wallShade} opacity="0.35" />}
 
               {/* Courses. Repetition is where the detail lives in flat art. */}
-              {Array.from({ length: 11 }, (_, i) => (
+              {Array.from({ length: Math.floor((h - 20) / 31) }, (_, i) => (
                 <rect
                   key={i}
                   x={x}

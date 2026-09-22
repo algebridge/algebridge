@@ -7,6 +7,9 @@ interface GameHudProps {
   onExit?: () => void;
   mode: "outside" | "inside";
   hint?: string;
+  /** Which side of the house is showing, and the switch between them. */
+  view?: "front" | "back";
+  onView?: (view: "front" | "back") => void;
 }
 
 /**
@@ -16,7 +19,7 @@ interface GameHudProps {
  * header strip every other panel on the platform uses, so the only saturated
  * thing on screen is the game world itself.
  */
-export function GameHud({ houseStyleId, onExit, mode, hint }: GameHudProps) {
+export function GameHud({ houseStyleId, onExit, mode, hint, view, onView }: GameHudProps) {
   const house = getHouseStyle(houseStyleId);
 
   return (
@@ -27,13 +30,28 @@ export function GameHud({ houseStyleId, onExit, mode, hint }: GameHudProps) {
             ← {mode === "inside" ? "Step outside" : "Back"}
           </button>
         )}
-        <p className="panel-title truncate">
-          <span aria-hidden className="mr-1.5">{house?.emoji}</span>
-          {house?.name}
-        </p>
+        <p className="panel-title truncate">{house?.name}</p>
+        {view && onView && (
+          <div role="tablist" aria-label="Which side of the house" className="inline-flex gap-0.5 rounded-lg bg-slate-200/70 p-0.5">
+            {(["front", "back"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => onView(v)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {v === "front" ? "Front" : "Backyard"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+      {hint && <p className="hidden text-xs text-slate-500 sm:block">{hint}</p>}
     </div>
   );
 }

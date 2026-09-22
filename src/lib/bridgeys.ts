@@ -9,6 +9,8 @@ import {
   STARTER_HOUSE_ID,
 } from "@/data/house-catalog";
 import { getDisplayTitle } from "@/data/titles-catalog";
+import { getRinkItem } from "@/data/rink-catalog";
+import { getRinkSlot, RINK_DAILY_CAP, rinkPayFor, rinkRemainingToday } from "@/lib/rink";
 import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
 import { units } from "@/data/curriculum";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
@@ -41,6 +43,8 @@ function ensureBridgeyFields(progress: UserProgress): void {
     if (done) grantUnitPrize(progress, unit.id);
   }
   if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
+  if (!progress.ownedRinkItems) progress.ownedRinkItems = [];
+  if (!progress.rinkDecor) progress.rinkDecor = {};
 
   if (!progress.housePlacementMigratedV2 && Object.keys(progress.placedFurniture).length > 0) {
     const migrated = migrateSlotPlacements(progress.placedFurniture);
@@ -318,4 +322,89 @@ export function removePlacedOrnament(instanceId: string): PurchaseResult {
   saveProgress(progress);
   const item = getOrnament(entry.itemId);
   return { ok: true, message: `${item?.name ?? "Ornament"} picked up.` };
+}
+
+/* ── The rink ───────────────────────────────────────────────────────── */
+
+export function buyRinkItem(itemId: string): PurchaseResult {
+  const item = getRinkItem(itemId);
+  if (!item) return { ok: false, message: "That rink piece doesn't exist." };
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  if (progress.ownedRinkItems!.includes(itemId)) {
+    return { ok: false, message: `You already own the ${item.name}. Place it in the backyard.` };
+  }
+  const cantAfford = spendBridgeys(progress, item.price);
+  if (cantAfford) return cantAfford;
+  progress.ownedRinkItems!.push(itemId);
+  saveProgress(progress);
+  return { ok: true, message: `${item.name} is yours. It goes in the backyard, by the rink.` };
+}
+
+/** Stands a rink piece on a slot. A piece already standing elsewhere moves. */
+export function placeRinkItem(slotId: string, itemId: string): PurchaseResult {
+  const item = getRinkItem(itemId);
+  const slot = getRinkSlot(slotId);
+  if (!item || !slot) return { ok: false, message: "That spot is off the plan." };
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  if (!progress.ownedRinkItems!.includes(itemId)) return { ok: false, message: `You do not own the ${item.name} yet.` };
+  const decor = { ...progress.rinkDecor };
+  for (const [s, id] of Object.entries(decor)) if (id === itemId) delete decor[s];
+  const displaced = decor[slotId];
+  decor[slotId] = itemId;
+  progress.rinkDecor = decor;
+  saveProgress(progress);
+  return {
+    ok: true,
+    message: displaced ? `${item.name} takes the ${slot.label} spot; the ${getRinkItem(displaced)?.name ?? "other piece"} is back in the tray.` : `${item.name} stands at the ${slot.label}.`,
+  };
+}
+
+export function clearRinkSlot(slotId: string): PurchaseResult {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const id = progress.rinkDecor?.[slotId];
+  if (!id) return { ok: false, message: "Nothing stands there." };
+  const decor = { ...progress.rinkDecor };
+  delete decor[slotId];
+  progress.rinkDecor = decor;
+  saveProgress(progress);
+  return { ok: true, message: `${getRinkItem(id)?.name ?? "It"} is back in the tray.` };
+}
+
+/** Rink decorations bought and standing nowhere. */
+export function unplacedRinkItems(progress: UserProgress): string[] {
+  const standing = new Set(Object.values(progress.rinkDecor ?? {}));
+  return (progress.ownedRinkItems ?? []).filter((id) => !standing.has(id));
+}
+
+/**
+ * Pays for a problem solved on the rink, within the day's cap. Returns what
+ * was paid (0 once the cap is reached) and what is left for today.
+ */
+export function awardRinkBridgeys(skillId: string, day: string): { paid: number; remaining: number; solved: number } {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const r = progress.rink && progress.rink.day === day ? progress.rink : { day, earned: 0, solved: 0, best: progress.rink?.best ?? 0 };
+  const remainingBefore = rinkRemainingToday({ ...progress, rink: r }, day);
+  const paid = Math.min(rinkPayFor(skillId), remainingBefore);
+  if (paid > 0) awardBridgeys(progress, paid);
+  r.earned += paid;
+  r.solved += 1;
+  progress.rink = r;
+  saveProgress(progress);
+  return { paid, remaining: Math.max(0, RINK_DAILY_CAP - r.earned), solved: r.solved };
+}
+
+/** Keeps the best run of right answers in a row. */
+export function recordRinkRun(run: number, day: string): void {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const r = progress.rink && progress.rink.day === day ? progress.rink : { day, earned: 0, solved: 0, best: progress.rink?.best ?? 0 };
+  if (run > (r.best ?? 0)) {
+    r.best = run;
+    progress.rink = r;
+    saveProgress(progress);
+  }
 }

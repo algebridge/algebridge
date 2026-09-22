@@ -294,6 +294,92 @@ html.lenis body {
   animation: shake-x 0.5s cubic-bezier(.36,.07,.19,.97) both;
 }
 
+/* ── Veronica ─────────────────────────────────────────────────
+   Her limbs are SVG groups rotated about their joints. The stride
+   length of time comes from her speed (--stride), set inline. */
+.veronica {
+  overflow: visible;
+}
+.veronica .v-leg,
+.veronica .v-arm {
+  transition: transform 0.25s ease-out;
+}
+.veronica-moving .v-leg-front {
+  animation: v-stride var(--stride) ease-in-out infinite;
+}
+.veronica-moving .v-leg-back {
+  animation: v-stride var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+.veronica-moving .v-arm-back {
+  animation: v-swing var(--stride) ease-in-out infinite;
+}
+.veronica-moving .v-arm-front {
+  animation: v-swing var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+.veronica-moving .v-body {
+  transform: rotate(6deg);
+}
+.veronica-idle .v-body {
+  animation: v-bob 2.6s ease-in-out infinite;
+}
+.veronica-idle .v-arm-front {
+  animation: v-wave 2.6s ease-in-out infinite;
+}
+.veronica-spin {
+  animation: v-spin 0.7s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+/* An empty spot by the rink, shown while placing. */
+.dh-slot {
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px dashed #ffffff;
+  border-radius: 9999px;
+  min-width: 2.5rem;
+  animation: rink-pulse 1.4s ease-in-out infinite;
+}
+.dh-slot:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.rink-ring {
+  animation: rink-pulse 1.4s ease-in-out infinite;
+  transform-origin: 50% 65%;
+}
+.rink-ring-mark {
+  animation: rink-bob 1.4s ease-in-out infinite;
+}
+@keyframes rink-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+@keyframes rink-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes v-stride {
+  0%, 100% { transform: rotate(-24deg); }
+  50% { transform: rotate(24deg); }
+}
+@keyframes v-swing {
+  0%, 100% { transform: rotate(22deg); }
+  50% { transform: rotate(-22deg); }
+}
+@keyframes v-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes v-wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  70% { transform: rotate(-150deg); }
+  80% { transform: rotate(-120deg); }
+  90% { transform: rotate(-150deg); }
+}
+@keyframes v-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(720deg); }
+}
+
 @keyframes float-up {
   0% { opacity: 0; transform: translateY(0) scale(0.8); }
   20% { opacity: 1; transform: translateY(-8px) scale(1.1); }

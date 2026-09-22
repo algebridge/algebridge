@@ -23,15 +23,24 @@ export const SCENE_H = 800;
 /** Where the sky stops and the land starts. */
 export const HORIZON_Y = 430;
 
-/** The house, as a box on the flat plane. */
+/**
+ * The house, as a box on the flat plane. It grew in September 2026: at 520
+ * wide it sat in the middle of the lawn like a shed, and the room inside was
+ * too tight to place more than a few pieces.
+ */
 export const HOUSE = {
-  left: 340,
-  right: 860,
+  left: 250,
+  right: 950,
   /** Top of the walls; the roof rises above this. */
-  wallTop: 302,
+  wallTop: 262,
   /** Where the building meets the ground. */
   base: 652,
 } as const;
+
+/** How far the eaves overhang the walls. */
+export const EAVE = 34;
+/** The ridge of a pitched roof. */
+export const ROOF_APEX = HOUSE.wallTop - 148;
 
 /** The strip of lawn in front of the house, which is the whole yard. */
 export const YARD_TOP = 656;
