@@ -12,29 +12,33 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { FURNITURE_ITEMS } from "@/data/house-catalog";
+import { RINK_ITEMS } from "@/data/rink-catalog";
 import { ART_IDS, furnitureSvg } from "@/data/furniture-art";
 
 const OUT = join(process.cwd(), "public/house/furniture");
+const RINK_OUT = join(process.cwd(), "public/house/rink");
 mkdirSync(OUT, { recursive: true });
+mkdirSync(RINK_OUT, { recursive: true });
 
 const ids = FURNITURE_ITEMS.map((i) => i.id);
-const missing = ids.filter((id) => !ART_IDS.includes(id));
+const rinkIds = RINK_ITEMS.map((i) => i.id);
+const missing = [...ids, ...rinkIds].filter((id) => !ART_IDS.includes(id));
 if (missing.length) {
   console.error(`No art for: ${missing.join(", ")}`);
   process.exit(1);
 }
 
-for (const id of ids) {
-  const png = new Resvg(furnitureSvg(id)!, { fitTo: { mode: "width", value: 256 }, background: "rgba(0,0,0,0)" }).render().asPng();
-  writeFileSync(join(OUT, `${id}.png`), png);
-}
-console.log(`${ids.length} pieces drawn.`);
+const draw = (id: string) => new Resvg(furnitureSvg(id)!, { fitTo: { mode: "width", value: 256 }, background: "rgba(0,0,0,0)" }).render().asPng();
+for (const id of ids) writeFileSync(join(OUT, `${id}.png`), draw(id));
+for (const id of rinkIds) writeFileSync(join(RINK_OUT, `${id}.png`), draw(id));
+console.log(`${ids.length} pieces and ${rinkIds.length} rink pieces drawn.`);
 
 if (process.argv.includes("--sheet")) {
   const cols = 10;
   const cell = 100;
-  const rows = Math.ceil(ids.length / cols);
-  const tiles = ids
+  const all = [...ids, ...rinkIds];
+  const rows = Math.ceil(all.length / cols);
+  const tiles = all
     .map((id, i) => {
       const inner = furnitureSvg(id)!.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
       const x = (i % cols) * cell;

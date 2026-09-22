@@ -130,6 +130,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [problemIndex, setProblemIndex] = useState(0);
   /** Right answers this session, only kept in practice-only mode. */
   const [sessionRight, setSessionRight] = useState(0);
+  const sessionRightRef = useRef(0);
   const [extraProblems, setExtraProblems] = useState<GeneratedProblem[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
@@ -219,6 +220,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     // carry over into the next.
     setExpiredFor(null);
     resetStories();
+    sessionRightRef.current = 0;
     setSessionRight(0);
     setSeed(next);
     setSessionProblems(getFreshProblemsForSkill(skill.id, seedProblemsRef.current, next));
@@ -476,10 +478,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
       if (practiceOnly) {
         // Looking ahead: the answer is checked and explained, and that is all.
-        setSessionRight((n) => {
-          onPracticeRight?.(n + 1);
-          return n + 1;
-        });
+        sessionRightRef.current += 1;
+        setSessionRight(sessionRightRef.current);
+        onPracticeRight?.(sessionRightRef.current);
         return;
       }
 

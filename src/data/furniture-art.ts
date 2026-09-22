@@ -858,6 +858,118 @@ const ART: Record<string, () => string> = {
     stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tint(C.pink, 0.5), 1.5),
 };
 
+/**
+ * What stands around the rink. Drawn on the same canvas; a piece keeps its
+ * feet near y = 90 so it sits on the lawn.
+ */
+const RINK_ART: Record<string, () => string> = {
+  "rink-cones": () =>
+    repeat(3, (i) => {
+      const x = 22 + i * 28;
+      return poly([[x - 9, 86], [x + 9, 86], [x + 4, 56], [x - 4, 56]], C.orange) + rect(x - 6, 70, 12, 4, C.paper, 1) + block(x - 12, 84, 24, 5, C.orange, { rx: 2, depth: 2 });
+    }),
+  "rink-bench": () =>
+    block(10, 52, 80, 10, C.wood, { rx: 3, depth: 3, right: 3 }) +
+    block(10, 38, 80, 8, C.wood, { rx: 3, depth: 3, right: 3 }) +
+    legs(16, 78, 62, 26, C.steel, 6) +
+    block(14, 46, 6, 8, C.steel, { depth: 1 }) +
+    block(80, 46, 6, 8, C.steel, { depth: 1 }),
+  "rink-planter": () =>
+    block(34, 64, 32, 22, C.teal, { rx: 3, depth: 4, right: 3 }) +
+    rect(50, 34, 4, 30, C.walnut) +
+    repeat(5, (i) => `<g transform="rotate(${-70 + i * 35} 52 34)">${path("M52 34 Q66 20 82 30 Q68 30 52 34Z", i % 2 ? C.green : C.leaf)}</g>`) +
+    ball(52, 32, 4, C.walnut),
+  "rink-lamp": () =>
+    oval(50, 88, 14, 4, C.steel) +
+    block(47, 22, 6, 66, C.ink, { right: 2 }) +
+    block(34, 10, 32, 16, C.ink, { rx: 3, depth: 3, right: 2 }) +
+    rect(38, 14, 24, 9, tint(C.yellow, 0.5), 2) +
+    ellipse(50, 40, 22, 6, tint(C.yellow, 0.7)),
+  "rink-banner": () =>
+    block(14, 14, 6, 74, C.steel, { right: 1.5 }) +
+    block(80, 14, 6, 74, C.steel, { right: 1.5 }) +
+    block(20, 20, 60, 30, C.rose, { rx: 3, depth: 3, right: 2 }) +
+    // R I N K
+    stroke("M27 41 L27 29 L33 29 Q36 29 36 32.5 Q36 36 33 36 L27 36 M32 36 L36 41", C.paper, 2.5) +
+    stroke("M43 29 L43 41", C.paper, 2.5) +
+    stroke("M50 41 L50 29 L58 41 L58 29", C.paper, 2.5) +
+    stroke("M65 29 L65 41 M73 29 L65 35 L73 41", C.paper, 2.5),
+  "rink-arch": () =>
+    stroke("M14 88 Q14 20 50 20 Q86 20 86 88", C.ink, 6) +
+    repeat(7, (i) => {
+      const a = Math.PI * (0.12 + (i * 0.76) / 6);
+      const x = 50 - 36 * Math.cos(a);
+      const y = 88 - 68 * Math.sin(a) * 1.0;
+      return ball(x, y, 4.5, [C.gold, C.rose, C.sky, C.green, C.purple, C.orange, C.gold][i]);
+    }) +
+    block(8, 84, 14, 6, C.steel, { rx: 2, depth: 2 }) +
+    block(78, 84, 14, 6, C.steel, { rx: 2, depth: 2 }),
+  "rink-snacks": () =>
+    block(16, 44, 68, 42, C.gold, { rx: 4, depth: 4, right: 3 }) +
+    block(12, 28, 76, 12, C.rose, { rx: 3, depth: 3, right: 2 }) +
+    repeat(6, (i) => rect(14 + i * 12.5, 34, 6, 8, i % 2 ? C.paper : C.rose, 1)) +
+    rect(22, 52, 56, 6, C.paper, 2) +
+    ball(34, 68, 6, C.sky) +
+    ball(50, 66, 6, C.pink) +
+    ball(66, 68, 6, C.orange),
+  "rink-scoreboard": () =>
+    block(44, 56, 12, 32, C.steel, { depth: 2, right: 2 }) +
+    block(12, 10, 76, 48, C.ink, { rx: 5, depth: 4, right: 3 }) +
+    rect(18, 16, 30, 16, C.green, 2) +
+    rect(52, 16, 30, 16, C.rose, 2) +
+    repeat(2, (i) => rect(22 + i * 34, 20, 10, 8, C.ink, 1) + rect(35 + i * 34, 20, 10, 8, C.ink, 1)) +
+    rect(18, 38, 64, 14, tint(C.sky, 0.2), 2) +
+    repeat(4, (i) => rect(22 + i * 15, 42, 10, 6, C.sky, 1)),
+  "rink-speakers": () =>
+    block(30, 10, 40, 78, C.ink, { rx: 5, depth: 4, right: 3 }) +
+    ball(50, 30, 12, C.steel) +
+    disc(50, 30, 6, C.ink) +
+    ball(50, 62, 15, C.steel) +
+    disc(50, 62, 8, C.ink) +
+    ball(50, 62, 3, C.rose) +
+    rect(36, 44, 28, 4, C.chrome, 2),
+  "rink-ramp": () =>
+    path("M10 88 L10 46 Q14 78 50 84 L90 84 L90 88Z", C.chrome) +
+    path("M14 86 L14 56 Q18 78 52 82 L86 82 L86 86Z", C.sky) +
+    rect(8, 42, 8, 6, C.gold, 2) +
+    repeat(3, (i) => rect(60 + i * 10, 84, 6, 4, C.steel, 1)),
+  "rink-booth": () =>
+    block(20, 10, 60, 78, C.pink, { rx: 5, depth: 4, right: 3 }) +
+    rect(26, 16, 48, 10, C.paper, 2) +
+    rect(30, 32, 40, 40, C.ink, 3) +
+    ball(50, 46, 9, tint(C.pink, 0.4)) +
+    rect(40, 56, 20, 12, tint(C.pink, 0.2), 2) +
+    ball(50, 20, 3.5, C.rose) +
+    rect(26, 76, 48, 6, C.rose, 2),
+  "rink-dj": () =>
+    block(8, 46, 84, 30, C.ink, { rx: 4, depth: 4, right: 3 }) +
+    ball(30, 60, 12, C.chrome) +
+    disc(30, 60, 5, C.rose) +
+    ball(70, 60, 12, C.chrome) +
+    disc(70, 60, 5, C.sky) +
+    repeat(3, (i) => rect(46, 52 + i * 7, 8, 3, [C.green, C.gold, C.rose][i], 1)) +
+    stroke("M18 36 L24 28 L30 36 L36 22 L42 36 M58 36 L64 28 L70 36 L76 22 L82 36", C.purple, 3) +
+    legs(14, 80, 76, 12, C.steel),
+  "rink-disco": () =>
+    block(46, 4, 8, 22, C.steel, { right: 2 }) +
+    stroke("M20 26 L80 26", C.steel, 4) +
+    ball(50, 52, 26, C.chrome) +
+    repeat(4, (i) => rect(28 + i * 12, 40, 8, 8, tint(C.chrome, 0.5), 1)) +
+    repeat(5, (i) => rect(22 + i * 12, 52, 8, 8, i % 2 ? tint(C.chrome, 0.5) : shade(C.chrome, 0.1), 1)) +
+    repeat(4, (i) => rect(28 + i * 12, 64, 8, 8, tint(C.chrome, 0.5), 1)) +
+    repeat(4, (i) => ball([10, 90, 16, 84][i], [70, 66, 40, 44][i], 3, [C.rose, C.sky, C.gold, C.green][i])),
+  "rink-neon": () =>
+    block(10, 12, 80, 76, C.ink, { rx: 6, depth: 4, right: 3 }) +
+    stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74 M34 76 L44 76 M58 76 L68 76", C.pink, 3.5) +
+    ball(52, 30, 6, C.pink) +
+    stroke("M40 30 Q52 22 56 32 Q50 40 44 36 M46 36 Q36 46 48 58 L56 60 M48 58 L38 74 M56 60 L62 74", tint(C.pink, 0.6), 1.2),
+};
+
+for (const [id, draw] of Object.entries(RINK_ART)) ART[id] = draw;
+
+/** The rink pieces, for the export. */
+export const RINK_ART_IDS: string[] = Object.keys(RINK_ART);
+
 /** Every id that has art, so the catalog and the export can be checked against it. */
 export const ART_IDS: string[] = Object.keys(ART);
 

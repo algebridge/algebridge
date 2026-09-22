@@ -18,12 +18,14 @@ import {
 } from "@/data/house-catalog";
 import { DISPLAY_TITLES } from "@/data/titles-catalog";
 import { ORNAMENTS, ornamentImage } from "@/data/ornament-catalog";
+import { RINK_ITEMS, rinkItemImage } from "@/data/rink-catalog";
 import {
   buyFurniture,
   buyHouseStyle,
   buyOrnament,
   buyTitle,
   equipTitle,
+  buyRinkItem,
 } from "@/lib/bridgeys";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { showToast } from "@/lib/notify";
@@ -63,7 +65,8 @@ export default function HousePage() {
   function handlePurchase(action: () => { ok: boolean; message: string }) {
     const result = action();
     showToast({
-      emoji: result.ok ? "🪙" : "😅",
+      icon: result.ok ? "coin" : "x-circle",
+      tone: result.ok ? "reward" : "info",
       title: result.message,
     });
     refresh();
@@ -89,6 +92,7 @@ export default function HousePage() {
       prestige,
       houses: progress.ownedHouseStyles.length,
       garden: (progress.ownedOrnaments ?? []).length,
+      rink: (progress.ownedRinkItems ?? []).length,
       titles: progress.ownedTitles.length,
     };
   }, [progress]);
@@ -504,6 +508,69 @@ export default function HousePage() {
                         >
                           Buy
                         </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ── The rink ──────────────────────────────────────────── */}
+          <section>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="section-title">Rink</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  For the backyard, around the rink where Veronica skates. Each piece takes one of the seven spots.
+                </p>
+              </div>
+              <p className="text-sm text-slate-500 tabular-nums">{stats.rink} of {RINK_ITEMS.length} owned</p>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {RINK_ITEMS.map((item) => {
+                const affordable = balance >= item.price;
+                const owned = (progress.ownedRinkItems ?? []).includes(item.id);
+                const tier = RARITY_TIERS.find((r) => r.id === item.rarity)!;
+                return (
+                  <article key={item.id} className="card flex flex-col overflow-hidden p-0">
+                    <div className={`flex h-28 items-center justify-center border-b border-sky-100 bg-sky-50 ${!owned && !affordable ? "opacity-45" : ""}`}>
+                      <span className="relative block h-24 w-24">
+                        <Image src={rinkItemImage(item.id)} alt={item.name} fill sizes="120px" className="object-contain object-bottom" />
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col p-3.5">
+                      <h3 className="text-sm font-semibold text-slate-900">{item.name}</h3>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                        <span className={`h-1.5 w-1.5 rounded-full ${tier.dot}`} />
+                        {tier.label}
+                        <span aria-hidden>·</span>
+                        <span className="tabular-nums">{item.prestige} prestige</span>
+                      </p>
+                      <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-600">{item.blurb}</p>
+                      <div className="mt-3 flex items-end justify-between gap-2">
+                        <div>
+                          <BridgeyPrice amount={item.price} size="sm" muted={!owned && !affordable} />
+                          {!owned && !affordable && (
+                            <p className="mt-1 text-[11px] font-medium text-slate-400 tabular-nums">
+                              {(item.price - balance).toLocaleString()} more to go
+                            </p>
+                          )}
+                        </div>
+                        {owned ? (
+                          <span className="badge-success">Owned</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!affordable}
+                            onClick={() => handlePurchase(() => buyRinkItem(item.id))}
+                            className="btn-primary btn-sm"
+                            title={affordable ? undefined : `${(item.price - balance).toLocaleString()} more Bridgeys needed`}
+                          >
+                            Buy
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>

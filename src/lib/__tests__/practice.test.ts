@@ -511,6 +511,42 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a prize cannot be bought", !B.buyFurniture("prize-ruler").ok);
 }
 
+// --- The rink ------------------------------------------------------------------
+{
+  const R = await import("../rink.ts");
+  const { RINK_ITEMS } = await import("../../data/rink-catalog.ts");
+  const art = await import("../../data/furniture-art.ts");
+  const { normalizeProgress } = await import("../progress.ts");
+  const { existsSync } = await import("node:fs");
+  ok("rink pieces have art and PNGs", RINK_ITEMS.every((i) => art.furnitureSvg(i.id) && existsSync(new URL(`../../../public/house/rink/${i.id}.png`, import.meta.url))));
+  ok("rink piece ids are unique", new Set(RINK_ITEMS.map((i) => i.id)).size === RINK_ITEMS.length);
+  ok("the rink has seven spots with unique ids", R.RINK_SLOTS.length === 7 && new Set(R.RINK_SLOTS.map((s) => s.id)).size === 7);
+  // Head math: small whole numbers in, a whole number out.
+  const head = (prompt: string, answer: string | number, type: "numeric" | "multiple-choice" = "numeric") =>
+    R.isHeadMath({ id: "t", type, prompt, hint: "", answer, explanation: "", choices: type === "multiple-choice" ? ["a", "b"] : undefined });
+  ok("3x + 5 = 20 is head math", head("Solve for x: 3x + 5 = 20", 5));
+  ok("a decimal answer is out", !head("Solve for x: 4x = 6", 1.5));
+  ok("money is out", !head("$1000 invested at 5% annual interest. Value after 2 years?", 1102.5));
+  ok("big numbers are out", !head("Convert 3 miles to feet. (1 mile = 5280 ft)", 15840));
+  ok("rounding is out", !head("Convert 25 inches to feet. (round to the hundredths place)", 2.08));
+  ok("a short multiple choice is in", head("Which is an exponential function?", "y = 3(2)ˣ", "multiple-choice"));
+  // Which skills feed it.
+  const fresh = normalizeProgress({});
+  const warm = R.rinkSkillIds(fresh);
+  ok("with nothing finished the rink warms up on the first skill", warm.warmUp && warm.ids.length === 1 && warm.ids[0] === units[0].skills[0].id);
+  const some = normalizeProgress({});
+  some.skills[units[1].skills[0].id] = { skillId: units[1].skills[0].id, level: "proficient", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
+  ok("finished skills feed the rink", !R.rinkSkillIds(some).warmUp && R.rinkSkillIds(some).ids.join() === units[1].skills[0].id);
+  const picked = R.pickRinkProblem(some);
+  ok("a rink problem comes from a finished skill and is head math", !!picked && picked.skillId === units[1].skills[0].id && R.isHeadMath(picked.problem));
+  // Pay and the day's cap.
+  ok("a unit 1 problem pays 3, a unit 13 problem 9", R.rinkPayFor(units[0].skills[0].id) === 3 && R.rinkPayFor(units[12].skills[0].id) === 9);
+  ok("a fresh day has the whole cap", R.rinkRemainingToday(fresh, "2026-09-21") === R.RINK_DAILY_CAP);
+  ok("today's earnings come off the cap", R.rinkRemainingToday({ ...fresh, rink: { day: "2026-09-21", earned: 45, solved: 15, best: 5 } }, "2026-09-21") === 15);
+  ok("yesterday's earnings do not", R.rinkRemainingToday({ ...fresh, rink: { day: "2026-09-20", earned: 60, solved: 20, best: 5 } }, "2026-09-21") === R.RINK_DAILY_CAP);
+  ok("the boards keep her on the rink", R.onRink(R.RINK.cx, R.RINK.cy) && !R.onRink(R.RINK.cx + R.RINK.rx + 5, R.RINK.cy) && R.onRink(R.clampToRink(R.RINK.cx + 900, R.RINK.cy + 900).x, R.clampToRink(R.RINK.cx + 900, R.RINK.cy + 900).y, -1));
+}
+
 // --- The learning path ---------------------------------------------------------
 {
   const L = await import("../path.ts");
