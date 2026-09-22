@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PracticeProblem, Skill } from "@/types";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { PromptText } from "@/components/PromptText";
-import { Scratchpad } from "@/components/Scratchpad";
+import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { Icon } from "@/components/Icon";
 import { answerIsRight } from "@/lib/grading";
 import { CHECK_LENGTH, today } from "@/lib/path";
@@ -39,6 +39,7 @@ export function SkillCheck({
   const [phase, setPhase] = useState<Phase>("asking");
   const inputRef = useRef<HTMLInputElement>(null);
   const day = useRef(today()).current;
+  useScratchpadSurface(`${skill.id}:${index}`);
 
   useEffect(() => {
     if (problems.length) recordSkillCheck(skill.id, false, day);
@@ -119,7 +120,7 @@ export function SkillCheck({
         <p className="eyebrow">
           Question {index + 1} of {problems.length}
         </p>
-        <Scratchpad resetKey={`${skill.id}:${problem.id}:${index}`} />
+        <ScratchpadButton />
         <span className="flex gap-1" aria-hidden>
           {problems.map((_, i) => (
             <span
