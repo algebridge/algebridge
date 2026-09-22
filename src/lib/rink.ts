@@ -10,6 +10,7 @@
 
 import { units } from "@/data/curriculum";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
+import { generateProblemBank } from "@/data/skill-problem-generators";
 import { SCENE_W } from "@/lib/dollhouse";
 import { bridgeysForSkill } from "@/lib/gamification";
 import { stripVariantTag } from "@/lib/personalize";
@@ -67,14 +68,38 @@ export function clampToRink(x: number, y: number, margin = 0): { x: number; y: n
   return { x: RINK.cx + rx * Math.cos(a), y: RINK.cy + ry * Math.sin(a) };
 }
 
-/** Which skills feed the rink: the finished ones, or the first skill until one is. */
-export function rinkSkillIds(progress: UserProgress): { ids: string[]; warmUp: boolean } {
-  const done = units.flatMap((u) => u.skills).filter((s) => {
-    const lvl = progress.skills[s.id]?.level;
-    return lvl === "proficient" || lvl === "mastered";
-  });
-  if (done.length) return { ids: done.map((s) => s.id), warmUp: false };
-  return { ids: [units[0].skills[0].id], warmUp: true };
+/**
+ * The unit a student is on: the one holding their first unfinished skill in
+ * course order, or the last unit once everything is done.
+ */
+export function currentUnit(progress: UserProgress) {
+  for (const u of units) {
+    const unfinished = u.skills.some((s) => {
+      const lvl = progress.skills[s.id]?.level;
+      return lvl !== "proficient" && lvl !== "mastered";
+    });
+    if (unfinished) return u;
+  }
+  return units[units.length - 1];
+}
+
+/**
+ * Which skills feed the rink: the unit the student is on, all of it, so the
+ * rink is about what they are learning this week. A unit with nothing that
+ * works in the head (the money and decimal units) hands over to the unit
+ * before it.
+ */
+export function rinkSkillIds(progress: UserProgress): { ids: string[]; unitId: string; unitNumber: number; borrowed: boolean } {
+  const here = currentUnit(progress);
+  const hasHeadMath = (u: (typeof units)[number]) =>
+    u.skills.some((s) => generateProblemBank(s.id, s.problems, 7).some((p) => isHeadMath(p as PracticeProblem)));
+  let unit = here;
+  let borrowed = false;
+  while (!hasHeadMath(unit) && unit.number > 1) {
+    unit = units[unit.number - 2];
+    borrowed = true;
+  }
+  return { ids: unit.skills.map((s) => s.id), unitId: unit.id, unitNumber: unit.number, borrowed };
 }
 
 /** What a rink problem pays: a slice of what the skill paid to finish. */
@@ -97,8 +122,10 @@ export function rinkRemainingToday(progress: UserProgress, day: string): number 
  * short. Anything with decimals, money, rounding or big numbers stays in the
  * lesson where the calculator is.
  */
-export const HEAD_MAX_NUMBER = 60;
-export const HEAD_MAX_ANSWER = 144;
+export const HEAD_MAX_NUMBER = 50;
+export const HEAD_MAX_ANSWER = 100;
+/** Anything multiplied or divided by has to be a times-table number. */
+export const HEAD_MAX_FACTOR = 12;
 
 export function isHeadMath(p: PracticeProblem): boolean {
   if (p.type !== "numeric" && p.type !== "multiple-choice") return false;
@@ -108,6 +135,13 @@ export function isHeadMath(p: PracticeProblem): boolean {
   if (/\d\.\d|\$|%|round|nearest|hundredth|tenth|scientific|\^\(|\d{3,}/i.test(prompt)) return false;
   const numbers = prompt.match(/\d+/g) ?? [];
   if (numbers.some((n) => Number(n) > HEAD_MAX_NUMBER)) return false;
+  // Coefficients ("7x"), divisors ("x/4", "÷ 6") and products ("6 × 7"): times tables only.
+  const factors = [
+    ...[...prompt.matchAll(/(\d+)\s*[a-z]\b/gi)].map((m) => m[1]),
+    ...[...prompt.matchAll(/[\/÷]\s*(\d+)/g)].map((m) => m[1]),
+    ...[...prompt.matchAll(/(\d+)\s*[×*]\s*(\d+)/g)].flatMap((m) => [m[1], m[2]]),
+  ];
+  if (factors.some((n) => Number(n) > HEAD_MAX_FACTOR)) return false;
   if (p.type === "numeric") {
     const a = Number(p.answer);
     return Number.isInteger(a) && Math.abs(a) <= HEAD_MAX_ANSWER;
@@ -123,7 +157,7 @@ export interface RinkProblem {
   problem: PracticeProblem;
 }
 
-/** A head-math problem from one of the student's finished skills. */
+/** A head-math problem from the unit the student is on, a different one each time. */
 export function pickRinkProblem(progress: UserProgress, avoid = new Set<string>()): RinkProblem | null {
   const { ids } = rinkSkillIds(progress);
   const order = [...ids].sort(() => Math.random() - 0.5);

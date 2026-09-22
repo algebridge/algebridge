@@ -63,7 +63,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const [spinning, setSpinning] = useState(false);
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
   const [remaining, setRemaining] = useState(() => rinkRemainingToday(progress, day));
-  const { warmUp } = rinkSkillIds(progress);
+  const source = rinkSkillIds(progress);
 
   const spawnRing = useCallback(() => {
     const item = pickRinkProblem(progress, seen.current);
@@ -324,9 +324,9 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
         <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/85 px-2.5 py-1 text-[11px] font-medium text-slate-700 backdrop-blur-sm sm:bottom-3 sm:left-3 sm:right-auto">
           <span className="sm:hidden">Drag to skate. Go through the ring.</span>
           <span className="hidden sm:inline">
-            {warmUp
-              ? "Arrows or WASD to skate, drag on a phone. Finish skills and their problems come to the rink."
-              : "Arrows or WASD to skate, drag on a phone. Space spins. Skate through the ring."}
+            {source.borrowed
+              ? `Arrows or WASD to skate, drag on a phone. Unit ${source.unitNumber} problems, since your unit has none that work in the head.`
+              : `Arrows or WASD to skate, drag on a phone. Space spins. Unit ${source.unitNumber} problems, in your head.`}
           </span>
         </p>
       </div>

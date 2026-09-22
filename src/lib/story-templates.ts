@@ -67,11 +67,11 @@ export function checkTemplate(
   template: unknown,
   /** Equations and points from the shape that must appear word for word. */
   spans: string[] = []
-): { ok: true; template: string } | { ok: false; reason: "template"; detail: string } {
+): { ok: true; template: string } | { ok: false; reason: "template" | "awkward"; detail: string } {
   if (typeof template !== "string" || !template.trim()) return { ok: false, reason: "template", detail: "empty" };
-  const asked = askAsTheirCall(template.replace(/\s+/g, " ").trim());
-  if (!asked) return { ok: false, reason: "template", detail: "end with a question to the student" };
-  const clean = asked;
+  const clean = template.replace(/\s+/g, " ").trim();
+  if (!clean.includes("?")) return { ok: false, reason: "template", detail: "end with a question to the student" };
+  if (STILTED.test(clean)) return { ok: false, reason: "awkward", detail: "ask it the way a friend would say it, plainly" };
   const flat = (t: string) => t.replace(/[−–]/g, "-").replace(/\s+/g, "");
   const absent = spans.filter((s) => !flat(clean).includes(flat(s)));
   if (absent.length) {
@@ -103,7 +103,7 @@ export function checkTemplate(
  * re-check (a new judge rule, say). Templates approved under older rules are
  * then never served again, instead of living in the library forever.
  */
-export const TEMPLATE_RULES = 2;
+export const TEMPLATE_RULES = 3;
 
 /** The key a template is stored under. */
 export function templateKey(signature: string, topic: string): string {
@@ -124,29 +124,13 @@ export function templateId(template: string): string {
 }
 
 /**
- * The question is the student's call ("What do you think...?", "How many do
- * you figure...?"), which is how students were asked to be spoken to.
+ * Wording nobody would say out loud. "What is your call on the total
+ * seconds?" is a question bolted onto a sum; a friend would ask "How many
+ * seconds is that?". Asking for the student's opinion is welcome where the
+ * number is a decision or an estimate, and only there.
  */
-export const OPINION =
-  /\b(do you think|you think|do you figure|you figure|do you reckon|you reckon|would you say|what'?s your (call|guess|read|pick|bet|plan|move)|your (best )?(guess|call|read)|in your view|would you (pick|choose|go with|bet on)|do you (pick|choose|go with))\b/i;
-
-/**
- * Makes the closing question the student's call when the writer forgot to:
- * "How many rows must you build?" becomes "Your call: how many rows must you
- * build?". The writer is asked for it and mostly does it; this makes it
- * certain without throwing away an otherwise good story. Null when the
- * template asks nothing.
- */
-export function askAsTheirCall(template: string): string | null {
-  const end = template.lastIndexOf("?");
-  if (end < 0) return null;
-  const start = Math.max(template.lastIndexOf(". ", end), template.lastIndexOf("! ", end)) + 1;
-  const question = template.slice(start, end + 1).trim();
-  if (OPINION.test(question)) return template;
-  // "What's your call: what order..." reads worse than a plain "Your call:".
-  const lead = question.charAt(0).toLowerCase() + question.slice(1);
-  return `${template.slice(0, start).trimEnd()} Your call: ${lead}${template.slice(end + 1)}`.trim();
-}
+export const STILTED =
+  /\b(your call\b|in your view|would you say|what('s| is) your (guess|read|pick|bet|plan|move|estimate)|do you (think|figure|reckon) (is|are|it is)\b|what do you (think|figure) the (total|answer|number|value) is)/i;
 
 /**
  * A filled template that only reads wrong when a number is 1: "1 hours",
@@ -171,7 +155,7 @@ In each problem, numbers appear as placeholders: {1}, {2}, {3}. Each stands for 
 What makes one good:
 - The answer has a job. The number the student finds is something they need inside the story: how many rails to craft, how many chests to fill, how many threes they sank. Never end on a dry "how many feet is that?".
 - Stakes, in a few words: a raid, a deadline, a record, the last seconds of a game.
-- Ask for the student's call, as if their thinking matters: "What do you think...?", "How many do you figure...?", "What's your call...?". It must still have exactly one right answer: "How many chests do you think you need to fill?", never "How many chests would be good?".
+- End on the question a friend would ask in that moment, in plain words. Where the number is a decision or an estimate, asking for their take reads well: "How many chests do you think you need?", "How many do you figure you can carry?". Where it is a plain count or measurement, ask plainly and specifically: "How many seconds until the drop?", "How many rails is that?". Never bolt on "What is your call on..." or "Your call:", and never ask "What do you think the total is?". Exactly one right answer either way.
 - Really set in that world, and true for any value of each placeholder. Give each placeholder a role that fits any number: "rows of {1} blocks", "trays of {1} cookies", "{1} views per video". Never tie a placeholder to a fixed fact ("a three is worth {1}" is false for most values).
 - It must read right whether a placeholder is 1 or 50: "with {2} on the floor", "a {2}-hour drive", "a total of {3}", never "{2} are on the floor", "{2} is left" or "in {2} hours".
 - A negative coefficient means something is lost or used up per item: "you spend {1} gems per upgrade". Never "you scored -{1}x points".
@@ -195,13 +179,13 @@ Examples of the standard (the interests are ones students rarely pick, so write 
 Original: "Solve for x: {1}x + {2} = {3}" (Gardening)
 -> "Frost hits tonight and you need {3} seedlings in the ground: each row fits {1}, with {2} already planted. {1}x + {2} = {3}. How many rows do you figure you have to dig?"
 Original: "Convert {1} miles to feet. ({2} mile = {3} ft)" (Skateboarding)
--> "The downhill run to the skate park is {1} miles, and you want its length for your route video. What's your call, how many feet of pavement is that? ({2} mile = {3} ft)"
+-> "The downhill run to the skate park is {1} miles, and your route video wants it in feet. How many feet of pavement is that run? ({2} mile = {3} ft)"
 Original: "Tickets cost \${1} (adult) and \${2} (child). {3} tickets sold for \${4}. How many adult tickets?" (Chess)
 -> "You're running the door at your club's chess tournament: adults pay \${1}, kids \${2}, and you sold {3} tickets for \${4}. How many adult tickets do you think you sold?"
 Original: "Find the slope between ({1}, {2}) and ({3}, {4})." (Volleyball)
--> "Plotted as (week, serves landed), your practice log went from ({1}, {2}) to ({3}, {4}). What do you think your slope is, the extra serves you land each week?"
+-> "Plotted as (week, serves landed), your practice log went from ({1}, {2}) to ({3}, {4}). What is the slope, the extra serves you land each week?"
 Original: "Put these steps in the correct order to solve {1}x − {2} = {3}:" (Hiking), task "put the steps in the right order"
--> "Your trail map app works out {1}x − {2} = {3} to split the climb into equal legs, but its steps got shuffled below. What order do you think gets you to the summit?"
+-> "Your trail map app works out {1}x − {2} = {3} to split the climb into equal legs, but its steps got shuffled below. What order gets you to the summit?"
 
 Reply with JSON only: {"items":[{"id":"...","topic":"<one of the student's interests, exactly as given>","template":"..."}]}`;
 

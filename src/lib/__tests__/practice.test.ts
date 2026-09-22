@@ -261,12 +261,17 @@ ok("most of the course can be personalized", personalizable > 3000, String(perso
   ok("decimals are one number", T.signatureOf("Solve for x: x/4 + 6 = 6.75").values.join() === "4,6,6.75");
   const good = "A raid needs {3} stacks: each chest holds {1}, with {2} on the floor. {1}x + {2} = {3}. How many chests do you think you need?";
   ok("template with every placeholder passes", T.checkTemplate("Solve for x: {1}x + {2} = {3}", good).ok);
-  // The question is the student's call, as students were asked to be spoken to.
-  const flatAsk = T.checkTemplate("Solve for x: {1}x + {2} = {3}", "A raid needs {3} stacks: each chest holds {1}, with {2} on the floor. {1}x + {2} = {3}. How many chests?");
-  ok("a question that is not the student's call is made one", flatAsk.ok && flatAsk.template.endsWith("Your call: how many chests?"), JSON.stringify(flatAsk));
-  for (const ask of ["What's your call, how many?", "How many do you figure?", "Which would you pick?", "What do you think x is?"]) {
-    ok(`"${ask}" reads as the student's call`, T.OPINION.test(ask));
+  // Plain questions pass; a question bolted on with "your call" is stilted.
+  const plain = T.checkTemplate("Solve for x: {1}x + {2} = {3}", "A raid needs {3} stacks: each chest holds {1}, with {2} on the floor. {1}x + {2} = {3}. How many chests do you need to fill?");
+  ok("a plain question passes", plain.ok, JSON.stringify(plain));
+  for (const stilted of ["Your call: how many feet is that?", "What is your call on the total seconds?", "What do you think the total is?", "How many grams do you think it is?", "In your view, how many?"]) {
+    ok(`"${stilted}" is stilted`, T.STILTED.test(stilted));
   }
+  for (const fine of ["How many chests do you think you need?", "How many do you figure you can carry?", "How many seconds until the drop?", "Which step wrecked your plan?"]) {
+    ok(`"${fine}" reads fine`, !T.STILTED.test(fine));
+  }
+  const bolted = T.checkTemplate("Solve for x: {1}x + {2} = {3}", "Chests of {1}, with {2} on the floor: {1}x + {2} = {3}. Your call: how many chests?");
+  ok("a bolted-on question is rejected as awkward", !bolted.ok && bolted.reason === "awkward");
   // "{2} are on the floor" is "1 are on the floor" when {2} is 1.
   ok("a verb after a placeholder fails", !T.checkTemplate("Solve for x: {1}x + {2} = {3}", "Chests of {1}, {2} are on the floor: {1}x + {2} = {3}. How many do you think?").ok);
   ok('"1 hours" is caught', T.readsWrongAtOne("cover 60 miles in 1 hours", "A car travels 60 miles in 1 hour.") === "1 hours");
@@ -275,12 +280,6 @@ ok("most of the course can be personalized", personalizable > 3000, String(perso
   ok("template ids are stable and short", T.templateId(good) === T.templateId(good) && /^[0-9a-f]{12}$/.test(T.templateId(good)) && T.templateId(good) !== T.templateId(good + " "));
   ok("keys carry the rules version", T.templateKey("x = {1}", "Minecraft").startsWith(`v${T.TEMPLATE_RULES}::`));
   // A closing question that is not the student's call is made into one.
-  ok(
-    "a plain closing question becomes the student's call",
-    T.askAsTheirCall("You need {3} rails. {1}x + {2} = {3}. How many crates must you open?") ===
-      "You need {3} rails. {1}x + {2} = {3}. Your call: how many crates must you open?"
-  );
-  ok("one already asked that way is left alone", T.askAsTheirCall("{1}x = {2}. How many do you think?") === "{1}x = {2}. How many do you think?");
   ok("a template with no question fails", !T.checkTemplate("x = {1}", "Build it: x = {1}.").ok);
   const noEq = T.checkTemplate("Put these steps in the correct order to solve {1}x − {2} = {3}:", "Your track broke, the steps are below. What order do you think fixes it, {1} {2} {3}?", ["{1}x − {2} = {3}"]);
   ok("a story missing its equation says which one", !noEq.ok && noEq.detail.includes("{1}x − {2} = {3}"), JSON.stringify(noEq));
@@ -295,6 +294,32 @@ ok("most of the course can be personalized", personalizable > 3000, String(perso
     if (JSON.stringify(shaped) !== JSON.stringify(P.mathSpans(prompt))) spanMismatch++;
   }
   ok(`a shape's equations match its problems' (${spanChecks} problems)`, spanMismatch === 0, `${spanMismatch} differ`);
+  const { STORY_LIBRARY } = await import("../../data/story-library.ts");
+  const bySignature = new Map<string, { prompt: string; p: unknown }[]>();
+  for (const unit of units) for (const skill of unit.skills) for (const seed of [7, 7919]) for (const p of generateProblemBank(skill.id, skill.problems, seed)) {
+    if (!P.canPersonalize(p as never)) continue;
+    const sig = T.signatureOf(P.stripVariantTag(p.prompt)).signature;
+    bySignature.set(sig, [...(bySignature.get(sig) ?? []), { prompt: p.prompt, p }]);
+  }
+  const libraryFailures: string[] = [];
+  let shipped = 0;
+  for (const [key, list] of Object.entries(STORY_LIBRARY)) {
+    const [version, sig] = key.split("::");
+    if (version !== `v${T.TEMPLATE_RULES}`) libraryFailures.push(`${key}: stale rules version`);
+    for (const t of list) {
+      shipped++;
+      const structural = T.checkTemplate(sig, t.template, shapeSpans(sig));
+      if (!structural.ok) { libraryFailures.push(`${structural.reason}: ${t.template}`); continue; }
+      const samples = bySignature.get(sig) ?? [];
+      if (!samples.length) { libraryFailures.push(`no problem of this shape: ${sig}`); continue; }
+      for (const sample of samples.slice(0, 3)) {
+        const filled = T.fillTemplate(structural.template, T.signatureOf(P.stripVariantTag(sample.prompt)).values);
+        const r = P.checkRewrite(sample.p as never, filled);
+        if (!r.ok) libraryFailures.push(`${r.reason} ${r.detail ?? ""}: ${filled}`);
+      }
+    }
+  }
+  ok(`every shipped story passes today's checks (${shipped} templates)`, libraryFailures.length === 0, libraryFailures.slice(0, 4).join(" | "));
   const missing = T.checkTemplate("Solve for x: {1}x + {2} = {3}", "Chests of {1}: {1}x + {2}. How many?");
   ok("a missing placeholder fails with what to fix", !missing.ok && missing.detail.startsWith("left out {3}"), JSON.stringify(missing));
   ok("an invented placeholder fails", !T.checkTemplate("x = {1}", "Level {2}, x = {1}. What is x?").ok);
@@ -595,13 +620,27 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a short multiple choice is in", head("Which is an exponential function?", "y = 3(2)ˣ", "multiple-choice"));
   // Which skills feed it.
   const fresh = normalizeProgress({});
-  const warm = R.rinkSkillIds(fresh);
-  ok("with nothing finished the rink warms up on the first skill", warm.warmUp && warm.ids.length === 1 && warm.ids[0] === units[0].skills[0].id);
-  const some = normalizeProgress({});
-  some.skills[units[1].skills[0].id] = { skillId: units[1].skills[0].id, level: "proficient", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
-  ok("finished skills feed the rink", !R.rinkSkillIds(some).warmUp && R.rinkSkillIds(some).ids.join() === units[1].skills[0].id);
-  const picked = R.pickRinkProblem(some);
-  ok("a rink problem comes from a finished skill and is head math", !!picked && picked.skillId === units[1].skills[0].id && R.isHeadMath(picked.problem));
+  const start = R.rinkSkillIds(fresh);
+  ok("a new student's rink is Unit 1, all of it", start.unitNumber === 1 && !start.borrowed && start.ids.join() === units[0].skills.map((s) => s.id).join());
+  const onto2 = normalizeProgress({});
+  for (const s of units[0].skills) onto2.skills[s.id] = { skillId: s.id, level: "proficient", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
+  ok("finishing Unit 1 moves the rink to Unit 2", R.rinkSkillIds(onto2).unitNumber === 2 && R.currentUnit(onto2).number === 2);
+  const picked = R.pickRinkProblem(onto2);
+  ok("a rink problem comes from the unit you are on and is head math", !!picked && picked.unitNumber === 2 && R.isHeadMath(picked.problem));
+  // Every unit has at least one skill that works in the head, so the rink
+  // never has to borrow from an earlier unit (the fallback exists all the same).
+  const perUnit = units.map((u, i) => {
+    const p = normalizeProgress({});
+    for (const done of units.slice(0, i)) for (const s of done.skills) p.skills[s.id] = { skillId: s.id, level: "mastered", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
+    const r = R.rinkSkillIds(p);
+    return r.unitNumber === u.number && !r.borrowed && !!R.pickRinkProblem(p);
+  });
+  ok("every unit serves the rink from its own problems", perUnit.every(Boolean), perUnit.map((v, i) => (v ? "" : units[i].id)).filter(Boolean).join());
+  const seen = new Set<string>();
+  const prompts = new Set<string>();
+  for (let i = 0; i < 12; i += 1) { const p = R.pickRinkProblem(fresh, seen); if (p) { seen.add(p.problem.prompt); prompts.add(p.problem.prompt); } }
+  ok("rink problems vary from ring to ring", prompts.size >= 8, String(prompts.size));
+  ok("a 7x coefficient is head math, a 13x one is out", R.isHeadMath({ id: "t", type: "numeric", prompt: "Solve for x: 7x + 5 = 33", hint: "", answer: 4, explanation: "" }) && !R.isHeadMath({ id: "t", type: "numeric", prompt: "Solve for x: 13x + 5 = 44", hint: "", answer: 3, explanation: "" }));
   // Pay and the day's cap.
   ok("a unit 1 problem pays 3, a unit 13 problem 9", R.rinkPayFor(units[0].skills[0].id) === 3 && R.rinkPayFor(units[12].skills[0].id) === 9);
   ok("a fresh day has the whole cap", R.rinkRemainingToday(fresh, "2026-09-21") === R.RINK_DAILY_CAP);

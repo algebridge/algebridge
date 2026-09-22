@@ -43,6 +43,8 @@ import type { UserProgress } from "@/types";
 interface DollhouseProps {
   progress: UserProgress;
   onUpdate: () => void;
+  /** Start in the backyard with the rink game running. */
+  autoSkate?: boolean;
 }
 
 type Mode = "off" | "yard" | "room" | "rink";
@@ -62,15 +64,15 @@ type View = "front" | "back";
  * read, a new house style is a palette rather than sixty renders, and nothing
  * in the browser has to agree to six decimal places with a build script.
  */
-export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
+export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhouseProps) {
   const house = getHouseStyle(progress.houseStyleId) ?? getHouseStyle("cottage")!;
 
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("off");
   const [placing, setPlacing] = useState<string | null>(null);
   /** Front of the house, or the backyard with the rink. */
-  const [view, setView] = useState<View>("front");
-  const [skating, setSkating] = useState(false);
+  const [view, setView] = useState<View>(autoSkate ? "back" : "front");
+  const [skating, setSkating] = useState(autoSkate);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
 
   const stage = useRef<HTMLDivElement>(null);
