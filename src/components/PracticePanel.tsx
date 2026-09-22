@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedProblem, PracticeProblem, Skill } from "@/types";
@@ -739,7 +740,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </p>
           <div className="flex shrink-0 items-center">
             {/* Working out, on the screen: marks clear with the next problem. */}
-            {!pending && <Scratchpad compact resetKey={`${skill.id}:${problem.id}:${problemIndex}`} />}
+            {!pending && <Scratchpad resetKey={`${skill.id}:${problem.id}:${problemIndex}`} className="mr-1" />}
             {speechSupported && !pending && (
               <button
                 type="button"
@@ -988,6 +989,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             Press <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5">Enter</kbd> to
             {feedback === "correct" ? " continue" : " check"}
           </p>
+        </div>
+        {/* A problem that reads wrong is worth hearing about, from the card it is on. */}
+        <div className="mt-3 text-right">
+          <Link
+            href={`/feedback?kind=problem&about=${encodeURIComponent(`${skill.title}: ${displayPrompt.slice(0, 140)}`)}`}
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-600 hover:underline"
+          >
+            Something off with this problem? Tell us
+          </Link>
         </div>
       </div>
 

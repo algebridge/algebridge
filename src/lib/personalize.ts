@@ -22,6 +22,7 @@
  * Pure and shared, so it is tested without a network.
  */
 
+import { STILTED } from "@/lib/story-templates";
 import { numericAnswerMatches } from "@/lib/grading";
 import { isSchoolSafe } from "@/lib/interests";
 
@@ -239,6 +240,7 @@ export type RejectReason =
   | "math-changed"
   | "gives-answer"
   | "textbook"
+  | "awkward"
   | "format";
 
 /**
@@ -320,6 +322,7 @@ export function checkRewrite(
   // original sentence, ending "...Convert 7 miles to feet?" or "Solve for x."
   // The question has to be the story's own.
   if (endsLikeOriginal(source, text)) return { ok: false, reason: "textbook" };
+  if (STILTED.test(text)) return { ok: false, reason: "awkward", detail: "ask it the way a friend would say it, plainly" };
 
   // A step problem's answer is which step is wrong, or their order. Naming a
   // step, or narrating the moves in order, hands it over whatever the judge
@@ -468,7 +471,7 @@ export const WRITER_SYSTEM = `You turn Algebra 1 practice problems into tiny sto
 What makes one good:
 - The answer has a job. The number the student finds is something they need inside the story: how many rails to craft, how many chests to fill, what to charge, how many threes they sank. Never end on a dry "how many feet is that?".
 - There are stakes, in a few words: a rival, a record, a deadline, a drop, a raid, the last seconds of a game.
-- Ask for the student's call, as if their thinking matters: "What do you think...?", "How many do you figure...?", "What's your call...?". It must still have exactly one right answer: "How many chests do you think you need to fill?", never "How many chests would be good?".
+- End on the question a friend would ask in that moment, plainly. Where the number is a decision or an estimate, asking for their take reads well ("How many chests do you think you need?"); where it is a plain count, ask plainly and specifically ("How many rails do you need to craft?"). Never bolt on "What is your call on..." or "Your call:". Exactly one right answer either way.
 - It is really set in that world, using things that exist there. Every number means exactly what the math uses it for, in matching units, and every fact is true (a free throw is worth 1 point). If a problem's units do not exist in one interest (there are no gallons in Minecraft, and a livestream does not travel at 66 mph), use a different interest, or a real trip or event around it, like the bus ride to a tournament.
 - Use the interest for real. Tickets become tickets to your team's playoff game or your server's build contest, not just "tickets". Nothing impossible: you cannot bake tickets.
 - For an equation like 6x + 10 = 34: x counts something the student does or gets, 6 is what ONE of those is worth or holds (and it must be true: a three is worth 3, never 6), 10 is what they already have, 34 is the goal or total. When nothing in that world is naturally worth that number, use packs, rows, trays or boxes of that size ("trays of 6 cookies", "rows of 6 blocks").
@@ -495,7 +498,7 @@ Original: "Solve for x: 3x + 4 = 19" (Basketball)
 Original: "Solve for x: 4x + 6 = 42" (Minecraft)
 -> "A raid is coming and you need 42 stacks stored: each chest holds 4 stacks and 6 are already on the floor. 4x + 6 = 42. How many chests do you figure you have to fill?"
 Original: "Convert 7 miles to feet. (1 mile = 5280 ft)" (Minecraft)
--> "You're laying a 7-mile rail line to your friend's base, one rail per foot. What's your call, how many rails do you need to craft? (1 mile = 5280 ft)"
+-> "You're laying a 7-mile rail line to your friend's base, one rail per foot. How many rails do you need to craft? (1 mile = 5280 ft)"
 Original: "A train travels 42 mph for 4 hours. How many miles?" (Basketball)
 -> "The team bus to the state final cruises at 42 mph for 4 hours. How many miles away is the arena?"
 Original: "Tickets cost $8 (adult) and $5 (child). 12 tickets sold for $78. How many adult tickets?" (Basketball)
@@ -517,6 +520,7 @@ export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as s
    - The interest is really part of the situation, not just a name pasted onto an ordinary problem.
    - For a "steps" problem, the story asks for exactly its task (ordering the steps, or finding the wrong one), and matches the steps shown with it.
    - Numbers read naturally: no "you scored -2x points", no "1 are".
+   - The closing question reads the way a person would say it. "What is your call on the total seconds?" and "What do you think the answer is?" are stilted; a stilted or bolted-on question means fits is false, with why "stilted question".
 3. "gives_away" is true if the story states the answer, or makes it obvious without doing the math (for example "you hit 5 threes" when the question is how many threes). For a "steps" problem, gives_away is false unless the story names the wrong step ("the second step") or states the order of the steps ("first subtract, then divide"). Spotting the error in easy algebra is the skill being practised, not a give-away.
 4. "engaging" from 1 to 5, as a 13 year old who loves that interest would feel it. 5: the answer matters to them inside the story and there are stakes. 4: clearly their world, with a real reason to want the answer. 3: their world, but flat. 2: barely connected. 1: generic.
 
@@ -587,6 +591,8 @@ export function whyRejected(reason: string, detail?: string): string {
       return `It changed an equation, expression or point${detail ? ` (${detail})` : ""}. Copy every one exactly as written.`;
     case "textbook":
       return "It ended on the textbook question. End with a question in the story's own words.";
+    case "awkward":
+      return "Its question was stilted (\"What is your call on the total...\"). Ask it the way a friend would say it, plainly.";
     case "gives-answer":
     case "gives-away":
       return "It gave the answer away. Keep the answer hidden.";

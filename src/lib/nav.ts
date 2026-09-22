@@ -57,12 +57,16 @@ export function buildNav({
     { href: "/achievements", label: "Achievements", icon: "trophy" },
     { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
     { href: "/house", label: "Bridgey House", icon: "house" },
+    { href: "/house?play=rink", label: "Skate with Veronica", icon: "spark" },
   ];
+
+  const help: NavItem[] = [{ href: "/feedback", label: "Feedback", icon: "hint" }];
 
   const sections: NavSection[] = [
     { title: "Learn", items: learn },
     { title: "Classroom", items: classroom },
     { title: "Progress", items: progress },
+    { title: "Help", items: help },
   ];
 
   if (isTutor || isAdmin) {

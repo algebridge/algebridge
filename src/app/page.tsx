@@ -4,6 +4,7 @@ import { AssignedWork } from "@/components/AssignedWork";
 import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
+import { SkateBanner } from "@/components/SkateBanner";
 import { Icon, type IconName } from "@/components/Icon";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
@@ -19,6 +20,8 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <CourseHeader />
+
+      <SkateBanner />
 
       {/* The course outline itself is behind a free account. The header above
           and the steps below stay open, so a visitor can still see how

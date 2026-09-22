@@ -50,6 +50,8 @@ export default function HousePage() {
   const [mounted, setMounted] = useState(false);
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [tab, setTab] = useState<Tab>("house");
+  /** From the home page's "Play now": straight onto the rink. */
+  const [autoSkate, setAutoSkate] = useState(false);
 
   function refresh() {
     setProgress(getProgress());
@@ -58,6 +60,13 @@ export default function HousePage() {
 
   useEffect(() => {
     refresh();
+    // Read here rather than with useSearchParams, which would take this
+    // prerendered page out of the static build.
+    if (new URLSearchParams(window.location.search).get("play") === "rink") {
+      setTab("house");
+      setAutoSkate(true);
+      window.history.replaceState(null, "", "/house");
+    }
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
   }, []);
@@ -181,7 +190,7 @@ export default function HousePage() {
 
       {tab === "house" && (
         <div className="space-y-4">
-          <HouseRoom progress={progress} onUpdate={refresh} />
+          <HouseRoom progress={progress} onUpdate={refresh} autoSkate={autoSkate} />
 
           {/* The yard art used to be followed by a screen of empty page. This
               turns that space into the next step in the loop. */}
