@@ -19,8 +19,8 @@ import type { PracticeProblem, UserProgress } from "@/types";
 /** The rink, as an ellipse in scene units. */
 export const RINK = { cx: SCENE_W / 2, cy: 600, rx: 400, ry: 130 } as const;
 
-/** The back of the house, which the backyard looks at. */
-export const BACK_HOUSE = { left: 250, right: 950, wallTop: 176, base: 402, apex: 68 } as const;
+/** The back of the house, which the backyard looks at. Two storeys, like the front. */
+export const BACK_HOUSE = { left: 220, right: 980, wallTop: 118, base: 402, apex: 22 } as const;
 
 /** Where the boards stand: the rink plus a little for the rail. */
 export const BOARD = 14;

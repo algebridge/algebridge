@@ -10,6 +10,7 @@ import {
   fetchAdminOverview,
   fetchAdminUserRows,
   grantAdmin,
+  setUnlimitedBridgeysFor,
   type AdminOverview,
   type AdminUserRow,
 } from "@/lib/admin";
@@ -156,6 +157,28 @@ export default function AdminPage() {
     if (e) setErr(e);
     else {
       setMsg(`${u.displayName ?? u.email} is now a ${role}.`);
+      await refresh();
+    }
+  }
+
+  async function toggleUnlimited(u: AdminUserRow) {
+    const on = !u.unlimitedBridgeys;
+    if (
+      !window.confirm(
+        on
+          ? `Give ${u.displayName ?? u.email ?? "this account"} unlimited Bridgeys? The shop will charge them nothing.`
+          : `Take unlimited Bridgeys away from ${u.displayName ?? u.email ?? "this account"}?`
+      )
+    )
+      return;
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    const e = await setUnlimitedBridgeysFor(u.id, on);
+    setBusy(false);
+    if (e) setErr(e);
+    else {
+      setMsg(`${u.displayName ?? u.email} ${on ? "now has unlimited Bridgeys." : "is back on earned Bridgeys."}`);
       await refresh();
     }
   }
@@ -464,6 +487,11 @@ export default function AdminPage() {
                               admin
                             </span>
                           )}
+                          {u.unlimitedBridgeys && (
+                            <span className="sbc-pill is-ok" style={{ marginLeft: 4 }} title="The shop charges this account nothing">
+                              unlimited
+                            </span>
+                          )}
                         </td>
                         <td className="sbc-num" title={fullDate(u.lastSeenAt)}>
                           {shortAgo(u.lastSeenAt)}
@@ -487,6 +515,15 @@ export default function AdminPage() {
                           <Link href={`/messages/${u.id}`} className="sbc-btn is-small">
                             Message
                           </Link>{" "}
+                          <button
+                            type="button"
+                            className="sbc-btn is-small"
+                            disabled={busy}
+                            title={u.unlimitedBridgeys ? "Back to earned Bridgeys" : "Unlimited Bridgeys in the shop"}
+                            onClick={() => void toggleUnlimited(u)}
+                          >
+                            {u.unlimitedBridgeys ? "Limit Bridgeys" : "Unlimited Bridgeys"}
+                          </button>{" "}
                           <button
                             type="button"
                             className="sbc-btn is-small is-danger"

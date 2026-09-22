@@ -8,27 +8,35 @@ import { DollhouseScene } from "@/components/house/DollhouseScene";
 import { GameHud } from "@/components/house/GameHud";
 import { RinkGame } from "@/components/house/RinkGame";
 import { Veronica } from "@/components/house/Veronica";
-import { getRinkItem, rinkItemImage } from "@/data/rink-catalog";
+import { getRinkItem } from "@/data/rink-catalog";
+import { primaryHex, SWATCHES, swatchHex, USABLE } from "@/data/furniture-art";
 import { RINK, RINK_SLOTS } from "@/lib/rink";
 import { getFurnitureItem, getHouseStyle, getUnplacedFurnitureIds } from "@/data/house-catalog";
 import { ORNAMENTS, getOrnament, getUnplacedOrnamentIds, ornamentImage } from "@/data/ornament-catalog";
 import {
   clearRinkSlot,
+  floorOf,
+  moveFurniture,
+  moveFurnitureToFloor,
   placeFurnitureAt,
   placeOrnamentAt,
   placeRinkItem,
   removePlacedFurniture,
   removePlacedOrnament,
+  setHouseNight,
+  setItemColor,
+  toggleFurniture,
   unplacedRinkItems,
 } from "@/lib/bridgeys";
 import {
+  FLOOR_LABEL,
   HOUSE,
   PAD_LIMIT,
   ROOF_APEX,
   SCENE_H,
   SCENE_W,
   clampToYard,
-  onFloor,
+  floorAt,
   onYard,
   pctX,
   pctY,
@@ -38,7 +46,7 @@ import {
   yardSpot,
 } from "@/lib/dollhouse";
 import { showToast } from "@/lib/notify";
-import type { UserProgress } from "@/types";
+import type { HouseFloor, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 interface DollhouseProps {
   progress: UserProgress;
@@ -50,6 +58,14 @@ interface DollhouseProps {
 type Mode = "off" | "yard" | "room" | "rink";
 type View = "front" | "back";
 
+/** A piece being dragged: where it is right now. */
+interface Dragging {
+  id: string;
+  x: number;
+  y: number;
+  floor: HouseFloor;
+}
+
 /**
  * The House, as one flat picture.
  *
@@ -57,12 +73,13 @@ type View = "front" | "back";
  * outside and a 360 panorama inside, each with its own camera, its own
  * offline renders and its own way of putting a thing down. Both were 3D
  * pretending to be cheap. This is 2D that means it, the front of the house
- * opens, and the room you decorate is in the same frame as the garden you
+ * opens, and the rooms you decorate are in the same frame as the garden you
  * decorate, at the same time.
  *
- * What that buys, beyond the look: placing something is arithmetic you can
- * read, a new house style is a palette rather than sixty renders, and nothing
- * in the browser has to agree to six decimal places with a build script.
+ * Two floors now, and the pieces in them are things rather than stickers:
+ * drag one to move it, tap it for its colours, its switch, the stairs, or
+ * to pick it up; and at night the ones that are on are the ones giving
+ * light.
  */
 export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhouseProps) {
   const house = getHouseStyle(progress.houseStyleId) ?? getHouseStyle("cottage")!;
@@ -75,8 +92,16 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
   const [view, setView] = useState<View>(autoSkate ? "back" : "front");
   const [skating, setSkating] = useState(autoSkate);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  /** The piece whose actions are showing. */
+  const [selected, setSelected] = useState<string | null>(null);
+  const [showColors, setShowColors] = useState(false);
+  const [dragging, setDragging] = useState<Dragging | null>(null);
+  const dragStart = useRef<{ id: string; x0: number; y0: number; moved: boolean } | null>(null);
+  const dragLatest = useRef<Dragging | null>(null);
 
   const stage = useRef<HTMLDivElement>(null);
+  const night = !!progress.houseNight;
+  const colors = useMemo(() => progress.itemColors ?? {}, [progress.itemColors]);
 
   const ornaments = useMemo(() => progress.placedOrnaments ?? [], [progress.placedOrnaments]);
   const furniture = useMemo(
@@ -100,13 +125,21 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     setHover(null);
   }, []);
 
+  const closeActions = useCallback(() => {
+    setSelected(null);
+    setShowColors(false);
+  }, []);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") stopPlacing();
+      if (e.key === "Escape") {
+        stopPlacing();
+        closeActions();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [stopPlacing]);
+  }, [stopPlacing, closeActions]);
 
   // Closing the house while placing furniture would leave a ghost on a wall.
   useEffect(() => {
@@ -114,7 +147,8 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
       setMode("off");
       stopPlacing();
     }
-  }, [open, mode, stopPlacing]);
+    if (!open) closeActions();
+  }, [open, mode, stopPlacing, closeActions]);
 
   // Each side of the house has its own decorating modes.
   useEffect(() => {
@@ -122,7 +156,13 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     if (view === "front" && mode === "rink") setMode("off");
     if (view === "front") setSkating(false);
     stopPlacing();
-  }, [view, mode, stopPlacing]);
+    closeActions();
+  }, [view, mode, stopPlacing, closeActions]);
+
+  // The selected piece may have been picked up or moved away underneath us.
+  useEffect(() => {
+    if (selected && !furniture.some((f) => f.instanceId === selected)) closeActions();
+  }, [furniture, selected, closeActions]);
 
   /** Pointer position in scene units, whatever the stage is scaled to. */
   function scenePoint(clientX: number, clientY: number) {
@@ -138,22 +178,27 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     if (!placing) return;
     const pt = scenePoint(e.clientX, e.clientY);
     if (!pt) return;
-    const valid = mode === "room" ? onFloor(pt.x, pt.y) : onYard(pt.y);
+    const valid = mode === "room" ? floorAt(pt.x, pt.y) !== null : onYard(pt.y);
     setHover(valid ? pt : null);
   }
 
   function onStageClick(e: React.MouseEvent) {
-    if (!placing || view === "back") return;
+    if (!placing) {
+      closeActions();
+      return;
+    }
+    if (view === "back") return;
     const pt = scenePoint(e.clientX, e.clientY);
     if (!pt) return;
 
     if (mode === "room") {
-      if (!onFloor(pt.x, pt.y)) {
-        showToast({ icon: "x-circle", tone: "info", title: "Put it down on the floor inside the house." });
+      const floor = floorAt(pt.x, pt.y);
+      if (!floor) {
+        showToast({ icon: "x-circle", tone: "info", title: "Put it down on a floor inside the house, upstairs or down." });
         return;
       }
-      const at = roomPoint(pt.x, pt.y);
-      const res = placeFurnitureAt(placing, at.x, at.y);
+      const at = roomPoint(pt.x, pt.y, floor);
+      const res = placeFurnitureAt(placing, at.x, at.y, floor);
       showToast({ icon: res.ok ? "check" : "x-circle", tone: res.ok ? "success" : "info", title: res.message });
       if (res.ok) {
         stopPlacing();
@@ -175,6 +220,62 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     }
   }
 
+  /* ── Dragging a piece around the rooms ───────────────────────── */
+
+  function pieceDown(e: React.PointerEvent, entry: PlacedFurnitureEntry) {
+    if (placing) return;
+    e.stopPropagation();
+    dragStart.current = { id: entry.instanceId, x0: e.clientX, y0: e.clientY, moved: false };
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      /* a pointer the browser will not capture still drags */
+    }
+  }
+
+  function pieceMove(e: React.PointerEvent, entry: PlacedFurnitureEntry) {
+    const d = dragStart.current;
+    if (!d || d.id !== entry.instanceId) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6) return;
+    d.moved = true;
+    const pt = scenePoint(e.clientX, e.clientY);
+    if (!pt) return;
+    const floor = floorAt(pt.x, pt.y) ?? floorOf(entry);
+    const at = roomPoint(pt.x, pt.y, floor);
+    const next = { id: d.id, x: at.x, y: at.y, floor };
+    dragLatest.current = next;
+    setDragging(next);
+    closeActions();
+  }
+
+  function pieceUp(e: React.PointerEvent, entry: PlacedFurnitureEntry) {
+    const d = dragStart.current;
+    if (!d || d.id !== entry.instanceId) return;
+    e.stopPropagation();
+    dragStart.current = null;
+    const latest = dragLatest.current;
+    dragLatest.current = null;
+    setDragging(null);
+    if (d.moved && latest) {
+      const res = moveFurniture(latest.id, latest.x, latest.y, latest.floor);
+      if (res.ok && latest.floor !== floorOf(entry)) showToast({ icon: "check", tone: "success", title: res.message });
+      if (res.ok) onUpdate();
+      return;
+    }
+    // A tap: its actions.
+    setShowColors(false);
+    setSelected((s) => (s === entry.instanceId ? null : entry.instanceId));
+  }
+
+  /* ── The actions on a tapped piece ───────────────────────────── */
+
+  function act(fn: () => { ok: boolean; message: string }, keepOpen = true) {
+    const res = fn();
+    showToast({ icon: res.ok ? "check" : "x-circle", tone: res.ok ? "success" : "info", title: res.message });
+    if (res.ok) onUpdate();
+    if (!keepOpen) closeActions();
+  }
+
   // Painter's order in a flat scene is just "further back is drawn first".
   const drawnOrnaments = useMemo(
     () =>
@@ -187,16 +288,26 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
   const drawnFurniture = useMemo(
     () =>
       furniture
-        .map((entry) => ({ entry, at: roomSpot(entry.x, entry.y) }))
+        .map((entry) => {
+          const live = dragging && dragging.id === entry.instanceId ? dragging : null;
+          const floor = live ? live.floor : floorOf(entry);
+          const at = live ? roomSpot(live.x, live.y, floor) : roomSpot(entry.x, entry.y, floor);
+          return { entry, at, floor, live: !!live };
+        })
         .sort((a, b) => a.at.depth - b.at.depth),
-    [furniture]
+    [furniture, dragging]
   );
+
+  const selectedPiece = selected ? drawnFurniture.find((f) => f.entry.instanceId === selected) ?? null : null;
 
   const ghostOrnament = mode === "yard" && placing ? getOrnament(placing) : null;
   const ghostFurniture = mode === "room" && placing ? getFurnitureItem(placing) : null;
+  const hoverFloor = hover && mode === "room" ? floorAt(hover.x, hover.y) : null;
   const ghostAt = hover
     ? mode === "room"
-      ? roomSpot(roomPoint(hover.x, hover.y).x, roomPoint(hover.x, hover.y).y)
+      ? hoverFloor
+        ? roomSpot(roomPoint(hover.x, hover.y, hoverFloor).x, roomPoint(hover.x, hover.y, hoverFloor).y, hoverFloor)
+        : null
       : yardSpot(clampToYard(yardPoint(hover.x, hover.y)))
     : null;
 
@@ -209,10 +320,14 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
           : "Veronica is by the rink"
       : placing
         ? mode === "room"
-          ? "Click the floor to put it down"
+          ? hoverFloor
+            ? `Click to put it down ${FLOOR_LABEL[hoverFloor]}`
+            : "Click a floor to put it down"
           : "Click the lawn to place it"
         : open
-          ? "The house is open"
+          ? furniture.length
+            ? "Drag a piece to move it. Tap it for more."
+            : "The house is open"
           : "Click the house to open it";
 
   return (
@@ -223,6 +338,11 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         hint={view === "back" ? "The backyard, with the rink." : house.description}
         view={view}
         onView={(v) => setView(v)}
+        night={night}
+        onNight={(n) => {
+          setHouseNight(n);
+          onUpdate();
+        }}
       />
 
       <div
@@ -230,11 +350,11 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
         onClick={onStageClick}
-        className={`relative aspect-[3/2] w-full touch-none overflow-hidden select-none ${
+        className={`relative aspect-[3/2] w-full touch-none overflow-hidden select-none ${night ? "dh-night" : ""} ${
           placing && view === "front" ? "cursor-crosshair" : ""
         }`}
       >
-        {view === "back" ? <BackyardScene styleId={house.id} /> : <DollhouseScene styleId={house.id} open={open} />}
+        {view === "back" ? <BackyardScene styleId={house.id} night={night} /> : <DollhouseScene styleId={house.id} open={open} night={night} />}
 
         {/* ── The backyard ───────────────────────────────────────── */}
         {view === "back" && (
@@ -266,7 +386,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                   }}
                   title={item ? `${item.name}${mode === "rink" ? ", click to pick up" : ""}` : `Put it ${slot.label}`}
                   className={`absolute -translate-x-1/2 -translate-y-full ${
-                    empty ? "dh-slot rounded-full ring-2 ring-white ring-offset-2 ring-offset-rose-400/60" : "dh-piece transition-transform hover:scale-105"
+                    empty ? "dh-slot rounded-full ring-2 ring-white ring-offset-2 ring-offset-rose-400/60" : `dh-piece transition-transform hover:scale-105 ${USABLE.has(item.id) ? "dh-lit" : ""}`
                   } ${mode === "rink" || placing ? "" : "pointer-events-none"}`}
                   style={{
                     left: pctX(slot.x),
@@ -277,7 +397,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                   }}
                 >
                   {item ? (
-                    <Image src={rinkItemImage(item.id)} alt={item.name} fill sizes="200px" className="object-contain object-bottom drop-shadow-[0_4px_5px_rgba(0,0,0,0.3)]" />
+                    <CartoonFurnitureArt itemId={item.id} fill color={colors[item.id]} className="drop-shadow-[0_4px_5px_rgba(0,0,0,0.3)]" />
                   ) : (
                     <span className="sr-only">Empty spot, {slot.label}</span>
                   )}
@@ -315,12 +435,15 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         )}
 
         {/* The whole building is the control that opens it, a house you can
-            click is more obvious than a button captioned "go inside". */}
-        {view === "front" && !placing && (
+            click is more obvious than a button captioned "go inside". Once it
+            is open the rooms take the clicks instead. */}
+        {view === "front" && !placing && !open && (
           <button
             type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-pressed={open}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(true);
+            }}
             className="absolute rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
             style={{
               left: pctX(HOUSE.left),
@@ -329,48 +452,78 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
               height: pctY(HOUSE.base - ROOF_APEX + 10),
             }}
           >
-            <span className="sr-only">
-              {open ? `Close the ${house.name}` : `Open the ${house.name}`}
-            </span>
+            <span className="sr-only">Open the {house.name}</span>
           </button>
         )}
 
         {/* ── Inside ─────────────────────────────────────────────── */}
         {view === "front" &&
           open &&
-          drawnFurniture.map(({ entry, at }) => {
+          drawnFurniture.map(({ entry, at, live }) => {
             const item = getFurnitureItem(entry.itemId);
             if (!item) return null;
             const w = (item.displayWidth ?? 110) * 0.92 * at.scale;
+            const lit = USABLE.has(entry.itemId) && !entry.off;
+            const isSelected = selected === entry.instanceId;
             return (
               <button
                 key={entry.instanceId}
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removePlacedFurniture(entry.instanceId);
-                  showToast({ icon: "review", tone: "info", title: `${item.name} is back in the Shop tray.` });
-                  onUpdate();
+                onPointerDown={(e) => pieceDown(e, entry)}
+                onPointerMove={(e) => pieceMove(e, entry)}
+                onPointerUp={(e) => pieceUp(e, entry)}
+                onPointerCancel={() => {
+                  dragStart.current = null;
+                  dragLatest.current = null;
+                  setDragging(null);
                 }}
-                title={`${item.name}, click to pick up`}
-                className="dh-piece absolute -translate-x-1/2 -translate-y-full transition-transform hover:scale-105"
+                onClick={(e) => e.stopPropagation()}
+                aria-pressed={isSelected}
+                title={`${item.name}: drag to move, tap for more`}
+                className={`dh-piece absolute -translate-x-1/2 -translate-y-full cursor-grab ${live ? "dh-dragging" : "transition-transform hover:scale-105"} ${
+                  lit ? "dh-lit" : ""
+                } ${isSelected ? "rounded-lg ring-2 ring-bridge-500 ring-offset-2" : ""}`}
                 style={{
                   left: pctX(at.x),
                   top: pctY(at.y),
                   width: pctX(w),
                   aspectRatio: "1 / 1",
-                  zIndex: 200 + Math.round(at.depth * 100),
+                  zIndex: live ? 800 : 200 + Math.round(at.depth * 100),
                 }}
               >
                 <CartoonFurnitureArt
                   itemId={entry.itemId}
-                  size={120}
-                  variant="room"
-                  className="h-full w-full drop-shadow-[0_5px_6px_rgba(0,0,0,0.35)]"
+                  fill
+                  color={colors[entry.itemId]}
+                  off={!!entry.off}
+                  className="drop-shadow-[0_5px_6px_rgba(0,0,0,0.35)]"
                 />
               </button>
             );
           })}
+
+        {/* ── What you can do with the piece you tapped ──────────── */}
+        {view === "front" && open && selectedPiece && !dragging && (
+          <PieceActions
+            piece={selectedPiece.entry}
+            floor={selectedPiece.floor}
+            at={{ x: selectedPiece.at.x, top: selectedPiece.at.y - (getFurnitureItem(selectedPiece.entry.itemId)?.displayWidth ?? 110) * 0.92 * selectedPiece.at.scale }}
+            color={colors[selectedPiece.entry.itemId] ?? null}
+            showColors={showColors}
+            onShowColors={() => setShowColors((s) => !s)}
+            onColor={(swatch) => act(() => setItemColor(selectedPiece.entry.itemId, swatch))}
+            onToggle={() => act(() => toggleFurniture(selectedPiece.entry.instanceId))}
+            onFloor={(floor) => act(() => moveFurnitureToFloor(selectedPiece.entry.instanceId, floor))}
+            onPickUp={() => {
+              const name = getFurnitureItem(selectedPiece.entry.itemId)?.name ?? "It";
+              removePlacedFurniture(selectedPiece.entry.instanceId);
+              showToast({ icon: "review", tone: "info", title: `${name} is back in the tray.` });
+              closeActions();
+              onUpdate();
+            }}
+            onClose={closeActions}
+          />
+        )}
 
         {/* ── Outside ────────────────────────────────────────────── */}
         {view === "front" &&
@@ -436,7 +589,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
               zIndex: 700,
             }}
           >
-            <CartoonFurnitureArt itemId={ghostFurniture.id} size={120} variant="room" className="h-full w-full" />
+            <CartoonFurnitureArt itemId={ghostFurniture.id} fill color={colors[ghostFurniture.id]} />
           </div>
         )}
 
@@ -489,7 +642,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                 <button
                   type="button"
                   onClick={() => {
-                    // Furniture only makes sense once you can see the room.
+                    // Furniture only makes sense once you can see the rooms.
                     setOpen(true);
                     setMode((m) => (m === "room" ? "off" : "room"));
                     stopPlacing();
@@ -520,8 +673,8 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
         {mode === "off" && view === "front" && (
           <p className="mt-2 text-sm text-slate-600">
             {ornaments.length + furniture.length === 0
-              ? `Furniture and ${ORNAMENTS.length} garden ornaments are in the Shop. Open the house to see inside.`
-              : `${furniture.length} inside, ${ornaments.length} out in the garden. Click any piece to pick it up.`}
+              ? `Furniture and ${ORNAMENTS.length} garden ornaments are in the Shop. Two floors to fill.`
+              : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, send it up the stairs, or pick it up.`}
           </p>
         )}
         {mode === "off" && view === "back" && (
@@ -537,6 +690,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
             items={mode === "yard" ? spareOrnaments : mode === "rink" ? spareRink : spareFurniture}
             kind={mode}
             placing={placing}
+            colors={colors}
             onPick={(id) => {
               setPlacing((cur) => (cur === id ? null : id));
               setHover(null);
@@ -549,16 +703,139 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
   );
 }
 
+/** The little bar over a tapped piece: paint it, switch it, move floors, pick it up. */
+function PieceActions({
+  piece,
+  floor,
+  at,
+  color,
+  showColors,
+  onShowColors,
+  onColor,
+  onToggle,
+  onFloor,
+  onPickUp,
+  onClose,
+}: {
+  piece: PlacedFurnitureEntry;
+  floor: HouseFloor;
+  at: { x: number; top: number };
+  color: string | null;
+  showColors: boolean;
+  onShowColors: () => void;
+  onColor: (swatch: string | null) => void;
+  onToggle: () => void;
+  onFloor: (floor: HouseFloor) => void;
+  onPickUp: () => void;
+  onClose: () => void;
+}) {
+  const item = getFurnitureItem(piece.itemId);
+  if (!item) return null;
+  const usable = USABLE.has(piece.itemId);
+  const other: HouseFloor = floor === "up" ? "down" : "up";
+  // Kept inside the stage: the bar is centred on the piece unless that would
+  // push it off an edge.
+  const left = Math.max(14, Math.min(86, (at.x / SCENE_W) * 100));
+  const top = Math.max(2, (at.top / SCENE_H) * 100 - 1.5);
+  return (
+    <div
+      role="group"
+      aria-label={`${item.name} actions`}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="dh-actions absolute -translate-x-1/2 -translate-y-full"
+      style={{ left: `${left}%`, top: `${top}%`, zIndex: 900 }}
+    >
+      <div className="rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-lg backdrop-blur-sm">
+        <div className="flex items-center gap-1">
+          <span className="max-w-[9rem] truncate px-1.5 text-xs font-semibold text-slate-800">{item.name}</span>
+          <ActionButton label={showColors ? "Colours, hide" : "Colour"} pressed={showColors} onClick={onShowColors}>
+            <span className="h-3.5 w-3.5 rounded-full ring-1 ring-inset ring-black/10" style={{ background: color ? swatchHex(color) : primaryHex(piece.itemId) }} />
+          </ActionButton>
+          {usable && (
+            <ActionButton label={piece.off ? "Turn on" : "Turn off"} onClick={onToggle}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0" />
+              </svg>
+            </ActionButton>
+          )}
+          <ActionButton label={other === "up" ? "Upstairs" : "Downstairs"} onClick={() => onFloor(other)}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              {other === "up" ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M5 12l7 7 7-7" />}
+            </svg>
+          </ActionButton>
+          <ActionButton label="Pick up" onClick={onPickUp}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+            </svg>
+          </ActionButton>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        {showColors && (
+          <div className="mt-1.5 border-t border-slate-100 pt-1.5">
+            <ColorDots itemId={piece.itemId} value={color} onPick={onColor} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({ label, pressed, onClick, children }: { label: string; pressed?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      className={`inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition ${
+        pressed ? "bg-bridge-50 text-bridge-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+      }`}
+    >
+      {children}
+      {label}
+    </button>
+  );
+}
+
+/** The swatches a piece can be painted in, its own colour first. */
+export function ColorDots({ itemId, value, onPick, size = 18 }: { itemId: string; value: string | null | undefined; onPick: (swatch: string | null) => void; size?: number }) {
+  const dot = (hex: string, selected: boolean, title: string, pick: () => void) => (
+    <button
+      key={title}
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      aria-label={title}
+      title={title}
+      onClick={pick}
+      className={`rounded-full ring-2 ring-offset-1 transition hover:scale-110 ${selected ? "ring-slate-800" : "ring-transparent hover:ring-slate-300"}`}
+      style={{ width: size, height: size, background: hex, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
+    />
+  );
+  return (
+    <div role="radiogroup" aria-label="Colour" className="flex flex-wrap items-center gap-1.5">
+      {dot(primaryHex(itemId), !value, "Its own colour", () => onPick(null))}
+      {SWATCHES.map((s) => dot(swatchHex(s.id), value === s.id, s.name, () => onPick(s.id)))}
+    </div>
+  );
+}
+
 function Tray({
   items,
   kind,
   placing,
+  colors,
   onPick,
   placedCount,
 }: {
   items: string[];
   kind: "yard" | "room" | "rink";
   placing: string | null;
+  colors: Record<string, string>;
   onPick: (id: string) => void;
   placedCount: number;
 }) {
@@ -571,7 +848,9 @@ function Tray({
             : kind === "rink"
               ? "Nothing for the rink yet. Rink pieces are in the Shop, under Rink."
               : "Nothing to put in yet. Furniture is in the Shop."
-          : "Everything you own is out. Click a piece to pick it up again."}
+          : kind === "room"
+            ? "Everything you own is in the house. Tap a piece to pick it up again."
+            : "Everything you own is out. Click a piece to pick it up again."}
       </p>
     );
   }
@@ -599,10 +878,8 @@ function Tray({
               <span className="relative block h-12 w-12">
                 {kind === "yard" ? (
                   <Image src={ornamentImage(id)} alt={name} fill sizes="60px" className="object-contain object-bottom" />
-                ) : kind === "rink" ? (
-                  <Image src={rinkItemImage(id)} alt={name} fill sizes="60px" className="object-contain object-bottom" />
                 ) : (
-                  <CartoonFurnitureArt itemId={id} size={48} variant="room" />
+                  <CartoonFurnitureArt itemId={id} fill color={colors[id]} />
                 )}
               </span>
               <span className="w-full truncate text-center text-[11px] font-medium text-slate-700">{name}</span>
@@ -615,7 +892,7 @@ function Tray({
           ? `Ornaments stand on the lawn within ${PAD_LIMIT} m of the house.`
           : kind === "rink"
             ? "Pick a piece, then click one of the spots that light up around the rink."
-            : "Furniture stands on the floor. Nearer the front means larger."}
+            : "Pick a piece, then click a floor, upstairs or down. Nearer the front means larger."}
       </p>
     </>
   );

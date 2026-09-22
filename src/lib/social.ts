@@ -161,6 +161,27 @@ function rowToMessage(r: {
   };
 }
 
+/**
+ * Is this conversation allowed? Staff (tutor, teacher, admin) can message
+ * anyone. A student can only message staff, which means a recipient whose
+ * profile they are allowed to read and whose role is tutor or teacher; a
+ * classmate's profile is invisible to them, so a classmate is unreachable.
+ */
+export async function canMessage(recipientId: string): Promise<boolean> {
+  const supabase = createClient();
+  if (!supabase) return false;
+  const uid = await currentUserId();
+  if (!uid || recipientId === uid) return false;
+  const [{ data: me }, { data: admin }, { data: other }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", uid).maybeSingle(),
+    supabase.rpc("is_admin"),
+    supabase.from("profiles").select("role").eq("id", recipientId).maybeSingle(),
+  ]);
+  const staff = (role: unknown) => role === "tutor" || role === "teacher";
+  if (admin === true || staff(me?.role)) return true;
+  return staff(other?.role);
+}
+
 export async function sendMessage(
   recipientId: string,
   body: string
@@ -171,6 +192,12 @@ export async function sendMessage(
   if (!uid) return { message: null, error: "You must be signed in." };
   const trimmed = body.trim();
   if (!trimmed) return { message: null, error: "Message is empty." };
+  // A student may only write to staff. The database enforces the same rule
+  // (schema-safety-2026-09.sql); this is the app refusing on its own as well,
+  // so a message to a classmate is stopped before it is even attempted.
+  if (!(await canMessage(recipientId))) {
+    return { message: null, error: "Messages here go to your tutors. Ask a tutor or teacher if you need to reach someone else." };
+  }
   const { data, error } = await supabase
     .from("direct_messages")
     .insert({ sender_id: uid, recipient_id: recipientId, body: trimmed.slice(0, 4000) })

@@ -1,37 +1,60 @@
 "use client";
 
-import Image from "next/image";
-import { getFurnitureImageSrc, getFurnitureItem } from "@/data/house-catalog";
+import { useMemo } from "react";
+import { furnitureSvg } from "@/data/furniture-art";
+import { getFurnitureItem } from "@/data/house-catalog";
+import { getRinkItem } from "@/data/rink-catalog";
 
 interface CartoonFurnitureArtProps {
   itemId: string;
   className?: string;
   size?: number;
-  /** room = bare transparent PNG. shop = neutral tile behind it. */
+  /** room = bare art. shop = neutral tile behind it. */
   variant?: "room" | "shop";
+  /** A swatch id the student painted it, if any. */
+  color?: string | null;
+  /** Switched off: a lamp dark, a screen blank. */
+  off?: boolean;
+  /** Fill the parent instead of taking a fixed size. */
+  fill?: boolean;
 }
 
-/** Transparent PNG furniture sprites, no white backgrounds. */
+/**
+ * A piece of furniture (or a rink piece), drawn live.
+ *
+ * The art is generated SVG, so it goes straight into the page rather than
+ * through a PNG: that is what lets a student repaint a piece and see the
+ * shades follow, lets a lamp go dark when it is switched off, and lets the
+ * parts that move (a fan, a flame, a fish) move, since CSS reaches inside an
+ * inline SVG and never inside an image.
+ */
 export function CartoonFurnitureArt({
   itemId,
   className = "",
   size = 80,
   variant = "room",
+  color = null,
+  off = false,
+  fill = false,
 }: CartoonFurnitureArtProps) {
-  const item = getFurnitureItem(itemId);
-  if (!item) return null;
+  const name = getFurnitureItem(itemId)?.name ?? getRinkItem(itemId)?.name;
+  // The art is our own generated markup, with only a swatch id and a flag
+  // from outside, both checked before they touch anything.
+  const svg = useMemo(() => furnitureSvg(itemId, { color, off }), [itemId, color, off]);
+  if (!name || !svg) return null;
 
   const img = (
-    <div className="relative" style={{ width: size, height: size }}>
-      <Image
-        src={getFurnitureImageSrc(itemId)}
-        alt={item.name}
-        fill
-        className="object-contain drop-shadow-md"
-        sizes={`${size}px`}
-      />
-    </div>
+    <span
+      role="img"
+      aria-label={name}
+      className="block h-full w-full drop-shadow-md [&>svg]:h-full [&>svg]:w-full"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
+
+  if (fill) {
+    return <div className={`h-full w-full ${className}`}>{img}</div>;
+  }
 
   if (variant === "room") {
     return (
@@ -41,9 +64,6 @@ export function CartoonFurnitureArt({
     );
   }
 
-  // The tile is deliberately neutral. Rarity is carried by the dot-and-label
-  // in the card's meta row, so putting a coloured ring here as well would say
-  // the same thing twice and read as a focus state on the wrong element.
   return (
     <div
       className={`flex items-center justify-center rounded-xl bg-slate-50 p-2 ring-1 ring-inset ring-slate-200 ${className}`}

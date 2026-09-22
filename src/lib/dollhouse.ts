@@ -17,6 +17,8 @@
  * existed before this still comes back exactly as it was left.
  */
 
+import type { HouseFloor } from "@/types";
+
 export const SCENE_W = 1200;
 export const SCENE_H = 800;
 
@@ -24,15 +26,16 @@ export const SCENE_H = 800;
 export const HORIZON_Y = 430;
 
 /**
- * The house, as a box on the flat plane. It grew in September 2026: at 520
- * wide it sat in the middle of the lawn like a shed, and the room inside was
- * too tight to place more than a few pieces.
+ * The house, as a box on the flat plane. It grew in September 2026, twice:
+ * first wider, because at 520 across it sat on the lawn like a shed, and
+ * then taller, to two storeys, because one room filled up fast and a
+ * dollhouse with an upstairs is the whole point of a dollhouse.
  */
 export const HOUSE = {
-  left: 250,
-  right: 950,
+  left: 220,
+  right: 980,
   /** Top of the walls; the roof rises above this. */
-  wallTop: 262,
+  wallTop: 196,
   /** Where the building meets the ground. */
   base: 652,
 } as const;
@@ -40,7 +43,7 @@ export const HOUSE = {
 /** How far the eaves overhang the walls. */
 export const EAVE = 34;
 /** The ridge of a pitched roof. */
-export const ROOF_APEX = HOUSE.wallTop - 148;
+export const ROOF_APEX = HOUSE.wallTop - 128;
 
 /** The strip of lawn in front of the house, which is the whole yard. */
 export const YARD_TOP = 656;
@@ -122,7 +125,7 @@ export function clampToYard(p: Placed): Placed {
 
 /* ── Inside ──────────────────────────────────────────────────────────── */
 
-/** The room revealed by the cutaway. Walls are 18 units thick. */
+/** The whole cutaway revealed by the open front. Walls are 18 units thick. */
 export const ROOM = {
   left: HOUSE.left + 18,
   right: HOUSE.right - 18,
@@ -130,8 +133,32 @@ export const ROOM = {
   floor: HOUSE.base - 12,
 } as const;
 
-/** Furniture stands on the floor, so only this band takes feet. */
-export const FLOOR_TOP = 548;
+export interface FloorBand {
+  /** Where the room's back wall starts. */
+  ceiling: number;
+  /** The far edge of the floor: feet placed here are at the back. */
+  floorTop: number;
+  /** The near edge of the floor, at the front of the house. */
+  floor: number;
+}
+
+/**
+ * Two floors, each a room. Furniture stands on the floor, so only the band
+ * from floorTop to floor takes feet; the wall above it is for the window and
+ * the picture. The slab between them is the upstairs floor seen edge-on.
+ */
+export const FLOORS: Record<HouseFloor, FloorBand> = {
+  up: { ceiling: ROOM.ceiling, floorTop: 340, floor: 418 },
+  down: { ceiling: 448, floorTop: 560, floor: ROOM.floor },
+};
+
+/** The slab between the floors. */
+export const SLAB = { top: FLOORS.up.floor, bottom: FLOORS.down.ceiling } as const;
+
+/** Downstairs, for code written when there was one floor. */
+export const FLOOR_TOP = FLOORS.down.floorTop;
+
+export const FLOOR_LABEL: Record<HouseFloor, string> = { up: "upstairs", down: "downstairs" };
 
 /**
  * Stored furniture percentages → where it is drawn.
@@ -139,32 +166,46 @@ export const FLOOR_TOP = 548;
  * The vertical percentage maps into the floor band alone, never the wall
  * above it. That is deliberate: a room drawn side-on has no wall you could
  * stand a chair against halfway up, so anything that mapped over the full
- * height would float. Old saves land on the floor by construction.
+ * height would float. Old saves land on the downstairs floor by construction.
  */
-export function roomSpot(xPct: number, yPct: number): Spot {
+export function roomSpot(xPct: number, yPct: number, floor: HouseFloor = "down"): Spot {
+  const band = FLOORS[floor];
   const t = clamp01(yPct / 100);
   const width = ROOM.right - ROOM.left;
   const centre = (ROOM.left + ROOM.right) / 2;
   return {
     x: centre + (clamp01(xPct / 100) - 0.5) * width * (0.9 + 0.2 * t),
-    y: FLOOR_TOP + t * (ROOM.floor - FLOOR_TOP),
-    scale: 0.84 + 0.34 * t,
+    y: band.floorTop + t * (band.floor - band.floorTop),
+    // Rooms are shorter than the one big room was, so pieces draw a little
+    // larger to keep their presence in them.
+    scale: 0.94 + 0.34 * t,
     depth: t,
   };
 }
 
-/** A point in the room → the percentages to store, for click-to-place. */
-export function roomPoint(sx: number, sy: number): { x: number; y: number } {
-  const t = clamp01((sy - FLOOR_TOP) / (ROOM.floor - FLOOR_TOP));
+/** A point in a room → the percentages to store, for click-to-place. */
+export function roomPoint(sx: number, sy: number, floor: HouseFloor = "down"): { x: number; y: number } {
+  const band = FLOORS[floor];
+  const t = clamp01((sy - band.floorTop) / (band.floor - band.floorTop));
   const width = ROOM.right - ROOM.left;
   const centre = (ROOM.left + ROOM.right) / 2;
   const xPct = ((sx - centre) / (width * (0.9 + 0.2 * t)) + 0.5) * 100;
   return { x: clamp(xPct, 0, 100), y: t * 100 };
 }
 
-/** True when a click landed on the floor rather than the wall or outside. */
+/** Which floor a click landed on, or null for a wall, the roof or outside. */
+export function floorAt(sx: number, sy: number): HouseFloor | null {
+  if (sx < ROOM.left || sx > ROOM.right) return null;
+  for (const floor of ["up", "down"] as const) {
+    const band = FLOORS[floor];
+    if (sy >= band.floorTop - 10 && sy <= band.floor + 8) return floor;
+  }
+  return null;
+}
+
+/** True when a click landed on either floor rather than a wall or outside. */
 export function onFloor(sx: number, sy: number): boolean {
-  return sx >= ROOM.left && sx <= ROOM.right && sy >= FLOOR_TOP - 8 && sy <= ROOM.floor + 8;
+  return floorAt(sx, sy) !== null;
 }
 
 /* ── Small shared helpers ────────────────────────────────────────────── */

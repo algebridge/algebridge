@@ -7,6 +7,8 @@ import { HouseRoom } from "@/components/HouseRoom";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
+import { ColorDots } from "@/components/house/Dollhouse";
+import { primaryHex, swatchHex, USABLE } from "@/data/furniture-art";
 import { units } from "@/data/curriculum";
 import { hueVars, unitHue } from "@/lib/hues";
 import { HouseThumb } from "@/components/house/HouseThumb";
@@ -18,7 +20,7 @@ import {
 } from "@/data/house-catalog";
 import { DISPLAY_TITLES } from "@/data/titles-catalog";
 import { ORNAMENTS, ornamentImage } from "@/data/ornament-catalog";
-import { RINK_ITEMS, rinkItemImage } from "@/data/rink-catalog";
+import { RINK_ITEMS } from "@/data/rink-catalog";
 import {
   buyFurniture,
   buyHouseStyle,
@@ -26,6 +28,8 @@ import {
   buyTitle,
   equipTitle,
   buyRinkItem,
+  hasUnlimitedBridgeys,
+  setItemColor,
 } from "@/lib/bridgeys";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { showToast } from "@/lib/notify";
@@ -52,10 +56,31 @@ export default function HousePage() {
   const [tab, setTab] = useState<Tab>("house");
   /** From the home page's "Play now": straight onto the rink. */
   const [autoSkate, setAutoSkate] = useState(false);
+  /** The founder's allowance, handed over with the profile. */
+  const [unlimited, setUnlimited] = useState(false);
+  /** Colours tried on pieces not yet bought; a piece is bought in the colour it was tried in. */
+  const [preview, setPreview] = useState<Record<string, string | null>>({});
 
   function refresh() {
     setProgress(getProgress());
+    setUnlimited(hasUnlimitedBridgeys());
     setMounted(true);
+  }
+
+  /** A piece's colour: the one it was painted, or the one being tried on. */
+  function colorOf(id: string, owned: boolean): string | null {
+    if (owned) return progress?.itemColors?.[id] ?? null;
+    return preview[id] ?? null;
+  }
+
+  function pickColor(id: string, owned: boolean, swatch: string | null) {
+    if (owned) {
+      const res = setItemColor(id, swatch);
+      showToast({ icon: res.ok ? "check" : "x-circle", tone: res.ok ? "success" : "info", title: res.message });
+      refresh();
+    } else {
+      setPreview((p) => ({ ...p, [id]: swatch }));
+    }
   }
 
   useEffect(() => {
@@ -81,7 +106,7 @@ export default function HousePage() {
     refresh();
   }
 
-  const balance = progress?.bridgeys ?? 0;
+  const balance = unlimited ? Infinity : progress?.bridgeys ?? 0;
 
   // Derived once per render so the House tab summary and the shop share the
   // same numbers rather than each counting for themselves.
@@ -137,13 +162,19 @@ export default function HousePage() {
             <div>
               <p className="eyebrow">Your balance</p>
               <p className="font-display text-4xl leading-none tracking-tight text-slate-900 tabular-nums sm:text-5xl">
-                {balance.toLocaleString()}
+                {unlimited ? "Unlimited" : balance.toLocaleString()}
               </p>
               <p className="mt-1.5 text-sm text-slate-600">
-                Bridgeys, earned by finishing skills.{" "}
-                <Link href="/learn" className="font-semibold text-bridge-600 hover:underline">
-                  Earn more
-                </Link>
+                {unlimited ? (
+                  <>Bridgeys, with no limit on this account. Every piece in the shop is yours to take.</>
+                ) : (
+                  <>
+                    Bridgeys, earned by finishing skills.{" "}
+                    <Link href="/learn" className="font-semibold text-bridge-600 hover:underline">
+                      Earn more
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -312,9 +343,9 @@ export default function HousePage() {
                 const earned = progress.ownedFurniture.includes(item.id);
                 const hue = unit ? unitHue(unit.id) : null;
                 return (
-                  <article key={item.id} style={hue ? hueVars(hue) : undefined} className="card flex flex-col overflow-hidden p-0">
+                  <article key={item.id} style={hue ? hueVars(hue) : undefined} className="card shop-card flex flex-col overflow-hidden p-0">
                     <div className={`hue-tint flex h-28 items-center justify-center border-b ${earned ? "" : "grayscale opacity-60"}`}>
-                      <CartoonFurnitureArt itemId={item.id} size={84} variant="room" />
+                      <CartoonFurnitureArt itemId={item.id} size={84} variant="room" color={colorOf(item.id, earned)} />
                     </div>
                     <div className="flex flex-1 flex-col p-3.5">
                       <p className="hue-ink text-[11px] font-semibold uppercase tracking-[0.08em]">
@@ -322,6 +353,11 @@ export default function HousePage() {
                       </p>
                       <h3 className="mt-0.5 text-sm font-semibold text-slate-900">{item.name}</h3>
                       <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{item.blurb}</p>
+                      {earned && (
+                        <div className="mt-2">
+                          <ColorDots itemId={item.id} value={colorOf(item.id, true)} onPick={(s) => pickColor(item.id, true, s)} size={14} />
+                        </div>
+                      )}
                       <div className="mt-3 flex flex-1 items-end justify-between gap-2">
                         <p className="text-xs text-slate-500 tabular-nums">{item.prestige} prestige</p>
                         {earned ? (
@@ -371,21 +407,24 @@ export default function HousePage() {
                       {items.map((item) => {
                         const owned = progress.ownedFurniture.includes(item.id);
                         const affordable = balance >= item.price;
+                        const color = colorOf(item.id, owned);
+                        const hex = color ? swatchHex(color) : primaryHex(item.id);
                         return (
                           <article
                             key={item.id}
-                            className="card flex flex-col overflow-hidden p-0"
+                            className="card shop-card flex flex-col overflow-hidden p-0"
                           >
                             {/* Same anatomy as a house-style card: art on a
-                                tinted band, then the details. The old version
-                                nested a tile inside the card, so every item was
-                                a box in a box with the sprite lost inside. */}
+                                band tinted in the piece's own colour, then
+                                the details. The piece is drawn live, so what
+                                moves in the house moves here too. */}
                             <div
-                              className={`flex h-28 items-center justify-center border-b border-slate-100 bg-slate-50 ${
+                              className={`flex h-28 items-center justify-center border-b border-slate-100 ${
                                 !owned && !affordable ? "opacity-45" : ""
                               }`}
+                              style={{ background: `${hex}22` }}
                             >
-                              <CartoonFurnitureArt itemId={item.id} size={84} variant="room" />
+                              <CartoonFurnitureArt itemId={item.id} size={84} variant="room" color={color} />
                             </div>
 
                             <div className="flex flex-1 flex-col p-3.5">
@@ -397,7 +436,17 @@ export default function HousePage() {
                                 {tier.label}
                                 <span aria-hidden>·</span>
                                 <span className="tabular-nums">{item.prestige} prestige</span>
+                                {USABLE.has(item.id) && (
+                                  <>
+                                    <span aria-hidden>·</span>
+                                    <span>Has a switch</span>
+                                  </>
+                                )}
                               </p>
+                              {item.blurb && <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.blurb}</p>}
+                              <div className="mt-2">
+                                <ColorDots itemId={item.id} value={color} onPick={(s) => pickColor(item.id, owned, s)} size={14} />
+                              </div>
 
                               <div className="mt-3 flex flex-1 items-end justify-between gap-2">
                                 <div>
@@ -418,7 +467,7 @@ export default function HousePage() {
                                   <button
                                     type="button"
                                     disabled={!affordable}
-                                    onClick={() => handlePurchase(() => buyFurniture(item.id))}
+                                    onClick={() => handlePurchase(() => buyFurniture(item.id, preview[item.id]))}
                                     className="btn-primary btn-sm"
                                     title={
                                       affordable
@@ -542,12 +591,12 @@ export default function HousePage() {
                 const affordable = balance >= item.price;
                 const owned = (progress.ownedRinkItems ?? []).includes(item.id);
                 const tier = RARITY_TIERS.find((r) => r.id === item.rarity)!;
+                const color = colorOf(item.id, owned);
+                const hex = color ? swatchHex(color) : primaryHex(item.id);
                 return (
-                  <article key={item.id} className="card flex flex-col overflow-hidden p-0">
-                    <div className={`flex h-28 items-center justify-center border-b border-sky-100 bg-sky-50 ${!owned && !affordable ? "opacity-45" : ""}`}>
-                      <span className="relative block h-24 w-24">
-                        <Image src={rinkItemImage(item.id)} alt={item.name} fill sizes="120px" className="object-contain object-bottom" />
-                      </span>
+                  <article key={item.id} className="card shop-card flex flex-col overflow-hidden p-0">
+                    <div className={`flex h-28 items-center justify-center border-b border-sky-100 ${!owned && !affordable ? "opacity-45" : ""}`} style={{ background: `${hex}22` }}>
+                      <CartoonFurnitureArt itemId={item.id} size={92} variant="room" color={color} />
                     </div>
                     <div className="flex flex-1 flex-col p-3.5">
                       <h3 className="text-sm font-semibold text-slate-900">{item.name}</h3>
@@ -556,8 +605,17 @@ export default function HousePage() {
                         {tier.label}
                         <span aria-hidden>·</span>
                         <span className="tabular-nums">{item.prestige} prestige</span>
+                        {USABLE.has(item.id) && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span>Lights up</span>
+                          </>
+                        )}
                       </p>
                       <p className="mt-1.5 flex-1 text-xs leading-relaxed text-slate-600">{item.blurb}</p>
+                      <div className="mt-2">
+                        <ColorDots itemId={item.id} value={color} onPick={(s) => pickColor(item.id, owned, s)} size={14} />
+                      </div>
                       <div className="mt-3 flex items-end justify-between gap-2">
                         <div>
                           <BridgeyPrice amount={item.price} size="sm" muted={!owned && !affordable} />
@@ -573,7 +631,7 @@ export default function HousePage() {
                           <button
                             type="button"
                             disabled={!affordable}
-                            onClick={() => handlePurchase(() => buyRinkItem(item.id))}
+                            onClick={() => handlePurchase(() => buyRinkItem(item.id, preview[item.id]))}
                             className="btn-primary btn-sm"
                             title={affordable ? undefined : `${(item.price - balance).toLocaleString()} more Bridgeys needed`}
                           >

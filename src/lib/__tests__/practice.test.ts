@@ -749,5 +749,100 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("open brackets close themselves", C.evaluate(C.balanceParens("√(9")) === 3);
 }
 
+// --- Names: one shape, "First Last" --------------------------------------------
+{
+  const N = await import("../name.ts");
+  ok("lowercase is capitalized", N.formatName("maria alvarez") === "Maria Alvarez");
+  ok("ALL CAPS is capitalized", N.formatName("IVAN DUBOVYI") === "Ivan Dubovyi");
+  ok("a name with its own capitals is kept", N.formatName("Sean McKay") === "Sean McKay" && N.formatName("Anna DeLuca") === "Anna DeLuca");
+  ok("hyphens and apostrophes", N.formatName("jean-pierre o'brien") === "Jean-Pierre O'Brien");
+  ok("particles stay lowercase inside", N.formatName("willem van der berg") === "Willem van der Berg");
+  ok("Last, First turns round", N.formatName("alvarez, maria") === "Maria Alvarez");
+  ok("stray punctuation and spaces go", N.formatName("  maria   alvarez. ") === "Maria Alvarez");
+  ok("a full name passes, tidied", N.checkFullName("ivan dubovyi").ok && N.checkFullName("ivan dubovyi").formatted === "Ivan Dubovyi");
+  const initial = N.checkFullName("Ivan D.");
+  ok("a last initial is refused, asking for the full last name", !initial.ok && initial.field === "last" && /full last name/.test(initial.error), initial.error);
+  ok("digits are called out", /numbers/.test(N.checkFullName("sam d2011").error));
+  ok("an email prefix is not a name", !N.isRealName("ivan.d2011") && !N.isRealName("Ivan D.") && N.isRealName("Ivan Dubovyi"));
+  const parts = N.checkNameParts("maria", "alvarez");
+  ok("two boxes give one tidy name", parts.ok && parts.formatted === "Maria Alvarez");
+  ok("an initial in the last box is refused", N.checkNameParts("Ivan", "D").field === "last" && N.checkNameParts("Ivan", "d.").field === "last");
+  ok("an empty box is refused, by box", N.checkNameParts("Ivan", "").field === "last" && N.checkNameParts("", "Dubovyi").field === "first");
+  ok("splitName leaves an initial blank for the form", N.splitName("Ivan D.").last === "" && N.splitName("Ivan Dubovyi").last === "Dubovyi" && N.splitName("ivan").first === "Ivan");
+  ok("initials still work", N.initialsOf("Ivan Dubovyi") === "ID");
+}
+
+// --- The founder's allowance ---------------------------------------------------
+{
+  const B = await import("../bridgeys.ts");
+  const Pr = await import("../progress.ts");
+  store.clear();
+  const p = Pr.getProgress();
+  p.bridgeys = 0;
+  Pr.saveProgress(p);
+  ok("with no Bridgeys the shop refuses", !B.buyFurniture("beanbag").ok);
+  B.setUnlimitedBridgeys(true);
+  ok("unlimited: the shop can spend without limit", B.spendable(Pr.getProgress()) === Infinity);
+  const bought = B.buyFurniture("beanbag", "rose");
+  ok("unlimited: the piece is bought at no charge", bought.ok && Pr.getProgress().bridgeys === 0 && Pr.getProgress().ownedFurniture.includes("beanbag"), bought.message);
+  ok("and in the colour it was tried in", Pr.getProgress().itemColors?.beanbag === "rose");
+  ok("the allowance never lands in the save", !JSON.stringify(Pr.getProgress()).toLowerCase().includes("unlimited"));
+  B.setUnlimitedBridgeys(false);
+  ok("switched off, the shop charges again", !B.buyFurniture("bed").ok && B.spendable(Pr.getProgress()) === 0);
+}
+
+// --- Colours, switches and floors ---------------------------------------------
+{
+  const art = await import("../../data/furniture-art.ts");
+  const B = await import("../bridgeys.ts");
+  const Pr = await import("../progress.ts");
+  const D = await import("../dollhouse.ts");
+  ok("every piece has a colour of its own to repaint", art.ART_IDS.every((id) => art.PRIMARY[id]));
+  ok("every primary colour is really in the art", art.ART_IDS.every((id) => art.furnitureSvg(id)!.includes(art.primaryHex(id))));
+  const plain = art.furnitureSvg("beanbag")!;
+  const rose = art.furnitureSvg("beanbag", { color: "rose" })!;
+  ok("a swatch repaints the piece, shades included", rose !== plain && rose.includes(art.swatchHex("rose")) && !rose.includes(art.primaryHex("beanbag")));
+  ok("and the palette comes back afterwards", art.furnitureSvg("beanbag") === plain);
+  ok("an unknown swatch changes nothing", art.furnitureSvg("beanbag", { color: "plaid" }) === plain);
+  ok("pieces with a switch look different off", [...art.USABLE].every((id) => art.furnitureSvg(id, { off: true }) !== art.furnitureSvg(id)));
+  ok("pieces without one do not", art.ART_IDS.filter((id) => !art.USABLE.has(id)).every((id) => art.furnitureSvg(id, { off: true }) === art.furnitureSvg(id)));
+  ok("the art moves", art.ART_IDS.filter((id) => art.furnitureSvg(id)!.includes('class="fa fa-')).length >= 45);
+  ok("nothing glows once it is off", ["lamp", "tv", "fireplace"].every((id) => { const s = art.furnitureSvg(id, { off: true })!; return !s.includes("fa-glow") && !s.includes("fa-flame") && !s.includes("fa-flicker"); }));
+
+  store.clear();
+  const p = Pr.getProgress();
+  p.bridgeys = 5000;
+  Pr.saveProgress(p);
+  ok("painting needs the piece first", !B.setItemColor("lamp", "sky").ok);
+  B.buyFurniture("lamp");
+  ok("an owned piece takes a swatch", B.setItemColor("lamp", "sky").ok && Pr.getProgress().itemColors?.lamp === "sky");
+  ok("and refuses a colour off the card", !B.setItemColor("lamp", "plaid").ok);
+  ok("its own colour again", B.setItemColor("lamp", null).ok && Pr.getProgress().itemColors?.lamp === undefined);
+  B.buyRinkItem("rink-lamp", "pink");
+  ok("a rink piece is bought in a colour too", Pr.getProgress().itemColors?.["rink-lamp"] === "pink");
+
+  ok("a lamp goes upstairs", B.placeFurnitureAt("lamp", 50, 50, "up").ok && Pr.getProgress().placedFurnitureItems![0].floor === "up");
+  const lamp = Pr.getProgress().placedFurnitureItems![0];
+  ok("a switch flips it", B.toggleFurniture(lamp.instanceId).ok && Pr.getProgress().placedFurnitureItems![0].off === true);
+  ok("and back", B.toggleFurniture(lamp.instanceId).ok && Pr.getProgress().placedFurnitureItems![0].off === false);
+  B.buyFurniture("rug");
+  B.placeFurnitureAt("rug", 40, 40);
+  const rug = () => Pr.getProgress().placedFurnitureItems!.find((f) => f.itemId === "rug")!;
+  ok("a rug has no switch", !B.toggleFurniture(rug().instanceId).ok);
+  ok("a piece can be dragged elsewhere, kept in the room", B.moveFurniture(rug().instanceId, 120, -5).ok && rug().x === 95 && rug().y === 10 && B.floorOf(rug()) === "down");
+  ok("and sent up the stairs", B.moveFurnitureToFloor(rug().instanceId, "up").ok && rug().floor === "up");
+  ok("an old save with no floor is downstairs", B.floorOf({ instanceId: "x", itemId: "rug", x: 1, y: 1 }) === "down");
+  B.setHouseNight(true);
+  ok("night is remembered", Pr.getProgress().houseNight === true);
+
+  // Geometry: each floor's band is its own, and a click on a wall is nowhere.
+  const up = D.roomSpot(50, 50, "up");
+  const down = D.roomSpot(50, 50, "down");
+  ok("upstairs sits above downstairs", up.y < D.SLAB.top && down.y > D.SLAB.bottom && up.y >= D.FLOORS.up.floorTop && down.y <= D.FLOORS.down.floor);
+  ok("a click lands on the floor it is over", D.floorAt(600, D.FLOORS.up.floorTop + 20) === "up" && D.floorAt(600, D.FLOORS.down.floor - 5) === "down" && D.floorAt(600, D.FLOORS.up.ceiling + 20) === null && D.floorAt(10, D.FLOORS.down.floor - 5) === null);
+  ok("roomPoint inverts roomSpot on each floor", (["up", "down"] as const).every((f) => { const s = D.roomSpot(30, 70, f); const b = D.roomPoint(s.x, s.y, f); return Math.abs(b.x - 30) < 0.01 && Math.abs(b.y - 70) < 0.01; }));
+  ok("the house is two storeys tall", D.HOUSE.base - D.HOUSE.wallTop > 440 && D.ROOF_APEX > 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

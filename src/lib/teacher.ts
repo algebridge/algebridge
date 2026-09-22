@@ -43,9 +43,12 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
   const supabase = createClient();
   if (!supabase) return null;
   const [{ data }, { data: admin }] = await Promise.all([
+    // The whole row, so a column added by a later migration (unlimited_bridgeys)
+    // is picked up when present and simply absent before it is run, rather
+    // than turning every profile read into a 42703 error.
     supabase
       .from("profiles")
-      .select("id, email, display_name, role, avatar_url, bio")
+      .select("*")
       .eq("id", userId)
       .maybeSingle(),
     // The database decides who is an admin. Comparing against a hardcoded
@@ -62,6 +65,7 @@ export async function getMyProfile(userId: string): Promise<Profile | null> {
     avatarUrl: data.avatar_url ?? null,
     bio: data.bio ?? null,
     isAdmin: admin === true,
+    unlimitedBridgeys: data.unlimited_bridgeys === true,
   };
 }
 
