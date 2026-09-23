@@ -1,22 +1,132 @@
 import type { PracticeProblem } from "@/types";
 import {
+  coef,
   fillToCount,
+  fmtNum,
+  frac,
   hashString,
+  lin,
   mcChoices,
-  withUniqueChoices,
+  plusTerm,
   PROBLEMS_PER_SKILL,
+  quad,
   randInt,
-  uniqueByPrompt,
+  seededShuffle,
+  twoVar,
   withSeededGeneration,
+  withUniqueChoices,
 } from "@/lib/problem-utils";
+
+/*
+ * Every generator draws its numbers from the seeded random source (randInt),
+ * never Math.random: the server rebuilds a student's bank from its seed to
+ * write stories for it, and the two must agree problem for problem.
+ *
+ * Rules every problem here keeps (and practice.test.ts checks):
+ *  - exactly one choice is right, and no two choices are the same answer
+ *    written differently;
+ *  - the answer is something the box can take: one number, or one choice;
+ *  - a non-whole answer says how to write it (a fraction, or a rounding place);
+ *  - equations print the way a textbook prints them: "x", never "1x";
+ *    "x − 3", never "x + -3"; nothing added or multiplied by zero.
+ */
 
 function gcd(a: number, b: number): number {
   return b === 0 ? Math.abs(a) : gcd(b, a % b);
 }
 
-function fmtSigned(n: number): string {
-  return n >= 0 ? `${n}` : `${n}`;
+function lcm(a: number, b: number): number {
+  return (a / gcd(a, b)) * b;
 }
+
+/** One of these, chosen with the seeded generator. */
+function pick<T>(items: readonly T[]): T {
+  return items[randInt(0, items.length - 1)];
+}
+
+/** A whole number in [lo, hi] other than 0. */
+function nonZero(lo: number, hi: number): number {
+  let v = 0;
+  while (v === 0) v = randInt(lo, hi);
+  return v;
+}
+
+/** Numbers written the American way whatever the browser's language: 42,240. */
+function usNum(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+/** Dollars and cents: 1,157.63. */
+function money(n: number): string {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** A number inside an expression, bracketed when negative: -2 → "(-2)". */
+function par(n: number): string {
+  return n < 0 ? `(${n})` : `${n}`;
+}
+
+/** A shift inside a bracket or a point-slope side: ("x", 3) → "x − 3", ("x", -3) → "x + 3". */
+function shift(v: string, h: number): string {
+  if (h === 0) return v;
+  return h > 0 ? `${v} − ${h}` : `${v} + ${-h}`;
+}
+
+/** A factor (x + u), with its sign right: 3 → "(x + 3)", -3 → "(x − 3)". */
+function factor(u: number, v = "x"): string {
+  return `(${shift(v, -u)})`;
+}
+
+/** m times a bracket: (1, "x − 2") → "x − 2", (-1, ...) → "-(x − 2)", (3, ...) → "3(x − 2)". */
+function times(m: number, inner: string): string {
+  if (m === 1) return inner;
+  if (m === -1) return `-(${inner})`;
+  return `${m}(${inner})`;
+}
+
+/** m(x) + b worked out for a student: (2, -3, 4) → "2(4) − 3 = 5". */
+function evalLin(m: number, b: number, x: number): string {
+  const mult = m === 1 ? `(${x})` : m === -1 ? `-(${x})` : `${m}(${x})`;
+  if (b === 0) return `${mult} = ${m * x}`;
+  return `${mult}${plusTerm(b)} = ${m * x}${plusTerm(b)} = ${m * x + b}`;
+}
+
+const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
+function sub(n: number): string {
+  return String(n)
+    .split("")
+    .map((d) => SUBSCRIPTS[Number(d)])
+    .join("");
+}
+
+function ordinal(n: number): string {
+  const teen = n % 100;
+  if (teen >= 11 && teen <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+/** "1/2 and 1/3", "1/2, 1/3, and 1/6". */
+function listOf(items: string[]): string {
+  if (items.length <= 2) return items.join(" and ");
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+/** A radical k√f, with k = 1 written as √f. */
+function rad(k: number, f: number): string {
+  return k === 1 ? `√${f}` : `${k}√${f}`;
+}
+
+/** Everyday unit pairs for "which conversion factor" cards: the right one has the old unit on the bottom. */
+const CONVERSION_FACTORS = [
+  { from: "pounds", to: "ounces", fact: "1 lb = 16 oz", right: "16 oz / 1 lb", wrong: ["1 lb / 16 oz", "16 lb / 1 oz", "1 oz / 16 lb"] },
+  { from: "feet", to: "inches", fact: "1 ft = 12 in", right: "12 in / 1 ft", wrong: ["1 ft / 12 in", "12 ft / 1 in", "1 in / 12 ft"] },
+  { from: "hours", to: "minutes", fact: "1 h = 60 min", right: "60 min / 1 h", wrong: ["1 h / 60 min", "60 h / 1 min", "1 min / 60 h"] },
+  { from: "minutes", to: "hours", fact: "1 h = 60 min", right: "1 h / 60 min", wrong: ["60 min / 1 h", "60 h / 1 min", "1 min / 60 h"] },
+  { from: "meters", to: "centimeters", fact: "1 m = 100 cm", right: "100 cm / 1 m", wrong: ["1 m / 100 cm", "100 m / 1 cm", "1 cm / 100 m"] },
+  { from: "kilograms", to: "grams", fact: "1 kg = 1000 g", right: "1000 g / 1 kg", wrong: ["1 kg / 1000 g", "1000 kg / 1 g", "1 g / 1000 kg"] },
+  { from: "yards", to: "feet", fact: "1 yd = 3 ft", right: "3 ft / 1 yd", wrong: ["1 yd / 3 ft", "3 yd / 1 ft", "1 ft / 3 yd"] },
+  { from: "gallons", to: "quarts", fact: "1 gal = 4 qt", right: "4 qt / 1 gal", wrong: ["1 gal / 4 qt", "4 gal / 1 qt", "1 qt / 4 gal"] },
+] as const;
 
 type SkillGenerator = (seeds: PracticeProblem[]) => PracticeProblem[];
 
@@ -32,7 +142,7 @@ const generators: Record<string, SkillGenerator> = {
           prompt: `Convert ${miles} miles to feet. (1 mile = 5280 ft)`,
           hint: `Multiply ${miles} × 5280.`,
           answer: miles * 5280,
-          explanation: `${miles} × 5280 = ${(miles * 5280).toLocaleString()} feet`,
+          explanation: `${miles} × 5280 = ${usNum(miles * 5280)} feet`,
         };
       }
       if (kind === 1) {
@@ -46,10 +156,10 @@ const generators: Record<string, SkillGenerator> = {
           prompt: even
             ? `Convert ${inches} inches to feet.`
             : `Convert ${inches} inches to feet. (round to the hundredths place)`,
-          hint: "Divide by 12.",
+          hint: "Divide by 12, since 12 inches make 1 foot.",
           answer: even ? feet : rounded,
           decimalPlaces: even ? undefined : 2,
-          explanation: `${inches} ÷ 12 = ${even ? feet : rounded} feet`,
+          explanation: even ? `${inches} ÷ 12 = ${feet} feet` : `${inches} ÷ 12 ≈ ${rounded.toFixed(2)} feet`,
         };
       }
       if (kind === 2) {
@@ -60,18 +170,19 @@ const generators: Record<string, SkillGenerator> = {
           prompt: `Convert ${km} kilometers to meters.`,
           hint: "Multiply by 1000.",
           answer: km * 1000,
-          explanation: `${km} × 1000 = ${km * 1000} meters`,
+          explanation: `${km} × 1000 = ${usNum(km * 1000)} meters`,
         };
       }
-      const lbs = randInt(2, 20);
+      // A conversion factor, from everyday pairs: the one with the old unit on the bottom.
+      const f = pick(CONVERSION_FACTORS);
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Which conversion factor converts pounds to ounces? (1 lb = 16 oz)`,
-        hint: "You need ounces on top to cancel pounds.",
-        answer: "16 oz / 1 lb",
-        choices: mcChoices("16 oz / 1 lb", ["1 lb / 16 oz", "16 lb / 1 oz", "1 oz / 16 lb"]),
-        explanation: "Multiply by 16 oz / 1 lb to convert pounds to ounces.",
+        prompt: `Which conversion factor converts ${f.from} to ${f.to}? (${f.fact})`,
+        hint: `Put ${f.from} on the bottom so they cancel, and ${f.to} on top.`,
+        answer: f.right,
+        choices: mcChoices(f.right, [...f.wrong]),
+        explanation: `Multiply by ${f.right}: the ${f.from} cancel and ${f.to} are left.`,
       };
     }),
 
@@ -79,7 +190,7 @@ const generators: Record<string, SkillGenerator> = {
     fillToCount("dimensional-analysis", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 5;
       if (kind === 0) {
-        const hours = randInt(1, 24);
+        const hours = randInt(2, 24);
         const half = randInt(0, 1) === 1;
         const total = half ? hours + 0.5 : hours;
         return {
@@ -88,7 +199,7 @@ const generators: Record<string, SkillGenerator> = {
           prompt: `Convert ${total} hours to seconds.`,
           hint: "1 hour = 3600 seconds.",
           answer: total * 3600,
-          explanation: `${total} × 3600 = ${total * 3600} seconds`,
+          explanation: `${total} × 3600 = ${usNum(total * 3600)} seconds`,
         };
       }
       if (kind === 1) {
@@ -103,20 +214,22 @@ const generators: Record<string, SkillGenerator> = {
         };
       }
       if (kind === 2) {
+        // A real mistake, every time: a factor upside down, or the wrong power of ten.
         const km = randInt(2, 9);
-        const wrongFactor = randInt(2, 9);
+        const m = km * 1000;
+        const mistake = pick([
+          { step: `${usNum(m)} m × 1 m/100 cm = ${usNum(m / 100)} cm`, why: "The factor is upside down: meters must be on the bottom to cancel." },
+          { step: `${usNum(m)} m × 10 cm/m = ${usNum(m * 10)} cm`, why: "A meter is 100 centimeters, not 10." },
+          { step: `${usNum(m)} m × 1000 cm/m = ${usNum(m * 1000)} cm`, why: "A meter is 100 centimeters, not 1000." },
+        ]);
         return {
           id: "",
           type: "error-analysis",
-          prompt: `Find the error converting ${km} km to centimeters.`,
-          hint: "Check whether each conversion factor is inverted correctly.",
-          wrongStepIndex: 1,
-          steps: [
-            `${km} km × 1000 m/km = ${km * 1000} m`,
-            `${km * 1000} m × 1/${wrongFactor} m/cm = ${(km * 1000) / wrongFactor} cm`,
-            "Done",
-          ],
-          explanation: `Should multiply by 100 cm/m, giving ${km * 1000 * 100} cm.`,
+          prompt: `Find the error in this conversion of ${km} km to centimeters.`,
+          hint: "Check each conversion factor: is it right side up, and is its number right?",
+          wrongStepIndex: 2,
+          steps: [`Start with ${km} km.`, `${km} km × 1000 m/km = ${usNum(m)} m`, mistake.step],
+          explanation: `${mistake.why} ${usNum(m)} m × 100 cm/m = ${usNum(m * 100)} cm.`,
         };
       }
       if (kind === 3) {
@@ -127,7 +240,7 @@ const generators: Record<string, SkillGenerator> = {
           prompt: `Convert ${kg} kilograms to grams.`,
           hint: "1 kg = 1000 g.",
           answer: kg * 1000,
-          explanation: `${kg} × 1000 = ${kg * 1000} grams`,
+          explanation: `${kg} × 1000 = ${usNum(kg * 1000)} grams`,
         };
       }
       const minutes = randInt(2, 20);
@@ -137,7 +250,7 @@ const generators: Record<string, SkillGenerator> = {
         prompt: `Convert ${minutes} minutes to milliseconds.`,
         hint: "1 minute = 60 seconds = 60,000 milliseconds.",
         answer: minutes * 60000,
-        explanation: `${minutes} × 60,000 = ${(minutes * 60000).toLocaleString()} milliseconds`,
+        explanation: `${minutes} × 60,000 = ${usNum(minutes * 60000)} milliseconds`,
       };
     }),
 
@@ -156,16 +269,18 @@ const generators: Record<string, SkillGenerator> = {
         };
       }
       if (kind === 1) {
-        const miles = randInt(10, 30) * 5;
-        const gallons = randInt(2, 8);
-        const mpg = miles / gallons;
+        // Built from a real mileage, so the answer comes out whole.
+        const mpg = randInt(18, 40);
+        let gallons = randInt(2, 12);
+        if (mpg === 30 && gallons === 5) gallons = 6; // the hand-written card is 150 miles on 5 gallons
+        const miles = mpg * gallons;
         return {
           id: "",
           type: "numeric",
           prompt: `You drive ${miles} miles using ${gallons} gallons of gas. How many miles per gallon?`,
           hint: "Divide miles by gallons.",
           answer: mpg,
-          explanation: `${miles} ÷ ${gallons} = ${mpg} mpg`,
+          explanation: `${miles} ÷ ${gallons} = ${mpg} miles per gallon`,
         };
       }
       const speed = randInt(40, 70);
@@ -229,11 +344,11 @@ const generators: Record<string, SkillGenerator> = {
       return {
         id: "",
         type: "error-analysis",
-        prompt: `Find the error: ${a}x = ${c}`,
-        hint: "Check whether the correct inverse operation was used.",
+        prompt: `Find the error in this solution of ${a}x = ${c}.`,
+        hint: "Check whether the right inverse operation was used.",
         wrongStepIndex: 1,
         steps: [`${a}x = ${c}`, `x = ${c} + ${a}`, `x = ${wrong}`],
-        explanation: `Should divide: x = ${c} ÷ ${a} = ${x}.`,
+        explanation: `Step 2 adds ${a}, but ${a}x means ${a} times x, so divide instead: x = ${c} ÷ ${a} = ${x}.`,
       };
     }),
 
@@ -242,29 +357,31 @@ const generators: Record<string, SkillGenerator> = {
       const a = randInt(2, 6);
       const x = randInt(2, 12);
       const b = randInt(1, 10);
-      const c = a * x + b;
+      const minusB = i % 3 === 2;
+      const c = minusB ? a * x - b : a * x + b;
+      const op = minusB ? "−" : "+";
       if (i % 5 === 0) {
         return {
           id: "",
           type: "step-order",
-          prompt: `Order the steps to solve ${a}x + ${b} = ${c}:`,
-          hint: "Undo addition/subtraction before division.",
+          prompt: `Order the steps to solve ${a}x ${op} ${b} = ${c}:`,
+          hint: "Undo the adding or subtracting before the multiplying.",
           correctOrder: [0, 1, 2],
           steps: [
-            `Subtract ${b}: ${a}x = ${a * x}`,
+            `${minusB ? "Add" : "Subtract"} ${b}: ${a}x = ${a * x}`,
             `Divide by ${a}: x = ${x}`,
-            `Check: ${a}(${x}) + ${b} = ${c} ✓`,
+            `Check: ${a}(${x}) ${op} ${b} = ${c} ✓`,
           ],
-          explanation: "Subtract the constant, then divide by the coefficient.",
+          explanation: `${minusB ? "Add" : "Subtract"} ${b} first, then divide by ${a}, then check by putting x = ${x} back in.`,
         };
       }
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve for x: ${a}x + ${b} = ${c}`,
-        hint: `Subtract ${b}, then divide by ${a}.`,
+        prompt: `Solve for x: ${a}x ${op} ${b} = ${c}`,
+        hint: `${minusB ? "Add" : "Subtract"} ${b}, then divide by ${a}.`,
         answer: x,
-        explanation: `${a}x = ${a * x} → x = ${x}`,
+        explanation: `${a}x ${op} ${b} = ${c} → ${a}x = ${a * x} → x = ${x}`,
       };
     }),
 
@@ -280,128 +397,159 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "numeric",
           prompt: `Solve for x: ${a}(x + ${b}) = ${c}`,
-          hint: "Divide by the outside number first, or distribute.",
+          hint: "Divide both sides by the number outside first, or distribute.",
           answer: x,
-          explanation: `x + ${b} = ${x + b} → x = ${x}`,
+          explanation: `Divide by ${a}: x + ${b} = ${x + b} → x = ${x}`,
         };
       }
       if (kind === 1) {
-        const x = randInt(2, 12);
-        const a = randInt(2, 5);
-        const b = randInt(1, 6);
-        const c = a * x + b;
+        // x on both sides.
+        const x = randInt(-4, 9);
+        const p = randInt(3, 7);
+        const r = randInt(1, p - 1);
+        const q = randInt(-8, 8);
+        const s = (p - r) * x + q;
+        const k = p - r;
+        const steps = [`${lin(k, q)} = ${s}`];
+        if (q !== 0) steps.push(`${coef(k)} = ${s - q}`);
+        if (k !== 1) steps.push(`x = ${x}`);
         return {
           id: "",
           type: "numeric",
-          prompt: `Solve for x: ${a}x + ${b} = ${c}`,
-          hint: "Isolate the x term first.",
+          prompt: `Solve for x: ${lin(p, q)} = ${lin(r, s)}`,
+          hint: `Get the x terms on one side: subtract ${coef(r)} from both sides.`,
           answer: x,
-          explanation: `${a}x = ${a * x} → x = ${x}`,
+          explanation: `Subtract ${coef(r)} from both sides: ${steps.join(" → ")}`,
         };
       }
-      const x = randInt(3, 10);
-      const left = 2 * x + 4;
-      const right = x + x + 6;
+      const x = randInt(3, 12);
+      const a = randInt(2, 5);
+      const b = randInt(1, 6);
+      const d = randInt(1, 9);
+      const c = a * (x - b) + d;
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve for x: 3x + 2 = x + ${2 * x + 2}`,
-        hint: "Move all x terms to one side.",
+        prompt: `Solve for x: ${a}(x − ${b}) + ${d} = ${c}`,
+        hint: `Subtract ${d}, then divide by ${a}.`,
         answer: x,
-        explanation: `2x = ${2 * x} → x = ${x}`,
+        explanation: `${a}(x − ${b}) = ${c - d} → x − ${b} = ${(c - d) / a} → x = ${x}`,
       };
     }),
 
   "equations-with-fractions": (seeds) =>
     fillToCount("equations-with-fractions", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const d = [2, 3, 4, 6][i % 4];
-      const x = randInt(3, 20);
-      const b = randInt(1, 8);
-      const c = x / d + b;
       if (i % 4 === 3) {
-        const nums = [2, 3, 6];
-        const lcd = 6;
+        const set = pick([[2, 3], [3, 4], [4, 6], [2, 5], [3, 5], [4, 5], [6, 8], [2, 3, 6], [3, 9], [4, 10], [2, 5, 10], [6, 9], [2, 7], [3, 8]]);
+        const lcd = set.reduce((acc, d) => lcm(acc, d), 1);
+        const product = set.reduce((acc, d) => acc * d, 1);
+        const wrong = [product, Math.max(...set), lcd * 2, lcd + Math.min(...set), lcd * 3].filter((w) => w !== lcd);
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `What is the LCD of 1/2, 1/3, and 1/6?`,
-          hint: "Find the least common multiple of the denominators.",
+          prompt: `What is the least common denominator of ${listOf(set.map((d) => `1/${d}`))}?`,
+          hint: "Find the smallest number that every denominator divides into evenly.",
           answer: `${lcd}`,
-          choices: mcChoices(`${lcd}`, ["3", "12", "18"]),
-          explanation: `LCM of ${nums.join(", ")} is ${lcd}.`,
+          choices: mcChoices(`${lcd}`, wrong.map(String)),
+          explanation: `${lcd} is the smallest number that ${listOf(set.map(String))} all divide into.`,
         };
       }
+      // The answer is a multiple of the denominator, so the right side comes out whole.
+      const d = pick([2, 3, 4, 5, 6]);
+      const x = d * randInt(1, 8);
+      const b = randInt(1, 8);
+      const c = x / d + b;
       return {
         id: "",
         type: "numeric",
         prompt: `Solve for x: x/${d} + ${b} = ${c}`,
         hint: `Subtract ${b}, then multiply by ${d}.`,
         answer: x,
-        explanation: `x/${d} = ${x / d} → x = ${x}`,
+        explanation: `x/${d} = ${c - b} → x = ${c - b} × ${d} = ${x}`,
       };
     }),
 
   "linear-inequalities": (seeds) =>
     fillToCount("linear-inequalities", seeds, PROBLEMS_PER_SKILL, (i) => {
-      if (i % 7 === 0) {
+      if (i === 0) {
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `When do you flip the inequality sign? (Review ${Math.floor(i / 7) + 1})`,
+          prompt: "When do you flip the inequality sign?",
           hint: "Think about multiplying or dividing by a negative.",
           answer: "When multiplying or dividing by a negative",
-          choices: mcChoices("When multiplying or dividing by a negative", [
-            "When adding a negative",
-            "When subtracting",
-            "Never",
-          ]),
-          explanation: "Multiplying/dividing by a negative reverses the inequality.",
+          choices: mcChoices("When multiplying or dividing by a negative", ["When adding a negative", "When subtracting", "Never"]),
+          explanation: "Multiplying or dividing both sides by a negative number reverses the inequality.",
+        };
+      }
+      const kind = i % 4;
+      if (kind === 0 || kind === 2) {
+        // The key idea, practiced: a negative coefficient, so the sign flips.
+        const a = randInt(2, 6);
+        const x0 = nonZero(-8, 8);
+        const b = randInt(-9, 9);
+        const sym = pick([">", "<", "≥", "≤"] as const);
+        const flip = ({ ">": "<", "<": ">", "≥": "≤", "≤": "≥" } as const)[sym];
+        const c = -a * x0 + b;
+        const left = lin(-a, b);
+        const answer = `x ${flip} ${x0}`;
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Solve: ${left} ${sym} ${c}`,
+          hint: "You will divide by a negative number. What does that do to the inequality sign?",
+          answer,
+          choices: mcChoices(answer, [`x ${sym} ${x0}`, `x ${flip} ${-x0}`, `x ${sym} ${-x0}`]),
+          explanation: `${left} ${sym} ${c} → ${coef(-a)} ${sym} ${c - b} → divide by ${-a} and flip the sign: ${answer}`,
         };
       }
       const a = randInt(2, 5);
       const x = randInt(2, 12);
       const b = randInt(1, 8);
-      const boundary = a * x + b;
+      if (kind === 1) {
+        const boundary = a * x + b;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Solve for x: ${a}x + ${b} > ${boundary}. What number does x have to be greater than? Type just the number.`,
+          hint: `Subtract ${b}, then divide by ${a}.`,
+          answer: x,
+          explanation: `${a}x > ${a * x} → x > ${x}`,
+        };
+      }
+      const boundary = a * x - b;
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve for x: ${a}x + ${b} > ${boundary}. What number does x have to be greater than?`,
-        hint: `Subtract ${b}, then divide by ${a}.`,
+        prompt: `Solve for x: ${a}x − ${b} < ${boundary}. What number does x have to be less than? Type just the number.`,
+        hint: `Add ${b}, then divide by ${a}.`,
         answer: x,
-        explanation: `${a}x > ${a * x} → x > ${x}`,
+        explanation: `${a}x < ${a * x} → x < ${x}`,
       };
     }),
 
   "coordinate-plane": (seeds) =>
     fillToCount("coordinate-plane", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x = randInt(-8, 8) || 1;
-      const y = randInt(-8, 8) || 2;
+      const x = nonZero(-8, 8);
+      const y = nonZero(-8, 8);
       if (i % 2 === 0) {
         const quadrant =
-          x > 0 && y > 0
-            ? "Quadrant I"
-            : x < 0 && y > 0
-              ? "Quadrant II"
-              : x < 0 && y < 0
-                ? "Quadrant III"
-                : "Quadrant IV";
+          x > 0 && y > 0 ? "Quadrant I" : x < 0 && y > 0 ? "Quadrant II" : x < 0 && y < 0 ? "Quadrant III" : "Quadrant IV";
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `In which quadrant is the point (${fmtSigned(x)}, ${fmtSigned(y)})?`,
-          hint: "Check the signs of x and y.",
+          prompt: `In which quadrant is the point (${x}, ${y})?`,
+          hint: "Check the signs of x and y: Quadrant I is (+, +), then count counterclockwise.",
           answer: quadrant,
           choices: mcChoices(quadrant, ["Quadrant I", "Quadrant II", "Quadrant III", "Quadrant IV"]),
-          explanation: `(${fmtSigned(x)}, ${fmtSigned(y)}) is in ${quadrant}.`,
+          explanation: `x is ${x > 0 ? "positive" : "negative"} and y is ${y > 0 ? "positive" : "negative"}, so (${x}, ${y}) is in ${quadrant}.`,
         };
       }
       const askX = i % 4 === 1;
       return {
         id: "",
         type: "numeric",
-        prompt: askX
-          ? `What is the x-coordinate of (${fmtSigned(x)}, ${fmtSigned(y)})?`
-          : `What is the y-coordinate of (${fmtSigned(x)}, ${fmtSigned(y)})?`,
+        prompt: askX ? `What is the x-coordinate of (${x}, ${y})?` : `What is the y-coordinate of (${x}, ${y})?`,
         hint: askX ? "x comes first in (x, y)." : "y comes second in (x, y).",
         answer: askX ? x : y,
         explanation: askX ? `The x-coordinate is ${x}.` : `The y-coordinate is ${y}.`,
@@ -410,166 +558,197 @@ const generators: Record<string, SkillGenerator> = {
 
   slope: (seeds) =>
     fillToCount("slope", seeds, PROBLEMS_PER_SKILL, (i) => {
-      if (i % 6 === 0) {
+      const kind = i % 6;
+      if (kind === 5) {
+        // Vertical and horizontal lines, from points, so every one is a new card.
+        const a = randInt(-5, 6);
+        const b = randInt(-5, 5);
+        const step = randInt(2, 7);
+        if (i % 12 === 5) {
+          return {
+            id: "",
+            type: "multiple-choice",
+            prompt: `What is the slope of the line through (${a}, ${b}) and (${a}, ${b + step})?`,
+            hint: "Look at the x-values. What is the run?",
+            answer: "Undefined",
+            choices: mcChoices("Undefined", ["0", `${step}`, `1/${step}`]),
+            explanation: `The x-values match, so the run is 0. Dividing by 0 is undefined: the line is vertical.`,
+          };
+        }
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `What is the slope of a horizontal line? (Review ${Math.floor(i / 6) + 1})`,
-          hint: "No rise.",
+          prompt: `What is the slope of the line through (${b}, ${a}) and (${b + step}, ${a})?`,
+          hint: "Look at the y-values. What is the rise?",
           answer: "0",
-          choices: mcChoices("0", ["1", "Undefined", "−1"]),
-          explanation: "Horizontal lines have slope 0.",
+          choices: mcChoices("0", ["Undefined", `${step}`, `${-step}`]),
+          explanation: `The y-values match, so the rise is 0 and the slope is 0/${step} = 0: the line is horizontal.`,
         };
       }
-      if (i % 6 === 1) {
-        return {
-          id: "",
-          type: "multiple-choice",
-          prompt: `What is the slope of a vertical line? (Review ${Math.floor(i / 6) + 1})`,
-          hint: "Run equals zero.",
-          answer: "Undefined",
-          choices: mcChoices("Undefined", ["0", "1", "−1"]),
-          explanation: "Vertical lines have undefined slope.",
-        };
-      }
-      const x1 = randInt(0, 4);
-      const y1 = randInt(0, 4);
+      const x1 = randInt(-4, 4);
+      const y1 = randInt(-5, 5);
       const run = randInt(1, 6);
-      const rise = randInt(1, 6);
-      const x2 = x1 + run;
-      const y2 = y1 + rise;
+      const rise = nonZero(-6, 6);
+      const [p, q] = randInt(0, 1) === 0 ? [[x1, y1], [x1 + run, y1 + rise]] : [[x1 + run, y1 + rise], [x1, y1]];
       return {
         id: "",
         type: "numeric",
-        prompt: `Find the slope between (${x1}, ${y1}) and (${x2}, ${y2}).`,
-        hint: "m = (y₂ − y₁) / (x₂ − x₁)",
+        prompt: `Find the slope between (${p[0]}, ${p[1]}) and (${q[0]}, ${q[1]}). Give it as a whole number or a fraction.`,
+        hint: "m = (y₂ − y₁) / (x₂ − x₁). A fraction like 2/3 is a fine answer.",
         answer: rise / run,
-        explanation: `m = (${y2} − ${y1}) / (${x2} − ${x1}) = ${rise / run}`,
+        explanation: `m = (${q[1]} − ${par(p[1])}) / (${q[0]} − ${par(p[0])}) = ${q[1] - p[1]}/${q[0] - p[0]}${`${q[1] - p[1]}/${q[0] - p[0]}` === frac(rise, run) ? "" : ` = ${frac(rise, run)}`}`,
       };
     }),
 
   "graphing-lines": (seeds) =>
     fillToCount("graphing-lines", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const m = randInt(-4, 4) || 2;
+      const m = nonZero(-4, 4);
       const b = randInt(-6, 6);
       if (i % 2 === 0) {
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `What is the y-intercept of y = ${fmtSigned(m)}x ${b >= 0 ? "+ " + b : "− " + Math.abs(b)}?`,
-          hint: "b in y = mx + b",
+          prompt: `What is the y-intercept of y = ${lin(m, b)}?`,
+          hint: "In y = mx + b, the y-intercept is b.",
           answer: `${b}`,
-          choices: mcChoices(`${b}`, [`${m}`, `${-b}`, `${m + b}`]),
-          explanation: `The y-intercept is ${b}.`,
+          choices: mcChoices(`${b}`, [`${m}`, `${-b}`, `${m + b}`, `${b + 1}`]),
+          explanation: `b = ${b}, so the line crosses the y-axis at (0, ${b}).`,
         };
       }
       const x = randInt(-4, 6);
       return {
         id: "",
         type: "numeric",
-        prompt: `For y = ${m}x + ${b}, what is y when x = ${x}?`,
-        hint: `Substitute x = ${x}.`,
+        prompt: `For y = ${lin(m, b)}, what is y when x = ${x}?`,
+        hint: `Put ${x} in for x.`,
         answer: m * x + b,
-        explanation: `y = ${m}(${x}) + ${b} = ${m * x + b}`,
+        explanation: `y = ${evalLin(m, b, x)}`,
       };
     }),
 
   intercepts: (seeds) =>
     fillToCount("intercepts", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const a = randInt(1, 5);
-      const b = randInt(1, 5);
-      const c = a * randInt(2, 10);
+      const k = nonZero(-8, 8);
       if (i % 2 === 0) {
+        let a = nonZero(-5, 5);
+        let b = pick([1, 2, 3, -1, -2]);
+        let c = a * k;
+        if (a < 0) [a, b, c] = [-a, -b, -c];
         return {
           id: "",
           type: "numeric",
-          prompt: `Find the x-intercept of ${a}x + y = ${c}.`,
-          hint: "Set y = 0.",
-          answer: c / a,
-          explanation: `${a}x = ${c} → x = ${c / a}`,
+          prompt: `Find the x-intercept of ${twoVar(a, b)} = ${c}. Type its x-value.`,
+          hint: "At the x-intercept, y = 0.",
+          answer: k,
+          explanation: `Set y = 0: ${coef(a)} = ${c}, so x = ${k}. The x-intercept is (${k}, 0).`,
         };
       }
-      const d = randInt(1, 5);
-      const e = randInt(1, 5);
-      const f = e * randInt(2, 8);
+      let a = nonZero(-5, 5);
+      let b = nonZero(-5, 5);
+      let c = b * k;
+      if (a < 0) [a, b, c] = [-a, -b, -c];
       return {
         id: "",
         type: "numeric",
-        prompt: `Find the y-intercept of ${d}x − ${e}y = ${f}.`,
-        hint: "Set x = 0.",
-        answer: -f / e,
-        explanation: `−${e}y = ${f} → y = ${-f / e}`,
+        prompt: `Find the y-intercept of ${twoVar(a, b)} = ${c}. Type its y-value.`,
+        hint: "At the y-intercept, x = 0.",
+        answer: k,
+        explanation: `Set x = 0: ${coef(b, "y")} = ${c}, so y = ${k}. The y-intercept is (0, ${k}).`,
       };
     }),
 
   "slope-intercept": (seeds) =>
     fillToCount("slope-intercept", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const m = randInt(-5, 5) || 3;
+      const m = nonZero(-5, 5);
       const b = randInt(-6, 6);
-      if (i % 2 === 0) {
-        const eq = `y = ${fmtSigned(m)}x ${b >= 0 ? "+ " + b : "− " + Math.abs(b)}`;
+      const kind = i % 3;
+      if (kind === 0) {
+        const eq = `y = ${lin(m, b)}`;
+        // Wrong lines as (slope, intercept) pairs, so none can be the right line written differently.
+        const pairs: [number, number][] = [[b, m], [-m, b], [m, -b], [m, b + 2], [-m, -b], [m, b - 3]];
+        const wrong = pairs.filter(([pm, pb]) => !(pm === m && pb === b)).map(([pm, pb]) => `y = ${lin(pm, pb)}`);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Which equation has slope ${m} and y-intercept ${b}?`,
-          hint: "Use y = mx + b.",
+          hint: "Use y = mx + b: m is the slope, b is the y-intercept.",
           answer: eq,
-          choices: mcChoices(eq, [
-            `y = ${fmtSigned(b)}x + ${m}`,
-            `y = ${fmtSigned(-m)}x + ${b}`,
-            `y = ${fmtSigned(m)}x + ${b + 2}`,
-          ]),
-          explanation: `${eq} has m = ${m} and b = ${b}.`,
+          choices: mcChoices(eq, wrong),
+          explanation: `Put m = ${m} and b = ${b} into y = mx + b: ${eq}.`,
+        };
+      }
+      if (kind === 1) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `In y = ${lin(m, b)}, what is the slope?`,
+          hint: "The slope is the number multiplying x.",
+          answer: m,
+          explanation: `y = ${lin(m, b)} is y = mx + b with m = ${m}.`,
         };
       }
       return {
         id: "",
         type: "numeric",
-        prompt: `In y = ${fmtSigned(m)}x + ${b}, what is the slope?`,
-        hint: "Slope is the coefficient of x.",
-        answer: m,
-        explanation: `The slope is ${m}.`,
+        prompt: `In y = ${lin(m, b)}, what is the y-intercept?`,
+        hint: "The y-intercept is the number added on at the end (0 when there is none).",
+        answer: b,
+        explanation: `y = ${lin(m, b)} is y = mx + b with b = ${b}.`,
       };
     }),
 
   "point-slope": (seeds) =>
-    fillToCount("point-slope", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x1 = randInt(1, 6);
-      const y1 = randInt(1, 10);
-      const m = randInt(-4, 4) || 2;
-      const correct = `y − ${y1} = ${fmtSigned(m)}(x − ${x1})`;
+    fillToCount("point-slope", seeds, PROBLEMS_PER_SKILL, () => {
+      const x1 = nonZero(-5, 6);
+      const y1 = nonZero(-6, 9);
+      const m = nonZero(-4, 4);
+      const ps = (s: number, px: number, py: number) => `${shift("y", py)} = ${times(s, shift("x", px))}`;
+      const answer = ps(m, x1, y1);
+      const intercept = y1 - m * x1;
+      // Each wrong option with the line it really is, so none can be the right line in disguise.
+      const candidates: { text: string; slope: number; b: number }[] = [
+        { text: ps(m, y1, x1), slope: m, b: x1 - m * y1 },
+        { text: ps(-m, x1, y1), slope: -m, b: y1 + m * x1 },
+        { text: ps(m, -x1, -y1), slope: m, b: -y1 + m * x1 },
+        { text: `y = ${lin(m, y1)}`, slope: m, b: y1 },
+        { text: `y = ${lin(m, -x1)}`, slope: m, b: -x1 },
+      ];
+      const wrong = candidates.filter((c) => !(c.slope === m && c.b === intercept)).map((c) => c.text);
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Line through (${x1}, ${y1}) with slope ${m}. Which is point-slope form?`,
-        hint: "Use y − y₁ = m(x − x₁).",
-        answer: correct,
-        choices: mcChoices(correct, [
-          `y − ${x1} = ${fmtSigned(m)}(x − ${y1})`,
-          `y = ${fmtSigned(m)}x + ${y1}`,
-          `y = ${fmtSigned(m)}x − ${x1}`,
-        ]),
-        explanation: `${correct}`,
+        prompt: `Which equation is the line through (${x1}, ${y1}) with slope ${m}, written in point-slope form?`,
+        hint: "Use y − y₁ = m(x − x₁), with the point's x and y in their own places.",
+        answer,
+        choices: mcChoices(answer, wrong),
+        explanation: `Put the point (${x1}, ${y1}) and the slope ${m} into y − y₁ = m(x − x₁): ${answer}.`,
       };
     }),
 
   "standard-form": (seeds) =>
     fillToCount("standard-form", seeds, PROBLEMS_PER_SKILL, () => {
-      const m = randInt(-4, 4) || 2;
+      const m = nonZero(-4, 4);
       const b = randInt(-6, 6);
-      const correct = `y = ${fmtSigned(m)}x ${b >= 0 ? "+ " + b : "− " + Math.abs(b)}`;
+      // Ax + By = C with a whole slope and intercept once it is solved for y.
+      let B = pick([1, 1, 2, 3, -1]);
+      let A = -m * B;
+      let C = b * B;
+      if (A < 0) [A, B, C] = [-A, -B, -C];
+      const answer = `y = ${lin(m, b)}`;
+      const pairs: [number, number][] = [[-m, b], [m, -b], [m, C], [b, m], [-m, -b]];
+      const wrong = pairs.filter(([pm, pb]) => !(pm === m && pb === b)).map(([pm, pb]) => `y = ${lin(pm, pb)}`);
+      const moved = `${coef(B, "y")} = ${lin(-A, C)}`;
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Convert ${fmtSigned(-m)}x + y = ${b} to slope-intercept form.`,
-        hint: "Solve for y.",
-        answer: correct,
-        choices: mcChoices(correct, [
-          `y = ${fmtSigned(-m)}x + ${b}`,
-          `y = ${fmtSigned(m)}x − ${b}`,
-          `y = ${b}x + ${m}`,
-        ]),
-        explanation: `Add ${fmtSigned(m)}x to both sides to get ${correct}.`,
+        prompt: `Convert ${twoVar(A, B)} = ${C} to slope-intercept form.`,
+        hint: B === 1 ? `Get y by itself: move the x term to the other side.` : `Move the x term to the other side, then divide every term by ${B}.`,
+        answer,
+        choices: mcChoices(answer, wrong),
+        explanation:
+          B === 1
+            ? `Subtract ${coef(A)} from both sides: ${answer}.`
+            : `Subtract ${coef(A)} from both sides: ${moved}. Then divide every term by ${B}: ${answer}.`,
       };
     }),
 
@@ -577,151 +756,219 @@ const generators: Record<string, SkillGenerator> = {
     fillToCount("parallel-perpendicular", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 3;
       if (kind === 0) {
-        const m = randInt(2, 12) * (randInt(0, 1) === 1 ? -1 : 1) || 2;
+        // A whole slope or a fraction; the answer is its negative reciprocal.
+        let top: number;
+        let bottom: number;
+        if (randInt(0, 2) === 0) {
+          bottom = randInt(2, 7);
+          top = nonZero(-6, 6);
+          while (gcd(top, bottom) !== 1 || Math.abs(top) === bottom) {
+            bottom = randInt(2, 7);
+            top = nonZero(-6, 6);
+          }
+        } else {
+          top = nonZero(-9, 9);
+          bottom = 1;
+        }
+        const given = frac(top, bottom);
+        const answer = frac(-bottom, top);
         return {
           id: "",
           type: "numeric",
-          prompt: `Line A has slope ${m}. What slope is perpendicular to A?`,
-          hint: "Use the negative reciprocal.",
-          answer: -1 / m,
-          explanation: `Perpendicular slope = −1/${m} = ${-1 / m}`,
+          prompt: `Line A has slope ${given}. What is the slope of a line perpendicular to line A? Give it as a whole number or a fraction.`,
+          hint: "Flip the slope and change its sign: the negative reciprocal. A fraction like -1/3 is a fine answer.",
+          answer: -bottom / top,
+          explanation: `The negative reciprocal of ${given} is ${answer}, and ${given} × ${answer} = -1.`,
         };
       }
       if (kind === 1) {
-        const m = randInt(2, 9);
-        const b = randInt(1, 12);
-        const parallel = `y = ${m}x − ${randInt(1, 10)}`;
+        let m = nonZero(-6, 6);
+        while (Math.abs(m) === 1) m = nonZero(-6, 6);
+        const b = nonZero(-9, 9);
+        let b2 = nonZero(-9, 9);
+        while (b2 === b) b2 = nonZero(-9, 9);
+        const parallel = `y = ${lin(m, b2)}`;
+        const recip = (n: number, d: number, c: number) => `y = (${frac(n, d)})x${plusTerm(c)}`;
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Which line is parallel to y = ${m}x + ${b}?`,
+          prompt: `Which line is parallel to y = ${lin(m, b)}?`,
           hint: "Parallel lines have the same slope.",
           answer: parallel,
-          choices: mcChoices(parallel, [
-            `y = ${-m}x + ${b}`,
-            `y = ${1 / m}x + ${b}`,
-            `y = ${-1 / m}x + ${b + 4}`,
-          ]),
-          explanation: `${parallel} has the same slope ${m}.`,
+          choices: mcChoices(parallel, [`y = ${lin(-m, b)}`, recip(1, m, nonZero(-9, 9)), recip(-1, m, b), `y = ${lin(m + 1, b2)}`]),
+          explanation: `${parallel} has the same slope, ${m}, and a different y-intercept, so it never meets y = ${lin(m, b)}.`,
         };
       }
-      const m1 = randInt(2, 9);
-      const m2 = randInt(2, 9);
-      const other = `−1/${m1}`;
+      let m1 = nonZero(-9, 9);
+      while (Math.abs(m1) === 1) m1 = nonZero(-9, 9);
+      const answer = frac(-1, m1);
       return {
         id: "",
         type: "multiple-choice",
         prompt: `A line has slope ${m1}. Which slope makes a line perpendicular to it?`,
-        hint: "Perpendicular slopes are negative reciprocals of each other.",
-        answer: other,
-        choices: mcChoices(other, [`${m1}`, `${-m1}`, `${m2}`]),
-        explanation: `Perpendicular slope = −1/${m1}.`,
+        hint: "Perpendicular slopes are negative reciprocals: flip it and change its sign.",
+        answer,
+        choices: mcChoices(answer, [frac(1, m1), `${-m1}`, `${m1}`]),
+        explanation: `Perpendicular slopes multiply to -1: ${m1} × ${answer} = -1.`,
       };
     }),
 
   "graphing-systems": (seeds) =>
-    fillToCount("graphing-systems", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x = randInt(1, 6);
-      const y = randInt(1, 8);
-      const b1 = y - x;
-      const b2 = y + x;
+    fillToCount("graphing-systems", seeds, PROBLEMS_PER_SKILL, () => {
+      const x = nonZero(-4, 6);
+      const y = randInt(-5, 8);
+      const m1 = nonZero(-3, 3);
+      let m2 = nonZero(-3, 3);
+      while (m2 === m1) m2 = nonZero(-3, 3);
+      const b1 = y - m1 * x;
+      const b2 = y - m2 * x;
+      const answer = `(${x}, ${y})`;
+      // Points on one line only, so none of them is where the lines cross.
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Where do y = x + ${b1} and y = −x + ${b2} intersect?`,
-        hint: "Set the equations equal.",
-        answer: `(${x}, ${y})`,
-        choices: mcChoices(`(${x}, ${y})`, [`(${y}, ${x})`, `(${x + 1}, ${y})`, `(0, ${b2})`]),
-        explanation: `x + ${b1} = −x + ${b2} → x = ${x}, y = ${y}`,
+        prompt: `Where do y = ${lin(m1, b1)} and y = ${lin(m2, b2)} intersect?`,
+        hint: "Set the two right sides equal, solve for x, then find y.",
+        answer,
+        choices: mcChoices(answer, [
+          `(${y}, ${x})`,
+          `(${x + 1}, ${m1 * (x + 1) + b1})`,
+          `(${x - 1}, ${m2 * (x - 1) + b2})`,
+          `(0, ${b2})`,
+          `(0, ${b1})`,
+        ]),
+        explanation: `${lin(m1, b1)} = ${lin(m2, b2)} → x = ${x}, and then y = ${evalLin(m1, b1, x)}. They cross at ${answer}.`,
       };
     }),
 
   substitution: (seeds) =>
     fillToCount("substitution", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x = randInt(2, 8);
+      const x = randInt(-3, 8);
       const m = randInt(1, 4);
-      const b = randInt(1, 6);
+      const b = randInt(-5, 6);
+      const a = pick([1, 1, 2, 3]);
       const y = m * x + b;
-      const sum = x + y;
-      if (i % 2 === 0) {
-        return {
-          id: "",
-          type: "numeric",
-          prompt: `Solve: y = ${m}x + ${b} and x + y = ${sum}. What is x?`,
-          hint: `Substitute y = ${m}x + ${b}.`,
-          answer: x,
-          explanation: `x + (${m}x + ${b}) = ${sum} → x = ${x}`,
-        };
-      }
+      const total = a * x + y;
+      const askX = i % 2 === 0;
+      const system = `y = ${lin(m, b)} and ${coef(a)} + y = ${total}`;
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve: y = ${m}x + ${b} and x + y = ${sum}. What is y?`,
-        hint: "Find x first, then substitute.",
-        answer: y,
-        explanation: `x = ${x}, so y = ${y}`,
+        prompt: `Solve: ${system}. What is ${askX ? "x" : "y"}?`,
+        hint: askX ? `Swap ${lin(m, b)} in for y in the second equation.` : "Find x first, then put it into y = ...",
+        answer: askX ? x : y,
+        explanation: askX
+          ? `${coef(a)} + (${lin(m, b)}) = ${total} → ${lin(a + m, b)} = ${total} → x = ${x}`
+          : `x = ${x}, so y = ${evalLin(m, b, x)}`,
       };
     }),
 
   elimination: (seeds) =>
     fillToCount("elimination", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x = randInt(3, 10);
-      const y = randInt(2, 9);
-      const sum = x + y;
-      const diff = x - y;
+      const x = randInt(1, 10);
+      const y = randInt(-4, 9);
       if (i % 5 === 0) {
+        const sum = x + y;
+        const diff = x - y;
         return {
           id: "",
           type: "step-order",
           prompt: `Order the steps to solve: x + y = ${sum} and x − y = ${diff}`,
-          hint: "Adding eliminates y.",
+          hint: "Adding the equations cancels y.",
           correctOrder: [0, 1, 2, 3],
-          steps: ["Add equations: 2x = " + 2 * x, `Solve: x = ${x}`, "Substitute x into first equation", `Solve for y: y = ${y}`],
-          explanation: "Adding the equations eliminates y immediately.",
+          steps: [`Add the equations: 2x = ${2 * x}`, `Solve: x = ${x}`, "Put x into the first equation", `Solve for y: y = ${y}`],
+          explanation: "Adding the equations cancels y straight away; then x goes back in to find y.",
         };
       }
+      // Two coefficients on x, and y cancelling: ax + y and cx − y.
+      const a = pick([1, 1, 2, 3]);
+      const c = pick([1, 2, 3]);
+      const s1 = a * x + y;
+      const s2 = c * x - y;
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve: x + y = ${sum} and x − y = ${diff}. What is x?`,
-        hint: "Add the two equations.",
+        prompt: `Solve: ${coef(a)} + y = ${s1} and ${coef(c)} − y = ${s2}. What is x?`,
+        hint: "Add the two equations: the y terms cancel.",
         answer: x,
-        explanation: `2x = ${2 * x} → x = ${x}`,
+        explanation: `Add them: ${coef(a + c)} = ${s1 + s2} → x = ${x}`,
       };
     }),
 
   "systems-word-problems": (seeds) =>
     fillToCount("systems-word-problems", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const adultPrice = randInt(6, 12);
-      const childPrice = adultPrice - randInt(2, 4);
-      const adults = randInt(3, 10);
-      const children = randInt(3, 10);
-      const totalTickets = adults + children;
-      const totalCost = adultPrice * adults + childPrice * children;
+      const kind = i % 3;
+      if (kind === 0) {
+        const adultPrice = randInt(6, 12);
+        const childPrice = adultPrice - randInt(2, 4);
+        const adults = randInt(3, 10);
+        const children = randInt(3, 10);
+        const total = adults + children;
+        const cost = adultPrice * adults + childPrice * children;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Tickets cost $${adultPrice} (adult) and $${childPrice} (child). ${total} tickets sold for $${cost}. How many adult tickets?`,
+          hint: "Let a + c = the number of tickets, and write a second equation for the money.",
+          answer: adults,
+          explanation: `a + c = ${total} and ${adultPrice}a + ${childPrice}c = ${cost}. Put c = ${total} − a in: ${adultPrice}a + ${childPrice}(${total} − a) = ${cost} → ${adultPrice - childPrice}a = ${cost - childPrice * total} → a = ${adults}.`,
+        };
+      }
+      if (kind === 1) {
+        const twos = randInt(3, 12);
+        const threes = randInt(2, 8);
+        const shots = twos + threes;
+        const points = 2 * twos + 3 * threes;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `A player made ${shots} baskets, all 2-pointers and 3-pointers, for ${points} points. How many 3-pointers?`,
+          hint: "Let t + h = the baskets and write a second equation for the points.",
+          answer: threes,
+          explanation: `t + h = ${shots} and 2t + 3h = ${points}. Put t = ${shots} − h in: 2(${shots} − h) + 3h = ${points} → h = ${points - 2 * shots}.`,
+        };
+      }
+      const quarters = randInt(2, 12);
+      const dimes = randInt(2, 12);
+      const coins = quarters + dimes;
+      const cents = 25 * quarters + 10 * dimes;
       return {
         id: "",
         type: "numeric",
-        prompt: `Tickets cost $${adultPrice} (adult) and $${childPrice} (child). ${totalTickets} tickets sold for $${totalCost}. How many adult tickets?`,
-        hint: "Let a + c = total tickets and use the cost equation.",
-        answer: adults,
-        explanation: `${adults} adult and ${children} child tickets fit both conditions.`,
+        prompt: `You have ${coins} coins, all quarters and dimes, worth $${money(cents / 100)}. How many quarters?`,
+        hint: "Work in cents: a quarter is 25 and a dime is 10.",
+        answer: quarters,
+        explanation: `q + d = ${coins} and 25q + 10d = ${cents}. Put d = ${coins} − q in: 25q + 10(${coins} − q) = ${cents} → 15q = ${cents - 10 * coins} → q = ${quarters}.`,
       };
     }),
 
   "graphing-inequalities": (seeds) =>
     fillToCount("graphing-inequalities", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const strict = i % 2 === 0;
-      const m = randInt(1, 4);
-      const b = randInt(1, 6);
-      const symbol = strict ? ">" : "≥";
+      const m = nonZero(-4, 4);
+      const b = randInt(-6, 6);
+      const sym = pick(["<", ">", "≤", "≥"] as const);
+      const strict = sym === "<" || sym === ">";
+      const above = sym === ">" || sym === "≥";
+      const ineq = `y ${sym} ${lin(m, b)}`;
+      if (i % 2 === 0) {
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `${ineq}: solid or dashed boundary line?`,
+          hint: strict ? "< and > leave the line itself out." : "≤ and ≥ include the line itself.",
+          answer: strict ? "Dashed" : "Solid",
+          choices: mcChoices(strict ? "Dashed" : "Solid", ["Solid", "Dashed", "No line"]),
+          explanation: `${sym} ${strict ? "leaves out" : "includes"} the points on the line, so the boundary is ${strict ? "dashed" : "solid"}.`,
+        };
+      }
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `y ${symbol} ${m}x + ${b}: solid or dashed boundary line?`,
-        hint: strict ? "Strict inequality excludes the line." : "Non-strict includes the line.",
-        answer: strict ? "Dashed" : "Solid",
-        choices: mcChoices(strict ? "Dashed" : "Solid", ["Solid", "Dashed", "No line"]),
-        explanation: `${symbol} uses a ${strict ? "dashed" : "solid"} boundary line.`,
+        prompt: `To graph ${ineq}, which side of the line do you shade?`,
+        hint: "With y by itself, > and ≥ mean above the line, < and ≤ mean below.",
+        answer: above ? "Above the line" : "Below the line",
+        choices: mcChoices(above ? "Above the line" : "Below the line", ["Above the line", "Below the line", "Only the line itself"]),
+        explanation: `The solutions have y-values ${above ? "greater" : "less"} than the line's, so shade ${above ? "above" : "below"} it.`,
       };
     }),
 
@@ -740,31 +987,25 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "multiple-choice",
           prompt: `Solve: ${low} < ${a}x + ${c} < ${high}`,
-          hint: "Subtract the constant from all parts, then divide by the coefficient.",
+          hint: "Subtract the constant from all three parts, then divide all three by the coefficient.",
           answer: correct,
-          choices: mcChoices(correct, [
-            `${left - 1} < x < ${right + 1}`,
-            `${left} < x < ${right + 2}`,
-            `x < ${right}`,
-          ]),
-          explanation: `${correct}`,
+          choices: mcChoices(correct, [`${left - 1} < x < ${right + 1}`, `${left} < x < ${right + 2}`, `x < ${right}`, `${low - c} < x < ${high - c}`]),
+          explanation: `${low} < ${a}x + ${c} < ${high} → ${low - c} < ${a}x < ${high - c} → ${correct}`,
         };
       }
       if (kind === 1) {
-        const bound = randInt(2, 12);
-        const correct = `x < ${-bound} or x > ${bound}`;
+        // An OR to solve, not one to read back.
+        const lo = randInt(-6, -1);
+        const hi = randInt(1, 6);
+        const correct = `x < ${lo} or x > ${hi}`;
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Which describes the solution to x < ${-bound} OR x > ${bound}?`,
-          hint: "OR compound inequalities describe two separate rays.",
+          prompt: `Solve: ${a}x + ${c} < ${a * lo + c} OR ${a}x + ${c} > ${a * hi + c}`,
+          hint: "Solve each inequality on its own. OR keeps every x that works for either one.",
           answer: correct,
-          choices: mcChoices(correct, [
-            `${-bound} < x < ${bound}`,
-            `x > ${-bound}`,
-            `x < ${bound}`,
-          ]),
-          explanation: "An OR inequality includes values satisfying either condition.",
+          choices: mcChoices(correct, [`${lo} < x < ${hi}`, `x < ${a * lo} or x > ${a * hi}`, `x > ${hi}`, `x < ${lo}`]),
+          explanation: `${a}x < ${a * lo} gives x < ${lo}, and ${a}x > ${a * hi} gives x > ${hi}. OR keeps both: ${correct}.`,
         };
       }
       const left = randInt(-8, 0);
@@ -776,35 +1017,33 @@ const generators: Record<string, SkillGenerator> = {
         prompt: `Which compound inequality matches: x is between ${left} and ${right}, inclusive?`,
         hint: "Inclusive means use ≤ on both sides.",
         answer: correct,
-        choices: mcChoices(correct, [
-          `${left} < x < ${right}`,
-          `x ≤ ${left}`,
-          `x ≥ ${right}`,
-        ]),
+        choices: mcChoices(correct, [`${left} < x < ${right}`, `x ≤ ${left}`, `x ≥ ${right}`]),
         explanation: `Inclusive between ${left} and ${right} is written ${correct}.`,
       };
     }),
 
   "systems-inequalities": (seeds) =>
-    fillToCount("systems-inequalities", seeds, PROBLEMS_PER_SKILL, (i) => {
+    fillToCount("systems-inequalities", seeds, PROBLEMS_PER_SKILL, () => {
       const m = randInt(1, 6);
       const b = randInt(-6, 8);
-      const floor = randInt(-6, 2);
-      // Build one point guaranteed to satisfy both inequalities, and distractors that don't.
       const px = randInt(-3, 4);
-      const py = Math.min(m * px + b, m * px + b) - randInt(1, 3);
-      const validPoint = `(${px}, ${Math.max(py, floor + 1)})`;
-      const badPoint1 = `(${px}, ${m * px + b + randInt(3, 8)})`;
-      const badPoint2 = `(${px + randInt(2, 5)}, ${floor - randInt(1, 4)})`;
-      const badPoint3 = `(0, ${m * 0 + b + randInt(4, 10)})`;
+      const line = m * px + b;
+      // The floor always sits under the line at px, so a point between them exists.
+      const floor = Math.min(randInt(-6, 2), line - 1);
+      const vy = Math.max(floor + 1, line - randInt(0, 3));
+      const valid = `(${px}, ${vy})`;
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Which point satisfies y ≤ ${m}x + ${b} AND y > ${floor}?`,
-        hint: `Plug each point's x and y into both inequalities.`,
-        answer: validPoint,
-        choices: mcChoices(validPoint, [badPoint1, badPoint2, badPoint3]),
-        explanation: `${validPoint} makes both y ≤ ${m}x + ${b} and y > ${floor} true.`,
+        prompt: `Which point satisfies y ≤ ${lin(m, b)} AND y > ${floor}?`,
+        hint: "Put each point's x and y into both inequalities; it has to pass both.",
+        answer: valid,
+        choices: mcChoices(valid, [
+          `(${px}, ${line + randInt(1, 5)})`,
+          `(${px + randInt(1, 4)}, ${floor})`,
+          `(${px - randInt(1, 4)}, ${floor - randInt(1, 3)})`,
+        ]),
+        explanation: `${valid}: ${vy} ≤ ${evalLin(m, b, px)} ✓ and ${vy} > ${floor} ✓`,
       };
     }),
 
@@ -813,25 +1052,27 @@ const generators: Record<string, SkillGenerator> = {
       const a = randInt(1, 5);
       const b = randInt(-6, 8);
       const x = randInt(-4, 6);
+      const lead = a === 1 ? "" : `${a}`;
       if (i % 3 === 0) {
         const result = a * x * x + b;
+        const worked = b === 0 ? `${lead}(${x})² = ${result}` : `${lead}(${x})²${plusTerm(b)} = ${a * x * x}${plusTerm(b)} = ${result}`;
         return {
           id: "",
           type: "numeric",
-          prompt: `If g(x) = ${a}x² ${b >= 0 ? "+ " + b : "− " + Math.abs(b)}, find g(${fmtSigned(x)}).`,
-          hint: `Replace x with ${fmtSigned(x)}.`,
+          prompt: `If g(x) = ${quad(a, 0, b)}, find g(${x}).`,
+          hint: `Put ${x} in for x, in brackets. Square first, then multiply.`,
           answer: result,
-          explanation: `g(${fmtSigned(x)}) = ${result}`,
+          explanation: `g(${x}) = ${worked}`,
         };
       }
       const result = a * x + b;
       return {
         id: "",
         type: "numeric",
-        prompt: `If f(x) = ${a}x ${b >= 0 ? "+ " + b : "− " + Math.abs(b)}, find f(${fmtSigned(x)}).`,
-        hint: `Replace x with ${fmtSigned(x)}.`,
+        prompt: `If f(x) = ${lin(a, b)}, find f(${x}).`,
+        hint: `Put ${x} in for x.`,
         answer: result,
-        explanation: `f(${fmtSigned(x)}) = ${result}`,
+        explanation: `f(${x}) = ${evalLin(a, b, x)}`,
       };
     }),
 
@@ -844,14 +1085,10 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "multiple-choice",
           prompt: `What is the domain of f(x) = 1/(x − ${excluded})?`,
-          hint: "Denominator cannot be zero.",
+          hint: "The denominator can never be zero.",
           answer: `All real numbers except ${excluded}`,
-          choices: mcChoices(`All real numbers except ${excluded}`, [
-            "All real numbers",
-            `x > ${excluded}`,
-            `x ≥ ${excluded}`,
-          ]),
-          explanation: `x = ${excluded} makes the denominator 0.`,
+          choices: mcChoices(`All real numbers except ${excluded}`, ["All real numbers", `x > ${excluded}`, `x ≥ ${excluded}`]),
+          explanation: `x = ${excluded} makes the denominator 0, so it is left out.`,
         };
       }
       if (kind === 1) {
@@ -860,14 +1097,10 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "multiple-choice",
           prompt: `What is the domain of f(x) = 1/(x + ${excluded})?`,
-          hint: "Set the denominator equal to zero and exclude that x-value.",
+          hint: "Set the denominator equal to zero; that x-value is left out.",
           answer: `All real numbers except ${-excluded}`,
-          choices: mcChoices(`All real numbers except ${-excluded}`, [
-            `All real numbers except ${excluded}`,
-            "All real numbers",
-            `x ≠ 0`,
-          ]),
-          explanation: `x = ${-excluded} makes the denominator 0.`,
+          choices: mcChoices(`All real numbers except ${-excluded}`, [`All real numbers except ${excluded}`, "All real numbers", "x ≠ 0"]),
+          explanation: `x = ${-excluded} makes the denominator 0, so it is left out.`,
         };
       }
       if (kind === 2) {
@@ -878,11 +1111,7 @@ const generators: Record<string, SkillGenerator> = {
           prompt: `What is the domain of f(x) = √(x − ${boundary})?`,
           hint: "The expression under a square root must be ≥ 0.",
           answer: `x ≥ ${boundary}`,
-          choices: mcChoices(`x ≥ ${boundary}`, [
-            `x ≤ ${boundary}`,
-            `x > ${boundary}`,
-            "All real numbers",
-          ]),
+          choices: mcChoices(`x ≥ ${boundary}`, [`x ≤ ${boundary}`, `x > ${boundary}`, "All real numbers"]),
           explanation: `x − ${boundary} ≥ 0 means x ≥ ${boundary}.`,
         };
       }
@@ -892,490 +1121,650 @@ const generators: Record<string, SkillGenerator> = {
         id: "",
         type: "multiple-choice",
         prompt: `What is the domain of f(x) = 1/((x − ${a})(x − ${b}))?`,
-        hint: "Exclude every x-value that makes any factor in the denominator zero.",
+        hint: "Leave out every x-value that makes any factor of the denominator zero.",
         answer: `All real numbers except ${a} and ${b}`,
-        choices: mcChoices(`All real numbers except ${a} and ${b}`, [
-          `All real numbers except ${a}`,
-          `All real numbers except ${b}`,
-          "All real numbers",
-        ]),
-        explanation: `Both x = ${a} and x = ${b} make a factor in the denominator zero.`,
+        choices: mcChoices(`All real numbers except ${a} and ${b}`, [`All real numbers except ${a}`, `All real numbers except ${b}`, "All real numbers"]),
+        explanation: `Both x = ${a} and x = ${b} make a factor of the denominator zero.`,
       };
     }),
 
   "function-graphs": (seeds) =>
-    fillToCount("function-graphs", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const x1 = 0;
-      const y1 = randInt(1, 5);
-      const x2 = randInt(2, 6);
-      const y2 = y1 + randInt(2, 8);
-      const rate = (y2 - y1) / (x2 - x1);
+    fillToCount("function-graphs", seeds, PROBLEMS_PER_SKILL, () => {
+      const x1 = randInt(-2, 3);
+      const dx = randInt(2, 6);
+      const x2 = x1 + dx;
+      const y1 = randInt(-3, 6);
+      const dy = nonZero(-6, 8);
+      const y2 = y1 + dy;
+      const rate = frac(dy, dx);
+      // Wrong answers from real slips: flipped, forgot to subtract, forgot to divide.
+      const slips = [frac(dx, dy), x2 !== 0 ? frac(y2, x2) : frac(dy + 1, dx), `${dy}`, `${y2}`, frac(dy + 2, dx), `${y1 + y2}`];
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `A function graph passes through (${x1}, ${y1}) and (${x2}, ${y2}). What is the average rate of change?`,
-        hint: "(change in y) / (change in x)",
-        answer: `${rate}`,
-        choices: mcChoices(`${rate}`, [`${y2}`, `${x2}`, `${y1 + y2}`]),
-        explanation: `(${y2} − ${y1}) / (${x2} − ${x1}) = ${rate}`,
+        prompt: `The graph of a function passes through (${x1}, ${y1}) and (${x2}, ${y2}). What is its average rate of change from x = ${x1} to x = ${x2}?`,
+        hint: "Change in y divided by change in x.",
+        answer: rate,
+        choices: mcChoices(rate, slips),
+        explanation: `(${y2} − ${par(y1)}) / (${x2} − ${par(x1)}) = ${dy}/${dx}${`${dy}/${dx}` === rate ? "" : ` = ${rate}`}`,
       };
     }),
 
   "arithmetic-sequences": (seeds) =>
     fillToCount("arithmetic-sequences", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const a1 = randInt(1, 12);
-      const d = randInt(2, 6);
+      const a1 = randInt(-10, 12);
+      const d = pick([-6, -5, -4, -3, -2, 2, 3, 4, 5, 6]);
       const n = randInt(5, 12);
+      const shown = `${a1}, ${a1 + d}, ${a1 + 2 * d}, ${a1 + 3 * d}, ...`;
       if (i % 2 === 0) {
         return {
           id: "",
           type: "numeric",
-          prompt: `Sequence: ${a1}, ${a1 + d}, ${a1 + 2 * d}, ${a1 + 3 * d}, ... What is the ${n}th term?`,
+          prompt: `Sequence: ${shown} What is the ${ordinal(n)} term?`,
           hint: "aₙ = a₁ + (n − 1)d",
           answer: a1 + (n - 1) * d,
-          explanation: `a_${n} = ${a1} + ${n - 1}(${d}) = ${a1 + (n - 1) * d}`,
+          explanation: `a${sub(n)} = ${a1} + ${n - 1}(${d}) = ${a1} ${d < 0 ? "−" : "+"} ${Math.abs((n - 1) * d)} = ${a1 + (n - 1) * d}`,
         };
       }
       return {
         id: "",
         type: "numeric",
-        prompt: `What is the common difference in ${a1}, ${a1 + d}, ${a1 + 2 * d}, ${a1 + 3 * d}, ...?`,
-        hint: "Subtract consecutive terms.",
+        prompt: `What is the common difference in ${shown}?`,
+        hint: "Subtract any term from the one after it.",
         answer: d,
-        explanation: `Each term increases by ${d}.`,
+        explanation: `Each term ${d > 0 ? "goes up" : "goes down"} by ${Math.abs(d)}, so d = ${d}.`,
       };
     }),
 
   "geometric-sequences": (seeds) =>
     fillToCount("geometric-sequences", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const a1 = randInt(2, 5);
-      const r = randInt(2, 4);
-      const n = randInt(4, 6);
-      if (i % 2 === 0) {
+      const kind = i % 3;
+      if (kind === 2) {
+        // A ratio below 1: each term is half the one before.
+        const start = pick([32, 48, 64, 80, 96, 128, 160, 192]);
         return {
           id: "",
           type: "numeric",
-          prompt: `Sequence: ${a1}, ${a1 * r}, ${a1 * r * r}, ... What is the common ratio?`,
-          hint: "Divide consecutive terms.",
-          answer: r,
-          explanation: `${a1 * r} / ${a1} = ${r}`,
+          prompt: `Sequence: ${start}, ${start / 2}, ${start / 4}, ${start / 8}, ... What is the common ratio? Give it as a fraction or a decimal.`,
+          hint: "Divide any term by the one before it. A fraction like 1/2 is a fine answer.",
+          answer: 0.5,
+          explanation: `${start / 2} ÷ ${start} = 1/2: each term is half the one before.`,
         };
       }
+      const a1 = randInt(1, 6);
+      const r = randInt(2, 4);
+      const shown = `${a1}, ${a1 * r}, ${a1 * r * r}`;
+      if (kind === 0) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Sequence: ${shown}, ... What is the common ratio?`,
+          hint: "Divide any term by the one before it.",
+          answer: r,
+          explanation: `${a1 * r} ÷ ${a1} = ${r}`,
+        };
+      }
+      // A term past the ones shown, so the answer is worked out, not read off.
+      const n = r === 4 ? randInt(5, 6) : randInt(5, 7);
       return {
         id: "",
         type: "numeric",
-        prompt: `What is the ${n}th term of ${a1}, ${a1 * r}, ${a1 * r * r}, ${a1 * r ** 3}, ...?`,
-        hint: "Multiply by the ratio each time.",
+        prompt: `What is the ${ordinal(n)} term of ${shown}, ${a1 * r ** 3}, ...?`,
+        hint: "Keep multiplying by the ratio, or use aₙ = a₁ × rⁿ⁻¹.",
         answer: a1 * r ** (n - 1),
-        explanation: `${a1} × ${r}^${n - 1} = ${a1 * r ** (n - 1)}`,
+        explanation: `a${sub(n)} = ${a1} × ${r}^${n - 1} = ${a1} × ${r ** (n - 1)} = ${a1 * r ** (n - 1)}`,
       };
     }),
 
   "exponent-rules": (seeds) =>
     fillToCount("exponent-rules", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const base = randInt(2, 5);
-      const e1 = randInt(2, 5);
-      const e2 = randInt(2, 5);
-      if (i % 3 === 0) {
+      const kind = i % 5;
+      const base = pick([2, 3, 5, 7, 10, 11]);
+      if (kind === 0) {
+        let e1 = randInt(2, 9);
+        let e2 = randInt(2, 9);
+        if (e1 === 2 && e2 === 2) e2 = 3; // 2 + 2 and 2 × 2 are both 4: the wrong rule would pass
         return {
           id: "",
           type: "numeric",
-          prompt: `Simplify: ${base}^${e1} × ${base}^${e2} (enter as a number)`,
-          hint: "Add exponents when multiplying same base.",
-          answer: base ** (e1 + e2),
-          explanation: `${base}^${e1 + e2} = ${base ** (e1 + e2)}`,
+          prompt: `${base}^${e1} × ${base}^${e2} = ${base}^n. What is n?`,
+          hint: "Same base, multiplying: add the exponents.",
+          answer: e1 + e2,
+          explanation: `Same base, so add the exponents: ${e1} + ${e2} = ${e1 + e2}.`,
         };
       }
-      if (i % 3 === 1) {
-        const exp = randInt(2, 4);
-        const outer = randInt(2, 3);
-        const product = exp * outer;
+      if (kind === 1) {
+        let exp = randInt(2, 5);
+        let outer = randInt(2, 4);
+        if (exp === 2 && outer === 2) outer = 3;
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Simplify: (x^${exp})^${outer}`,
-          hint: "Multiply exponents.",
-          answer: `x^${product}`,
-          choices: mcChoices(`x^${product}`, [`x^${exp + outer}`, `x^${exp}`, `2x^${exp}`]),
-          explanation: `(x^${exp})^${outer} = x^${product}`,
+          hint: "A power of a power: multiply the exponents.",
+          answer: `x^${exp * outer}`,
+          choices: mcChoices(`x^${exp * outer}`, [`x^${exp + outer}`, `x^${exp}`, `${outer}x^${exp}`, `x^${exp ** outer}`]),
+          explanation: `(x^${exp})^${outer} = x^(${exp} × ${outer}) = x^${exp * outer}`,
         };
       }
+      if (kind === 2) {
+        const e2 = randInt(2, 6);
+        const e1 = e2 + randInt(1, 6);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${base}^${e1} ÷ ${base}^${e2} = ${base}^n. What is n?`,
+          hint: "Same base, dividing: subtract the exponents.",
+          answer: e1 - e2,
+          explanation: `Same base, so subtract the exponents: ${e1} − ${e2} = ${e1 - e2}.`,
+        };
+      }
+      if (kind === 3) {
+        const b = randInt(2, 15);
+        const withX = randInt(0, 1) === 1;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: withX ? `Simplify: (${b}x)^0, for any x other than 0` : `Simplify: ${b}^0`,
+          hint: "Any nonzero number to the 0 power equals 1.",
+          answer: 1,
+          explanation: `${withX ? `(${b}x)` : b}^0 = 1`,
+        };
+      }
+      // A product small enough to work out: the answer stays at or under 1000.
+      const small = pick([
+        [2, 2, 3], [2, 3, 4], [2, 4, 5], [2, 3, 5], [2, 2, 6], [2, 4, 4], [3, 2, 3], [3, 1, 4], [3, 2, 2], [5, 1, 2], [4, 2, 2], [10, 1, 2],
+      ]);
+      const [b, e1, e2] = small;
       return {
         id: "",
         type: "numeric",
-        prompt: `Simplify: ${base}^0`,
-        hint: "Any nonzero number to the 0 power equals 1.",
-        answer: 1,
-        explanation: `${base}^0 = 1`,
+        prompt: `Simplify ${b}^${e1} × ${b}^${e2}, then write the answer as a number.`,
+        hint: "Add the exponents first, then work out the power.",
+        answer: b ** (e1 + e2),
+        explanation: `${b}^${e1} × ${b}^${e2} = ${b}^${e1 + e2} = ${b ** (e1 + e2)}`,
       };
     }),
 
   "negative-fractional-exponents": (seeds) =>
     fillToCount("negative-fractional-exponents", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 4;
+      const round = Math.floor(i / 4);
       if (kind === 0) {
-        const base = randInt(2, 12);
-        const exp = randInt(1, 4);
+        // Small enough to write as a fraction by hand: the denominator stays at or under 1000.
+        const [base, exp] = pick([
+          [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 1], [3, 2], [3, 3], [4, 1], [4, 2], [4, 3], [5, 1], [5, 2], [5, 3],
+          [6, 2], [7, 2], [8, 2], [9, 2], [10, 1], [10, 2], [10, 3], [6, 1], [7, 1], [8, 1], [9, 1], [12, 2],
+        ]);
         return {
           id: "",
           type: "numeric",
-          prompt: `Evaluate: ${base}^(${-exp})`,
-          hint: `1/${base}^${exp}`,
+          prompt: `Evaluate ${base}^(-${exp}). Write it as a fraction.`,
+          hint: `A negative exponent means one over the power: 1/${base}^${exp}.`,
           answer: 1 / base ** exp,
-          explanation: `${base}^(${-exp}) = 1/${base ** exp} = ${1 / base ** exp}`,
+          explanation: `${base}^(-${exp}) = 1/${base}^${exp} = 1/${base ** exp}`,
         };
       }
       if (kind === 1) {
-        const n = [2, 3, 4, 5][i % 4];
+        const n = [2, 3, 4, 5][round % 4];
         const root = n === 2 ? "√x" : n === 3 ? "³√x" : n === 4 ? "⁴√x" : "⁵√x";
+        if (Math.floor(round / 4) % 2 === 0) {
+          return {
+            id: "",
+            type: "multiple-choice",
+            prompt: `Rewrite ${root} using a fractional exponent.`,
+            hint: "The index of the root becomes the denominator of the exponent.",
+            answer: `x^(1/${n})`,
+            choices: mcChoices(`x^(1/${n})`, [`x^${n}`, `x^(-${n})`, `${n}x`, `x^(-1/${n})`]),
+            explanation: `The index of the root becomes the denominator: ${root} = x^(1/${n}).`,
+          };
+        }
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Rewrite ${root} using a fractional exponent. (Variant ${Math.floor(i / 4) + 1})`,
-          hint: "Use x^(1/n).",
-          answer: `x^(1/${n})`,
-          choices: mcChoices(`x^(1/${n})`, [`x^${n}`, `x^(-${n})`, `${n}x`]),
-          explanation: `Root n corresponds to exponent 1/${n}.`,
+          prompt: `Rewrite x^(1/${n}) as a root.`,
+          hint: "The denominator of the exponent is the index of the root.",
+          answer: root,
+          choices: mcChoices(root, ["√x", "³√x", "⁴√x", "⁵√x", `${n}x`, `x^${n}`]),
+          explanation: `An exponent of 1/${n} is the ${n === 2 ? "square" : n === 3 ? "cube" : `${ordinal(n)}`} root: x^(1/${n}) = ${root}.`,
         };
       }
       if (kind === 2) {
-        const bases = [4, 9, 16, 25, 36, 49, 64];
-        const base = bases[i % bases.length];
-        const root = Math.sqrt(base);
+        const r = randInt(2, 12);
         return {
           id: "",
           type: "numeric",
-          prompt: `Evaluate: ${base}^(1/2)`,
-          hint: "A power of 1/2 means square root.",
-          answer: root,
-          explanation: `${base}^(1/2) = √${base} = ${root}`,
+          prompt: `Evaluate ${r * r}^(1/2).`,
+          hint: "A power of 1/2 means the square root.",
+          answer: r,
+          explanation: `${r * r}^(1/2) = √${r * r} = ${r}`,
         };
       }
-      const cubeBases = [8, 27, 64, 125, 216];
-      const base = cubeBases[i % cubeBases.length];
-      const root = Math.round(Math.cbrt(base));
-      const negative = i % 2 === 0;
+      const r = randInt(2, 6);
+      const cube = r ** 3;
+      if (round % 2 === 0) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Evaluate ${cube}^(-1/3). Write it as a fraction.`,
+          hint: "Take the cube root, then flip it.",
+          answer: 1 / r,
+          explanation: `${cube}^(-1/3) = 1/³√${cube} = 1/${r}`,
+        };
+      }
       return {
         id: "",
         type: "numeric",
-        prompt: negative
-          ? `Evaluate: ${base}^(-1/3)  (round to the thousandths place)`
-          : `Evaluate: ${base}^(1/3)`,
-        hint: negative ? `Take the cube root, then flip it.` : "A power of 1/3 means cube root.",
-        answer: negative ? Math.round((1 / root) * 1000) / 1000 : root,
-        decimalPlaces: negative ? 3 : undefined,
-        explanation: negative
-          ? `${base}^(-1/3) = 1/${root} ≈ ${Math.round((1 / root) * 1000) / 1000}`
-          : `${base}^(1/3) = ³√${base} = ${root}`,
+        prompt: `Evaluate ${cube}^(1/3).`,
+        hint: "A power of 1/3 means the cube root.",
+        answer: r,
+        explanation: `${cube}^(1/3) = ³√${cube} = ${r}`,
       };
     }),
 
   "scientific-notation": (seeds) =>
     fillToCount("scientific-notation", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const exp = randInt(3, 7);
-      const coeff = randInt(12, 99) / 10;
-      const number = coeff * 10 ** exp;
-      const correct = `${coeff} × 10^${exp}`;
+      const kind = i % 3;
+      // The coefficient in tenths, so every number here is exact.
+      let tenths = randInt(11, 99);
+      if (tenths % 10 === 0) tenths += 1;
+      const c = fmtNum(tenths / 10);
+      if (kind === 0) {
+        const exp = randInt(3, 8);
+        const number = tenths * 10 ** (exp - 1);
+        const correct = `${c} × 10^${exp}`;
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Write ${usNum(number)} in scientific notation.`,
+          hint: "Move the decimal point until the number in front is at least 1 and less than 10.",
+          answer: correct,
+          // Every wrong choice is a different number, not the right one written unscientifically.
+          choices: mcChoices(correct, [`${c} × 10^${exp + 1}`, `${c} × 10^${exp - 1}`, `${fmtNum(tenths / 100)} × 10^${exp}`, `${tenths} × 10^${exp}`]),
+          explanation: `The decimal point moves ${exp} places left: ${usNum(number)} = ${correct}`,
+        };
+      }
+      if (kind === 1) {
+        const exp = randInt(2, 5);
+        const digits = String(tenths).replace(/0$/, "");
+        const small = `0.${"0".repeat(exp - 1)}${digits}`;
+        const correct = `${c} × 10^-${exp}`;
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Write ${small} in scientific notation.`,
+          hint: "A number less than 1 gets a negative power of 10: count the places the decimal point moves right.",
+          answer: correct,
+          choices: mcChoices(correct, [`${c} × 10^${exp}`, `${c} × 10^-${exp + 1}`, `${c} × 10^-${exp - 1}`, `${tenths} × 10^-${exp}`]),
+          explanation: `The decimal point moves ${exp} places right: ${small} = ${correct}`,
+        };
+      }
+      const exp = randInt(2, 6);
+      const number = tenths * 10 ** (exp - 1);
       return {
         id: "",
-        type: "multiple-choice",
-        prompt: `Write ${number.toLocaleString()} in scientific notation.`,
-        hint: "Move the decimal so 1 ≤ a < 10.",
-        answer: correct,
-        choices: mcChoices(correct, [`${coeff * 10} × 10^${exp - 1}`, `${coeff / 10} × 10^${exp + 1}`, `${coeff} × 10^${exp + 1}`]),
-        explanation: `${number.toLocaleString()} = ${correct}`,
+        type: "numeric",
+        prompt: `Write ${c} × 10^${exp} as a regular number.`,
+        hint: `Move the decimal point ${exp} places to the right.`,
+        answer: number,
+        explanation: `${c} × 10^${exp} = ${usNum(number)}`,
       };
     }),
 
   "simplifying-radicals": (seeds) =>
     fillToCount("simplifying-radicals", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const squares = [4, 9, 16, 25, 36, 49, 64, 81, 100];
-      const square = squares[i % squares.length];
-      const root = Math.sqrt(square);
-      // The leftover factor must itself have no square in it, or the "right"
-      // choice is not simplest form: 100 x 12 gave √1200 = 10√12, when the
-      // answer a student who simplifies fully reaches is 20√3.
-      const squareFree = [2, 3, 5, 6, 7, 10, 11];
-      const inside = square * squareFree[randInt(0, squareFree.length - 1)];
       if (i % 3 !== 0) {
+        const square = pick([4, 9, 16, 25, 36, 49, 64, 81, 100]);
+        const root = Math.sqrt(square);
+        // The leftover factor has no square in it, so root√f is fully simplified.
+        const f = pick([2, 3, 5, 6, 7, 10, 11, 13, 14, 15]);
+        const inside = square * f;
+        const answer = rad(root, f);
+        // Every wrong choice has a different value from √inside.
+        const wrong = [`${square}√${f}`, rad(root + 1, f), rad(root > 2 ? root - 1 : root + 2, f), f !== root ? rad(f, root) : `${root}√${f + 1}`];
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Simplify √${inside}`,
-          hint: `Factor out perfect squares from ${inside}.`,
-          answer: `${root}√${inside / square}`,
-          choices: mcChoices(`${root}√${inside / square}`, [
-            `${inside}`,
-            `√${inside}`,
-            `${root + 1}√${inside / square}`,
-          ]),
-          explanation: `√${inside} = √(${square}·${inside / square}) = ${root}√${inside / square}`,
+          prompt: `Write √${inside} in simplest radical form.`,
+          hint: `Find the largest perfect square that divides ${inside}.`,
+          answer,
+          choices: mcChoices(answer, wrong),
+          explanation: `√${inside} = √(${square} × ${f}) = √${square} × √${f} = ${answer}`,
         };
       }
+      const r = randInt(2, 15);
       return {
         id: "",
         type: "numeric",
-        prompt: `Simplify √${square}`,
-        hint: "What number squared equals this?",
-        answer: root,
-        explanation: `√${square} = ${root}`,
+        prompt: `Simplify √${r * r}`,
+        hint: "What number times itself gives this?",
+        answer: r,
+        explanation: `${r} × ${r} = ${r * r}, so √${r * r} = ${r}`,
       };
     }),
 
   "exponential-functions": (seeds) =>
     fillToCount("exponential-functions", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const a = randInt(2, 5);
-      const b = randInt(2, 4);
-      const x = randInt(1, 4);
-      if (i % 2 === 0) {
+      const kind = i % 4;
+      const a = randInt(2, 6);
+      let b = randInt(2, 5);
+      if (b === a) b = a === 5 ? 3 : a + 1;
+      if (kind === 0) {
+        const answer = `y = ${a}(${b})^x`;
         return {
           id: "",
           type: "multiple-choice",
-          prompt: "Which is an exponential function?",
-          hint: "Look for the variable in the exponent.",
-          answer: `y = ${a}(${b})^x`,
-          choices: mcChoices(`y = ${a}(${b})^x`, [`y = ${b}x + ${a}`, `y = x^${a}`, `y = ${a}/x`]),
-          explanation: `y = ${a}(${b})^x has x in the exponent.`,
+          prompt: `Which function starts at ${a} and multiplies by ${b} each time x goes up by 1?`,
+          hint: "In y = a(b)^x, a is the starting value and b is what you multiply by.",
+          answer,
+          choices: mcChoices(answer, [`y = ${b}(${a})^x`, `y = ${lin(a, b)}`, `y = ${lin(b, a)}`, `y = ${a}x^${b}`]),
+          explanation: `Start at ${a} and multiply by ${b} each step: ${answer}.`,
         };
       }
+      if (kind === 1) {
+        const decay = randInt(0, 1) === 1;
+        const base = decay ? pick(["0.5", "0.8", "0.25", "0.9"]) : pick(["1.5", "2", "3", "1.2"]);
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Is y = ${a}(${base})^x exponential growth or decay?`,
+          hint: "Look at the base: more than 1 grows, between 0 and 1 decays.",
+          answer: decay ? "Decay" : "Growth",
+          choices: mcChoices(decay ? "Decay" : "Growth", ["Growth", "Decay", "Neither"]),
+          explanation: `The base is ${base}, which is ${decay ? "between 0 and 1, so it decays" : "more than 1, so it grows"}.`,
+        };
+      }
+      if (kind === 2) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `What is the starting value (the y-intercept) of y = ${a}(${b})^x?`,
+          hint: "Put in x = 0: any base to the 0 power is 1.",
+          answer: a,
+          explanation: `At x = 0, ${b}^0 = 1, so y = ${a} × 1 = ${a}.`,
+        };
+      }
+      const x = randInt(1, 4);
       return {
         id: "",
         type: "numeric",
         prompt: `Evaluate f(x) = ${a}(${b})^x at x = ${x}.`,
-        hint: `Compute ${b}^${x} first.`,
+        hint: `Work out ${b}^${x} first, then multiply by ${a}.`,
         answer: a * b ** x,
-        explanation: `${a} × ${b}^${x} = ${a * b ** x}`,
+        explanation: `${a} × ${b}^${x} = ${a} × ${b ** x} = ${a * b ** x}`,
       };
     }),
 
   "exponential-growth": (seeds) =>
     fillToCount("exponential-growth", seeds, PROBLEMS_PER_SKILL, (i) => {
       const principal = randInt(5, 20) * 100;
-      const rate = [0.03, 0.04, 0.05, 0.06][i % 4];
+      const pct = [3, 4, 5, 6][i % 4];
       const years = randInt(2, 4);
-      const value = principal * (1 + rate) ** years;
+      // Whole-number arithmetic in cents, so a value that ends in half a cent rounds up as it should.
+      const cents = Math.round((principal * (100 + pct) ** years) / 100 ** (years - 1));
+      const value = cents / 100;
+      const factor = (100 + pct) / 100;
       return {
         id: "",
         type: "numeric",
-        prompt: `$${principal} invested at ${rate * 100}% annual interest compounded annually. Value after ${years} years? (round to the hundredths place, the nearest cent)`,
-        hint: `Use ${principal}(1.${String(rate * 100).padStart(2, "0")})^${years}`,
-        answer: Math.round(value * 100) / 100,
+        prompt: `$${principal} invested at ${pct}% annual interest compounded annually. Value after ${years} years? (round to the hundredths place, the nearest cent)`,
+        hint: `Use ${principal}(${factor})^${years}`,
+        answer: value,
         decimalPlaces: 2,
-        explanation: `$${principal}(1 + ${rate})^${years} ≈ $${Math.round(value * 100) / 100}`,
+        explanation: `$${principal} × ${factor}^${years} ≈ $${money(value)}`,
       };
     }),
 
   "exponential-decay": (seeds) =>
     fillToCount("exponential-decay", seeds, PROBLEMS_PER_SKILL, (i) => {
       const value0 = randInt(10, 30) * 1000;
-      const rate = [0.1, 0.12, 0.15, 0.2][i % 4];
+      const pct = [10, 12, 15, 20][i % 4];
       const years = randInt(1, 3);
-      const value = value0 * (1 - rate) ** years;
+      // Exact: whole numbers until the one division, so a value ending in .50 rounds up.
+      const exact = (value0 * (100 - pct) ** years) / 100 ** years;
+      const rounded = Math.round(exact);
+      const factor = (100 - pct) / 100;
       return {
         id: "",
         type: "numeric",
-        prompt: `A car worth $${value0.toLocaleString()} depreciates ${rate * 100}% per year. Value after ${years} year(s)? (round to the nearest whole dollar)`,
-        hint: `Multiply by ${1 - rate} each year.`,
-        answer: Math.round(value),
+        prompt: `A car worth $${usNum(value0)} loses ${pct}% of its value each year. What is it worth after ${years} ${years === 1 ? "year" : "years"}? (round to the nearest whole dollar)`,
+        hint: `Multiply by ${factor} once for each year.`,
+        answer: rounded,
         decimalPlaces: 0,
-        explanation: `$${value0.toLocaleString()} × ${1 - rate}^${years} ≈ $${Math.round(value).toLocaleString()}`,
+        explanation: `$${usNum(value0)} × ${factor}^${years} = $${money(exact)}, which rounds to $${usNum(rounded)}`,
       };
     }),
 
   "multiplying-binomials": (seeds) =>
     fillToCount("multiplying-binomials", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const kind = i % 3;
+      const kind = i % 4;
       const b = randInt(2, 12);
-      const c = randInt(2, 12);
+      let c = randInt(2, 12);
+      if (b === 2 && c === 2) c = 3; // 2 × 2 = 2 + 2 would turn two wrong choices into the answer
       if (kind === 0) {
-        const correct = `x² + ${b + c}x + ${b * c}`;
+        const answer = quad(1, b + c, b * c);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x + ${b})(x + ${c})`,
-          hint: "Use FOIL.",
-          answer: correct,
-          choices: mcChoices(correct, [
-            `x² + ${b * c}x + ${b + c}`,
-            `x² + ${b + c}`,
-            `x² + ${b + c}x + ${b + c}`,
-          ]),
-          explanation: `(x + ${b})(x + ${c}) = ${correct}`,
+          hint: "Multiply each term in the first bracket by each term in the second (FOIL).",
+          answer,
+          choices: mcChoices(answer, [quad(1, b * c, b + c), quad(1, 0, b * c), quad(1, b + c, b + c), quad(1, b * c, b * c)]),
+          explanation: `(x + ${b})(x + ${c}) = x² + ${c}x + ${b}x + ${b * c} = ${answer}`,
         };
       }
       if (kind === 1) {
-        const diff = b - c;
-        const correct = `x² ${diff >= 0 ? "+" : "−"} ${Math.abs(diff)}x − ${b * c}`;
+        const answer = quad(1, b - c, -b * c);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x + ${b})(x − ${c})`,
-          hint: "Use FOIL, the last term will be negative.",
-          answer: correct,
-          choices: mcChoices(correct, [
-            `x² + ${b + c}x − ${b * c}`,
-            `x² − ${b * c}`,
-            `x² ${diff >= 0 ? "+" : "−"} ${Math.abs(diff)}x + ${b * c}`,
-          ]),
-          explanation: `(x + ${b})(x − ${c}) = ${correct}`,
+          hint: "FOIL: the last term is a positive times a negative.",
+          answer,
+          choices: mcChoices(answer, [quad(1, b + c, -b * c), quad(1, b - c, b * c), quad(1, c - b, -b * c), quad(1, 0, -b * c), quad(1, 0, b * c)]),
+          explanation: `(x + ${b})(x − ${c}) = x² − ${c}x + ${b}x − ${b * c} = ${answer}`,
+        };
+      }
+      if (kind === 2) {
+        const answer = quad(1, -(b + c), b * c);
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Expand (x − ${b})(x − ${c})`,
+          hint: "FOIL: a negative times a negative is positive.",
+          answer,
+          choices: mcChoices(answer, [quad(1, b + c, b * c), quad(1, -(b + c), -b * c), quad(1, 0, b * c), quad(1, -b * c, b + c)]),
+          explanation: `(x − ${b})(x − ${c}) = x² − ${c}x − ${b}x + ${b * c} = ${answer}`,
         };
       }
       const a = randInt(2, 5);
-      const correct = `${a}x² + ${a * c + b}x + ${b * c}`;
+      const answer = quad(a, a * c + b, b * c);
       return {
         id: "",
         type: "multiple-choice",
         prompt: `Expand (${a}x + ${b})(x + ${c})`,
-        hint: "Distribute each term of the first binomial across the second.",
-        answer: correct,
-        choices: mcChoices(correct, [
-          `${a}x² + ${b + c}x + ${b * c}`,
-          `x² + ${a * c + b}x + ${b * c}`,
-          `${a}x² + ${a * c + b}x + ${b + c}`,
-        ]),
-        explanation: `(${a}x + ${b})(x + ${c}) = ${correct}`,
+        hint: "Multiply each term of the first bracket by each term of the second.",
+        answer,
+        choices: mcChoices(answer, [quad(a, b + c, b * c), quad(1, a * c + b, b * c), quad(a, a * c + b, b + c), quad(a, a * b + c, b * c)]),
+        explanation: `(${a}x + ${b})(x + ${c}) = ${a}x² + ${a * c}x + ${b}x + ${b * c} = ${answer}`,
       };
     }),
 
   "special-products": (seeds) =>
     fillToCount("special-products", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 4;
-      const n = randInt(2, 16);
+      const n = randInt(3, 16);
       if (kind === 0) {
-        const correct = `x² + ${2 * n}x + ${n * n}`;
+        const answer = quad(1, 2 * n, n * n);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x + ${n})²`,
-          hint: "Don't forget the middle term.",
-          answer: correct,
-          choices: mcChoices(correct, [`x² + ${n * n}`, `x² + ${n}x + ${n * n}`, `x² + ${2 * n}`]),
-          explanation: `(x + ${n})² = ${correct}`,
+          hint: "(a + b)² = a² + 2ab + b²: keep the middle term.",
+          answer,
+          choices: mcChoices(answer, [quad(1, 0, n * n), quad(1, n, n * n), quad(1, 2 * n, 2 * n), quad(1, n * n, 2 * n)]),
+          explanation: `(x + ${n})² = x² + 2(${n})x + ${n}² = ${answer}`,
         };
       }
       if (kind === 1) {
-        const correct = `x² − ${2 * n}x + ${n * n}`;
+        const answer = quad(1, -2 * n, n * n);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x − ${n})²`,
-          hint: "The middle term is negative.",
-          answer: correct,
-          choices: mcChoices(correct, [`x² − ${n * n}`, `x² − ${n}x + ${n * n}`, `x² + ${2 * n}x + ${n * n}`]),
-          explanation: `(x − ${n})² = ${correct}`,
+          hint: "(a − b)² = a² − 2ab + b²: the middle term is negative, the last is positive.",
+          answer,
+          choices: mcChoices(answer, [quad(1, 0, -n * n), quad(1, -n, n * n), quad(1, 2 * n, n * n), quad(1, -2 * n, -n * n)]),
+          explanation: `(x − ${n})² = x² − 2(${n})x + ${n}² = ${answer}`,
         };
       }
       if (kind === 2) {
+        const answer = quad(1, 0, -n * n);
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Expand (x + ${n})(x − ${n})`,
-          hint: "Difference of squares.",
-          answer: `x² − ${n * n}`,
-          choices: mcChoices(`x² − ${n * n}`, [`x² + ${n * n}`, `x² − ${n}`, `x² − ${2 * n}`]),
-          explanation: `(x + ${n})(x − ${n}) = x² − ${n * n}`,
+          hint: "A sum times a difference: the middle terms cancel.",
+          answer,
+          choices: mcChoices(answer, [quad(1, 0, n * n), quad(1, 0, -2 * n), quad(1, 2 * n, -n * n), quad(1, -2 * n, -n * n)]),
+          explanation: `(x + ${n})(x − ${n}) = x² − ${n}x + ${n}x − ${n * n} = ${answer}`,
         };
       }
       const a = randInt(2, 5);
-      const correct = `${a * a}x² − ${n * n}`;
+      const answer = quad(a * a, 0, -n * n);
       return {
         id: "",
         type: "multiple-choice",
         prompt: `Expand (${a}x + ${n})(${a}x − ${n})`,
-        hint: "Difference of squares works with coefficients too.",
-        answer: correct,
-        choices: mcChoices(correct, [`${a}x² − ${n * n}`, `${a * a}x² + ${n * n}`, `${a * a}x² − ${n}`]),
-        explanation: `(${a}x + ${n})(${a}x − ${n}) = ${correct}`,
+        hint: "A sum times a difference: square each term and subtract.",
+        answer,
+        choices: mcChoices(answer, [quad(a, 0, -n * n), quad(a * a, 0, n * n), quad(a * a, 0, -2 * n), quad(a * a, -2 * a * n, -n * n)]),
+        explanation: `(${a}x + ${n})(${a}x − ${n}) = (${a}x)² − ${n}² = ${answer}`,
       };
     }),
 
   "factoring-trinomials": (seeds) =>
     fillToCount("factoring-trinomials", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const r = randInt(2, 14);
-      const s = randInt(2, 14);
-      const b = r + s;
-      const c = r * s;
-      const correct = `(x + ${r})(x + ${s})`;
+      // Roots of either sign; the middle term is never zero (that is a difference of squares).
+      let p = i % 2 === 0 ? randInt(1, 12) : nonZero(-9, 9);
+      let q = i % 2 === 0 ? randInt(2, 12) : nonZero(-9, 9);
+      while (p + q === 0 || p === q) q = q + 1 === 0 ? 2 : q + 1;
+      if (p > q) [p, q] = [q, p];
+      const b = p + q;
+      const c = p * q;
+      const answer = `${factor(p)}${factor(q)}`;
+      // Wrong pairs, none of which multiplies back out to the trinomial.
+      const pairs: [number, number][] = [[-p, -q], [p - 1, q + 1], [p + 1, q - 1], [1, c], [p, -q], [-p, q]];
+      const wrong = pairs
+        .filter(([u, v]) => u !== 0 && v !== 0 && !(u + v === b && u * v === c))
+        .map(([u, v]) => `${factor(Math.min(u, v))}${factor(Math.max(u, v))}`);
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Factor x² + ${b}x + ${c}`,
+        prompt: `Factor ${quad(1, b, c)}`,
         hint: `Find two numbers that multiply to ${c} and add to ${b}.`,
-        answer: correct,
-        choices: mcChoices(correct, [`(x + ${r + 1})(x + ${s - 1})`, `(x + 1)(x + ${c})`, `(x − ${r})(x − ${s})`]),
-        explanation: `${r} × ${s} = ${c} and ${r} + ${s} = ${b}`,
+        answer,
+        choices: mcChoices(answer, wrong),
+        explanation: `${p} × ${par(q)} = ${c} and ${p} + ${par(q)} = ${b}, so ${quad(1, b, c)} = ${answer}.`,
       };
     }),
 
   "factoring-special": (seeds) =>
     fillToCount("factoring-special", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const kind = i % 3;
+      const kind = i % 4;
       const n = randInt(2, 20);
       if (kind === 0) {
+        const answer = `(x + ${n})(x − ${n})`;
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Factor x² − ${n * n}`,
-          hint: "Difference of squares.",
-          answer: `(x + ${n})(x − ${n})`,
-          choices: mcChoices(`(x + ${n})(x − ${n})`, [`(x − ${n})²`, `(x + ${n * n})(x − 1)`, "Cannot factor"]),
-          explanation: `x² − ${n * n} = (x + ${n})(x − ${n})`,
+          hint: "A difference of squares: A² − B² = (A + B)(A − B).",
+          answer,
+          choices: mcChoices(answer, [`(x − ${n})²`, `(x + ${n})²`, `(x + ${n * n})(x − 1)`, "Cannot factor"]),
+          explanation: `x² − ${n * n} = x² − ${n}² = ${answer}`,
         };
       }
       if (kind === 1) {
+        const answer = `(x + ${n})²`;
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Factor x² + ${2 * n}x + ${n * n}`,
-          hint: "This is a perfect square trinomial.",
-          answer: `(x + ${n})²`,
-          choices: mcChoices(`(x + ${n})²`, [`(x − ${n})²`, `(x + ${n})(x − ${n})`, `(x + ${2 * n})(x + 1)`]),
-          explanation: `x² + ${2 * n}x + ${n * n} = (x + ${n})²`,
+          hint: "A perfect square trinomial: A² + 2AB + B² = (A + B)².",
+          answer,
+          choices: mcChoices(answer, [`(x − ${n})²`, `(x + ${n})(x − ${n})`, `(x + ${2 * n})(x + 1)`]),
+          explanation: `${n * n} = ${n}² and ${2 * n} = 2 × ${n}, so x² + ${2 * n}x + ${n * n} = ${answer}`,
+        };
+      }
+      if (kind === 2) {
+        const answer = `(x − ${n})²`;
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Factor x² − ${2 * n}x + ${n * n}`,
+          hint: "A perfect square trinomial: A² − 2AB + B² = (A − B)².",
+          answer,
+          choices: mcChoices(answer, [`(x + ${n})²`, `(x + ${n})(x − ${n})`, `(x − ${2 * n})(x − 1)`]),
+          explanation: `${n * n} = ${n}² and ${2 * n} = 2 × ${n}, with a minus in the middle, so it is ${answer}`,
         };
       }
       const a = randInt(2, 4);
-      // Keep a and n with no common factor. With one, "9x² − 9" factors
-      // further (to 9(x + 1)(x − 1)) and the listed answer is not complete.
+      // a and m share no factor, so the answer is factored all the way.
       let m = n;
       while (gcd(a, m) > 1) m += 1;
+      const answer = `(${a}x + ${m})(${a}x − ${m})`;
       return {
         id: "",
         type: "multiple-choice",
         prompt: `Factor ${a * a}x² − ${m * m}`,
-        hint: "Difference of squares works with coefficients, factor out the square root of each term.",
-        answer: `(${a}x + ${m})(${a}x − ${m})`,
-        choices: mcChoices(`(${a}x + ${m})(${a}x − ${m})`, [
-          `(${a}x − ${m})²`,
-          `(${a}x + ${m})²`,
-          "Cannot factor",
-        ]),
-        explanation: `${a * a}x² − ${m * m} = (${a}x + ${m})(${a}x − ${m})`,
+        hint: `Write each term as a square: ${a * a}x² = (${a}x)² and ${m * m} = ${m}². Then A² − B² = (A + B)(A − B).`,
+        answer,
+        choices: mcChoices(answer, [`(${a}x − ${m})²`, `(${a}x + ${m})²`, `(${a * a}x + ${m})(x − ${m})`, "Cannot factor"]),
+        explanation: `${a * a}x² − ${m * m} = (${a}x)² − ${m}² = ${answer}`,
       };
     }),
 
   "graphing-parabolas": (seeds) =>
     fillToCount("graphing-parabolas", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const a = randInt(1, 4) * (i % 2 === 0 ? -1 : 1);
-      const h = randInt(1, 6);
-      const k = randInt(1, 8);
-      if (i % 2 === 0) {
+      const kind = i % 4;
+      if (kind === 0) {
+        const a = randInt(1, 4) * (randInt(0, 1) === 0 ? -1 : 1);
+        const k = randInt(-8, 8);
+        const up = a > 0;
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Does y = ${fmtSigned(a)}x² + ${k} open up or down?`,
-          hint: "Check the sign of a.",
-          answer: a > 0 ? "Up" : "Down",
-          choices: mcChoices(a > 0 ? "Up" : "Down", ["Up", "Down", "Left", "Right"]),
-          explanation: `${a > 0 ? "Positive" : "Negative"} leading coefficient → opens ${a > 0 ? "up" : "down"}.`,
+          prompt: `Does y = ${quad(a, 0, k)} open up or down?`,
+          hint: "Check the sign of a, the number in front of x².",
+          answer: up ? "Up" : "Down",
+          choices: mcChoices(up ? "Up" : "Down", ["Up", "Down", "Left", "Right"]),
+          explanation: `a = ${a} is ${up ? "positive, so it opens up" : "negative, so it opens down"}.`,
         };
       }
+      const h = nonZero(-6, 6);
+      const k = randInt(-8, 8);
+      const vertexForm = `y = (${shift("x", h)})²${plusTerm(k)}`;
+      if (kind === 1 || kind === 2) {
+        const askX = kind === 1;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `What is the ${askX ? "x" : "y"}-coordinate of the vertex of ${vertexForm}?`,
+          hint: "In y = (x − h)² + k the vertex is (h, k). Watch the sign of h.",
+          answer: askX ? h : k,
+          explanation: `${vertexForm} has vertex (${h}, ${k}).`,
+        };
+      }
+      const b = 2 * nonZero(-6, 6);
+      const c = randInt(-9, 9);
       return {
         id: "",
         type: "numeric",
-        prompt: `What is the x-coordinate of the vertex of y = (x − ${h})² + ${k}?`,
-        hint: "Vertex form (x − h)² + k",
-        answer: h,
-        explanation: `The vertex is (${h}, ${k}).`,
+        prompt: `The axis of symmetry of y = ${quad(1, b, c)} is the line x = k. What is k?`,
+        hint: "The axis of symmetry is x = −b / (2a).",
+        answer: -b / 2,
+        explanation: `x = −b / (2a) = −(${b}) / 2 = ${-b / 2}`,
       };
     }),
 
@@ -1383,29 +1772,31 @@ const generators: Record<string, SkillGenerator> = {
     fillToCount("solving-by-factoring", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 3;
       if (kind === 0) {
-        const r = randInt(2, 15);
-        const s = randInt(2, 15);
-        const b = -(r + s);
-        const c = r * s;
-        const smaller = Math.min(r, s);
+        const r = nonZero(-9, 12);
+        let s = nonZero(-9, 12);
+        while (s === r || s === -r) s = s + 1 === 0 ? 2 : s + 1;
+        const bigger = i % 2 === 0;
+        const want = bigger ? Math.max(r, s) : Math.min(r, s);
+        const eq = `${quad(1, -(r + s), r * s)} = 0`;
         return {
           id: "",
           type: "numeric",
-          prompt: `Solve x² ${b >= 0 ? "+" : "−"} ${Math.abs(b)}x + ${c} = 0. Smaller root?`,
-          hint: `Factor: (x − ${r})(x − ${s}) = 0`,
-          answer: smaller,
-          explanation: `x = ${r} or x = ${s}. Smaller = ${smaller}.`,
+          prompt: `Solve ${eq}. What is the ${bigger ? "larger" : "smaller"} root?`,
+          hint: `Factor it into two brackets, then set each one equal to 0.`,
+          answer: want,
+          explanation: `${factor(-r)}${factor(-s)} = 0, so x = ${r} or x = ${s}. The ${bigger ? "larger" : "smaller"} root is ${want}.`,
         };
       }
       if (kind === 1) {
         const n = randInt(2, 15);
+        const positive = i % 2 === 1;
         return {
           id: "",
           type: "numeric",
-          prompt: `Solve x² − ${n * n} = 0. Positive root?`,
-          hint: "Difference of squares.",
-          answer: n,
-          explanation: `x = ±${n}. Positive root = ${n}.`,
+          prompt: `Solve x² − ${n * n} = 0. What is the ${positive ? "positive" : "negative"} root?`,
+          hint: "A difference of squares, or add the number to both sides and take the square root.",
+          answer: positive ? n : -n,
+          explanation: `(x + ${n})(x − ${n}) = 0, so x = ${n} or x = ${-n}.`,
         };
       }
       const r = randInt(1, 10);
@@ -1413,10 +1804,10 @@ const generators: Record<string, SkillGenerator> = {
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve x(${a}x − ${a * r}) = 0. Positive root (other than 0)?`,
-        hint: `Set each factor equal to zero: x = 0 or ${a}x = ${a * r}.`,
+        prompt: `Solve x(${a}x − ${a * r}) = 0. What is the nonzero root?`,
+        hint: `Set each factor equal to zero: x = 0 or ${a}x − ${a * r} = 0.`,
         answer: r,
-        explanation: `x = 0 or x = ${r}. The nonzero root is ${r}.`,
+        explanation: `x = 0 or ${a}x = ${a * r}, so the nonzero root is ${r}.`,
       };
     }),
 
@@ -1430,76 +1821,115 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "multiple-choice",
           prompt: `Complete the square: x² + ${b}x + ___ = (x + ${b / 2})²`,
-          hint: `(b/2)²`,
+          hint: "Take half of the x coefficient, then square it: (b/2)².",
           answer: `${square}`,
           choices: mcChoices(`${square}`, [`${b}`, `${b / 2}`, `${b * b}`]),
-          explanation: `(${b}/2)² = ${square}`,
+          explanation: `(${b}/2)² = ${b / 2}² = ${square}`,
         };
       }
       return {
         id: "",
         type: "multiple-choice",
         prompt: `Complete the square: x² − ${b}x + ___ = (x − ${b / 2})²`,
-        hint: `(b/2)²`,
+        hint: "Take half of the x coefficient, then square it. A square is never negative.",
         answer: `${square}`,
-        choices: mcChoices(`${square}`, [`${-b}`, `${b / 2}`, `${b * b}`]),
-        explanation: `(−${b}/2)² = ${square}`,
+        choices: mcChoices(`${square}`, [`${-b}`, `${b / 2}`, `${b * b}`, `${-square}`]),
+        explanation: `(−${b}/2)² = (−${b / 2})² = ${square}`,
       };
     }),
 
   "quadratic-formula": (seeds) =>
     fillToCount("quadratic-formula", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const r = randInt(2, 11);
-      const s = randInt(2, 11);
-      const b = -(r + s);
-      const c = r * s;
       if (i % 3 === 0) {
+        // The outcome is chosen first, so 2, 1 and 0 each come up.
+        const outcome = pick(["2", "1", "0"] as const);
+        let b: number;
+        let c: number;
+        if (outcome === "2") {
+          const r = nonZero(-9, 9);
+          let s = nonZero(-9, 9);
+          while (s === r) s = nonZero(-9, 9);
+          b = -(r + s);
+          c = r * s;
+        } else if (outcome === "1") {
+          const r = nonZero(-9, 9);
+          b = -2 * r;
+          c = r * r;
+        } else {
+          b = randInt(-6, 6);
+          c = Math.floor((b * b) / 4) + randInt(1, 8);
+        }
         const disc = b * b - 4 * c;
-        const count = disc > 0 ? "2" : disc === 0 ? "1" : "0";
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `For x² ${b >= 0 ? "+" : "−"} ${Math.abs(b)}x + ${c} = 0, how many real solutions?`,
-          hint: "Compute the discriminant b² − 4ac.",
-          answer: count,
-          choices: mcChoices(count, ["0", "1", "2", "Infinitely many"]),
-          explanation: `Discriminant = ${disc}.`,
+          prompt: `For ${quad(1, b, c)} = 0, how many real solutions?`,
+          hint: "Work out the discriminant, b² − 4ac: positive means 2, zero means 1, negative means 0.",
+          answer: outcome,
+          choices: mcChoices(outcome, ["0", "1", "2", "Infinitely many"]),
+          explanation: `b² − 4ac = ${par(b)}² − 4(1)(${c}) = ${disc}, which is ${disc > 0 ? "positive, so there are 2 real solutions" : disc === 0 ? "zero, so there is exactly 1 real solution" : "negative, so there are 0 real solutions"}.`,
         };
       }
+      const r = nonZero(-9, 11);
+      let s = nonZero(-9, 11);
+      while (s === r) s = nonZero(-9, 11);
+      const bigger = i % 2 === 0;
+      const want = bigger ? Math.max(r, s) : Math.min(r, s);
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve x² ${b >= 0 ? "+" : "−"} ${Math.abs(b)}x + ${c} = 0. Smaller root?`,
-        hint: "Factor or use the quadratic formula.",
-        answer: Math.min(r, s),
-        explanation: `x = ${r} or x = ${s}.`,
+        prompt: `Solve ${quad(1, -(r + s), r * s)} = 0. What is the ${bigger ? "larger" : "smaller"} root?`,
+        hint: "Factor it, or use x = (−b ± √(b² − 4ac)) / 2a.",
+        answer: want,
+        explanation: `The roots are x = ${r} and x = ${s}, so the ${bigger ? "larger" : "smaller"} one is ${want}.`,
       };
     }),
 
   "absolute-value": (seeds) =>
     fillToCount("absolute-value", seeds, PROBLEMS_PER_SKILL, (i) => {
-      if (i % 2 === 0) {
-        const a = randInt(3, 15);
+      const kind = i % 4;
+      if (kind === 0) {
+        const a = randInt(2, 25);
+        const positive = i % 8 === 0;
         return {
           id: "",
           type: "numeric",
-          prompt: `Solve |x| = ${a}. Positive solution?`,
-          hint: "x = a or x = −a",
-          answer: a,
-          explanation: `x = ±${a}`,
+          prompt: `Solve |x| = ${a}. What is the ${positive ? "positive" : "negative"} solution?`,
+          hint: "|x| = a means x = a or x = −a.",
+          answer: positive ? a : -a,
+          explanation: `x = ${a} or x = ${-a}.`,
         };
       }
-      const h = randInt(1, 6);
-      const a = randInt(3, 9);
+      if (kind === 3) {
+        // Sometimes there is no solution at all, and sometimes exactly one.
+        const h = nonZero(-6, 6);
+        const none = i % 8 === 3;
+        const rhs = none ? -randInt(1, 9) : 0;
+        const answer = none ? "0" : "1";
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `How many solutions does |${shift("x", h)}| = ${rhs} have?`,
+          hint: "An absolute value is a distance: it can be 0, and it is never negative.",
+          answer,
+          choices: mcChoices(answer, ["0", "1", "2", "Infinitely many"]),
+          explanation: none
+            ? `An absolute value can never equal ${rhs}, so there are 0 solutions.`
+            : `|${shift("x", h)}| = 0 only when ${shift("x", h)} = 0, so there is exactly 1 solution: x = ${h}.`,
+        };
+      }
+      const h = nonZero(-6, 6);
+      const a = randInt(2, 9);
       const x1 = h + a;
       const x2 = h - a;
+      const larger = kind === 2;
       return {
         id: "",
         type: "numeric",
-        prompt: `Solve |x − ${h}| = ${a}. Smaller solution?`,
-        hint: "Set x − h = ±a.",
-        answer: Math.min(x1, x2),
-        explanation: `x = ${x1} or x = ${x2}.`,
+        prompt: `Solve |${shift("x", h)}| = ${a}. What is the ${larger ? "larger" : "smaller"} solution?`,
+        hint: `Split it: ${shift("x", h)} = ${a} or ${shift("x", h)} = ${-a}.`,
+        answer: larger ? x1 : x2,
+        explanation: `${shift("x", h)} = ${a} gives x = ${x1}, and ${shift("x", h)} = ${-a} gives x = ${x2}.`,
       };
     }),
 
@@ -1508,42 +1938,41 @@ const generators: Record<string, SkillGenerator> = {
       const kind = i % 3;
       const a = randInt(3, 20);
       if (kind === 0) {
+        const answer = `−${a} < x < ${a}`;
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Solve |x| < ${a}`,
-          hint: "Less than means between −a and a.",
-          answer: `−${a} < x < ${a}`,
-          choices: mcChoices(`−${a} < x < ${a}`, [`x < ${a}`, `x > −${a}`, `x < −${a} or x > ${a}`]),
-          explanation: `|x| < ${a} means −${a} < x < ${a}.`,
+          hint: "Less than a distance means between −a and a.",
+          answer,
+          choices: mcChoices(answer, [`x < ${a}`, `x > −${a}`, `x < −${a} or x > ${a}`]),
+          explanation: `|x| < ${a} means x is within ${a} of 0: ${answer}.`,
         };
       }
       if (kind === 1) {
+        const answer = `x < −${a} or x > ${a}`;
         return {
           id: "",
           type: "multiple-choice",
           prompt: `Solve |x| > ${a}`,
-          hint: "Greater than splits into two rays.",
-          answer: `x < −${a} or x > ${a}`,
-          choices: mcChoices(`x < −${a} or x > ${a}`, [`−${a} < x < ${a}`, `x > ${a}`, `x < −${a}`]),
-          explanation: `|x| > ${a} means x < −${a} or x > ${a}.`,
+          hint: "More than a distance splits into two rays.",
+          answer,
+          choices: mcChoices(answer, [`−${a} < x < ${a}`, `x > ${a}`, `x < −${a}`]),
+          explanation: `|x| > ${a} means x is more than ${a} from 0: ${answer}.`,
         };
       }
-      const h = randInt(1, 10);
+      const h = nonZero(-8, 10);
       const x1 = h - a;
       const x2 = h + a;
+      const answer = `${x1} ≤ x ≤ ${x2}`;
       return {
         id: "",
         type: "multiple-choice",
-        prompt: `Solve |x − ${h}| ≤ ${a}`,
-        hint: "Rewrite as −a ≤ x − h ≤ a, then add h to all parts.",
-        answer: `${x1} ≤ x ≤ ${x2}`,
-        choices: mcChoices(`${x1} ≤ x ≤ ${x2}`, [
-          `${x1 - 1} ≤ x ≤ ${x2 + 1}`,
-          `x ≤ ${x1}`,
-          `x ≥ ${x2}`,
-        ]),
-        explanation: `|x − ${h}| ≤ ${a} means ${x1} ≤ x ≤ ${x2}.`,
+        prompt: `Solve |${shift("x", h)}| ≤ ${a}`,
+        hint: `Rewrite as −${a} ≤ ${shift("x", h)} ≤ ${a}, then ${h > 0 ? "add" : "subtract"} ${Math.abs(h)} in all three parts.`,
+        answer,
+        choices: mcChoices(answer, [`${x1 - 1} ≤ x ≤ ${x2 + 1}`, `x ≤ ${x1}`, `x ≥ ${x2}`, `${-a} ≤ x ≤ ${a}`]),
+        explanation: `−${a} ≤ ${shift("x", h)} ≤ ${a} → ${answer}`,
       };
     }),
 
@@ -1552,53 +1981,48 @@ const generators: Record<string, SkillGenerator> = {
       const kind = i % 3;
       if (kind === 0) {
         const c = randInt(1, 8);
-        const x = randInt(-12, -1);
-        const useFirst = x < 0;
+        const x = randInt(-12, 6);
+        const first = x < 0;
         return {
           id: "",
           type: "numeric",
-          prompt: `f(x) = { x + ${c} if x < 0; x² if x ≥ 0 }. Find f(${fmtSigned(x)}).`,
-          hint: useFirst ? "Use the first rule since x < 0." : "Use the second rule.",
-          answer: useFirst ? x + c : x * x,
-          explanation: useFirst
-            ? `f(${fmtSigned(x)}) = ${fmtSigned(x)} + ${c} = ${x + c}`
-            : `f(${fmtSigned(x)}) = ${x}² = ${x * x}`,
+          prompt: `f(x) = { x + ${c} if x < 0; x² if x ≥ 0 }. Find f(${x}).`,
+          hint: first ? `${x} < 0, so use the first rule.` : `${x} ≥ 0, so use the second rule.`,
+          answer: first ? x + c : x * x,
+          explanation: first ? `${x} < 0: f(${x}) = ${x} + ${c} = ${x + c}` : `${x} ≥ 0: f(${x}) = ${par(x)}² = ${x * x}`,
         };
       }
       if (kind === 1) {
-        const m = randInt(1, 5);
-        const x = randInt(0, 12);
+        const m = randInt(2, 5);
+        const x = randInt(-8, 12);
+        const first = x < 0;
         return {
           id: "",
           type: "numeric",
-          prompt: `f(x) = { −x if x < 0; ${m}x if x ≥ 0 }. Find f(${fmtSigned(x)}).`,
-          hint: "Use the second rule since x ≥ 0.",
-          answer: m * x,
-          explanation: `f(${fmtSigned(x)}) = ${m}(${x}) = ${m * x}`,
+          prompt: `f(x) = { −x if x < 0; ${coef(m)} if x ≥ 0 }. Find f(${x}).`,
+          hint: first ? `${x} < 0, so use the first rule.` : `${x} ≥ 0, so use the second rule.`,
+          answer: first ? -x : m * x,
+          explanation: first ? `${x} < 0: f(${x}) = −(${x}) = ${-x}` : `${x} ≥ 0: f(${x}) = ${m}(${x}) = ${m * x}`,
         };
       }
       const boundary = randInt(1, 6);
       const x = randInt(-6, 10);
-      const useFirst = x < boundary;
+      const first = x < boundary;
       const a = randInt(2, 6);
       const b = randInt(1, 10);
       return {
         id: "",
         type: "numeric",
-        prompt: `f(x) = { ${a}x if x < ${boundary}; x + ${b} if x ≥ ${boundary} }. Find f(${fmtSigned(x)}).`,
-        hint: useFirst
-          ? `${x} < ${boundary}, so use the first rule.`
-          : `${x} ≥ ${boundary}, so use the second rule.`,
-        answer: useFirst ? a * x : x + b,
-        explanation: useFirst
-          ? `f(${fmtSigned(x)}) = ${a}(${x}) = ${a * x}`
-          : `f(${fmtSigned(x)}) = ${x} + ${b} = ${x + b}`,
+        prompt: `f(x) = { ${a}x if x < ${boundary}; x + ${b} if x ≥ ${boundary} }. Find f(${x}).`,
+        hint: first ? `${x} < ${boundary}, so use the first rule.` : `${x} ≥ ${boundary}, so use the second rule.`,
+        answer: first ? a * x : x + b,
+        explanation: first ? `f(${x}) = ${a}(${x}) = ${a * x}` : `f(${x}) = ${x} + ${b} = ${x + b}`,
       };
     }),
 };
 
 function genericNumericGenerator(skillId: string, seeds: PracticeProblem[]): PracticeProblem[] {
-  return fillToCount(skillId, seeds, PROBLEMS_PER_SKILL, (i) => {
+  return fillToCount(skillId, seeds, PROBLEMS_PER_SKILL, () => {
     const a = randInt(2, 9);
     const b = randInt(2, 9);
     const x = randInt(2, 12);
@@ -1622,7 +2046,12 @@ export function generateProblemBank(
   return withSeededGeneration((hashString(skillId) ^ seed) >>> 0, () => {
     const generator = generators[skillId];
     const bank = generator ? generator(seedProblems) : genericNumericGenerator(skillId, seedProblems);
-    return bank.map(withUniqueChoices);
+    // Hand-written problems keep the order their choices were typed in, which
+    // put the answer first on most of them. Shuffled here, from the same seed,
+    // so the server rebuilding this bank sees the same order.
+    return bank.map((p) =>
+      withUniqueChoices(p.type === "multiple-choice" && p.choices ? { ...p, choices: seededShuffle(p.choices) } : p)
+    );
   });
 }
 

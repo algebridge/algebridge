@@ -22,7 +22,9 @@ function cleanForSpeech(text: string): string {
     .replace(/[×÷≤≥≠√π±∞°]/g, (ch) => SYMBOL_WORDS[ch] ?? ch)
     .replace(/x²/g, "x squared")
     .replace(/x³/g, "x cubed")
-    .replace(/\^(-?\d+(?:\/\d+)?)/g, " to the power of $1 ")
+    // "x^(1/3)", "2^(−3)", "10^5", "2^n": every power a problem can show.
+    .replace(/\^\(([^()]{1,12})\)/g, " to the power of $1 ")
+    .replace(/\^([-−]?\d+(?:[./]\d+)?|[a-z])/g, " to the power of $1 ")
     .replace(/−/g, " minus ")
     .replace(/\s+/g, " ")
     .trim();

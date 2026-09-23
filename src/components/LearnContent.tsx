@@ -308,6 +308,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   onMasteryChange={handleMasteryChange}
                   practiceOnly={looking}
                   onPracticeRight={setPracticeRight}
+                  next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
                 />
               </section>
 

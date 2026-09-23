@@ -11,7 +11,8 @@
     "test:helper": "node --experimental-strip-types src/lib/__tests__/helper.test.ts",
     "test:practice": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/practice.test.ts",
     "stories:warm": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/warm-story-library.ts",
-    "furniture:export": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/export-furniture-png.ts"
+    "furniture:export": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/export-furniture-png.ts",
+    "test:problems": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/problems.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

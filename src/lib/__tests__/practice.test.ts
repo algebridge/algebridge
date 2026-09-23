@@ -562,8 +562,10 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   // Finish the rest of the unit: the bonus and the prize arrive once.
   let unitResult: ReturnType<typeof recordProblemAttempt> | null = null;
   for (const sk of u1.skills.slice(1)) for (let i = 0; i < 5; i += 1) unitResult = recordProblemAttempt(sk.id, true, { firstTry: true });
-  const expected = 25 + u1.skills.reduce((n, sk) => n + G.bridgeysForSkill(sk.id), 0) + G.BRIDGEY_REWARDS.unitComplete;
-  ok("finishing the unit pays every skill plus the unit bonus", unitResult!.unitJustCompleted && Pr.getProgress().bridgeys === expected, `${Pr.getProgress().bridgeys} vs ${expected}`);
+  // Fifteen right answers in a day also meet the daily goal, which pays once on top.
+  const expected = 25 + u1.skills.reduce((n, sk) => n + G.bridgeysForSkill(sk.id), 0) + G.BRIDGEY_REWARDS.unitComplete + G.BRIDGEY_REWARDS.dailyGoal;
+  ok("finishing the unit pays every skill, the unit bonus and the day's goal", unitResult!.unitJustCompleted && Pr.getProgress().bridgeys === expected, `${Pr.getProgress().bridgeys} vs ${expected}`);
+  ok("the daily goal paid exactly once", Pr.getProgress().daily?.paid === true && Pr.getProgress().daily!.right >= G.DAILY_GOAL);
   ok("and hands over the unit prize", unitResult!.unitPrizeId === "prize-ruler" && Pr.getProgress().ownedFurniture.includes("prize-ruler"));
   ok("the unit bonus is claimed once", Pr.getProgress().bridgeyRewardsClaimed!.units!.length === 1);
 
@@ -923,6 +925,60 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a save from the opt-in week goes back on, once", normalizeProgress({ leaderboardOptIn: false }).leaderboardOptIn === true);
   ok("a student who hid themselves stays hidden", normalizeProgress({ leaderboardOptIn: false, leaderboardDefaultV2: true }).leaderboardOptIn === false);
   ok("the board only ever gets First L.", L.publicLeaderboardName("Jordyn Harwood") === "Jordyn H." && L.publicLeaderboardName("") === "Anonymous Student");
+}
+
+// --- The daily goal ---------------------------------------------------------------
+{
+  const Pr = await import("../progress.ts");
+  const G = await import("../gamification.ts");
+  const B = await import("../bridgeys.ts");
+  store.clear();
+  const day1 = new Date(2026, 8, 23, 10);
+  const p = Pr.getProgress();
+  let paid = 0;
+  for (let i = 0; i < G.DAILY_GOAL - 1; i++) paid += Pr.tallyDaily(p, day1);
+  ok("the goal pays nothing before it is met", paid === 0 && Pr.dailyStatus(p, day1).right === G.DAILY_GOAL - 1 && !Pr.dailyStatus(p, day1).met);
+  const bonus = Pr.tallyDaily(p, day1);
+  ok("the tenth right answer pays the goal", bonus === G.BRIDGEY_REWARDS.dailyGoal && Pr.dailyStatus(p, day1).met);
+  ok("and only once that day", Pr.tallyDaily(p, day1) === 0 && Pr.tallyDaily(p, day1) === 0);
+  const day2 = new Date(2026, 8, 24, 9);
+  ok("a new day starts at zero", Pr.dailyStatus(p, day2).right === 0 && !Pr.dailyStatus(p, day2).met);
+  ok("and can pay again", (() => { let got = 0; for (let i = 0; i < G.DAILY_GOAL; i++) got += Pr.tallyDaily(p, day2); return got === G.BRIDGEY_REWARDS.dailyGoal; })());
+  Pr.saveProgress(p);
+  ok("a wrong answer counts nothing", (() => { store.clear(); const r = Pr.recordProblemAttempt(units[0].skills[0].id, false); return r.dailyRight === 0 && r.dailyBonus === 0; })());
+  ok("a right answer counts one", Pr.recordProblemAttempt(units[0].skills[0].id, true, { firstTry: true }).dailyRight === 1);
+  const today = (await import("../path.ts")).today();
+  ok("the rink counts toward the goal", B.awardRinkBridgeys(units[0].skills[0].id, today).dailyBonus === 0 && Pr.dailyStatus(Pr.getProgress()).right === 2);
+  ok("the course stats carry today's count", Pr.getCourseStats().todayRight === 2 && Pr.getCourseStats().dailyGoal === G.DAILY_GOAL);
+}
+
+// --- Grading what students actually type ------------------------------------------
+{
+  const { answerIsRight } = await import("../grading.ts");
+  const n = (answer: number, typed: string, dp?: number) => answerIsRight({ type: "numeric", answer, decimalPlaces: dp }, typed);
+  ok("f(4) = 11 is 11", n(11, "f(4) = 11") && n(14, "g(-3)=14"));
+  ok("a leading plus is fine", n(4, "+4"));
+  ok("a space after the minus is fine", n(-1 / 3, "- 1/3"));
+  ok("a power is its value", n(729, "3^6") && n(0.125, "2^(-3)"));
+  ok("0 is not 1/144", !n(1 / 144, "0") && !n(1 / 144, "0.00") && n(1 / 144, "1/144") && n(1 / 144, "0.0069"));
+  ok("negative halves round away from zero", n(-0.125, "-0.13") && !n(-0.125, "-0.12") && n(0.125, "0.13"));
+  ok("0 is still 0", n(0, "0") && n(0, "0.00"));
+  ok("a multiple-choice minus is either minus", answerIsRight({ type: "multiple-choice", answer: "−3" }, "-3"));
+}
+
+// --- Building banks ------------------------------------------------------------------
+{
+  const U = await import("../problem-utils.ts");
+  ok("5⁰ and 5^0 are the same card", U.canonicalPrompt("Simplify: 5⁰") === U.canonicalPrompt("Simplify:  5^0"));
+  ok("−x² and -x² are the same card", U.canonicalPrompt("Does y = −x² + 4 open up or down?") === U.canonicalPrompt("Does y = -x² + 4 open up or down?"));
+  ok("a copy tag is the same card", U.canonicalPrompt("Simplify √27 (Set 5)") === U.canonicalPrompt("Simplify √27"));
+  ok("fractions read as fractions", U.fractionText(0.125) === "1/8" && U.fractionText(-2 / 3) === "-2/3" && U.fractionText(4) === null && U.fractionText(Math.PI) === null);
+  // Both kinds of question on a two-kind skill: the old builder only ever saw one parity.
+  const bank = generateProblemBank("coordinate-plane", [], 99);
+  const quadrant = bank.filter((p) => /quadrant/.test(p.prompt)).length;
+  ok(`a two-kind skill serves both kinds evenly (${quadrant} of ${bank.length} quadrant)`, quadrant >= 20 && quadrant <= 30, String(quadrant));
+  const decay = generateProblemBank("exponential-decay", [], 5).find((p) => /\$25,000 loses 15%.*2 years/.test(p.prompt));
+  ok("the half-dollar car rounds up", !decay || decay.answer === 18063, String(decay?.answer));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -17,7 +17,10 @@ export function parseNumericAnswer(raw: string): number | null {
   let s = String(raw ?? "")
     .trim()
     .replace(/[−–]/g, "-") // typographic minus and en dash
+    .replace(/^[a-z]\s*\([^)]*\)\s*=\s*/i, "") // "f(4) = 11" is how function problems get answered
     .replace(/^[a-z]\s*=\s*/i, "") // "x = 5" is how a lot of students write 5
+    .replace(/^\+\s*/, "") // "+4" for a common difference
+    .replace(/^-\s+/, "-") // "- 1/3", with a space after the minus
     .replace(/^\$\s*/, "")
     .replace(/^(-)\s*\$\s*/, "$1");
 
@@ -42,6 +45,15 @@ export function parseNumericAnswer(raw: string): number | null {
     return Number(frac[1]) / den;
   }
 
+  // A power: "3^6" for 729, "2^(-3)" for 1/8. Exponent problems invite it.
+  const power = s.match(/^(-?\d+(?:\.\d+)?)\s*\^\s*\(?\s*(-?\d+(?:\/\d+)?)\s*\)?$/);
+  if (power) {
+    const [top, bottom] = power[2].split("/").map(Number);
+    const exponent = bottom ? top / bottom : top;
+    const v = Math.pow(Number(power[1]), exponent);
+    return Number.isFinite(v) && Math.abs(exponent) <= 40 ? v : null;
+  }
+
   // Thousands separators: "15,840" and "1,000,000", never "1,5".
   if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, "");
 
@@ -56,9 +68,11 @@ function typedDecimals(raw: string): number {
   return m ? m[1].length : 0;
 }
 
+/** Rounds half away from zero, the way it is taught: -0.125 is -0.13 to two places, like 0.125 is 0.13. */
 function roundTo(n: number, places: number): number {
   const f = Math.pow(10, places);
-  return Math.round(n * f) / f;
+  const x = Math.abs(n) * f;
+  return (Math.sign(n) * Math.round(x + 1e-9 * Math.max(1, x))) / f;
 }
 
 /**
@@ -84,6 +98,10 @@ export function numericAnswerMatches(
 
   if (Math.abs(expected - value) <= 1e-9 * Math.max(1, Math.abs(expected))) return true;
 
+  // A tiny answer (1/144 is 0.0069...) is judged by how close, not by rounding:
+  // rounded to two places it is 0.00, and "0" is not what the student worked out.
+  if (Math.abs(expected) < 0.01) return value !== 0 && Math.abs(expected - value) <= 0.05 * Math.abs(expected);
+
   const places = typedDecimals(given);
   if (places >= 2 && roundTo(expected, places) === roundTo(value, places)) return true;
 
@@ -92,7 +110,8 @@ export function numericAnswerMatches(
 }
 
 function normalizeAnswer(val: string | number): string {
-  return String(val).trim().toLowerCase().replace(/\s+/g, "");
+  // "−3" and "-3" are the same answer, whichever minus a generator typed.
+  return String(val).trim().toLowerCase().replace(/\s+/g, "").replace(/[−–]/g, "-");
 }
 
 /**

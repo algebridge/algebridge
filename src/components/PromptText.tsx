@@ -1,7 +1,39 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { mathSpans } from "@/lib/personalize";
+
+/**
+ * A power written with a caret ("x^3", "10^5", "x^(1/3)", "2^(−3)"), found so
+ * it can be drawn as a superscript. The exponent is a bracketed group, a
+ * signed number, or a single letter.
+ */
+const POWER = /\^(\([^()]{1,12}\)|[-−]?\d+(?:\.\d+)?|[a-z])/g;
+
+/**
+ * Text with its powers drawn as powers. Students type "^" into the
+ * calculator, but nobody writes it on paper, and "x^(1/3)" on a problem card
+ * reads as code rather than algebra.
+ */
+export function MathText({ text }: { text: string }): ReactNode {
+  const out: ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+  for (const m of String(text ?? "").matchAll(POWER)) {
+    const at = m.index ?? 0;
+    if (at > cursor) out.push(<Fragment key={key++}>{text.slice(cursor, at)}</Fragment>);
+    // "(1/3)" draws as a raised 1/3; the brackets were only there for the caret.
+    const exp = m[1].startsWith("(") ? m[1].slice(1, -1) : m[1];
+    out.push(
+      <sup key={key++} className="ml-px text-[0.72em] font-semibold">
+        {exp.replace(/^-/, "−")}
+      </sup>
+    );
+    cursor = at + m[0].length;
+  }
+  if (cursor < text.length) out.push(<Fragment key={key++}>{text.slice(cursor)}</Fragment>);
+  return <>{out}</>;
+}
 
 /**
  * The problem, with its math picked out. The equation is what gets solved and
@@ -31,10 +63,12 @@ export function PromptText({ text }: { text: string }) {
             key={i}
             className={`font-semibold text-slate-950 ${part.text.length <= 28 ? "whitespace-nowrap" : ""}`}
           >
-            {part.text}
+            <MathText text={part.text} />
           </span>
         ) : (
-          <span key={i}>{part.text}</span>
+          <span key={i}>
+            <MathText text={part.text} />
+          </span>
         )
       )}
     </p>

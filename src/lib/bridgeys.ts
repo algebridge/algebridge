@@ -16,7 +16,7 @@ import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
 import { units } from "@/data/curriculum";
 import { getSwatch, USABLE } from "@/data/furniture-art";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
-import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, touchActivity } from "@/lib/progress";
+import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, tallyDaily, touchActivity } from "@/lib/progress";
 import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
@@ -534,7 +534,10 @@ export function unplacedRinkItems(progress: UserProgress): string[] {
  * Pays for a problem solved on the rink, within the day's cap. Returns what
  * was paid (0 once the cap is reached) and what is left for today.
  */
-export function awardRinkBridgeys(skillId: string, day: string): { paid: number; remaining: number; solved: number } {
+export function awardRinkBridgeys(
+  skillId: string,
+  day: string
+): { paid: number; remaining: number; solved: number; dailyBonus: number } {
   const progress = getProgress();
   ensureBridgeyFields(progress);
   const r = progress.rink && progress.rink.day === day ? progress.rink : { day, earned: 0, solved: 0, best: progress.rink?.best ?? 0 };
@@ -544,10 +547,11 @@ export function awardRinkBridgeys(skillId: string, day: string): { paid: number;
   r.earned += paid;
   r.solved += 1;
   progress.rink = r;
-  // Solving on the rink is a day of practice too.
+  // Solving on the rink is a day of practice too, and counts toward the daily goal.
   touchActivity(progress);
+  const dailyBonus = tallyDaily(progress);
   saveProgress(progress);
-  return { paid, remaining: Math.max(0, RINK_DAILY_CAP - r.earned), solved: r.solved };
+  return { paid, remaining: Math.max(0, RINK_DAILY_CAP - r.earned), solved: r.solved, dailyBonus };
 }
 
 /** Keeps the best run of right answers in a row. */
