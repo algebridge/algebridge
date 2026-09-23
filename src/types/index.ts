@@ -118,8 +118,10 @@ export interface UserProgress {
   equippedTitleId?: string;
   /** Skill and unit IDs that already paid out Bridgey rewards (prevents double-claim). */
   bridgeyRewardsClaimed?: { complete: string[]; units?: string[] };
-  /** Share stats on the nationwide leaderboard (requires sign-in). */
+  /** Shown on the leaderboard (as "First L."). On unless the student hides themselves. */
   leaderboardOptIn?: boolean;
+  /** One-time switch: saves from the week the board was opt-in are put back on it. */
+  leaderboardDefaultV2?: boolean;
   /** One-time migration: backfill Bridgey economy fields for older saves. */
   bridgeyEconomyMigratedV1?: boolean;
   /** One-time migration: slot furniture → free-position coords. */

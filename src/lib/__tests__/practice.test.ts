@@ -915,5 +915,15 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a hung piece draws on the wall, behind the floor band", spot.y < D.FLOORS.up.floorTop && spot.depth === 0);
 }
 
+// --- The leaderboard default ------------------------------------------------------
+{
+  const { normalizeProgress } = await import("../progress.ts");
+  const L = await import("../leaderboard.ts");
+  ok("a new save is on the board", normalizeProgress({}).leaderboardOptIn === true);
+  ok("a save from the opt-in week goes back on, once", normalizeProgress({ leaderboardOptIn: false }).leaderboardOptIn === true);
+  ok("a student who hid themselves stays hidden", normalizeProgress({ leaderboardOptIn: false, leaderboardDefaultV2: true }).leaderboardOptIn === false);
+  ok("the board only ever gets First L.", L.publicLeaderboardName("Jordyn Harwood") === "Jordyn H." && L.publicLeaderboardName("") === "Anonymous Student");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
