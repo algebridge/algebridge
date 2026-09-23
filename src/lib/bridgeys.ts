@@ -61,7 +61,14 @@ function ensureBridgeyFields(progress: UserProgress): void {
     progress.bridgeyRewardsClaimed = { complete: [] };
   }
   if (!progress.bridgeyRewardsClaimed.units) progress.bridgeyRewardsClaimed.units = [];
-  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
+  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = true;
+  // Saves from the week (15 to 22 Sep 2026) when the board was opt-in were
+  // left off it by default; they go back on once, and the checkbox on the
+  // leaderboard page is the way off from then on.
+  if (!progress.leaderboardDefaultV2) {
+    progress.leaderboardOptIn = true;
+    progress.leaderboardDefaultV2 = true;
+  }
   if (!progress.ownedRinkItems) progress.ownedRinkItems = [];
   if (!progress.rinkDecor) progress.rinkDecor = {};
 
@@ -405,7 +412,7 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
     bestFurnitureValue: best?.prestige ?? 0,
     bestFurnitureName: best?.name ?? null,
     equippedTitle: getEquippedTitleLabel(progress),
-    leaderboardOptIn: progress.leaderboardOptIn ?? false,
+    leaderboardOptIn: progress.leaderboardOptIn ?? true,
   };
 }
 

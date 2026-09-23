@@ -53,14 +53,14 @@ export default function LeaderboardPage() {
   );
 
   useEffect(() => {
-    setOptIn(getProgress().leaderboardOptIn ?? false);
+    setOptIn(getProgress().leaderboardOptIn ?? true);
     setMounted(true);
     void loadBoard(sort);
   }, [sort, loadBoard]);
 
   useEffect(() => {
     function refresh() {
-      setOptIn(getProgress().leaderboardOptIn ?? false);
+      setOptIn(getProgress().leaderboardOptIn ?? true);
     }
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
@@ -99,7 +99,7 @@ export default function LeaderboardPage() {
           <Link href="/login" className="font-semibold underline">
             Sign in
           </Link>{" "}
-          to take a place on the board with your Bridgeys, lessons and house.
+          to see the board and take your place on it with your Bridgeys, lessons and house.
         </div>
       )}
 
@@ -141,8 +141,12 @@ export default function LeaderboardPage() {
         </div>
       ) : top.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
-          <p className="font-semibold text-slate-800">The board is empty so far.</p>
-          <p className="mt-1 text-sm">Finish a skill, earn Bridgeys, and join below to take the first place.</p>
+          {/* The rows are only readable to signed-in accounts, so a visitor
+              sees nothing here; that is a locked door, not an empty room. */}
+          <p className="font-semibold text-slate-800">{user ? "The board is empty so far." : "The board is for signed-in students."}</p>
+          <p className="mt-1 text-sm">
+            {user ? "Finish a skill and earn Bridgeys to take the first place." : "Sign in to see who is on top and where you stand."}
+          </p>
         </div>
       ) : (
         <>
@@ -245,12 +249,12 @@ export default function LeaderboardPage() {
               </p>
             ) : optIn ? (
               <p className="text-sm text-slate-600">
-                You are on the board. Your first save will place you.
+                You are on the board, as your first name and an initial. Your next save places you.
               </p>
             ) : (
               <p className="text-sm text-slate-600">
-                You are off the board. Join it and your rank follows your work from then on, shown as your first
-                name and an initial.
+                You are hidden from the board. Show yourself and your rank follows your work from then on, as your
+                first name and an initial.
               </p>
             )}
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
@@ -261,7 +265,7 @@ export default function LeaderboardPage() {
                 onChange={(e) => void handleOptIn(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300"
               />
-              {optIn ? "On the board" : "Join the board"}
+              {optIn ? "Shown on the board" : "Show me on the board"}
             </label>
           </div>
         </section>
