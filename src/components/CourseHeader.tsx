@@ -8,6 +8,8 @@ import { DotPattern } from "@/components/ui/dot-pattern";
 import { UnitMark } from "@/components/UnitMark";
 import { UnitTiles } from "@/components/UnitTiles";
 import { hueVars, unitHue } from "@/lib/hues";
+import { DailyGoalRing } from "@/components/DailyGoalRing";
+import { BRIDGEY_REWARDS } from "@/lib/gamification";
 
 const TOTAL_UNITS = units.length;
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
@@ -99,14 +101,34 @@ export function CourseHeader() {
                 : "Start with Unit 1, or jump to whatever your class is working on."}
           </p>
         </div>
-        {continueTarget && (
-          <Link
-            href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-            className="shrink-0 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03] hover:bg-slate-50"
-          >
-            Continue learning
-          </Link>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          {/* Today, as a ring: ten right answers is a good day, and it pays. */}
+          {mounted && (
+            <div className="flex items-center gap-2.5 rounded-xl bg-black/10 px-3 py-2">
+              <DailyGoalRing right={stats.todayRight} goal={stats.dailyGoal} size={40} stroke={5} tone="onColor" />
+              <div className="leading-tight">
+                <p className="text-sm font-semibold">
+                  {stats.todayRight >= stats.dailyGoal ? "Daily goal met" : `${stats.todayRight} of ${stats.dailyGoal} today`}
+                </p>
+                <p className="text-xs opacity-85">
+                  {stats.todayRight >= stats.dailyGoal
+                    ? stats.streak > 1
+                      ? `${stats.streak}-day streak`
+                      : "See you tomorrow"
+                    : `+${BRIDGEY_REWARDS.dailyGoal} Bridgeys at ${stats.dailyGoal} right`}
+                </p>
+              </div>
+            </div>
+          )}
+          {continueTarget && (
+            <Link
+              href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
+              className="shrink-0 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03] hover:bg-slate-50"
+            >
+              Continue learning
+            </Link>
+          )}
+        </div>
       </div>
 
       {mounted && (

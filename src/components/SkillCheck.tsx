@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { PracticeProblem, Skill } from "@/types";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
-import { PromptText } from "@/components/PromptText";
+import { MathText, PromptText } from "@/components/PromptText";
+import { SignKeys } from "@/components/SignKeys";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { Icon } from "@/components/Icon";
 import { answerIsRight } from "@/lib/grading";
@@ -101,8 +102,8 @@ export function SkillCheck({
       <div className="text-center">
         <p className="font-semibold text-slate-900">Good try.</p>
         <p className="mt-1 text-sm text-slate-600">
-          The answer was <span className="font-semibold text-slate-900">{String(problem.answer)}</span>.{" "}
-          {problem.explanation}
+          The answer was <span className="font-semibold text-slate-900"><MathText text={String(problem.answer)} /></span>.{" "}
+          <MathText text={problem.explanation} />
         </p>
         <p className="mt-3 text-sm text-slate-600">
           Your next try opens tomorrow, and finishing {afterTitle} opens this skill today.
@@ -145,7 +146,7 @@ export function SkillCheck({
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
                 {String.fromCharCode(65 + i)}
               </span>
-              {choice}
+              <MathText text={choice} />
             </button>
           ))}
         </div>
@@ -163,10 +164,12 @@ export function SkillCheck({
             onChange={(e) => setAnswer(e.target.value)}
             disabled={phase !== "asking"}
             inputMode="decimal"
+            autoComplete="off"
             aria-label="Your answer"
             placeholder="Your answer"
             className="field min-w-0 flex-1"
           />
+          <SignKeys value={answer} onChange={setAnswer} inputRef={inputRef} disabled={phase !== "asking"} />
           <button
             type="submit"
             disabled={phase !== "asking" || !answer.trim()}

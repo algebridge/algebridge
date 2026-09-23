@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { PromptText } from "@/components/PromptText";
+import { MathText, PromptText } from "@/components/PromptText";
+import { SignKeys } from "@/components/SignKeys";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
@@ -10,6 +11,8 @@ import { useSound } from "@/hooks/useSound";
 import { awardRinkBridgeys, recordRinkRun } from "@/lib/bridgeys";
 import { SCENE_H, SCENE_W, pctX, pctY } from "@/lib/dollhouse";
 import { answerIsRight } from "@/lib/grading";
+import { DAILY_GOAL } from "@/lib/gamification";
+import { fireConfetti, showToast } from "@/lib/notify";
 import { hueVars, unitHue } from "@/lib/hues";
 import { today } from "@/lib/path";
 import { stripVariantTag } from "@/lib/personalize";
@@ -58,6 +61,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const [ring, setRing] = useState<Ring | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
+  const answerRef = useRef<HTMLInputElement>(null);
   const [verdict, setVerdict] = useState<{ right: boolean; paid: number } | null>(null);
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -225,8 +229,17 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
     const right = answerIsRight(open.problem, given);
     if (right) {
       playCorrect();
-      const { paid, remaining: left } = awardRinkBridgeys(open.skillId, day);
+      const { paid, remaining: left, dailyBonus } = awardRinkBridgeys(open.skillId, day);
       setRemaining(left);
+      if (dailyBonus > 0) {
+        fireConfetti("small");
+        showToast({
+          icon: "coin",
+          tone: "reward",
+          title: `Daily goal · +${dailyBonus} Bridgeys`,
+          description: `${DAILY_GOAL} right today, the rink included.`,
+        });
+      }
       setSession((s) => {
         const run = s.run + 1;
         recordRinkRun(run, day);
@@ -363,7 +376,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
                           {String.fromCharCode(65 + i)}
                         </span>
-                        {choice}
+                        <MathText text={choice} />
                       </button>
                     ))}
                   </div>
@@ -376,14 +389,17 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
                     }}
                   >
                     <input
+                      ref={answerRef}
                       autoFocus
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      inputMode="numeric"
+                      inputMode="decimal"
+                      autoComplete="off"
                       aria-label="Your answer"
                       placeholder="Your answer"
                       className="field min-w-0 flex-1 text-lg"
                     />
+                    <SignKeys value={answer} onChange={setAnswer} inputRef={answerRef} />
                     <button type="submit" disabled={!answer.trim()} className="hue-solid rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50">
                       Check
                     </button>
@@ -401,7 +417,11 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
                         : `The answer was ${String(problem.answer)}.`}
                     </p>
                   </div>
-                  {!verdict.right && <p className="mt-2 px-1 text-sm text-slate-600">{problem.explanation}</p>}
+                  {!verdict.right && (
+                    <p className="mt-2 px-1 text-sm text-slate-600">
+                      <MathText text={problem.explanation} />
+                    </p>
+                  )}
                   <button type="button" autoFocus onClick={skateOn} className="btn-primary mt-4 w-full">
                     Skate on
                   </button>

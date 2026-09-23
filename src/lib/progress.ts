@@ -2,6 +2,8 @@ import type { GeneratedProblem, MasteryLevel, UserProgress, SkillProgress } from
 import { units, TOTAL_SKILLS } from "@/data/curriculum";
 import {
   BADGES,
+  BRIDGEY_REWARDS,
+  DAILY_GOAL,
   evaluateNewBadges,
   getLevelInfo,
   RECENT_WINDOW,
@@ -10,11 +12,13 @@ import {
   type Badge,
 } from "@/lib/gamification";
 import {
+  awardBridgeys,
   normalizeBridgeyProgress,
   grantUnitPrize,
   tryAwardSkillCompleteBridgeys,
   tryAwardUnitCompleteBridgeys,
 } from "@/lib/bridgeys";
+import { today } from "@/lib/path";
 import { STARTER_HOUSE_ID } from "@/data/house-catalog";
 import type { InterestProfile } from "@/lib/interests";
 
@@ -42,6 +46,9 @@ export interface CourseStats {
   streak: number;
   badgeCount: number;
   bridgeys: number;
+  /** Right answers today, toward the daily goal. */
+  todayRight: number;
+  dailyGoal: number;
 }
 
 export interface ContinueTarget {
@@ -96,6 +103,41 @@ export interface AttemptResult {
   leveledUp: boolean;
   newLevelNumber: number;
   newBadges: Badge[];
+  /** Bridgeys paid for meeting the daily goal on this answer (0 on every other answer). */
+  dailyBonus: number;
+  /** Right answers today, this one included. */
+  dailyRight: number;
+}
+
+export interface DailyStatus {
+  day: string;
+  right: number;
+  goal: number;
+  met: boolean;
+}
+
+/** Where today stands against the daily goal. A new day starts at zero. */
+export function dailyStatus(progress: UserProgress, now = new Date()): DailyStatus {
+  const day = today(now);
+  const right = progress.daily?.day === day ? progress.daily.right : 0;
+  return { day, right, goal: DAILY_GOAL, met: right >= DAILY_GOAL };
+}
+
+/**
+ * Counts one right answer toward today's goal, and pays the goal's Bridgeys
+ * the moment it is met, once a day. Returns what was paid.
+ */
+export function tallyDaily(progress: UserProgress, now = new Date()): number {
+  const day = today(now);
+  const d = progress.daily && progress.daily.day === day ? { ...progress.daily } : { day, right: 0, paid: false };
+  d.right += 1;
+  let bonus = 0;
+  if (d.right >= DAILY_GOAL && !d.paid) {
+    d.paid = true;
+    bonus = awardBridgeys(progress, BRIDGEY_REWARDS.dailyGoal);
+  }
+  progress.daily = d;
+  return bonus;
 }
 
 export interface VideoWatchedResult {
@@ -322,6 +364,7 @@ export function recordProblemAttempt(
 
   if (correct) progress.totalProblemsSolved += 1;
   applyStreakForActivity(progress);
+  const dailyBonus = correct ? tallyDaily(progress) : 0;
 
   const isNowComplete = level === "proficient" || level === "mastered";
   const skillJustCompleted = !wasComplete && isNowComplete;
@@ -375,6 +418,8 @@ export function recordProblemAttempt(
     leveledUp,
     newLevelNumber: afterLevelInfo.level,
     newBadges,
+    dailyBonus,
+    dailyRight: dailyStatus(progress).right,
   };
 }
 
@@ -533,6 +578,8 @@ export function getEmptyCourseStats(): CourseStats {
     streak: 0,
     badgeCount: 0,
     bridgeys: 25,
+    todayRight: 0,
+    dailyGoal: DAILY_GOAL,
   };
 }
 
@@ -579,6 +626,8 @@ export function computeCourseStatsFromProgress(progress: UserProgress): CourseSt
     streak: progress.streak,
     badgeCount: progress.badges.length,
     bridgeys: progress.bridgeys ?? 0,
+    todayRight: dailyStatus(progress).right,
+    dailyGoal: DAILY_GOAL,
   };
 }
 

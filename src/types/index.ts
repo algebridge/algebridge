@@ -140,6 +140,8 @@ export interface UserProgress {
   rink?: { day: string; earned: number; solved: number; best: number };
   /** When this copy was last written, so the newer of two copies can be kept. */
   updatedAt?: string;
+  /** Today's right answers toward the daily goal, and whether its Bridgeys were paid. */
+  daily?: { day: string; right: number; paid: boolean };
   /** The colour a student chose for a piece, by item id: a swatch id from furniture-art. */
   itemColors?: Record<string, string>;
   /** The house at night, with the lamps on. */

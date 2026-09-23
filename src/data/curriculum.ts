@@ -19,7 +19,7 @@ export const units: Unit[] = [
         problems: [
           { id: "u1-p1", type: "numeric", prompt: "Convert 3 miles to feet. (1 mile = 5280 ft)", hint: "Multiply 3 × 5280.", answer: 15840, explanation: "3 × 5280 = 15,840 feet" },
           { id: "u1-p2", type: "multiple-choice", prompt: "Which conversion factor converts inches to feet?", hint: "12 inches = 1 foot, divide inches by 12.", answer: "1 ft / 12 in", choices: ["12 in / 1 ft", "1 ft / 12 in", "12 ft / 1 in", "1 in / 12 ft"], explanation: "To convert inches to feet, multiply by 1 ft / 12 in." },
-          { id: "u1-p3", type: "numeric", prompt: "A car travels 60 miles in 1 hour. How many feet per second? (Round to nearest whole number)", hint: "Convert miles→feet, hours→seconds.", answer: 88, explanation: "60 mi/hr × 5280 ft/mi ÷ 3600 sec/hr ≈ 88 ft/sec" },
+          { id: "u1-p3", type: "numeric", prompt: "A car travels 60 miles in 1 hour. How many feet per second is that?", hint: "Convert miles→feet, hours→seconds.", answer: 88, explanation: "60 mi/hr × 5280 ft/mi ÷ 3600 sec/hr = 88 ft/sec" },
         ],
       },
       {
@@ -32,7 +32,7 @@ export const units: Unit[] = [
         generatorKey: "unit-conversion",
         problems: [
           { id: "u1-p4", type: "numeric", prompt: "Convert 2.5 hours to seconds.", hint: "1 hour = 3600 seconds.", answer: 9000, explanation: "2.5 × 3600 = 9000 seconds" },
-          { id: "u1-p5", type: "error-analysis", prompt: "Find the error in this conversion: 5 km → 5000 m → 500 cm", hint: "Check each conversion factor.", wrongStepIndex: 1, steps: ["5 km × 1000 m/km = 5000 m", "5000 m × 1/100 m/cm = 500 cm", "Done"], explanation: "Step 2 is wrong: should multiply by 100 cm/m, giving 500,000 cm." },
+          { id: "u1-p5", type: "error-analysis", prompt: "Find the error in this conversion of 5 km to centimeters.", hint: "Check each conversion factor: is it right side up?", wrongStepIndex: 2, steps: ["Start with 5 km.", "5 km × 1000 m/km = 5000 m", "5000 m × 1 m/100 cm = 50 cm"], explanation: "Step 3 has the factor upside down: meters must be on the bottom to cancel. 5000 m × 100 cm/m = 500,000 cm." },
         ],
       },
       {
@@ -95,7 +95,7 @@ export const units: Unit[] = [
         problems: [
           { id: "e3-p1", type: "numeric", prompt: "Solve for x: 2(x + 3) = 16", hint: "Divide by 2 first, or distribute.", answer: 5, explanation: "x + 3 = 8 → x = 5" },
           { id: "e3-p2", type: "numeric", prompt: "Solve for x: 3x + 2 = x + 10", hint: "Get all x terms on one side.", answer: 4, explanation: "2x = 8 → x = 4" },
-          { id: "e3-p3", type: "error-analysis", prompt: "Find the error: 2(x + 4) = 18", hint: "Check the distribution step.", wrongStepIndex: 0, steps: ["2x + 4 = 18", "2x = 14", "x = 7"], explanation: "Distribute: 2x + 8 = 18, not 2x + 4." },
+          { id: "e3-p3", type: "error-analysis", prompt: "Find the error in this solution of 2(x + 4) = 18.", hint: "Check the distribution step.", wrongStepIndex: 0, steps: ["2x + 4 = 18", "2x = 14", "x = 7"], explanation: "Distribute: 2x + 8 = 18, not 2x + 4." },
         ],
       },
       {
@@ -118,7 +118,7 @@ export const units: Unit[] = [
         keyIdea: "Treat like equations, but flip the sign when multiplying/dividing by a negative.",
         video: { id: "v8", title: "Solving Inequalities", channel: "Math Antics", duration: "10:00", youtubeId: "PNXFEGJtCtA" },
         problems: [
-          { id: "e5-p1", type: "numeric", prompt: "Solve for x: 2x − 3 > 7. What number does x have to be greater than?", hint: "Add 3, divide by 2. x > ?", answer: 5, explanation: "2x > 10 → x > 5" },
+          { id: "e5-p1", type: "numeric", prompt: "Solve for x: 2x − 3 > 7. What number does x have to be greater than? Type just the number.", hint: "Add 3, divide by 2. x > ?", answer: 5, explanation: "2x > 10 → x > 5" },
           { id: "e5-p2", type: "multiple-choice", prompt: "When do you flip the inequality sign?", hint: "Think about multiplying by negative numbers.", answer: "When multiplying or dividing by a negative", choices: ["When adding a negative", "When multiplying or dividing by a negative", "When subtracting", "Never"], explanation: "Multiplying/dividing by negative reverses the inequality direction." },
         ],
       },
@@ -331,7 +331,7 @@ export const units: Unit[] = [
         keyIdea: "The solution is the overlapping shaded region.",
         video: { id: "v23", title: "Systems of Inequalities", channel: "The Organic Chemistry Tutor", duration: "13:00", youtubeId: "0VVQYWR2-o0" },
         problems: [
-          { id: "i3-p1", type: "multiple-choice", prompt: "Which point satisfies y ≤ x + 2 AND y > −1?", hint: "Test each point in both inequalities.", answer: "(0, 0)", choices: ["(0, 0)", "(0, 5)", "(3, 0)", "(−2, −3)"], explanation: "(0,0): 0 ≤ 2 ✓ and 0 > −1 ✓" },
+          { id: "i3-p1", type: "multiple-choice", prompt: "Which point satisfies y ≤ x + 2 AND y > −1?", hint: "Test each point in both inequalities.", answer: "(0, 0)", choices: ["(0, 0)", "(0, 5)", "(−3, 0)", "(−2, −3)"], explanation: "(0, 0): 0 ≤ 2 ✓ and 0 > −1 ✓" },
         ],
       },
     ],
@@ -407,7 +407,7 @@ export const units: Unit[] = [
         keyIdea: "Each term is multiplied by a constant ratio r.",
         video: { id: "v28", title: "Geometric Sequences", channel: "Mario's Math Tutoring", duration: "9:00", youtubeId: "XZJdyPkCxuE" },
         problems: [
-          { id: "sq2-p1", type: "numeric", prompt: "Sequence: 2, 6, 18, 54, ... What is the common ratio?", hint: "Divide consecutive terms.", answer: 3, explanation: "6/2 = 3" },
+          { id: "sq2-p1", type: "numeric", prompt: "Sequence: 81, 27, 9, 3, ... What is the common ratio? Give it as a fraction.", hint: "Divide any term by the one before it.", answer: 1 / 3, explanation: "27 ÷ 81 = 1/3: each term is a third of the one before." },
           { id: "sq2-p2", type: "numeric", prompt: "What is the 5th term of 3, 6, 12, 24, ...?", hint: "Multiply by 2 each time.", answer: 48, explanation: "3 × 2⁴ = 48" },
         ],
       },
@@ -442,7 +442,7 @@ export const units: Unit[] = [
         keyIdea: "x^(−n) = 1/xⁿ. x^(1/n) = ⁿ√x.",
         video: { id: "v30", title: "Negative Exponents", channel: "Mario's Math Tutoring", duration: "10:00", youtubeId: "Z5myJ8g_hss" },
         problems: [
-          { id: "ex2-p1", type: "numeric", prompt: "Evaluate: 2^(−3)", hint: "1/2³", answer: 0.125, explanation: "1/8 = 0.125" },
+          { id: "ex2-p1", type: "numeric", prompt: "Evaluate 2^(−3). Write it as a fraction.", hint: "A negative exponent means one over the power: 1/2³.", answer: 0.125, explanation: "2^(−3) = 1/2³ = 1/8" },
           { id: "ex2-p2", type: "multiple-choice", prompt: "Rewrite ³√x as an exponent.", hint: "x^(1/n)", answer: "x^(1/3)", choices: ["x^(1/3)", "x³", "x^(−3)", "3x"], explanation: "³√x = x^(1/3)" },
         ],
       },
@@ -465,7 +465,7 @@ export const units: Unit[] = [
         keyIdea: "Factor out perfect squares from under the radical.",
         video: { id: "v32", title: "Simplifying Radicals", channel: "The Organic Chemistry Tutor", duration: "12:00", youtubeId: "6QJ1vh697wM" },
         problems: [
-          { id: "ex4-p1", type: "multiple-choice", prompt: "Simplify √72", hint: "72 = 36 × 2", answer: "6√2", choices: ["6√2", "3√8", "2√18", "8√2"], explanation: "√72 = √(36×2) = 6√2" },
+          { id: "ex4-p1", type: "multiple-choice", prompt: "Simplify √72", hint: "72 = 36 × 2", answer: "6√2", choices: ["6√2", "36√2", "8√2", "3√6"], explanation: "√72 = √(36 × 2) = √36 × √2 = 6√2" },
           { id: "ex4-p2", type: "numeric", prompt: "Simplify √49", hint: "What number squared equals 49?", answer: 7, explanation: "√49 = 7" },
         ],
       },
@@ -587,7 +587,7 @@ export const units: Unit[] = [
         video: { id: "v40", title: "Graphing Parabolas", channel: "The Organic Chemistry Tutor", duration: "14:00", youtubeId: "Z5myJ8g_hss" },
         problems: [
           { id: "qf1-p1", type: "multiple-choice", prompt: "Does y = −x² + 4 open up or down?", hint: "Check the sign of a in ax² + bx + c.", answer: "Down", choices: ["Up", "Down", "Left", "Right"], explanation: "a = −1 < 0, so it opens downward." },
-          { id: "qf1-p2", type: "numeric", prompt: "What is the vertex of y = (x − 3)² + 2?", hint: "Vertex form: (h, k) from (x − h)² + k", answer: 3, explanation: "Vertex is (3, 2). x-coordinate = 3." },
+          { id: "qf1-p2", type: "numeric", prompt: "What is the x-coordinate of the vertex of y = (x − 3)² + 2?", hint: "Vertex form: (h, k) from (x − h)² + k", answer: 3, explanation: "The vertex is (3, 2), so its x-coordinate is 3." },
         ],
       },
       {
@@ -667,7 +667,7 @@ export const units: Unit[] = [
         video: { id: "v46", title: "Piecewise Functions", channel: "The Organic Chemistry Tutor", duration: "13:00", youtubeId: "Z5myJ8g_hss" },
         problems: [
           { id: "av3-p1", type: "numeric", prompt: "f(x) = { x + 2 if x < 0; x² if x ≥ 0 }. Find f(−3).", hint: "−3 < 0, use first rule.", answer: -1, explanation: "f(−3) = −3 + 2 = −1" },
-          { id: "av3-p2", type: "numeric", prompt: "Same function. Find f(3).", hint: "3 ≥ 0, use second rule.", answer: 9, explanation: "f(3) = 3² = 9" },
+          { id: "av3-p2", type: "numeric", prompt: "f(x) = { x + 2 if x < 0; x² if x ≥ 0 }. Find f(3).", hint: "3 ≥ 0, use the second rule.", answer: 9, explanation: "f(3) = 3² = 9" },
         ],
       },
     ],

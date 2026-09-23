@@ -34,7 +34,16 @@ export const BRIDGEY_REWARDS = {
   perUnitStep: 2,
   /** Finishing every skill in a unit, on top of its prize. */
   unitComplete: 40,
+  /** Meeting the daily goal, once a day. */
+  dailyGoal: 15,
 };
+
+/**
+ * Right answers a day that make the daily goal: about ten minutes of work.
+ * Lessons and the rink both count. The streak still only needs one answer a
+ * day; the goal is what a good day looks like, and it pays.
+ */
+export const DAILY_GOAL = 10;
 
 /** What finishing a skill pays: 10 in Unit 1, 34 by Unit 13. */
 export function bridgeysForSkill(skillId: string): number {

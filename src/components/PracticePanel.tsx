@@ -5,8 +5,9 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedProblem, PracticeProblem, Skill } from "@/types";
 import {
-  generateExtraProblems,
+  dailyStatus,
   getInterests,
+  getProgress,
   recordProblemAttempt,
   getLevelInfo,
   PROGRESS_UPDATED_EVENT,
@@ -14,7 +15,10 @@ import {
 import { getFreshProblemsForSkill, skillOffersCalculator } from "@/data/problem-banks";
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
-import { BRIDGEY_REWARDS, bridgeysForSkill, REQUIRED_CORRECT } from "@/lib/gamification";
+import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
+import { units } from "@/data/curriculum";
+import { DailyGoalRing } from "@/components/DailyGoalRing";
+import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { getFurnitureItem } from "@/data/house-catalog";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
@@ -24,9 +28,10 @@ import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
 import { setCalculatorAccess } from "@/lib/calculator-access";
 import { answerIsRight } from "@/lib/grading";
-import { HUES, hueVars, topicHue } from "@/lib/hues";
-import { PromptText } from "@/components/PromptText";
+import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
+import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
+import { SignKeys } from "@/components/SignKeys";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
 import {
@@ -36,7 +41,7 @@ import {
   stripVariantTag,
   type PersonalizableProblem,
 } from "@/lib/personalize";
-import { shuffleArray } from "@/lib/problem-utils";
+import { fractionText, shuffleArray } from "@/lib/problem-utils";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -49,6 +54,52 @@ interface PracticePanelProps {
   practiceOnly?: boolean;
   /** In practice-only mode: how many they have got right this session. */
   onPracticeRight?: (count: number) => void;
+  /** Where the path goes after this skill, for the moment it is finished. */
+  next?: { href: string; title: string } | null;
+}
+
+/** The finish moment, shown over the card until the student moves on. */
+interface Celebration {
+  paid: number;
+  unitNumber: number | null;
+  unitBonus: number;
+  prizeName: string | null;
+}
+
+/** The answer as a student would write it, for "Show me how". */
+function answerText(problem: ActiveProblem): string | null {
+  if (problem.type === "error-analysis" && "wrongStepIndex" in problem && typeof problem.wrongStepIndex === "number") {
+    return `Step ${problem.wrongStepIndex + 1}`;
+  }
+  if (problem.type === "step-order") return null;
+  if (problem.answer === undefined || problem.answer === null) return null;
+  if (problem.type === "numeric") {
+    const n = Number(problem.answer);
+    if (!Number.isFinite(n)) return String(problem.answer);
+    const dp = "decimalPlaces" in problem && typeof problem.decimalPlaces === "number" ? problem.decimalPlaces : null;
+    if (dp !== null) return n.toFixed(dp);
+    if (Number.isInteger(n)) return String(n);
+    // A fraction when the problem asked for one, or when the decimal never ends.
+    const asFraction = fractionText(n);
+    if (asFraction && (/fraction/i.test(problem.prompt) || String(n).length > 8)) return asFraction;
+    return String(Math.round(n * 10000) / 10000);
+  }
+  return String(problem.answer);
+}
+
+/** Today's right answers, kept current as progress saves. */
+function useDaily() {
+  const [daily, setDaily] = useState({ right: 0, goal: DAILY_GOAL, met: false });
+  useEffect(() => {
+    const read = () => {
+      const d = dailyStatus(getProgress());
+      setDaily((prev) => (prev.right === d.right && prev.met === d.met ? prev : { right: d.right, goal: d.goal, met: d.met }));
+    };
+    read();
+    window.addEventListener(PROGRESS_UPDATED_EVENT, read);
+    return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, read);
+  }, []);
+  return daily;
 }
 
 type ActiveProblem = PracticeProblem | GeneratedProblem;
@@ -128,24 +179,31 @@ function useInterestTopics() {
   return state;
 }
 
-export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, onPracticeRight }: PracticePanelProps) {
+export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, onPracticeRight, next = null }: PracticePanelProps) {
   const [problemIndex, setProblemIndex] = useState(0);
   /** Right answers this session, only kept in practice-only mode. */
   const [sessionRight, setSessionRight] = useState(0);
   // The screen is paper on every problem; a new problem is clean paper.
   useScratchpadSurface(`${skill.id}:${problemIndex}`);
   const sessionRightRef = useRef(0);
-  const [extraProblems, setExtraProblems] = useState<GeneratedProblem[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
   const [stepOrder, setStepOrder] = useState<number[]>([]);
+  /** Choices and steps already tried and wrong on this problem: crossed out, so the next try is a real one. */
+  const [eliminated, setEliminated] = useState<string[]>([]);
+  const [eliminatedSteps, setEliminatedSteps] = useState<number[]>([]);
+  /** "Show me how" was pressed: the worked answer is on screen and this problem is over. */
+  const [revealed, setRevealed] = useState(false);
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const daily = useDaily();
+  const answerRef = useRef<HTMLInputElement>(null);
+  const unitOfSkill = useMemo(() => units.find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
-  const [infiniteMode, setInfiniteMode] = useState(false);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
@@ -233,8 +291,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   useEffect(() => {
     startSession();
-    setInfiniteMode(false);
-    setExtraProblems([]);
     setCombo(0);
     setMisses(0);
     setNudgeDismissedAt(0);
@@ -245,12 +301,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     if (topicsLoaded) resetStories();
   }, [topicsKey, topicsLoaded, resetStories]);
 
-  const allProblems: ActiveProblem[] = useMemo(() => {
-    if (infiniteMode && skill.generatorKey && extraProblems.length > 0) {
-      return extraProblems;
-    }
-    return sessionProblems.length > 0 ? sessionProblems : skill.problems;
-  }, [skill, extraProblems, infiniteMode, sessionProblems]);
+  const allProblems: ActiveProblem[] = useMemo(
+    () => (sessionProblems.length > 0 ? sessionProblems : skill.problems),
+    [skill, sessionProblems]
+  );
 
   const problem = allProblems[problemIndex % allProblems.length];
   const problemIndexRef = useRef(0);
@@ -274,7 +328,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   }, [calculatorAllowed]);
 
   const fetchBatch = useCallback(async () => {
-    if (seed === null || !topics.length || askingRef.current || infiniteMode) return;
+    if (seed === null || !topics.length || askingRef.current) return;
     // The first request is small so the first problem arrives fast.
     const size = batchNoRef.current === 0 ? FIRST_BATCH_SIZE : BATCH_SIZE;
     const upcoming = sessionProblems
@@ -330,14 +384,14 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         }
       }
     }
-  }, [seed, topics, sessionProblems, problemIndex, scenes, infiniteMode, skill.id]);
+  }, [seed, topics, sessionProblems, problemIndex, scenes, skill.id]);
   const fetchBatchRef = useRef(fetchBatch);
   fetchBatchRef.current = fetchBatch;
 
   // Keep two stories ready ahead of the student, and ask straight away when
   // the problem on screen is still waiting for one.
   useEffect(() => {
-    if (seed === null || !topicsLoaded || !topics.length || infiniteMode || asking) return;
+    if (seed === null || !topicsLoaded || !topics.length || asking) return;
     if (Date.now() < quietUntilRef.current) return;
     const ready = sessionProblems
       .slice(problemIndex)
@@ -345,7 +399,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     const current = sessionProblems[problemIndex];
     const currentWaiting = !!current && !shownRef.current.has(current.id) && !scenes[current.id];
     if (ready < 2 || currentWaiting) void fetchBatchRef.current();
-  }, [seed, topicsLoaded, topics.length, infiniteMode, asking, problemIndex, scenes, sessionProblems, quietTick]);
+  }, [seed, topicsLoaded, topics.length, asking, problemIndex, scenes, sessionProblems, quietTick]);
 
   // Stories first: whenever some arrive, move those problems to the front of
   // what is still to come. The bank's order is random anyway.
@@ -364,7 +418,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const storyCouldCome =
     asking || (tries < 2 && Date.now() >= quietUntilRef.current);
   const waitingOn =
-    !infiniteMode &&
     topics.length > 0 &&
     problem &&
     !shownRef.current.has(problem.id) &&
@@ -386,12 +439,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   // one problem that is then swapped for another. (The server render always
   // lands here: the bank is random by design, so it is only built in the
   // browser.)
-  const pending = !infiniteMode && (seed === null || !topicsLoaded || waitingOn !== null);
+  const pending = seed === null || !topicsLoaded || waitingOn !== null;
 
   let scene: Scene | null = null;
   if (problem && !pending) {
     const shown = shownRef.current;
-    if (!shown.has(problem.id)) shown.set(problem.id, infiniteMode ? null : scenes[problem.id] ?? null);
+    if (!shown.has(problem.id)) shown.set(problem.id, scenes[problem.id] ?? null);
     scene = shown.get(problem.id) ?? null;
   }
   const displayPrompt = problem ? scene?.prompt ?? stripVariantTag(problem.prompt) : "";
@@ -424,25 +477,24 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     setShowHint(false);
     setShowExplanation(false);
     setAttempts(0);
+    setEliminated([]);
+    setEliminatedSteps([]);
+    setRevealed(false);
     stopSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemIndex, problem]);
 
-  const loadMoreProblems = useCallback(() => {
-    // The older infinite generators are unseeded, so the server cannot
-    // rebuild their problems to rewrite them. A student with interests gets a
-    // fresh bank instead, which is just as endless and stays in their world.
-    if (skill.generatorKey && !topics.length) {
-      setExtraProblems(generateExtraProblems(skill.generatorKey, 10));
-      setInfiniteMode(true);
-      setProblemIndex(0);
-      return;
-    }
-    startSession();
-  }, [skill.generatorKey, startSession, topics.length]);
+  // A new skill is a new page: last skill's finish card goes with it.
+  useEffect(() => setCelebration(null), [skill.id]);
+
+  // "Keep practicing" is a fresh bank from the same generators as every
+  // session. It used to hand students without interests to a set of older,
+  // unseeded generators, one of which served the same substitution problem
+  // forever: typing 3 five times finished the skill.
+  const loadMoreProblems = useCallback(() => startSession(), [startSession]);
 
   const handleSubmit = useCallback(() => {
-    if (!problem || feedback === "correct" || pending) return;
+    if (!problem || feedback === "correct" || pending || revealed) return;
 
     // Pressing Enter on an empty box is not an attempt. It used to count as a
     // wrong one, and with first tries deciding the skill that is a point lost
@@ -492,13 +544,26 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       setMastery(result.newLevel);
       onMasteryChange?.(result.newLevel);
 
-      if (combo + 1 > 0 && (combo + 1) % 5 === 0) {
-        fireConfetti("small");
+      const run = combo + 1;
+      if (run % 5 === 0) {
+        fireConfetti(run >= 10 ? "big" : "small");
         showToast({
           icon: "flame",
           tone: "reward",
-          title: `${combo + 1} in a row`,
-          description: "Every one on the first try.",
+          title: `${run} in a row`,
+          description: run >= 10 ? `${run} straight, every one on the first try.` : "Every one on the first try.",
+        });
+      }
+
+      if (result.dailyBonus > 0) {
+        fireConfetti("small");
+        playLevelUp();
+        const streak = result.progress.streak;
+        showToast({
+          icon: "coin",
+          tone: "reward",
+          title: `Daily goal · +${result.dailyBonus} Bridgeys`,
+          description: `${DAILY_GOAL} right today. Come back tomorrow for day ${Math.max(1, streak) + 1} of your streak.`,
         });
       }
 
@@ -516,26 +581,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         });
       }
       if (result.skillJustCompleted) {
+        // The finish is a moment on the page, with the next step one click
+        // away, rather than a toast that slides off while they keep going.
         fireConfetti(result.unitJustCompleted ? "big" : "small");
-        const paid = result.unitJustCompleted ? bridgeysForSkill(skill.id) : result.bridgeysGained;
-        showToast({
-          icon: "check",
-          tone: "success",
-          title: `Skill complete · +${paid} Bridgeys`,
-          description: result.unitJustCompleted
-            ? `${skill.title} is done.`
-            : `${skill.title} is done, and the next skill on your path is open.`,
-        });
-      }
-      if (result.unitJustCompleted) {
         const prize = result.unitPrizeId ? getFurnitureItem(result.unitPrizeId) : null;
-        showToast({
-          icon: "trophy",
-          tone: "reward",
-          title: `Unit complete · +${BRIDGEY_REWARDS.unitComplete} Bridgeys`,
-          description: prize
-            ? `The ${prize.name} is yours. Place it in your house.`
-            : "Every skill in this unit is done.",
+        setCelebration({
+          paid: bridgeysForSkill(skill.id),
+          unitNumber: result.unitJustCompleted ? unitOfSkill?.number ?? null : null,
+          unitBonus: result.unitJustCompleted ? BRIDGEY_REWARDS.unitComplete : 0,
+          prizeName: prize?.name ?? null,
         });
       }
       for (const badge of result.newBadges) {
@@ -547,6 +601,16 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         });
       }
     } else {
+      // The wrong pick is crossed out, so the next try is a new answer
+      // rather than the same click again.
+      if (problem.type === "multiple-choice" && selectedChoice !== null) {
+        setEliminated((e) => (e.includes(selectedChoice) ? e : [...e, selectedChoice]));
+        setSelectedChoice(null);
+      }
+      if (problem.type === "error-analysis" && selectedStep !== null) {
+        setEliminatedSteps((e) => (e.includes(selectedStep) ? e : [...e, selectedStep]));
+        setSelectedStep(null);
+      }
       setCombo(0);
       setMisses((m) => m + 1);
       playWrong();
@@ -563,6 +627,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     userAnswer,
     attempts,
     combo,
+    revealed,
+    unitOfSkill,
     skill.id,
     skill.title,
     onMasteryChange,
@@ -575,14 +641,20 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   function nextProblem() {
     if (problemIndex + 1 >= allProblems.length) {
-      if (skill.generatorKey && infiniteMode) {
-        loadMoreProblems();
-        return;
-      }
       startSession();
       return;
     }
     setProblemIndex((i) => i + 1);
+  }
+
+  /** The worked answer, after two misses. Nothing is recorded: the misses already were. */
+  function showMeHow() {
+    if (!problem) return;
+    setRevealed(true);
+    setShowHint(false);
+    if (problem.type === "step-order" && "correctOrder" in problem && problem.correctOrder) setStepOrder([...problem.correctOrder]);
+    if (problem.type === "error-analysis" && "wrongStepIndex" in problem && typeof problem.wrongStepIndex === "number") setSelectedStep(problem.wrongStepIndex);
+    if (problem.type === "multiple-choice" && problem.answer !== undefined) setSelectedChoice(String(problem.answer));
   }
 
   function moveStep(from: number, direction: -1 | 1) {
@@ -601,7 +673,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
       if (e.key === "Enter" && !isTypingInInput) {
         e.preventDefault();
-        if (feedback === "correct") {
+        if (feedback === "correct" || revealed) {
           nextProblem();
         } else {
           handleSubmit();
@@ -612,19 +684,20 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       if (
         !isTypingInInput &&
         feedback !== "correct" &&
+        !revealed &&
         problem?.type === "multiple-choice" &&
         problem.choices &&
         /^[1-9]$/.test(e.key)
       ) {
         const choice = problem.choices[Number(e.key) - 1];
-        if (choice) setSelectedChoice(choice);
+        if (choice && !eliminated.includes(choice)) setSelectedChoice(choice);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedback, problem, handleSubmit]);
+  }, [feedback, problem, handleSubmit, revealed, eliminated]);
 
   if (!problem) return null;
 
@@ -644,8 +717,62 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   const showNudge = misses - nudgeDismissedAt >= MISSES_BEFORE_NUDGE;
 
+  const over = feedback === "correct" || revealed;
+
   return (
     <div className="space-y-4">
+      {celebration && (
+        <div
+          style={hueVars(unitHue(unitOfSkill?.id ?? units[0].id))}
+          className="hue-banner animate-pop-in relative overflow-hidden rounded-2xl px-5 py-5 shadow-sm sm:px-6"
+          role="status"
+        >
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
+              <Icon name={celebration.unitNumber ? "trophy" : "check"} size={26} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold leading-tight">
+                {celebration.unitNumber ? `Unit ${celebration.unitNumber} complete` : "Skill complete"}
+              </p>
+              <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm opacity-95">
+                <span>{skill.title} is done.</span>
+                <span className="inline-flex items-center gap-1 font-semibold">
+                  <BridgeysLogo size={15} />+{celebration.paid + celebration.unitBonus} Bridgeys
+                </span>
+                {celebration.prizeName && <span>and the {celebration.prizeName} for your house.</span>}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {celebration.prizeName && (
+                <Link href="/house" className="rounded-lg border border-white/35 px-4 py-2 text-sm font-semibold transition hover:bg-white/10">
+                  Place it
+                </Link>
+              )}
+              {next ? (
+                <Link
+                  href={next.href}
+                  className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03]"
+                >
+                  Next: {next.title} →
+                </Link>
+              ) : (
+                <Link href="/" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm">
+                  Back to the course
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setCelebration(null)}
+                className="rounded-lg border border-white/35 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+              >
+                Keep practicing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         {practiceOnly ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -686,12 +813,33 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </span>
           </div>
         )}
-        {combo >= 2 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
-            <Icon name="flame" size={14} />
-            {combo} in a row
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {combo >= 2 && (
+            // Hotter the longer the run: amber at two, a flame-orange fill from three.
+            <span
+              key={combo}
+              className={`animate-pop-in inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                combo >= 3
+                  ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm"
+                  : "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100"
+              }`}
+            >
+              <Icon name="flame" size={14} />
+              {combo} in a row
+            </span>
+          )}
+          {mounted && !practiceOnly && (
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
+                daily.met ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-white text-slate-700 ring-slate-200"
+              }`}
+              title={`Daily goal: ${daily.goal} right answers, +${BRIDGEY_REWARDS.dailyGoal} Bridgeys`}
+            >
+              <DailyGoalRing right={daily.right} goal={daily.goal} size={20} stroke={3} />
+              {daily.met ? "Daily goal met" : `${daily.right}/${daily.goal} today`}
+            </span>
+          )}
+        </div>
       </div>
 
       {mounted && (
@@ -775,44 +923,74 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
         {/* Numeric input */}
         {!pending && problem.type === "numeric" && (
-          <input
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && feedback !== "correct" && handleSubmit()}
-            placeholder="Your answer"
-            aria-label="Your answer"
-            disabled={feedback === "correct"}
-            className="mt-4 w-full max-w-xs rounded-xl border border-slate-300 px-4 py-3 text-lg focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200 disabled:bg-slate-50"
-          />
+          <div className="mt-4 flex max-w-sm items-center gap-1.5">
+            <input
+              ref={answerRef}
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={userAnswer}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && feedback !== "correct" && handleSubmit()}
+              placeholder={
+                "decimalPlaces" in problem && typeof problem.decimalPlaces === "number"
+                  ? "Your answer, rounded"
+                  : "Your answer (2/3 works too)"
+              }
+              aria-label="Your answer"
+              disabled={over}
+              className="h-12 min-w-0 flex-1 rounded-xl border border-slate-300 px-4 text-lg focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200 disabled:bg-slate-50"
+            />
+            <SignKeys value={userAnswer} onChange={setUserAnswer} inputRef={answerRef} disabled={over} />
+          </div>
         )}
 
         {/* Multiple choice */}
         {!pending && problem.type === "multiple-choice" && problem.choices && (
           <div className="mt-4 space-y-2">
-            {problem.choices.map((choice, i) => (
-              <button
-                key={`${i}-${choice}`}
-                type="button"
-                disabled={feedback === "correct"}
-                onClick={() => setSelectedChoice(choice)}
-                onKeyDown={ignoreSpaceKey}
-                className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
-                  selectedChoice === choice ? "hue-tint hue-ink font-medium" : "border-slate-200 hover:bg-slate-50"
-                } ${feedback === "correct" ? "cursor-default" : ""}`}
-              >
-                <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    selectedChoice === choice ? "hue-solid" : "border border-slate-300 text-slate-400"
-                  }`}
+            {problem.choices.map((choice, i) => {
+              const out = eliminated.includes(choice);
+              const isAnswer = revealed && answerIsRight(problem, choice);
+              const picked = selectedChoice === choice && !revealed;
+              return (
+                <button
+                  key={`${i}-${choice}`}
+                  type="button"
+                  disabled={over || out}
+                  onClick={() => setSelectedChoice(choice)}
+                  onKeyDown={ignoreSpaceKey}
+                  aria-label={out ? `${choice}, already tried` : undefined}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+                    isAnswer
+                      ? "border-emerald-400 bg-emerald-50 font-medium text-emerald-900"
+                      : out
+                        ? "cursor-not-allowed border-red-100 bg-red-50/50 text-slate-400"
+                        : picked
+                          ? "hue-tint hue-ink font-medium"
+                          : "border-slate-200 hover:bg-slate-50"
+                  } ${over ? "cursor-default" : ""}`}
                 >
-                  {i + 1}
-                </span>
-                <span>{choice}</span>
-              </button>
-            ))}
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                      isAnswer
+                        ? "bg-emerald-500 text-white"
+                        : out
+                          ? "bg-red-100 text-red-500"
+                          : picked
+                            ? "hue-solid"
+                            : "border border-slate-300 text-slate-400"
+                    }`}
+                  >
+                    {isAnswer ? <Icon name="check" size={12} /> : out ? <Icon name="close" size={11} /> : i + 1}
+                  </span>
+                  <span className={out ? "line-through decoration-red-300" : ""}>
+                    <MathText text={choice} />
+                  </span>
+                </button>
+              );
+            })}
             <p className="text-xs text-slate-400">Tip: press 1-{problem.choices.length} to pick an answer.</p>
           </div>
         )}
@@ -823,22 +1001,35 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             <p className="text-sm text-slate-500">
               Click the step that contains the error:
             </p>
-            {getProblemSteps(problem)!.map((step, i) => (
-              <button
-                key={i}
-                type="button"
-                disabled={feedback === "correct"}
-                onClick={() => setSelectedStep(i)}
-                onKeyDown={ignoreSpaceKey}
-                className={`block w-full rounded-xl border px-4 py-3 text-left font-mono text-sm ${
-                  selectedStep === i
-                    ? "border-red-400 bg-red-50"
-                    : "border-slate-200 hover:border-red-200"
-                }`}
-              >
-                Step {i + 1}: {step}
-              </button>
-            ))}
+            {getProblemSteps(problem)!.map((step, i) => {
+              const out = eliminatedSteps.includes(i);
+              const isError = revealed && "wrongStepIndex" in problem && problem.wrongStepIndex === i;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={over || out}
+                  onClick={() => setSelectedStep(i)}
+                  onKeyDown={ignoreSpaceKey}
+                  className={`block w-full rounded-xl border px-4 py-3 text-left font-mono text-sm ${
+                    isError
+                      ? "border-amber-400 bg-amber-50 text-amber-950"
+                      : out
+                        ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400"
+                        : selectedStep === i && !revealed
+                          ? "border-red-400 bg-red-50"
+                          : "border-slate-200 hover:border-red-200"
+                  }`}
+                >
+                  Step {i + 1}:{" "}
+                  <span className={out ? "line-through" : ""}>
+                    <MathText text={step} />
+                  </span>
+                  {out && <span className="ml-2 font-sans text-xs text-slate-400">this step is right</span>}
+                  {isError && <span className="ml-2 font-sans text-xs font-semibold text-amber-700">the mistake is here</span>}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -856,10 +1047,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 <span className="hue-solid flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold">
                   {position + 1}
                 </span>
-                <span className="flex-1 text-sm">{getProblemSteps(problem)![stepIdx]}</span>
+                <span className="flex-1 text-sm">
+                  <MathText text={getProblemSteps(problem)![stepIdx]} />
+                </span>
                 <button
                   type="button"
-                  disabled={feedback === "correct" || position === 0}
+                  disabled={over || position === 0}
                   onClick={() => moveStep(position, -1)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" up`}
@@ -868,7 +1061,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 </button>
                 <button
                   type="button"
-                  disabled={feedback === "correct" || position === stepOrder.length - 1}
+                  disabled={over || position === stepOrder.length - 1}
                   onClick={() => moveStep(position, 1)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" down`}
@@ -881,11 +1074,13 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         )}
 
         {/* Feedback */}
-        {feedback && (
+        {feedback && !revealed && (
           <div className="mt-4">
             <AnswerFeedback state={feedback} seed={feedbackSeed} />
             {feedback === "correct" && showExplanation && (
-              <p className="mt-2 px-1 text-sm text-slate-600">{problem.explanation}</p>
+              <p className="mt-2 px-1 text-sm text-slate-600">
+                <MathText text={problem.explanation} />
+              </p>
             )}
             {feedback === "wrong" && attempts === 1 && !ps.isComplete && !practiceOnly && (
               <p className="mt-2 px-1 text-xs text-slate-500">
@@ -895,12 +1090,32 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </div>
         )}
 
-        {showHint && (
+        {revealed && (
+          <div className="animate-pop-in mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <p className="flex items-center gap-2 font-semibold">
+              <Icon name="hint" size={16} className="text-sky-600" />
+              Here is how it goes
+            </p>
+            {answerText(problem) && (
+              <p className="mt-1.5">
+                The answer: <strong className="font-semibold"><MathText text={answerText(problem)!} /></strong>
+              </p>
+            )}
+            <p className="mt-1.5 leading-relaxed">
+              <MathText text={problem.explanation} />
+            </p>
+            {!practiceOnly && !ps.isComplete && (
+              <p className="mt-2 text-xs text-sky-800">The next first try counts toward the {ps.required}.</p>
+            )}
+          </div>
+        )}
+
+        {showHint && !revealed && (
           <div className="mt-4 flex items-start justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-900">
             <p className="flex items-start gap-2">
               <Icon name="hint" size={17} className="mt-0.5 shrink-0 text-amber-600" />
               <span>
-                <span className="font-semibold">Hint:</span> {problem.hint}
+                <span className="font-semibold">Hint:</span> <MathText text={problem.hint} />
               </span>
             </p>
             {speechSupported && (
@@ -918,7 +1133,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         )}
 
         {/* A few misses in, the AI helper is offered, opened on this problem. */}
-        {showNudge && feedback !== "correct" && (
+        {showNudge && !over && (
           <div className="mt-4 rounded-xl border border-bridge-100 bg-bridge-50 px-4 py-3 sm:flex sm:items-center sm:gap-3">
             <div className="min-w-0 sm:flex-1">
               <p className="text-sm font-semibold text-bridge-900">Stuck? Talk it through with the AI helper.</p>
@@ -952,7 +1167,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
         {/* Actions */}
         <div className="mt-6 flex flex-wrap gap-3">
-          {feedback !== "correct" ? (
+          {!over ? (
             <button
               type="button"
               onClick={handleSubmit}
@@ -973,23 +1188,32 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </button>
           )}
 
-          {attempts > 0 && feedback !== "correct" && (
+          {attempts >= 2 && !over && (
+            <button type="button" onClick={showMeHow} onKeyDown={ignoreSpaceKey} className="btn-secondary">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="hint" size={15} />
+                Show me how
+              </span>
+            </button>
+          )}
+
+          {attempts > 0 && !over && (
             <button type="button" onClick={nextProblem} onKeyDown={ignoreSpaceKey} className="btn-secondary">
               Skip
             </button>
           )}
 
-          {(skill.generatorKey || sessionProblems.length > 1) && !infiniteMode && (
+          {sessionProblems.length > 1 && (
             <button type="button" onClick={loadMoreProblems} className="btn-secondary">
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="review" size={15} />
-                {skill.generatorKey ? "Keep practicing" : "Shuffle problems"}
+                Keep practicing
               </span>
             </button>
           )}
           <p className="ml-auto hidden self-center text-xs text-slate-400 sm:block">
             Press <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5">Enter</kbd> to
-            {feedback === "correct" ? " continue" : " check"}
+            {over ? " continue" : " check"}
           </p>
         </div>
         {/* A problem that reads wrong is worth hearing about, from the card it is on. */}
