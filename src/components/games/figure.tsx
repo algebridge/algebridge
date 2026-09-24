@@ -8,10 +8,10 @@ import { useId, type ReactNode } from "react";
  * at the bottom, facing a little to the right; light comes from the upper
  * left. The head is about a sixth of the height, the way a teenager's is.
  *
- * Skin is shaded with a soft gradient (the one place the House's flat rule
- * bends, because a face without form reads as a sticker), and every feature
- * is a shape rather than a line: eyes with a white, an iris and a lid;
- * a nose with a bridge and nostrils; lips in two tones.
+ * Faces are the simple ones the House has always had: two tones of skin, dot
+ * eyes with a catch of light, a stroke for each brow, a stroke for the nose,
+ * a smile. Ivan asked for exactly these after seeing a more detailed face,
+ * so keep them. Limbs carry a soft gradient for a little form.
  *
  * Joints are fixed so the CSS that animates a walk, a kick or a glide works
  * for everyone: shoulders at (37.5, 55) and (62.5, 55), hips at (53, 100)
@@ -48,11 +48,6 @@ export function useArtId(): string {
 export function SkinDefs({ id, look }: { id: string; look: Look }) {
   return (
     <defs>
-      <radialGradient id={`${id}-face`} cx="0.4" cy="0.3" r="0.78">
-        <stop offset="0" stopColor={look.skinLight} />
-        <stop offset="0.42" stopColor={look.skin} />
-        <stop offset="1" stopColor={look.skinShade} />
-      </radialGradient>
       <linearGradient id={`${id}-limb`} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopColor={look.skinLight} />
         <stop offset="0.38" stopColor={look.skin} />
@@ -62,7 +57,6 @@ export function SkinDefs({ id, look }: { id: string; look: Look }) {
   );
 }
 
-export const faceFill = (id: string) => `url(#${id}-face)`;
 export const limbFill = (id: string) => `url(#${id}-limb)`;
 
 /* ── Head and face ─────────────────────────────────────────────── */
@@ -84,16 +78,16 @@ export type Jaw = keyof typeof FACE_SHAPES;
  * Neck, ears and the face itself. Whatever is drawn on the face (features,
  * hair, glasses) comes in as children, over it.
  */
-export function Head({ id, look, jaw = "oval", children }: { id: string; look: Look; jaw?: Jaw; children?: ReactNode }) {
+export function Head({ look, jaw = "oval", children }: { id?: string; look: Look; jaw?: Jaw; children?: ReactNode }) {
   return (
     <g>
       <ellipse cx="37.1" cy="27.2" rx="2.6" ry="3.6" fill={look.skinShade} />
       {/* The neck sits in the chin's shadow. */}
       <path d="M46.2 32 L53.8 32 L54.2 52 L45.8 52Z" fill={look.skinShade} />
       <path d="M46.2 32 L53.8 32 L53.6 38 Q50 41.5 46.4 38Z" fill={look.skinShade} />
-      <path d={FACE_SHAPES[jaw]} fill={faceFill(id)} />
-      {/* Under the jaw. */}
-      <path d="M40.5 33.5 Q50 42 59.5 33.5 Q56.5 39.6 50 39.6 Q43.5 39.6 40.5 33.5Z" fill={look.skinShade} opacity="0.26" />
+      {/* Two tones: the shade, then the lit face a touch up and to the left. */}
+      <path d={FACE_SHAPES[jaw]} fill={look.skinShade} />
+      <path d={FACE_SHAPES[jaw]} fill={look.skin} transform="translate(1.7 0.3) scale(0.945)" style={{ transformOrigin: "50px 25.5px" }} />
       <ellipse cx="62.9" cy="27.2" rx="2.6" ry="3.6" fill={look.skin} />
       <path d="M62.2 25.4 Q64.2 27.2 62.8 29.4" stroke={look.skinShade} strokeWidth="0.8" fill="none" opacity="0.7" strokeLinecap="round" />
       {children}
@@ -101,50 +95,28 @@ export function Head({ id, look, jaw = "oval", children }: { id: string; look: L
   );
 }
 
-function Eye({ cx, cy, look }: { cx: number; cy: number; look: Look }) {
-  return (
-    <g>
-      <ellipse cx={cx} cy={cy} rx="3.4" ry="2.25" fill="#fbf6f1" />
-      <circle cx={cx + 0.6} cy={cy + 0.1} r="2" fill={look.iris} />
-      <circle cx={cx + 0.6} cy={cy + 0.1} r="1.05" fill="#0a0604" />
-      <circle cx={cx + 1.3} cy={cy - 0.7} r="0.6" fill="#ffffff" opacity="0.9" />
-      {/* The upper lid and its lashes, the lower lid, and the crease above. */}
-      <path d={`M${cx - 3.5} ${cy - 0.5} Q${cx} ${cy - 3.7} ${cx + 3.6} ${cy - 0.3}`} stroke={look.hair} strokeWidth="1.15" fill="none" strokeLinecap="round" />
-      <path d={`M${cx - 3} ${cy + 1.6} Q${cx} ${cy + 2.9} ${cx + 3.2} ${cy + 1.5}`} stroke={look.skinShade} strokeWidth="0.7" fill="none" opacity="0.6" strokeLinecap="round" />
-      <path d={`M${cx - 3.9} ${cy - 1.3} Q${cx} ${cy - 4.8} ${cx + 4} ${cy - 1.1}`} stroke={look.skinShade} strokeWidth="0.7" fill="none" opacity="0.4" strokeLinecap="round" />
-    </g>
-  );
-}
-
 /**
- * Brows, eyes, nose, cheeks and mouth. `smile` runs from 0 (lips together,
- * level) to 1 (a real smile). `browGap` moves the brows up a little.
+ * Brows, eyes, nose and mouth, the simple way: strokes and dots. `smile`
+ * runs from 0 (a level mouth) to 1 (a wide smile); `blush` adds colour to
+ * the cheeks.
  */
-export function Face({ look, smile = 0.6, browGap = 0 }: { look: Look; smile?: number; browGap?: number }) {
-  const lift = 1.9 * smile;
-  /** Where the corners of the mouth sit, and where the line between the lips dips to. */
-  const corner = 37.4 - lift;
-  const mid = 37.8 + lift * 0.45;
-  const by = 1.1 - browGap;
+export function Face({ look, smile = 0.6, blush }: { look: Look; smile?: number; blush?: string }) {
   return (
     <g>
-      <ellipse cx="46" cy="18" rx="5.6" ry="3.2" fill={look.skinLight} opacity="0.3" />
-      {/* Brows: fuller toward the nose, tapering out. */}
-      <path d={`M41.2 ${22.8 + by} Q45.2 ${19.9 + by} 49.5 ${21.6 + by} Q49.3 ${22.7 + by} 45.3 ${21.9 + by} Q43 ${22.3 + by} 41.5 ${23.7 + by}Z`} fill={look.hair} />
-      <path d={`M52.1 ${21.6 + by} Q56.4 ${19.9 + by} 60.4 ${22.8 + by} Q60.1 ${23.7 + by} 58.6 ${22.3 + by} Q56.3 ${21.9 + by} 52.3 ${22.7 + by}Z`} fill={look.hair} />
-      <Eye cx={45.2} cy={26.7} look={look} />
-      <Eye cx={56.3} cy={26.7} look={look} />
-      {/* Nose: the bridge's shadow on the right, the nostrils, a catch of light on the tip. */}
-      <path d="M51 27.6 Q53.2 30.6 52.4 33.4" stroke={look.skinShade} strokeWidth="1" fill="none" opacity="0.5" strokeLinecap="round" />
-      <path d="M48.3 33.6 Q50.6 35.3 53.3 33.5" stroke={look.skinShade} strokeWidth="1.15" fill="none" strokeLinecap="round" opacity="0.85" />
-      <ellipse cx="50.5" cy="32.3" rx="1.3" ry="0.8" fill={look.skinLight} opacity="0.35" />
-      <circle cx="43.2" cy="31.4" r="3.1" fill={look.lipLight} opacity="0.15" />
-      <circle cx="58.8" cy="31.6" r="3.1" fill={look.lipLight} opacity="0.15" />
-      {/* Lips: the upper one darker, the lower one catching light. The corners rise with the smile. */}
-      <path d={`M45.4 ${corner} Q47.8 35.6 50.6 36.1 Q53.4 35.6 55.8 ${corner} Q50.6 ${mid + 0.2} 45.4 ${corner}Z`} fill={look.lip} />
-      <path d={`M45.7 ${corner + 0.2} Q50.6 ${39.2 + lift * 0.8} 55.5 ${corner + 0.2} Q50.6 ${mid + 0.4} 45.7 ${corner + 0.2}Z`} fill={look.lipLight} />
-      <path d={`M45.4 ${corner} Q50.6 ${mid + 0.5} 55.8 ${corner}`} stroke={look.lip} strokeWidth="0.6" fill="none" opacity="0.75" strokeLinecap="round" />
-      {smile > 0.6 && <path d={`M44.6 ${corner - 0.4} l-0.9 -0.7 M56.6 ${corner - 0.4} l0.9 -0.7`} stroke={look.skinShade} strokeWidth="0.7" fill="none" opacity="0.6" strokeLinecap="round" />}
+      <path d="M41.8 23.4 Q45.2 21.5 48.6 23" stroke={look.hair} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d="M52.2 23 Q55.6 21.5 59 23.4" stroke={look.hair} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <ellipse cx="45.4" cy="27.3" rx="1.9" ry="2.2" fill={look.iris} />
+      <ellipse cx="55.8" cy="27.3" rx="1.9" ry="2.2" fill={look.iris} />
+      <circle cx="46" cy="26.6" r="0.6" fill="#ffffff" opacity="0.8" />
+      <circle cx="56.4" cy="26.6" r="0.6" fill="#ffffff" opacity="0.8" />
+      <path d="M50.8 29.6 Q51.9 31.6 50.4 32.5" stroke={look.skinShade} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      {blush && (
+        <g>
+          <circle cx="43" cy="31.6" r="2.4" fill={blush} opacity="0.55" />
+          <circle cx="58.6" cy="31.6" r="2.4" fill={blush} opacity="0.55" />
+        </g>
+      )}
+      <path d={`M46 ${35.8 - smile * 0.4} Q50.6 ${36.4 + smile * 3.2} 55.2 ${35.8 - smile * 0.4}`} stroke={look.lip} strokeWidth="1.8" fill="none" strokeLinecap="round" />
     </g>
   );
 }
