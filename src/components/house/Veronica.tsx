@@ -125,9 +125,7 @@ export function Veronica({
           <path d="M40.4 17.6 Q38.4 22 39.6 27.4 M60 17.2 Q62 21.4 61.2 26.2" stroke={V.hair} strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.8" />
           <ellipse cx="36.8" cy="30.8" rx="3.3" ry="2.4" fill={P.dressLight} />
           <ellipse cx="36.8" cy="30.8" rx="1.5" ry="1" fill={P.dressShade} />
-          <Face look={V} smile={0.95} />
-          <circle cx="43.2" cy="31.4" r="3.4" fill="#f9a8d4" opacity="0.28" />
-          <circle cx="58.8" cy="31.6" r="3.4" fill="#f9a8d4" opacity="0.28" />
+          <Face look={V} smile={0.95} blush="#f9a8d4" />
           <circle cx="63.1" cy="31.4" r="1.1" fill={P.silver} />
         </Head>
       </g>
