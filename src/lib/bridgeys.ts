@@ -554,6 +554,16 @@ export function awardRinkBridgeys(
   return { paid, remaining: Math.max(0, RINK_DAILY_CAP - r.earned), solved: r.solved, dailyBonus };
 }
 
+/** Keeps a team game's best run of right answers in a row. */
+export function recordGameRun(gameId: string, run: number): void {
+  const progress = getProgress();
+  ensureBridgeyFields(progress);
+  const best = progress.gameBest?.[gameId] ?? 0;
+  if (run <= best) return;
+  progress.gameBest = { ...(progress.gameBest ?? {}), [gameId]: run };
+  saveProgress(progress);
+}
+
 /** Keeps the best run of right answers in a row. */
 export function recordRinkRun(run: number, day: string): void {
   const progress = getProgress();

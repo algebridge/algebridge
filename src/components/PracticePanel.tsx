@@ -41,7 +41,7 @@ import {
   stripVariantTag,
   type PersonalizableProblem,
 } from "@/lib/personalize";
-import { fractionText, shuffleArray } from "@/lib/problem-utils";
+import { displayAnswer, shuffleArray } from "@/lib/problem-utils";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -72,19 +72,7 @@ function answerText(problem: ActiveProblem): string | null {
     return `Step ${problem.wrongStepIndex + 1}`;
   }
   if (problem.type === "step-order") return null;
-  if (problem.answer === undefined || problem.answer === null) return null;
-  if (problem.type === "numeric") {
-    const n = Number(problem.answer);
-    if (!Number.isFinite(n)) return String(problem.answer);
-    const dp = "decimalPlaces" in problem && typeof problem.decimalPlaces === "number" ? problem.decimalPlaces : null;
-    if (dp !== null) return n.toFixed(dp);
-    if (Number.isInteger(n)) return String(n);
-    // A fraction when the problem asked for one, or when the decimal never ends.
-    const asFraction = fractionText(n);
-    if (asFraction && (/fraction/i.test(problem.prompt) || String(n).length > 8)) return asFraction;
-    return String(Math.round(n * 10000) / 10000);
-  }
-  return String(problem.answer);
+  return displayAnswer(problem) || null;
 }
 
 /** Today's right answers, kept current as progress saves. */

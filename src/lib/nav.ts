@@ -57,7 +57,7 @@ export function buildNav({
     { href: "/achievements", label: "Achievements", icon: "trophy" },
     { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
     { href: "/house", label: "Bridgey House", icon: "house" },
-    { href: "/house?play=rink", label: "Skate with Veronica", icon: "spark" },
+    { href: "/games", label: "Games", icon: "play" },
   ];
 
   const help: NavItem[] = [{ href: "/feedback", label: "Feedback", icon: "hint" }];
