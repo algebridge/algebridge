@@ -390,6 +390,348 @@ html.lenis body {
   to { transform: rotateY(720deg); }
 }
 
+/* ── The team: Shaurya, Jo, Jordyn, Rayla ─────────────────────
+   The same joints as Veronica, SVG groups rotated about the shoulder
+   and the hip, with a run in place of a glide. `.player-action` is each
+   one's move: a shot, a jump, a spike, a strike. Arms hang straight
+   down at 0deg; negative turns them forward, the way each one faces. */
+.player {
+  overflow: visible;
+}
+.player .p-leg,
+.player .p-arm,
+.player .p-body {
+  transition: transform 0.2s ease-out;
+}
+.player-moving .p-leg-front {
+  animation: p-run var(--stride) ease-in-out infinite;
+}
+.player-moving .p-leg-back {
+  animation: p-run var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+.player-moving .p-arm-front {
+  animation: p-swing var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+.player-moving .p-arm-back {
+  animation: p-swing var(--stride) ease-in-out infinite;
+}
+.player-moving .p-body {
+  transform: rotate(5deg);
+}
+.player-idle:not(.player-moving) .p-body {
+  animation: v-bob 2.6s ease-in-out infinite;
+}
+
+/* Shaurya: in his stance, hands up, and a shuffle rather than a run. */
+.player-wrestling .p-body {
+  transform: rotate(9deg);
+}
+.player-wrestling.player-idle:not(.player-moving) .p-body {
+  animation: p-stance-bob 2.2s ease-in-out infinite;
+}
+.player-wrestling .p-arm-front {
+  transform: rotate(-58deg);
+}
+.player-wrestling .p-arm-back {
+  transform: rotate(-38deg);
+}
+.player-wrestling .p-leg-front {
+  transform: rotate(-9deg);
+}
+.player-wrestling .p-leg-back {
+  transform: rotate(11deg);
+}
+.player-wrestling.player-moving .p-leg-front,
+.player-wrestling.player-moving .p-leg-back {
+  animation-name: p-shuffle;
+}
+.player-wrestling.player-moving .p-arm-front {
+  animation: p-guard-front var(--stride) ease-in-out infinite;
+}
+.player-wrestling.player-moving .p-arm-back {
+  animation: p-guard-back var(--stride) ease-in-out infinite;
+}
+/* The shot: level change, a deep step in, chest forward, hands in on the legs.
+   The hips drop as far as the split legs lower them, so both feet stay down. */
+.player-wrestling.player-action .p-all {
+  animation: p-shoot 0.9s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.player-wrestling.player-action .p-body {
+  animation: p-shoot-lean 0.9s cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.player-wrestling.player-action .p-arm-front {
+  animation: p-shoot-arm 0.9s ease-out;
+}
+.player-wrestling.player-action .p-arm-back {
+  animation: p-shoot-arm-back 0.9s ease-out;
+}
+.player-wrestling.player-action .p-leg-front {
+  animation: p-shoot-step 0.9s ease-out;
+}
+.player-wrestling.player-action .p-leg-back {
+  animation: p-shoot-drive 0.9s ease-out;
+}
+
+/* Jo: pom-poms at her sides, a pump every few seconds. */
+.player-cheer .p-arm-front {
+  transform: rotate(-16deg);
+}
+.player-cheer .p-arm-back {
+  transform: rotate(16deg);
+}
+.player-cheer.player-idle:not(.player-moving) .p-arm-front {
+  animation: p-pom-pump 3s ease-in-out infinite;
+}
+/* A toe touch: squat, up, arms in a high V, legs split, land. */
+.player-cheer.player-action .p-all {
+  animation: p-jump 0.9s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.player-cheer.player-action .p-arm-front {
+  animation: p-high-v-front 0.9s ease-out;
+}
+.player-cheer.player-action .p-arm-back {
+  animation: p-high-v-back 0.9s ease-out;
+}
+.player-cheer.player-action .p-leg-front {
+  animation: p-split-front 0.9s ease-out;
+}
+.player-cheer.player-action .p-leg-back {
+  animation: p-split-back 0.9s ease-out;
+}
+
+/* Jordyn: ready position, arms low and out in front. */
+.player-volleyball .p-arm-front {
+  transform: rotate(-30deg);
+}
+.player-volleyball .p-arm-back {
+  transform: rotate(-20deg);
+}
+/* The spike: arms back on the approach, up together, then the swing. */
+.player-volleyball.player-action .p-all {
+  animation: p-jump-high 0.9s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.player-volleyball.player-action .p-body {
+  animation: p-arch 0.9s ease-out;
+}
+.player-volleyball.player-action .p-arm-front {
+  animation: p-spike 0.9s ease-out;
+}
+.player-volleyball.player-action .p-arm-back {
+  animation: p-spike-back 0.9s ease-out;
+}
+.player-volleyball.player-action .p-leg-front {
+  animation: p-tuck-front 0.9s ease-out;
+}
+.player-volleyball.player-action .p-leg-back {
+  animation: p-tuck-back 0.9s ease-out;
+}
+
+/* Rayla: a quicker stride, and the strike: plant, wind back, through the ball. */
+.player-soccer .p-arm-front {
+  transform: rotate(-8deg);
+}
+.player-soccer .p-arm-back {
+  transform: rotate(8deg);
+}
+.player-soccer.player-action .p-leg-front {
+  animation: p-kick 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-soccer.player-action .p-leg-back {
+  animation: p-plant 0.9s ease-out;
+}
+.player-soccer.player-action .p-arm-front {
+  animation: p-kick-arm-front 0.9s ease-out;
+}
+.player-soccer.player-action .p-arm-back {
+  animation: p-kick-arm-back 0.9s ease-out;
+}
+.player-soccer.player-action .p-body {
+  animation: p-kick-lean 0.9s ease-out;
+}
+
+/* What to run to: it breathes, and a ball floats. */
+.court-target {
+  animation: rink-pulse 1.4s ease-in-out infinite;
+  transform-origin: 50% 70%;
+  transform-box: fill-box;
+}
+.court-ball-float {
+  animation: rink-bob 1.2s ease-in-out infinite;
+}
+/* The goal net, when a ball hits it. */
+.net-hit {
+  animation: net-ripple 0.55s ease-out;
+}
+
+@keyframes p-run {
+  0%, 100% { transform: rotate(-28deg); }
+  50% { transform: rotate(28deg); }
+}
+@keyframes p-swing {
+  0%, 100% { transform: rotate(-32deg); }
+  50% { transform: rotate(30deg); }
+}
+@keyframes p-shuffle {
+  0%, 100% { transform: rotate(-16deg); }
+  50% { transform: rotate(14deg); }
+}
+@keyframes p-guard-front {
+  0%, 100% { transform: rotate(-62deg); }
+  50% { transform: rotate(-52deg); }
+}
+@keyframes p-guard-back {
+  0%, 100% { transform: rotate(-34deg); }
+  50% { transform: rotate(-44deg); }
+}
+@keyframes p-stance-bob {
+  0%, 100% { transform: rotate(9deg) translateY(0); }
+  50% { transform: rotate(11deg) translateY(2px); }
+}
+@keyframes p-shoot {
+  0%, 100% { transform: translate(0, 0); }
+  22% { transform: translate(1px, 2px); }
+  52% { transform: translate(20px, 13px); }
+  74% { transform: translate(13px, 6px); }
+}
+@keyframes p-shoot-lean {
+  0%, 100% { transform: rotate(9deg); }
+  22% { transform: rotate(15deg); }
+  52% { transform: rotate(32deg); }
+  74% { transform: rotate(20deg); }
+}
+@keyframes p-shoot-arm {
+  0%, 100% { transform: rotate(-58deg); }
+  22% { transform: rotate(-70deg); }
+  52% { transform: rotate(-100deg); }
+  74% { transform: rotate(-80deg); }
+}
+@keyframes p-shoot-arm-back {
+  0%, 100% { transform: rotate(-38deg); }
+  52% { transform: rotate(-86deg); }
+}
+@keyframes p-shoot-step {
+  0%, 100% { transform: rotate(-9deg); }
+  22% { transform: rotate(-14deg); }
+  52% { transform: rotate(-40deg); }
+  74% { transform: rotate(-24deg); }
+}
+@keyframes p-shoot-drive {
+  0%, 100% { transform: rotate(11deg); }
+  22% { transform: rotate(15deg); }
+  52% { transform: rotate(46deg); }
+  74% { transform: rotate(28deg); }
+}
+@keyframes p-pom-pump {
+  0%, 62%, 100% { transform: rotate(-16deg); }
+  70% { transform: rotate(-155deg); }
+  78% { transform: rotate(-135deg); }
+  86% { transform: rotate(-155deg); }
+}
+@keyframes p-jump {
+  0%, 100% { transform: translateY(0); }
+  16% { transform: translateY(5px) scaleY(0.95); }
+  46% { transform: translateY(-34px); }
+  62% { transform: translateY(-30px); }
+  86% { transform: translateY(2px) scaleY(0.97); }
+}
+@keyframes p-high-v-front {
+  0%, 100% { transform: rotate(-16deg); }
+  16% { transform: rotate(-30deg); }
+  40%, 70% { transform: rotate(-150deg); }
+}
+@keyframes p-high-v-back {
+  0%, 100% { transform: rotate(16deg); }
+  16% { transform: rotate(30deg); }
+  40%, 70% { transform: rotate(150deg); }
+}
+@keyframes p-split-front {
+  0%, 30%, 86%, 100% { transform: rotate(0deg); }
+  50%, 62% { transform: rotate(-72deg); }
+}
+@keyframes p-split-back {
+  0%, 30%, 86%, 100% { transform: rotate(0deg); }
+  50%, 62% { transform: rotate(72deg); }
+}
+@keyframes p-jump-high {
+  0%, 100% { transform: translateY(0); }
+  18% { transform: translateY(6px) scaleY(0.94); }
+  46% { transform: translateY(-44px); }
+  60% { transform: translateY(-40px); }
+  88% { transform: translateY(2px) scaleY(0.97); }
+}
+@keyframes p-arch {
+  0%, 100% { transform: none; }
+  40% { transform: rotate(-9deg); }
+  56% { transform: rotate(12deg); }
+}
+@keyframes p-spike {
+  0%, 100% { transform: rotate(-30deg); }
+  18% { transform: rotate(55deg); }
+  40% { transform: rotate(-168deg); }
+  54% { transform: rotate(-62deg); }
+  76% { transform: rotate(-35deg); }
+}
+@keyframes p-spike-back {
+  0%, 100% { transform: rotate(-20deg); }
+  18% { transform: rotate(55deg); }
+  40% { transform: rotate(-150deg); }
+  60% { transform: rotate(-20deg); }
+}
+@keyframes p-tuck-front {
+  0%, 30%, 88%, 100% { transform: rotate(0deg); }
+  48%, 60% { transform: rotate(-24deg); }
+}
+@keyframes p-tuck-back {
+  0%, 30%, 88%, 100% { transform: rotate(0deg); }
+  48%, 60% { transform: rotate(30deg); }
+}
+@keyframes p-kick {
+  0%, 100% { transform: rotate(0deg); }
+  24% { transform: rotate(-12deg); }
+  38% { transform: rotate(52deg); }
+  52% { transform: rotate(-82deg); }
+  64% { transform: rotate(-92deg); }
+  84% { transform: rotate(-10deg); }
+}
+@keyframes p-plant {
+  0%, 100% { transform: rotate(0deg); }
+  24% { transform: rotate(18deg); }
+  38%, 64% { transform: rotate(-6deg); }
+}
+@keyframes p-kick-arm-front {
+  0%, 100% { transform: rotate(-8deg); }
+  38% { transform: rotate(-60deg); }
+  56% { transform: rotate(45deg); }
+}
+@keyframes p-kick-arm-back {
+  0%, 100% { transform: rotate(8deg); }
+  38% { transform: rotate(50deg); }
+  56% { transform: rotate(-80deg); }
+}
+@keyframes p-kick-lean {
+  0%, 100% { transform: none; }
+  38% { transform: rotate(4deg); }
+  56% { transform: rotate(-9deg); }
+}
+/* A cheer over a player's head: in, held while they make the move, then up and away. */
+.court-pop {
+  animation: court-pop 1.4s ease-out forwards;
+}
+@keyframes court-pop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.7); }
+  12% { opacity: 1; transform: translateY(0) scale(1.1); }
+  20% { transform: translateY(0) scale(1); }
+  72% { opacity: 1; transform: translateY(-14px) scale(1); }
+  100% { opacity: 0; transform: translateY(-34px) scale(0.96); }
+}
+@keyframes net-ripple {
+  0%, 100% { transform: scale(1, 1); }
+  30% { transform: scale(0.97, 1.06) translateY(3px); }
+  60% { transform: scale(1.01, 0.98); }
+}
+
 @keyframes float-up {
   0% { opacity: 0; transform: translateY(0) scale(0.8); }
   20% { opacity: 1; transform: translateY(-8px) scale(1.1); }

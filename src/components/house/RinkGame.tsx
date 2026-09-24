@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { MathText, PromptText } from "@/components/PromptText";
-import { SignKeys } from "@/components/SignKeys";
-import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
+import { useScratchpadSurface } from "@/components/Scratchpad";
+import { GameChip, GameProblemDialog } from "@/components/games/GameProblemDialog";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
 import { useSound } from "@/hooks/useSound";
@@ -13,10 +12,8 @@ import { SCENE_H, SCENE_W, pctX, pctY } from "@/lib/dollhouse";
 import { answerIsRight } from "@/lib/grading";
 import { DAILY_GOAL } from "@/lib/gamification";
 import { fireConfetti, showToast } from "@/lib/notify";
-import { hueVars, unitHue } from "@/lib/hues";
 import { today } from "@/lib/path";
-import { stripVariantTag } from "@/lib/personalize";
-import { clampToRink, onRink, pickRinkProblem, RINK, RINK_DAILY_CAP, rinkPayFor, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
+import { clampToRink, onRink, pickRinkProblem, RINK, RINK_DAILY_CAP, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
 import type { UserProgress } from "@/types";
 
 /**
@@ -61,7 +58,6 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const [ring, setRing] = useState<Ring | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
-  const answerRef = useRef<HTMLInputElement>(null);
   const [verdict, setVerdict] = useState<{ right: boolean; paid: number } | null>(null);
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -240,11 +236,9 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
           description: `${DAILY_GOAL} right today, the rink included.`,
         });
       }
-      setSession((s) => {
-        const run = s.run + 1;
-        recordRinkRun(run, day);
-        return { solved: s.solved + 1, earned: s.earned + paid, run };
-      });
+      // Saved here, outside the state update: saving tells the rest of the app, and that is a side effect.
+      recordRinkRun(session.run + 1, day);
+      setSession((s) => ({ solved: s.solved + 1, earned: s.earned + paid, run: s.run + 1 }));
       setVerdict({ right: true, paid });
       onUpdate();
     } else {
@@ -261,9 +255,6 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
     setRing(null);
     window.setTimeout(spawnRing, 400);
   }
-
-  const problem = open?.problem;
-  const skillHue = open ? unitHue(open.unitId) : null;
 
   return (
     <>
@@ -313,7 +304,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
 
         {/* HUD: two chips, and the way out. Small, so the rink stays the picture. */}
         <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1.5 sm:left-3 sm:top-3 sm:gap-2">
-          <Chip>
+          <GameChip>
             <BridgeysLogo size={13} />
             <span className="tabular-nums">+{session.earned}</span>
             <span aria-hidden className="text-slate-300">·</span>
@@ -326,11 +317,11 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
                 <span className="tabular-nums">{session.run}</span>
               </>
             )}
-          </Chip>
-          <Chip>
+          </GameChip>
+          <GameChip>
             <span className="tabular-nums">{remaining}</span>
             <span className="text-slate-500">of {RINK_DAILY_CAP} today</span>
-          </Chip>
+          </GameChip>
         </div>
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
@@ -346,99 +337,19 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
       </div>
 
       {/* The problem, over everything. Head math: nothing here needs paper. */}
-      {open && problem && (
-        <div className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label="Rink problem">
-          <div style={skillHue ? hueVars(skillHue) : undefined} className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="hue-banner flex items-center justify-between gap-3 px-4 py-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wide">
-                Unit {open.unitNumber} · {open.skillTitle}
-              </p>
-              <p className="flex items-center gap-1 text-xs font-semibold">
-                <BridgeysLogo size={13} />+{rinkPayFor(open.skillId)}
-              </p>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-slate-500">In your head, or draw it out. No calculator on the ice.</p>
-                <ScratchpadButton />
-              </div>
-              <PromptText text={stripVariantTag(problem.prompt)} />
-              {!verdict ? (
-                problem.type === "multiple-choice" && problem.choices ? (
-                  <div className="mt-4 grid gap-2">
-                    {problem.choices.map((choice, i) => (
-                      <button
-                        key={choice}
-                        type="button"
-                        onClick={() => check(choice)}
-                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
-                      >
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
-                          {String.fromCharCode(65 + i)}
-                        </span>
-                        <MathText text={choice} />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <form
-                    className="mt-4 flex gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      check(answer);
-                    }}
-                  >
-                    <input
-                      ref={answerRef}
-                      autoFocus
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      inputMode="decimal"
-                      autoComplete="off"
-                      aria-label="Your answer"
-                      placeholder="Your answer"
-                      className="field min-w-0 flex-1 text-lg"
-                    />
-                    <SignKeys value={answer} onChange={setAnswer} inputRef={answerRef} />
-                    <button type="submit" disabled={!answer.trim()} className="hue-solid rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50">
-                      Check
-                    </button>
-                  </form>
-                )
-              ) : (
-                <div className="mt-4">
-                  <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium ${verdict.right ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
-                    <Icon name={verdict.right ? "check" : "review"} size={18} className="shrink-0" />
-                    <p>
-                      {verdict.right
-                        ? verdict.paid > 0
-                          ? `Right. +${verdict.paid} Bridgeys.`
-                          : "Right. The rink has paid its cap for today, so this one is for practice."
-                        : `The answer was ${String(problem.answer)}.`}
-                    </p>
-                  </div>
-                  {!verdict.right && (
-                    <p className="mt-2 px-1 text-sm text-slate-600">
-                      <MathText text={problem.explanation} />
-                    </p>
-                  )}
-                  <button type="button" autoFocus onClick={skateOn} className="btn-primary mt-4 w-full">
-                    Skate on
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {open && (
+        <GameProblemDialog
+          open={open}
+          verdict={verdict}
+          answer={answer}
+          setAnswer={setAnswer}
+          onCheck={check}
+          onContinue={skateOn}
+          continueLabel="Skate on"
+          note="In your head, or draw it out. The calculator stays off the ice."
+          label="Rink problem"
+        />
       )}
     </>
-  );
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-slate-800 backdrop-blur-sm sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
-      {children}
-    </span>
   );
 }

@@ -981,5 +981,73 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("the half-dollar car rounds up", !decay || decay.answer === 18063, String(decay?.answer));
 }
 
+// --- The team games -------------------------------------------------------------
+{
+  const G = await import("../games.ts");
+  const B = await import("../bridgeys.ts");
+  const R = await import("../rink.ts");
+  const Pr = await import("../progress.ts");
+  ok("four team games, one per teammate", G.COURT_GAMES.length === 4 && new Set(G.COURT_GAMES.map((g) => g.id)).size === 4 && G.COURT_GAMES.map((g) => g.player).join() === "Shaurya,Jo,Jordyn,Rayla");
+  ok("each game is found by its id, and only real ids", G.COURT_GAMES.every((g) => G.getCourtGame(g.id) === g) && !G.getCourtGame("rink") && !G.getCourtGame("hockey"));
+  ok("Jo is the shortest, Jordyn the tallest", Math.min(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("cheer")!.height && Math.max(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("volleyball")!.height);
+  ok("every player starts inside their court", G.COURT_GAMES.every((g) => G.inArea(g.area, g.start.x, g.start.y, 22)));
+  ok("every court sits inside the picture", G.COURT_GAMES.every((g) => {
+    const a = g.area;
+    return a.kind === "rect" ? a.x0 >= 0 && a.x1 <= G.SCENE.W && a.y0 >= 0 && a.y1 <= G.SCENE.H : a.cx - a.rx >= 0 && a.cx + a.rx <= G.SCENE.W && a.cy + a.ry <= G.SCENE.H;
+  }));
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const clampsIn = G.COURT_GAMES.every((g) => {
+    for (let i = 0; i < 400; i += 1) {
+      const x = rand() * 1400 - 100;
+      const y = rand() * 1000 - 100;
+      const c = G.clampToArea(g.area, x, y, 22);
+      if (!G.inArea(g.area, c.x, c.y, 21.9)) return false;
+      if (G.inArea(g.area, x, y, 22) && (c.x !== x || c.y !== y)) return false;
+    }
+    return true;
+  });
+  ok("a player pushed off the court comes back onto it, and one on it stays put", clampsIn);
+  const spotsFair = G.COURT_GAMES.every((g) => {
+    for (let i = 0; i < 300; i += 1) {
+      const from = G.clampToArea(g.area, rand() * 1200, rand() * 800, 22);
+      const s = G.spotAwayFrom(g.area, from, rand);
+      // Inside where the player can stand, so every target can be reached.
+      if (!G.inArea(g.area, s.x, s.y, 22)) return false;
+      if (Math.hypot(s.x - from.x, (s.y - from.y) * 1.6) < 100) return false;
+    }
+    return true;
+  });
+  ok("every target lands where the player can reach it, a fair run away", spotsFair);
+  ok("nearer the front is drawn larger", G.COURT_GAMES.every((g) => {
+    const top = g.area.kind === "rect" ? g.area.y0 : g.area.cy - g.area.ry;
+    const bottom = g.area.kind === "rect" ? g.area.y1 : g.area.cy + g.area.ry;
+    return G.depthScale(g.area, top) === 0.78 && G.depthScale(g.area, bottom) === 1 && G.depthScale(g.area, top - 50) === 0.78;
+  }));
+  const soccer = G.getCourtGame("soccer")!.area;
+  const volley = G.getCourtGame("volleyball")!.area;
+  ok("the goal is up the field from where Rayla plays", soccer.kind === "rect" && G.GOAL.line < soccer.y0 && G.GOAL.x0 < 600 && G.GOAL.x1 > 600);
+  ok("Jordyn plays her side of the net", volley.kind === "rect" && G.NET_Y < volley.y0);
+
+  // All five games pay from one daily pot.
+  const p = Pr.getProgress();
+  p.rink = undefined;
+  Pr.saveProgress(p);
+  const skill = units[0].skills[0].id;
+  for (let i = 0; i < 40; i += 1) B.awardRinkBridgeys(skill, "2026-09-24");
+  ok("after the rink hits the cap, a court game pays nothing more today", B.awardRinkBridgeys(skill, "2026-09-24").paid === 0 && R.rinkRemainingToday(Pr.getProgress(), "2026-09-24") === 0);
+  const source = readFileSync(new URL("../../components/games/CourtGame.tsx", import.meta.url), "utf8");
+  ok("the courts pay through the rink's capped award", /awardRinkBridgeys\(/.test(source) && !/progress\.bridgeys\s*[+]?=/.test(source));
+
+  // Best runs, per game.
+  B.recordGameRun("wrestling", 4);
+  B.recordGameRun("wrestling", 2);
+  B.recordGameRun("soccer", 3);
+  const bests = Pr.getProgress().gameBest ?? {};
+  ok("each game keeps its own best run, and a shorter run leaves it", bests.wrestling === 4 && bests.soccer === 3 && bests.cheer === undefined);
+  B.recordGameRun("wrestling", 7);
+  ok("a longer run replaces it", Pr.getProgress().gameBest?.wrestling === 7);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

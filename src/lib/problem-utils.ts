@@ -248,3 +248,20 @@ export function fractionText(x: number): string | null {
   }
   return null;
 }
+
+/**
+ * A problem's answer written for a student: the rounding the prompt asked for,
+ * a fraction when the prompt asked for one or the decimal never ends, and
+ * never "0.3333333333333333".
+ */
+export function displayAnswer(p: { type: string; answer?: string | number; decimalPlaces?: number; prompt?: string }): string {
+  if (p.answer === undefined || p.answer === null) return "";
+  if (p.type !== "numeric") return String(p.answer);
+  const n = Number(p.answer);
+  if (!Number.isFinite(n)) return String(p.answer);
+  if (typeof p.decimalPlaces === "number") return n.toFixed(p.decimalPlaces);
+  if (Number.isInteger(n)) return String(n);
+  const asFraction = fractionText(n);
+  if (asFraction && (/fraction/i.test(p.prompt ?? "") || String(n).length > 8)) return asFraction;
+  return String(Math.round(n * 10000) / 10000);
+}

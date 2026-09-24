@@ -136,8 +136,10 @@ export interface UserProgress {
   ownedRinkItems?: string[];
   /** Rink decorations standing in the backyard, by slot id. */
   rinkDecor?: Record<string, string>;
-  /** The rink's day: what it has paid today, and the best run. */
+  /** The games' day, shared by the rink and every court: what they have paid today, and Veronica's best run. */
   rink?: { day: string; earned: number; solved: number; best: number };
+  /** The best run of right answers in each team game, by game id. */
+  gameBest?: Record<string, number>;
   /** When this copy was last written, so the newer of two copies can be kept. */
   updatedAt?: string;
   /** Today's right answers toward the daily goal, and whether its Bridgeys were paid. */
