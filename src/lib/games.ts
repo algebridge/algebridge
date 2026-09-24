@@ -74,7 +74,7 @@ export const COURT_GAMES: CourtGame[] = [
     blurb: "Hit the star on the mat and throw a jump for the crowd.",
     area: { kind: "rect", x0: 170, x1: 1030, y0: 505, y1: 760 },
     start: { x: 600, y: 700 },
-    height: 150,
+    height: 164,
     target: "the star",
     cheers: ["Go team!", "Toe touch!", "Stuck it!", "Crowd's up!"],
     continueLabel: "Keep cheering",
@@ -115,6 +115,39 @@ export const COURT_GAMES: CourtGame[] = [
     accent: "#22c55e",
   },
 ];
+
+/** What a game's card on the Games page needs: the courts have it all; the rink has its own. */
+export interface GameCard {
+  id: GameId;
+  player: string;
+  sport: string;
+  title: string;
+  blurb: string;
+  accent: string;
+  /** The player's drawn height on their court, in scene units. */
+  height: number;
+}
+
+export const RINK_CARD: GameCard = {
+  id: "rink",
+  player: "Veronica",
+  sport: "Skating",
+  title: "Skate with Veronica",
+  blurb: "Glide around the rink, skate through the ring, and answer.",
+  accent: "#0ea5e9",
+  height: 168,
+};
+
+/** Every game, the rink first. */
+export const GAME_CARDS: GameCard[] = [RINK_CARD, ...COURT_GAMES];
+
+export function getGameCard(id: string): GameCard | undefined {
+  return GAME_CARDS.find((g) => g.id === id);
+}
+
+export function isGameId(id: string | null | undefined): id is GameId {
+  return !!id && GAME_CARDS.some((g) => g.id === id);
+}
 
 export function getCourtGame(id: string): CourtGame | undefined {
   return COURT_GAMES.find((g) => g.id === id);

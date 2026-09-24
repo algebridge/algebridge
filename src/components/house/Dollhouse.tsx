@@ -6,29 +6,24 @@ import { BackyardScene } from "@/components/house/BackyardScene";
 import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
 import { DollhouseScene } from "@/components/house/DollhouseScene";
 import { GameHud } from "@/components/house/GameHud";
-import { RinkGame } from "@/components/house/RinkGame";
-import { Veronica } from "@/components/house/Veronica";
-import { getRinkItem } from "@/data/rink-catalog";
 import { primaryHex, SWATCHES, swatchHex, USABLE } from "@/data/furniture-art";
-import { RINK, RINK_SLOTS } from "@/lib/rink";
+import { gardenState } from "@/lib/garden";
+import { today } from "@/lib/path";
 import { canHang, getFurnitureItem, getHouseStyle, getUnplacedFurnitureIds } from "@/data/house-catalog";
 import { ORNAMENTS, getOrnament, getUnplacedOrnamentIds, ornamentImage } from "@/data/ornament-catalog";
 import {
-  clearRinkSlot,
   floorOf,
   moveFurniture,
   moveFurnitureToFloor,
   moveFurnitureToSurface,
   placeFurnitureAt,
   placeOrnamentAt,
-  placeRinkItem,
   removePlacedFurniture,
   removePlacedOrnament,
   setHouseNight,
   setItemColor,
   surfaceOf,
   toggleFurniture,
-  unplacedRinkItems,
 } from "@/lib/bridgeys";
 import {
   FLOOR_LABEL,
@@ -55,11 +50,9 @@ import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } fro
 interface DollhouseProps {
   progress: UserProgress;
   onUpdate: () => void;
-  /** Start in the backyard with the rink game running. */
-  autoSkate?: boolean;
 }
 
-type Mode = "off" | "yard" | "room" | "rink";
+type Mode = "off" | "yard" | "room";
 type View = "front" | "back";
 
 /** A piece being dragged: where it is right now. */
@@ -95,16 +88,15 @@ function placementFor(itemId: string, sx: number, sy: number): { x: number; y: n
  * to pick it up; and at night the ones that are on are the ones giving
  * light.
  */
-export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhouseProps) {
+export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
   const house = getHouseStyle(progress.houseStyleId) ?? getHouseStyle("cottage")!;
 
   // Open from the start: arriving at your house should mean being in it.
   const [open, setOpen] = useState(true);
   const [mode, setMode] = useState<Mode>("off");
   const [placing, setPlacing] = useState<string | null>(null);
-  /** Front of the house, or the backyard with the rink. */
-  const [view, setView] = useState<View>(autoSkate ? "back" : "front");
-  const [skating, setSkating] = useState(autoSkate);
+  /** Front of the house, or the backyard with the garden. */
+  const [view, setView] = useState<View>("front");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   /** The piece whose actions are showing. */
   const [selected, setSelected] = useState<string | null>(null);
@@ -131,8 +123,8 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     () => getUnplacedFurnitureIds(progress.ownedFurniture ?? [], furniture),
     [progress.ownedFurniture, furniture]
   );
-  const spareRink = useMemo(() => unplacedRinkItems(progress), [progress]);
-  const rinkDecor = useMemo(() => progress.rinkDecor ?? {}, [progress.rinkDecor]);
+  /** The garden, read from what has been finished. */
+  const garden = useMemo(() => gardenState(progress, today()), [progress]);
 
   const stopPlacing = useCallback(() => {
     setPlacing(null);
@@ -164,11 +156,9 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
     if (!open) closeActions();
   }, [open, mode, stopPlacing, closeActions]);
 
-  // Each side of the house has its own decorating modes.
+  // Decorating is a front-of-house thing; the garden grows on its own.
   useEffect(() => {
-    if (view === "back" && (mode === "yard" || mode === "room")) setMode("off");
-    if (view === "front" && mode === "rink") setMode("off");
-    if (view === "front") setSkating(false);
+    if (view === "back" && mode !== "off") setMode("off");
     stopPlacing();
     closeActions();
   }, [view, mode, stopPlacing, closeActions]);
@@ -341,11 +331,9 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
 
   const hint =
     view === "back"
-      ? placing
-        ? "Click a spot by the rink to put it there"
-        : skating
-          ? "Skate through the ring"
-          : "Veronica is by the rink"
+      ? garden.watered
+        ? "Watered today. The garden grows as you learn."
+        : "The garden grows as you learn. Answer a problem today to water it."
       : placing
         ? mode === "room"
           ? hoverFloor
@@ -367,7 +355,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
       <GameHud
         houseStyleId={progress.houseStyleId}
         mode={open ? "inside" : "outside"}
-        hint={view === "back" ? "The backyard, with the rink." : house.description}
+        hint={view === "back" ? "The backyard, with your garden." : house.description}
         view={view}
         onView={(v) => setView(v)}
         night={night}
@@ -386,85 +374,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
           placing && view === "front" ? "cursor-crosshair" : ""
         }`}
       >
-        {view === "back" ? <BackyardScene styleId={house.id} night={night} /> : <DollhouseScene styleId={house.id} open={open} night={night} />}
-
-        {/* ── The backyard ───────────────────────────────────────── */}
-        {view === "back" && (
-          <>
-            {RINK_SLOTS.map((slot) => {
-              const id = rinkDecor[slot.id];
-              const item = id ? getRinkItem(id) : undefined;
-              const empty = !item;
-              if (empty && !placing) return null;
-              return (
-                <button
-                  key={slot.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (placing) {
-                      const res = placeRinkItem(slot.id, placing);
-                      showToast({ icon: res.ok ? "check" : "x-circle", tone: res.ok ? "success" : "info", title: res.message });
-                      if (res.ok) {
-                        stopPlacing();
-                        onUpdate();
-                      }
-                      return;
-                    }
-                    if (mode !== "rink") return;
-                    const res = clearRinkSlot(slot.id);
-                    showToast({ icon: "review", tone: "info", title: res.message });
-                    if (res.ok) onUpdate();
-                  }}
-                  title={item ? `${item.name}${mode === "rink" ? ", click to pick up" : ""}` : `Put it ${slot.label}`}
-                  className={`absolute -translate-x-1/2 -translate-y-full ${
-                    empty ? "dh-slot rounded-full ring-2 ring-white ring-offset-2 ring-offset-rose-400/60" : `dh-piece transition-transform hover:scale-105 ${USABLE.has(item.id) ? "dh-lit" : ""}`
-                  } ${mode === "rink" || placing ? "" : "pointer-events-none"}`}
-                  style={{
-                    left: pctX(slot.x),
-                    top: pctY(slot.y),
-                    height: pctY((item?.height ?? 60) * slot.scale),
-                    aspectRatio: "1 / 1",
-                    zIndex: 200 + slot.depth * 20,
-                  }}
-                >
-                  {item ? (
-                    <CartoonFurnitureArt itemId={item.id} fill color={colors[item.id]} className="drop-shadow-[0_4px_5px_rgba(0,0,0,0.3)]" />
-                  ) : (
-                    <span className="sr-only">Empty spot, {slot.label}</span>
-                  )}
-                </button>
-              );
-            })}
-
-            {skating ? (
-              <RinkGame progress={progress} onExit={() => setSkating(false)} onUpdate={onUpdate} />
-            ) : (
-              <>
-                <div
-                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-                  style={{ left: pctX(RINK.cx + RINK.rx - 30), top: pctY(RINK.cy + 96), width: pctX(108), zIndex: 330 }}
-                >
-                  <Veronica pose="idle" facing={-1} className="w-full" />
-                </div>
-                {!placing && mode !== "rink" && (
-                  <div className="absolute inset-x-0 bottom-0 flex justify-center p-4" style={{ zIndex: 360 }}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSkating(true);
-                      }}
-                      className="btn-primary px-7 py-2.5"
-                    >
-                      Skate with Veronica
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        )}
+        {view === "back" ? <BackyardScene styleId={house.id} night={night} garden={garden} /> : <DollhouseScene styleId={house.id} open={open} night={night} />}
 
         {/* The whole building is the control that opens it, a house you can
             click is more obvious than a button captioned "go inside". Once it
@@ -650,17 +560,15 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
           ) : null}
         </div>
 
-        {!skating && (
-          <p className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-700 backdrop-blur-sm">
-            {hint}
-          </p>
-        )}
+        <p className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-700 backdrop-blur-sm">
+          {hint}
+        </p>
       </div>
 
       {/* ── Decorating tray ──────────────────────────────────────── */}
       <div className="border-t border-slate-200 bg-slate-50/80 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="eyebrow">Decorate</p>
+          <p className="eyebrow">{view === "back" ? "The garden" : "Decorate"}</p>
           <div className="flex gap-2">
             {view === "front" ? (
               <>
@@ -689,20 +597,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
                   Inside
                 </button>
               </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setSkating(false);
-                  setMode((m) => (m === "rink" ? "off" : "rink"));
-                  stopPlacing();
-                }}
-                aria-pressed={mode === "rink"}
-                className={mode === "rink" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
-              >
-                Rink
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -713,17 +608,18 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
               : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs, ${furniture.filter((f) => surfaceOf(f) === "wall").length} on the walls), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, hang it, send it up the stairs, or pick it up.`}
           </p>
         )}
-        {mode === "off" && view === "back" && (
+        {view === "back" && (
           <p className="mt-2 text-sm text-slate-600">
-            {Object.keys(rinkDecor).length === 0
-              ? "Rink pieces are in the Shop, under Rink. Veronica skates whenever you like."
-              : `${Object.keys(rinkDecor).length} of ${RINK_SLOTS.length} spots by the rink are taken. Press Rink to move things.`}
+            {garden.treehouse
+              ? `Every flower is open and the treehouse is up: all ${garden.total} skills finished.`
+              : `${garden.blooms} of ${garden.beds.length} flowers in bloom, ${garden.done} of ${garden.total} skills finished. A bed for every unit: finish the unit and its flower opens. The tree grows with the whole course, and a treehouse goes up when it is done.`}
+            {garden.watered ? " Watered today." : " Answer a problem today to water it."}
           </p>
         )}
 
         {mode !== "off" && (
           <Tray
-            items={mode === "yard" ? spareOrnaments : mode === "rink" ? spareRink : spareFurniture}
+            items={mode === "yard" ? spareOrnaments : spareFurniture}
             kind={mode}
             placing={placing}
             colors={colors}
@@ -731,7 +627,7 @@ export function Dollhouse({ progress, onUpdate, autoSkate = false }: DollhousePr
               setPlacing((cur) => (cur === id ? null : id));
               setHover(null);
             }}
-            placedCount={mode === "yard" ? ornaments.length : mode === "rink" ? Object.keys(rinkDecor).length : furniture.length}
+            placedCount={mode === "yard" ? ornaments.length : furniture.length}
           />
         )}
       </div>
@@ -881,7 +777,7 @@ function Tray({
   placedCount,
 }: {
   items: string[];
-  kind: "yard" | "room" | "rink";
+  kind: "yard" | "room";
   placing: string | null;
   colors: Record<string, string>;
   onPick: (id: string) => void;
@@ -893,9 +789,7 @@ function Tray({
         {placedCount === 0
           ? kind === "yard"
             ? "Nothing to put out yet. Ornaments are in the Shop, under Garden."
-            : kind === "rink"
-              ? "Nothing for the rink yet. Rink pieces are in the Shop, under Rink."
-              : "Nothing to put in yet. Furniture is in the Shop."
+            : "Nothing to put in yet. Furniture is in the Shop."
           : kind === "room"
             ? "Everything you own is in the house. Tap a piece to pick it up again."
             : "Everything you own is out. Click a piece to pick it up again."}
@@ -907,8 +801,7 @@ function Tray({
     <>
       <div className="mt-3 flex flex-wrap gap-2">
         {items.map((id, i) => {
-          const name =
-            kind === "yard" ? getOrnament(id)?.name : kind === "rink" ? getRinkItem(id)?.name : getFurnitureItem(id)?.name;
+          const name = kind === "yard" ? getOrnament(id)?.name : getFurnitureItem(id)?.name;
           if (!name) return null;
           const active = placing === id;
           return (
@@ -938,9 +831,7 @@ function Tray({
       <p className="mt-3 text-xs text-slate-500">
         {kind === "yard"
           ? `Ornaments stand on the lawn within ${PAD_LIMIT} m of the house.`
-          : kind === "rink"
-            ? "Pick a piece, then click one of the spots that light up around the rink."
-            : "Pick a piece, then click a floor, upstairs or down. Pictures, shelves and lights can go on a wall too. Nearer the front means larger."}
+          : "Pick a piece, then click a floor, upstairs or down. Pictures, shelves and lights can go on a wall too. Nearer the front means larger."}
       </p>
     </>
   );

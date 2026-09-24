@@ -54,8 +54,6 @@ export default function HousePage() {
   const [mounted, setMounted] = useState(false);
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [tab, setTab] = useState<Tab>("house");
-  /** From the home page's "Play now": straight onto the rink. */
-  const [autoSkate, setAutoSkate] = useState(false);
   /** The founder's allowance, handed over with the profile. */
   const [unlimited, setUnlimited] = useState(false);
   /** Colours tried on pieces not yet bought; a piece is bought in the colour it was tried in. */
@@ -87,10 +85,10 @@ export default function HousePage() {
     refresh();
     // Read here rather than with useSearchParams, which would take this
     // prerendered page out of the static build.
+    // The rink moved to the Games page; an old "Play" link still gets there.
     if (new URLSearchParams(window.location.search).get("play") === "rink") {
-      setTab("house");
-      setAutoSkate(true);
-      window.history.replaceState(null, "", "/house");
+      window.location.replace("/games?play=rink");
+      return;
     }
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
@@ -221,7 +219,7 @@ export default function HousePage() {
 
       {tab === "house" && (
         <div className="space-y-4">
-          <HouseRoom progress={progress} onUpdate={refresh} autoSkate={autoSkate} />
+          <HouseRoom progress={progress} onUpdate={refresh} />
 
           {/* The yard art used to be followed by a screen of empty page. This
               turns that space into the next step in the loop. */}
@@ -580,7 +578,7 @@ export default function HousePage() {
               <div>
                 <h2 className="section-title">Rink</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  For the backyard, around the rink where Veronica skates. Each piece takes one of the seven spots.
+                  For Veronica's rink, in Games. Each piece takes one of the seven spots by the boards.
                 </p>
               </div>
               <p className="text-sm text-slate-500 tabular-nums">{stats.rink} of {RINK_ITEMS.length} owned</p>

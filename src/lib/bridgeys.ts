@@ -489,7 +489,7 @@ export function buyRinkItem(itemId: string, color?: string | null): PurchaseResu
   progress.ownedRinkItems!.push(itemId);
   if (getSwatch(color)) progress.itemColors = { ...(progress.itemColors ?? {}), [itemId]: color as string };
   saveProgress(progress);
-  return { ok: true, message: `${item.name} is yours. It goes in the backyard, by the rink.` };
+  return { ok: true, message: `${item.name} is yours. It goes by Veronica's rink, in Games.` };
 }
 
 /** Stands a rink piece on a slot. A piece already standing elsewhere moves. */
