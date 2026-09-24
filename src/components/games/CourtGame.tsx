@@ -207,8 +207,7 @@ export function CourtGame({
           const s = Math.min(1, Math.hypot(v.x, v.y * 1.6) / game.maxSpeed);
           svg.style.setProperty("--stride", `${Math.max(0.26, 0.62 - s * 0.3)}s`);
           svg.classList.toggle("player-moving", s > 0.08);
-          const flip = svg.querySelector<SVGGElement>(".p-flip");
-          if (flip) flip.style.transform = facing.current === -1 ? "scale(-1, 1)" : "";
+          svg.classList.toggle("player-left", facing.current === -1);
         }
       }
 

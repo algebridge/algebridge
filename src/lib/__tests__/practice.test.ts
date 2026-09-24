@@ -1049,5 +1049,42 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a longer run replaces it", Pr.getProgress().gameBest?.wrestling === 7);
 }
 
+// --- The garden behind the house -------------------------------------------------
+{
+  const Gd = await import("../garden.ts");
+  const Pr = await import("../progress.ts");
+  const G = await import("../games.ts");
+  ok(
+    "a bed comes up by how much of its unit is done",
+    Gd.plantStage(0, 3) === "seed" && Gd.plantStage(1, 4) === "sprout" && Gd.plantStage(2, 4) === "leaf" && Gd.plantStage(3, 4) === "bud" && Gd.plantStage(4, 4) === "bloom" && Gd.plantStage(1, 1) === "bloom" && Gd.plantStage(0, 0) === "seed"
+  );
+  ok("the tree grows in six steps", [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1].map(Gd.treeStage).join() === "0,1,2,3,4,5,5");
+  ok("seven flowers, taken in turn", Gd.flowerFor(1) === "daisy" && Gd.flowerFor(8) === "daisy" && Gd.flowerFor(7) === "rose" && new Set(units.map((u) => Gd.flowerFor(u.number))).size === 7);
+  const done = (level: string) => ({ level }) as unknown as (typeof fresh.skills)[string];
+  const fresh = Pr.normalizeProgress(null);
+  const g0 = Gd.gardenState(fresh, "2026-09-24");
+  ok("a new student's garden is thirteen beds of soil and a sapling", g0.beds.length === 13 && g0.beds.every((b) => b.stage === "seed") && g0.tree === 0 && g0.blooms === 0 && !g0.swing && !g0.treehouse && !g0.watered && g0.total === 46);
+  ok("each bed carries its unit's number, name and colour", g0.beds.every((b, i) => b.number === i + 1 && b.title === units[i].title && b.hue.solid.startsWith("#")));
+  const one = Pr.normalizeProgress(null);
+  for (const sk of units[0].skills) one.skills[sk.id] = done("mastered");
+  const g1 = Gd.gardenState(one, "2026-09-24");
+  ok("finishing Unit 1 opens its flower and starts the tree", g1.beds[0].stage === "bloom" && g1.beds[1].stage === "seed" && g1.blooms === 1 && g1.tree === 1 && g1.done === units[0].skills.length);
+  const half = Pr.normalizeProgress(null);
+  half.skills[units[1].skills[0].id] = done("proficient");
+  ok("one skill of a unit is a sprout; a failed one is nothing", Gd.gardenState(half).beds[1].stage === "sprout" && (() => { half.skills[units[2].skills[0].id] = done("practicing"); return Gd.gardenState(half).beds[2].stage === "seed"; })());
+  const all = Pr.normalizeProgress(null);
+  for (const u of units) for (const sk of u.skills) all.skills[sk.id] = done("proficient");
+  const gAll = Gd.gardenState(all, "2026-09-24");
+  ok("a finished course is every flower open, the swing, the birdhouse and the treehouse", gAll.blooms === 13 && gAll.tree === 5 && gAll.swing && gAll.birdhouse && gAll.treehouse && gAll.fraction === 1);
+  const wet = Pr.normalizeProgress(null);
+  wet.daily = { day: "2026-09-24", right: 1, paid: false };
+  ok("a right answer today waters the garden, and only today", Gd.gardenState(wet, "2026-09-24").watered && !Gd.gardenState(wet, "2026-09-25").watered && !Gd.gardenState(wet).watered);
+
+  // The rink is a game card beside the four courts.
+  ok("five games, the rink first", G.GAME_CARDS.length === 5 && G.GAME_CARDS[0].id === "rink" && G.GAME_CARDS[0].player === "Veronica" && G.GAME_CARDS.slice(1).map((c) => c.id).join() === G.COURT_GAMES.map((c) => c.id).join());
+  ok("game ids are checked before a deep link is trusted", G.isGameId("rink") && G.isGameId("cheer") && !G.isGameId("hockey") && !G.isGameId(null) && !G.isGameId(""));
+  ok("every card has a height its picture is drawn at", G.GAME_CARDS.every((c) => c.height >= 150 && c.height <= 190));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
