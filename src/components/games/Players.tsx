@@ -70,8 +70,8 @@ const SH: Look = {
   lip: "#7d4232",
   lipLight: "#9a5745",
 };
-/** He is tall and slim, so his limbs and torso are cut narrower than the others'. */
-const SH_BUILD = 0.86;
+/** He is tall and slim, so his limbs and torso are cut a little narrower than the others'. */
+const SH_BUILD = 0.92;
 const SH_KIT = { singlet: "#1d4ed8", singletShade: "#1e3a8a", trim: "#facc15", shoe: "#1f2937", silver: "#d6dbe1", silverShade: "#9aa3ad" };
 
 export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
@@ -84,6 +84,8 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
       <Leg cls="p-leg p-leg-back" side="back" look={SH} id={id} w={SH_BUILD} shorts={trunks} shoe={shoe(JOINT.backLegX, true)} />
       <g className="p-body" style={{ transformOrigin: "50px 100px" }}>
         <Arm cls="p-arm p-arm-back" side="back" look={SH} id={id} w={SH_BUILD} />
+        {/* A fuller neck than the rig's, since nothing covers his. */}
+        <path d="M44.6 36 L55.4 36 L56 52.5 L44 52.5Z" fill={SH.skinShade} />
         {/* The chest and shoulders, then the singlet over them: straps, a scoop neck, gold down the sides. */}
         <path d={TORSO_SLIM} fill={limbFill(id)} />
         <path d={TORSO_SLIM_SHADE} fill={SH.skinShade} opacity="0.35" />
@@ -106,16 +108,20 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
             </g>
           }
         />
-        <Head id={id} look={SH} jaw="long">
-          {/* Short black hair with some height on top, cut close at the sides. */}
-          <path d="M38.2 24.8 C37.2 11.6 43.2 6.4 50 6.4 C57.6 6.4 63 11.4 62 25.2 C61 17.8 56.6 14.2 50.4 14.2 C44.4 14.2 39.6 17.8 38.2 24.8Z" fill={SH.hair} />
-          <path d="M38.4 24 L38.6 30 Q40 29.6 40.2 27.2 Q39.6 25.2 40.6 22.4Z" fill={SH.hair} />
-          <path d="M61.8 24.4 L61.6 29.8 Q60.4 29.4 60.2 27 Q60.8 25 59.8 22.6Z" fill={SH.hair} />
-          {["M41.4 12.4 Q44 8.6 47.4 8.2", "M46 10 Q49 7.2 52.6 7.6", "M51.6 8.6 Q55.4 8.2 58.2 11", "M42.4 16.2 Q40.4 14 41 11.6"].map((d) => (
-            <path key={d} d={d} stroke={SH.hairLight} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.55" />
-          ))}
-          <Face look={SH} smile={0.72} />
-        </Head>
+        {/* A younger head: a little larger on the same neck, a rounder face. */}
+        <g style={{ transformOrigin: "50px 50px", transform: "translate(0, 1.8px) scale(1.07)" }}>
+          <Head id={id} look={SH} jaw="oval">
+            {/* Short black hair, full and soft on top, brushed forward a little, close at the sides. */}
+            <path d="M37.2 26 C36 11.6 42.8 6.2 50 6.2 C57.8 6.2 63.8 11.8 62.8 26.2 C61.6 18.4 57.4 14.8 51.4 14.6 L48.6 14.6 C43 14.8 38.8 18.6 37.2 26Z" fill={SH.hair} />
+            <path d="M41.6 16.4 Q45.6 13.2 50.4 14 Q55 13.2 58.6 16.2 Q54.8 16.9 50.6 16.7 Q46 17 41.6 16.4Z" fill={SH.hair} />
+            <path d="M37.4 24.6 L37.8 30.2 Q39.2 29.8 39.4 27.4 Q38.8 25.4 39.8 22.6Z" fill={SH.hair} />
+            <path d="M62.6 24.8 L62.4 30 Q61 29.6 60.8 27.2 Q61.4 25.2 60.4 22.8Z" fill={SH.hair} />
+            {["M41.6 12 Q44.4 8.4 48 8", "M46.6 9.6 Q49.8 7 53.4 7.4", "M52.4 8.4 Q56.2 8 59 10.8", "M43.4 14.4 Q45.6 12.2 48.6 12"].map((d) => (
+              <path key={d} d={d} stroke={SH.hairLight} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.5" />
+            ))}
+            <Face look={SH} smile={0.8} young />
+          </Head>
+        </g>
       </g>
       <Leg cls="p-leg p-leg-front" side="front" look={SH} id={id} w={SH_BUILD} shorts={trunks} shoe={shoe(JOINT.frontLegX, false)} />
     </Frame>
