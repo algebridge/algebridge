@@ -70,30 +70,67 @@ const SH: Look = {
   lip: "#7d4232",
   lipLight: "#9a5745",
 };
-/** He is tall and slim, so his limbs and torso are cut a little narrower than the others'. */
-const SH_BUILD = 0.92;
-const SH_KIT = { singlet: "#1d4ed8", singletShade: "#1e3a8a", trim: "#facc15", shoe: "#1f2937", silver: "#d6dbe1", silverShade: "#9aa3ad" };
+const SH_KIT = {
+  tee: "#f8fafc",
+  teeShade: "#dbe3ea",
+  collar: "#cbd5e1",
+  print: "#334155",
+  shorts: "#a9dbe8",
+  shortsShade: "#7dc1d3",
+  sock: "#f8fafc",
+  sockShade: "#e2e8f0",
+  slide: "#111827",
+  silver: "#d6dbe1",
+  silverShade: "#9aa3ad",
+};
+/** He is tall and slim, so his limbs and torso are cut narrower than the others'. */
+const SH_BUILD = 0.88;
 
+/** A black slide over a white crew sock, the way he wears them. */
+function Slide({ x, back }: { x: number; back: boolean }) {
+  const y = JOINT.ankleY;
+  return (
+    <g>
+      <path d={`M${x - 5} ${y} L${x + 5} ${y} L${x + 6} ${y + 3.6} Q${x + 11.4} ${y + 3.8} ${x + 13.4} ${y + 7.4} L${x + 13.4} ${y + 8.4} L${x - 5.6} ${y + 8.4}Z`} fill={back ? SH_KIT.sockShade : SH_KIT.sock} />
+      <path d={`M${x - 1.6} ${y + 2.6} L${x + 9.2} ${y + 4.8} L${x + 8.6} ${y + 8.4} L${x - 2.4} ${y + 8.4}Z`} fill={SH_KIT.slide} />
+      <path d={`M${x - 1} ${y + 3.6} L${x + 8} ${y + 5.4}`} stroke="#4b5563" strokeWidth="0.8" opacity="0.8" />
+      <rect x={x - 6.2} y={y + 8} width="20.2" height="2.8" rx="1.3" fill="#000000" />
+      <rect x={x - 6.2} y={y + 8} width="20.2" height="1.1" rx="0.5" fill="#374151" />
+    </g>
+  );
+}
+
+/**
+ * Shaurya, from his photo: tall and slim, short dark hair brushed forward, an
+ * oversized white tee with a small print on the chest, light blue shorts,
+ * white crew socks and black slides, a thin silver bangle. No glasses.
+ */
 export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
   const id = useArtId();
-  const trunks = { base: SH_KIT.singlet, shade: SH_KIT.singletShade, to: 116 };
-  const shoe = (x: number, back: boolean) => <Shoe x={x} fill={back ? "#111827" : SH_KIT.shoe} shade="#000000" sole="#e5e7eb" high laces />;
+  const shorts = { base: SH_KIT.shorts, shade: SH_KIT.shortsShade, to: 124 };
+  const sock = { base: SH_KIT.sock, shade: SH_KIT.sockShade, from: 130 };
+  /** The tee's sleeve: wide and loose, to the elbow. */
+  const sleeve = (x: number, back: boolean) => (
+    <g>
+      <path d={`M${x - 8.2} 55.5 Q${x} 52.6 ${x + 8.2} 55.5 L${x + 7.6} 78 Q${x} 80.2 ${x - 7.6} 78Z`} fill={back ? SH_KIT.teeShade : SH_KIT.tee} />
+      <path d={`M${x + 1} 53.6 Q${x + 5.6} 53.4 ${x + 8.2} 55.5 L${x + 7.6} 78 Q${x + 4} 79.6 ${x + 1} 79.8Z`} fill={SH_KIT.teeShade} opacity={back ? 0.5 : 0.7} />
+    </g>
+  );
   return (
     <Frame id="wrestling" name="Shaurya" pose={pose} facing={facing} className={className}>
       <SkinDefs id={id} look={SH} />
-      <Leg cls="p-leg p-leg-back" side="back" look={SH} id={id} w={SH_BUILD} shorts={trunks} shoe={shoe(JOINT.backLegX, true)} />
+      <Leg cls="p-leg p-leg-back" side="back" look={SH} id={id} w={SH_BUILD} shorts={shorts} sock={sock} shoe={<Slide x={JOINT.backLegX} back />} />
       <g className="p-body" style={{ transformOrigin: "50px 100px" }}>
-        <Arm cls="p-arm p-arm-back" side="back" look={SH} id={id} w={SH_BUILD} />
+        <Arm cls="p-arm p-arm-back" side="back" look={SH} id={id} w={SH_BUILD} extra={sleeve(JOINT.backArmX, true)} />
         {/* A fuller neck than the rig's, since nothing covers his. */}
         <path d="M44.6 36 L55.4 36 L56 52.5 L44 52.5Z" fill={SH.skinShade} />
-        {/* The chest and shoulders, then the singlet over them: straps, a scoop neck, gold down the sides. */}
-        <path d={TORSO_SLIM} fill={limbFill(id)} />
-        <path d={TORSO_SLIM_SHADE} fill={SH.skinShade} opacity="0.35" />
-        <path d="M40.6 51.9 L45.6 51.2 L47.4 63.6 Q50 66.8 52.6 63.6 L54.4 51.2 L59.4 51.9 L63.6 61 C64.2 76 62.9 89 62.5 100 L37.5 100 C37.1 89 35.8 76 36.4 61Z" fill={SH_KIT.singlet} />
-        <path d="M51.4 64.4 Q52 65.8 52.6 63.6 L54.4 51.2 L59.4 51.9 L63.6 61 C64.2 76 62.9 89 62.5 100 L51.4 100Z" fill={SH_KIT.singletShade} opacity="0.5" />
-        <path d="M60.6 62 L63.2 62 L63.6 100 L61 100Z" fill={SH_KIT.trim} opacity="0.92" />
-        <path d="M36.6 62 L39.2 62 L38.8 100 L36.2 100Z" fill={SH_KIT.trim} opacity="0.72" />
-        <path d="M47.4 63.6 Q50 66.8 52.6 63.6" stroke={SH_KIT.singletShade} strokeWidth="0.7" fill="none" opacity="0.6" />
+        {/* An oversized white tee, boxy on him, with a small print on the chest. */}
+        <path d="M33.4 52.4 C40 49.6 60 49.6 66.6 52.4 L68.2 68 L67.4 92 L32.6 92 L31.8 68Z" fill={SH_KIT.tee} />
+        <path d="M51.6 50.4 C57.6 50.2 63.4 51 66.6 52.4 L68.2 68 L67.4 92 L51.6 92Z" fill={SH_KIT.teeShade} opacity="0.7" />
+        <path d="M44.2 51.8 Q50 49.4 55.8 51.8 Q50 54.6 44.2 51.8Z" fill={SH_KIT.teeShade} />
+        <path d="M44.2 51.8 Q50 54.8 55.8 51.8" stroke={SH_KIT.collar} strokeWidth="0.9" fill="none" />
+        <rect x="55.4" y="63" width="6.2" height="5.2" rx="1.2" fill={SH_KIT.print} />
+        <path d="M56.6 65.8 l1.3 -1.4 l1.2 1.2 l1.4 -1.6" stroke="#f8fafc" strokeWidth="0.7" fill="none" />
         <Arm
           cls="p-arm p-arm-front"
           side="front"
@@ -102,28 +139,34 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
           w={SH_BUILD}
           extra={
             <g>
+              {sleeve(JOINT.frontArmX, false)}
               {/* A thin, round silver bangle at the wrist. */}
-              <ellipse cx="62.5" cy="96.2" rx="4.7" ry="1.55" fill="none" stroke={SH_KIT.silverShade} strokeWidth="1.4" />
-              <path d="M58.2 95.8 Q62.5 93.9 66.8 95.8" stroke={SH_KIT.silver} strokeWidth="1" fill="none" strokeLinecap="round" />
+              <ellipse cx="62.5" cy="96.2" rx="4.4" ry="1.5" fill="none" stroke={SH_KIT.silverShade} strokeWidth="1.4" />
+              <path d="M58.5 95.8 Q62.5 93.9 66.5 95.8" stroke={SH_KIT.silver} strokeWidth="1" fill="none" strokeLinecap="round" />
             </g>
           }
         />
-        {/* A younger head: a little larger on the same neck, a rounder face. */}
-        <g style={{ transformOrigin: "50px 50px", transform: "translate(0, 1.8px) scale(1.07)" }}>
-          <Head id={id} look={SH} jaw="oval">
-            {/* Short black hair, full and soft on top, brushed forward a little, close at the sides. */}
-            <path d="M37.2 26 C36 11.6 42.8 6.2 50 6.2 C57.8 6.2 63.8 11.8 62.8 26.2 C61.6 18.4 57.4 14.8 51.4 14.6 L48.6 14.6 C43 14.8 38.8 18.6 37.2 26Z" fill={SH.hair} />
-            <path d="M41.6 16.4 Q45.6 13.2 50.4 14 Q55 13.2 58.6 16.2 Q54.8 16.9 50.6 16.7 Q46 17 41.6 16.4Z" fill={SH.hair} />
-            <path d="M37.4 24.6 L37.8 30.2 Q39.2 29.8 39.4 27.4 Q38.8 25.4 39.8 22.6Z" fill={SH.hair} />
-            <path d="M62.6 24.8 L62.4 30 Q61 29.6 60.8 27.2 Q61.4 25.2 60.4 22.8Z" fill={SH.hair} />
-            {["M41.6 12 Q44.4 8.4 48 8", "M46.6 9.6 Q49.8 7 53.4 7.4", "M52.4 8.4 Q56.2 8 59 10.8", "M43.4 14.4 Q45.6 12.2 48.6 12"].map((d) => (
+        {/* His head: a little larger on the neck, a long slim face. */}
+        <g style={{ transformOrigin: "50px 50px", transform: "translate(0, 1.4px) scale(1.06)" }}>
+          <Head id={id} look={SH} jaw="long">
+            {/* Short dark hair, longer on top and brushed forward, close at the sides. */}
+            <path d="M37.4 25.6 C36.2 11.4 42.8 6 50 6 C57.8 6 63.6 11.6 62.6 26 C61.4 18.2 57.2 14.8 51.2 14.6 L48.6 14.6 C43 14.8 39 18.4 37.4 25.6Z" fill={SH.hair} />
+            <path d="M40.6 17 Q45.4 12.6 51 13.6 Q55.8 13 59.4 16.6 Q55.4 17.2 51.2 17 Q45.6 17.6 40.6 17Z" fill={SH.hair} />
+            <path d="M37.6 24.4 L38 30.2 Q39.4 29.8 39.6 27.4 Q39 25.4 40 22.6Z" fill={SH.hair} />
+            <path d="M62.4 24.6 L62.2 29.8 Q60.8 29.4 60.6 27 Q61.2 25 60.2 22.6Z" fill={SH.hair} />
+            {["M41.4 12.2 Q44.6 8.2 48.4 7.8", "M46.6 9.4 Q50 6.8 53.8 7.2", "M52.6 8.2 Q56.4 8 59 10.8", "M43.2 15.2 Q46 12.4 49.4 12.2"].map((d) => (
               <path key={d} d={d} stroke={SH.hairLight} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.5" />
             ))}
-            <Face look={SH} smile={0.8} young />
+            <Face look={SH} smile={0.75} young />
           </Head>
         </g>
       </g>
-      <Leg cls="p-leg p-leg-front" side="front" look={SH} id={id} w={SH_BUILD} shorts={trunks} shoe={shoe(JOINT.frontLegX, false)} />
+      <Leg cls="p-leg p-leg-front" side="front" look={SH} id={id} w={SH_BUILD} shorts={shorts} sock={sock} shoe={<Slide x={JOINT.frontLegX} back={false} />} />
+      {/* The tee's hem hangs over the shorts, in front of both legs. */}
+      <g className="p-skirt" style={{ transformOrigin: "50px 100px" }}>
+        <path d="M32.6 90 L67.4 90 L67 106.5 Q50 109.6 33 106.5Z" fill={SH_KIT.tee} />
+        <path d="M51.6 90 L67.4 90 L67 106.5 Q59 108.4 51.6 108.6Z" fill={SH_KIT.teeShade} opacity="0.7" />
+      </g>
     </Frame>
   );
 }

@@ -58,7 +58,7 @@ export const COURT_GAMES: CourtGame[] = [
     blurb: "Circle the mat, step into the gold ring, and take the shot.",
     area: { kind: "ellipse", cx: 600, cy: 590, rx: 380, ry: 140 },
     start: { x: 600, y: 640 },
-    height: 172,
+    height: 176,
     target: "the gold ring",
     cheers: ["Takedown!", "Two points!", "Clean shot!", "On the mat!"],
     continueLabel: "Wrestle on",
