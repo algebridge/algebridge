@@ -437,24 +437,24 @@ html.lenis body {
   animation: v-bob 2.6s ease-in-out infinite;
 }
 
-/* Shaurya: in his stance, hands up, and a shuffle rather than a run. */
+/* Shaurya: an easy stance, hands ready, and a shuffle rather than a run. */
 .player-wrestling .p-body {
-  transform: rotate(9deg);
+  transform: rotate(4deg);
 }
 .player-wrestling.player-idle:not(.player-moving) .p-body {
   animation: p-stance-bob 2.2s ease-in-out infinite;
 }
 .player-wrestling .p-arm-front {
-  transform: rotate(-58deg);
-}
-.player-wrestling .p-arm-back {
   transform: rotate(-38deg);
 }
+.player-wrestling .p-arm-back {
+  transform: rotate(-24deg);
+}
 .player-wrestling .p-leg-front {
-  transform: rotate(-9deg);
+  transform: rotate(-6deg);
 }
 .player-wrestling .p-leg-back {
-  transform: rotate(11deg);
+  transform: rotate(8deg);
 }
 .player-wrestling.player-moving .p-leg-front,
 .player-wrestling.player-moving .p-leg-back {
@@ -591,16 +591,16 @@ html.lenis body {
   50% { transform: rotate(14deg); }
 }
 @keyframes p-guard-front {
-  0%, 100% { transform: rotate(-62deg); }
-  50% { transform: rotate(-52deg); }
+  0%, 100% { transform: rotate(-42deg); }
+  50% { transform: rotate(-32deg); }
 }
 @keyframes p-guard-back {
-  0%, 100% { transform: rotate(-34deg); }
-  50% { transform: rotate(-44deg); }
+  0%, 100% { transform: rotate(-20deg); }
+  50% { transform: rotate(-30deg); }
 }
 @keyframes p-stance-bob {
-  0%, 100% { transform: rotate(9deg) translateY(0); }
-  50% { transform: rotate(11deg) translateY(2px); }
+  0%, 100% { transform: rotate(4deg) translateY(0); }
+  50% { transform: rotate(6deg) translateY(2px); }
 }
 @keyframes p-shoot {
   0%, 100% { transform: translate(0, 0); }
@@ -609,32 +609,32 @@ html.lenis body {
   74% { transform: translate(13px, 6px); }
 }
 @keyframes p-shoot-lean {
-  0%, 100% { transform: rotate(9deg); }
-  22% { transform: rotate(15deg); }
+  0%, 100% { transform: rotate(4deg); }
+  22% { transform: rotate(12deg); }
   52% { transform: rotate(32deg); }
-  74% { transform: rotate(20deg); }
+  74% { transform: rotate(18deg); }
 }
 @keyframes p-shoot-arm {
-  0%, 100% { transform: rotate(-58deg); }
-  22% { transform: rotate(-70deg); }
+  0%, 100% { transform: rotate(-38deg); }
+  22% { transform: rotate(-60deg); }
   52% { transform: rotate(-100deg); }
-  74% { transform: rotate(-80deg); }
+  74% { transform: rotate(-76deg); }
 }
 @keyframes p-shoot-arm-back {
-  0%, 100% { transform: rotate(-38deg); }
+  0%, 100% { transform: rotate(-24deg); }
   52% { transform: rotate(-86deg); }
 }
 @keyframes p-shoot-step {
-  0%, 100% { transform: rotate(-9deg); }
-  22% { transform: rotate(-14deg); }
+  0%, 100% { transform: rotate(-6deg); }
+  22% { transform: rotate(-12deg); }
   52% { transform: rotate(-40deg); }
-  74% { transform: rotate(-24deg); }
+  74% { transform: rotate(-22deg); }
 }
 @keyframes p-shoot-drive {
-  0%, 100% { transform: rotate(11deg); }
-  22% { transform: rotate(15deg); }
+  0%, 100% { transform: rotate(8deg); }
+  22% { transform: rotate(14deg); }
   52% { transform: rotate(46deg); }
-  74% { transform: rotate(28deg); }
+  74% { transform: rotate(26deg); }
 }
 @keyframes p-pom-pump {
   0%, 62%, 100% { transform: rotate(-16deg); }

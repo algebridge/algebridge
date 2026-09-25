@@ -100,15 +100,19 @@ export function Head({ look, jaw = "oval", children }: { id?: string; look: Look
  * runs from 0 (a level mouth) to 1 (a wide smile); `blush` adds colour to
  * the cheeks.
  */
-export function Face({ look, smile = 0.6, blush }: { look: Look; smile?: number; blush?: string }) {
+export function Face({ look, smile = 0.6, blush, young = false }: { look: Look; smile?: number; blush?: string; young?: boolean }) {
+  // A younger face has bigger eyes, set a touch lower, under lighter brows.
+  const ex = young ? 2.15 : 1.9;
+  const ey = young ? 2.5 : 2.2;
+  const cy = young ? 27.8 : 27.3;
   return (
     <g>
-      <path d="M41.8 23.4 Q45.2 21.5 48.6 23" stroke={look.hair} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <path d="M52.2 23 Q55.6 21.5 59 23.4" stroke={look.hair} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <ellipse cx="45.4" cy="27.3" rx="1.9" ry="2.2" fill={look.iris} />
-      <ellipse cx="55.8" cy="27.3" rx="1.9" ry="2.2" fill={look.iris} />
-      <circle cx="46" cy="26.6" r="0.6" fill="#ffffff" opacity="0.8" />
-      <circle cx="56.4" cy="26.6" r="0.6" fill="#ffffff" opacity="0.8" />
+      <path d={young ? "M42 23 Q45.2 21.6 48.4 22.8" : "M41.8 23.4 Q45.2 21.5 48.6 23"} stroke={look.hair} strokeWidth={young ? 1.25 : 1.5} fill="none" strokeLinecap="round" />
+      <path d={young ? "M52.4 22.8 Q55.6 21.6 58.8 23" : "M52.2 23 Q55.6 21.5 59 23.4"} stroke={look.hair} strokeWidth={young ? 1.25 : 1.5} fill="none" strokeLinecap="round" />
+      <ellipse cx="45.4" cy={cy} rx={ex} ry={ey} fill={look.iris} />
+      <ellipse cx="55.8" cy={cy} rx={ex} ry={ey} fill={look.iris} />
+      <circle cx="46" cy={cy - 0.7} r="0.6" fill="#ffffff" opacity="0.8" />
+      <circle cx="56.4" cy={cy - 0.7} r="0.6" fill="#ffffff" opacity="0.8" />
       <path d="M50.8 29.6 Q51.9 31.6 50.4 32.5" stroke={look.skinShade} strokeWidth="1.1" fill="none" strokeLinecap="round" />
       {blush && (
         <g>
