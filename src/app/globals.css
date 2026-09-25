@@ -438,10 +438,12 @@ html.lenis body {
 }
 
 /* Shaurya: an easy stance, hands ready, and a shuffle rather than a run. */
-.player-wrestling .p-body {
+.player-wrestling .p-body,
+.player-wrestling .p-skirt {
   transform: rotate(4deg);
 }
-.player-wrestling.player-idle:not(.player-moving) .p-body {
+.player-wrestling.player-idle:not(.player-moving) .p-body,
+.player-wrestling.player-idle:not(.player-moving) .p-skirt {
   animation: p-stance-bob 2.2s ease-in-out infinite;
 }
 .player-wrestling .p-arm-front {
@@ -471,7 +473,8 @@ html.lenis body {
 .player-wrestling.player-action .p-all {
   animation: p-shoot 0.9s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
-.player-wrestling.player-action .p-body {
+.player-wrestling.player-action .p-body,
+.player-wrestling.player-action .p-skirt {
   animation: p-shoot-lean 0.9s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
 .player-wrestling.player-action .p-arm-front {
