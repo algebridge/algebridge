@@ -33,10 +33,11 @@ function Crowd({ x0, x1, y0, rows, gap, size, colors = SHIRTS }: { x0: number; x
   const out: React.ReactNode[] = [];
   for (let r = 0; r < rows; r += 1) {
     const y = y0 + r * gap;
+    const row: React.ReactNode[] = [];
     for (let x = x0 + (r % 2) * (size * 1.1); x < x1; x += size * 2.3) {
       const k = Math.round(x * 7 + r * 13);
       const up = k % 9 === 0;
-      out.push(
+      row.push(
         <g key={`${r}-${x}`}>
           <rect x={x - size * 0.9} y={y} width={size * 1.8} height={size * 1.6} rx={size * 0.6} fill={colors[k % colors.length]} />
           {up && <rect x={x + size * 0.7} y={y - size * 1.4} width={size * 0.5} height={size * 1.8} rx={size * 0.25} fill={SKINS[(k >> 2) % SKINS.length]} />}
@@ -45,8 +46,23 @@ function Crowd({ x0, x1, y0, rows, gap, size, colors = SHIRTS }: { x0: number; x
         </g>
       );
     }
+    // Each row sways on its own beat, so the stand looks alive without a thousand animations.
+    out.push(
+      <g key={r} className="sc-bob" style={{ animationDelay: `${r * -0.7}s` }}>
+        {row}
+      </g>
+    );
   }
   return <g>{out}</g>;
+}
+
+/** Text that always fits the sign it is on. */
+function Fit({ x, y, w, size, fill, children, weight = 800, spacing }: { x: number; y: number; w: number; size: number; fill: string; children: string; weight?: number; spacing?: number }) {
+  return (
+    <text x={x} y={y} textAnchor="middle" fontSize={size} fontWeight={weight} fill={fill} fontFamily={FONT} letterSpacing={spacing} textLength={w} lengthAdjust="spacingAndGlyphs">
+      {children}
+    </text>
+  );
 }
 
 /** A small person standing or sitting: a coach, an official, a substitute. */
@@ -82,10 +98,12 @@ function Pennant({ x, y, color, text }: { x: number; y: number; color: string; t
   return (
     <g>
       <rect x={x - 2} y={y} width="72" height="6" rx="2" fill="#a16207" />
-      <path d={`M${x} ${y + 6} L${x + 68} ${y + 6} L${x + 34} ${y + 96}Z`} fill={color} />
-      <text x={x + 34} y={y + 34} textAnchor="middle" fontSize="11" fontWeight="800" fill="#ffffff" fontFamily={FONT} letterSpacing="1">
-        {text}
-      </text>
+      <g className="sc-sway" style={{ transformOrigin: `${x + 34}px ${y + 6}px`, animationDelay: `${(x % 7) * -0.4}s` }}>
+        <path d={`M${x} ${y + 6} L${x + 68} ${y + 6} L${x + 34} ${y + 96}Z`} fill={color} />
+        <Fit x={x + 34} y={y + 34} w={48} size={10} fill="#ffffff">
+          {text}
+        </Fit>
+      </g>
     </g>
   );
 }
@@ -135,7 +153,11 @@ export function WrestlingScene() {
         const x = 30 + i * 82;
         const t = x / W;
         const y = 38 + 160 * t * (1 - t);
-        return <path key={i} d={`M${x} ${y} L${x + 40} ${y + 2} L${x + 20} ${y + 42}Z`} fill={["#1d4ed8", "#facc15", "#dc2626"][i % 3]} />;
+        return (
+          <g key={i} className="sc-sway" style={{ transformOrigin: `${x + 20}px ${y}px`, animationDelay: `${i * -0.3}s` }}>
+            <path d={`M${x} ${y} L${x + 40} ${y + 2} L${x + 20} ${y + 42}Z`} fill={["#1d4ed8", "#facc15", "#dc2626"][i % 3]} />
+          </g>
+        );
       })}
       {[40, 130, 220].map((x, i) => (
         <Pennant key={x} x={x} y={100} color={["#1e3a8a", "#b91c1c", "#1e3a8a"][i]} text={["BRIDGES", "GO TEAM", "WRESTLE"][i]} />
@@ -146,12 +168,12 @@ export function WrestlingScene() {
       {/* The team banner. */}
       <rect x="430" y="112" width="340" height="86" rx="8" fill="#1e3a8a" />
       <rect x="430" y="186" width="340" height="12" rx="4" fill="#172554" />
-      <text x="600" y="156" textAnchor="middle" fontSize="36" fontWeight="800" fill="#facc15" fontFamily={FONT}>
+      <Fit x={600} y={156} w={250} size={36} fill="#facc15">
         ALGEBRIDGE
-      </text>
-      <text x="600" y="182" textAnchor="middle" fontSize="15" fontWeight="700" letterSpacing="6" fill="#ffffff" fontFamily={FONT}>
+      </Fit>
+      <Fit x={600} y={182} w={150} size={15} fill="#ffffff" weight={700}>
         WRESTLING
-      </text>
+      </Fit>
       {/* Bleachers, full, with a rail along the top. */}
       {[0, 1].map((side) => {
         const x0 = side ? 850 : 30;
@@ -244,33 +266,37 @@ export function CheerScene() {
       {Array.from({ length: 12 }, (_, i) => (
         <path key={i} d={`M${i * 100 + 20} 26 L${i * 100 + 70} 52 M${i * 100 + 70} 26 L${i * 100 + 120} 52`} stroke="#334155" strokeWidth="2" />
       ))}
-      {[180, 420, 660, 900].map((x) => (
+      {[180, 420, 660, 900].map((x, i) => (
         <g key={x}>
           <rect x={x - 12} y="54" width="24" height="16" rx="3" fill="#475569" />
           <rect x={x - 8} y="68" width="16" height="6" rx="2" fill="#fef3c7" />
-          <path d={`M${x - 10} 74 L${x + 10} 74 L${x + 300} 470 L${x - 140} 470Z`} fill="#ffffff" opacity="0.05" />
+          <g className="sc-sweep" style={{ transformOrigin: `${x}px 74px`, animationDelay: `${i * -2.3}s` }}>
+            <path d={`M${x - 10} 74 L${x + 10} 74 L${x + 300} 470 L${x - 140} 470Z`} fill="#ffffff" opacity="0.06" />
+          </g>
         </g>
       ))}
       {/* The banner. */}
       <rect x="240" y="62" width="720" height="66" rx="8" fill="#1d4ed8" />
       <rect x="240" y="62" width="720" height="10" rx="4" fill="#facc15" />
-      <text x="600" y="108" textAnchor="middle" fontSize="30" fontWeight="800" fill="#ffffff" fontFamily={FONT} letterSpacing="5">
+      <Fit x={600} y={108} w={520} size={30} fill="#ffffff">
         CHEER CHAMPIONSHIP
-      </text>
+      </Fit>
       {/* A video board over the judges. */}
       <rect x="440" y="140" width="320" height="94" rx="6" fill="#0b1220" />
       <rect x="446" y="146" width="308" height="82" rx="4" fill="#1e3a8a" />
-      <text x="600" y="176" textAnchor="middle" fontSize="13" fontWeight="700" fill="#93c5fd" fontFamily={FONT} letterSpacing="3">
+      <Fit x={600} y={176} w={180} size={13} fill="#93c5fd" weight={700}>
         NOW ON THE FLOOR
-      </text>
-      <text x="600" y="210" textAnchor="middle" fontSize="24" fontWeight="800" fill="#ffffff" fontFamily={FONT} letterSpacing="2">
+      </Fit>
+      <Fit x={600} y={210} w={190} size={24} fill="#ffffff">
         ALGEBRIDGE
-      </text>
+      </Fit>
       {/* Flags at the back corners. */}
       {[60, 1140].map((x, i) => (
         <g key={x}>
           <rect x={x - 2} y="130" width="4" height="120" fill="#94a3b8" />
-          <path d={`M${x + 2} 132 l${i ? -50 : 50} 12 l${i ? 50 : -50} 12Z`} fill={i ? "#dc2626" : "#1d4ed8"} />
+          <g className="sc-sway" style={{ transformOrigin: `${x}px 132px`, animationDelay: `${i * -1.1}s` }}>
+            <path d={`M${x + 2} 132 l${i ? -50 : 50} 12 l${i ? 50 : -50} 12Z`} fill={i ? "#dc2626" : "#1d4ed8"} />
+          </g>
         </g>
       ))}
       {/* Stands either side, full, with rails. */}
@@ -303,9 +329,9 @@ export function CheerScene() {
       ))}
       <rect x="440" y="378" width="320" height="70" rx="6" fill="#1e40af" />
       <rect x="440" y="378" width="320" height="8" rx="3" fill="#60a5fa" />
-      <text x="600" y="432" textAnchor="middle" fontSize="20" fontWeight="800" fill="#ffffff" fontFamily={FONT} letterSpacing="4">
+      <Fit x={600} y={432} w={110} size={20} fill="#ffffff">
         JUDGES
-      </text>
+      </Fit>
       {[500, 600, 700].map((x, i) => (
         <g key={x}>
           <Person x={x} y={382} h={54} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} />
@@ -345,9 +371,11 @@ export function CheerScene() {
       <text x="600" y="636" textAnchor="middle" fontSize="34" fontWeight="800" fill="#facc15" fontFamily={FONT} opacity="0.9">
         A
       </text>
-      <text x="600" y="742" textAnchor="middle" fontSize="22" fontWeight="800" fill="#ffffff" fontFamily={FONT} letterSpacing="8" opacity="0.28">
-        ALGEBRIDGE ALLSTARS
-      </text>
+      <g opacity="0.28">
+        <Fit x={600} y={742} w={440} size={22} fill="#ffffff">
+          ALGEBRIDGE ALLSTARS
+        </Fit>
+      </g>
     </Svg>
   );
 }
@@ -383,7 +411,9 @@ export function VolleyballScene() {
       ))}
       {/* Pennants along the wall, the school crest, a clock. */}
       {Array.from({ length: 10 }, (_, i) => (
-        <path key={i} d={`M${20 + i * 124} 140 L${60 + i * 124} 140 L${40 + i * 124} 176Z`} fill={["#7c3aed", "#facc15", "#0d9488"][i % 3]} />
+        <g key={i} className="sc-sway" style={{ transformOrigin: `${40 + i * 124}px 140px`, animationDelay: `${i * -0.35}s` }}>
+          <path d={`M${20 + i * 124} 140 L${60 + i * 124} 140 L${40 + i * 124} 176Z`} fill={["#7c3aed", "#facc15", "#0d9488"][i % 3]} />
+        </g>
       ))}
       <circle cx="300" cy="212" r="36" fill="#7c3aed" />
       <circle cx="300" cy="212" r="28" fill="#5b21b6" />
@@ -403,12 +433,12 @@ export function VolleyballScene() {
       <text x="652" y="211" textAnchor="middle" fontSize="42" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
         23
       </text>
-      <text x="548" y="158" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94a3b8" fontFamily={FONT} letterSpacing="2">
+      <Fit x={548} y={158} w={44} size={9} fill="#94a3b8" weight={700}>
         HOME
-      </text>
-      <text x="652" y="158" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94a3b8" fontFamily={FONT} letterSpacing="2">
+      </Fit>
+      <Fit x={652} y={158} w={48} size={9} fill="#94a3b8" weight={700}>
         GUEST
-      </text>
+      </Fit>
       {/* Wall pads at the ends, the scorer's table in the middle. */}
       <rect x="0" y="286" width="230" height="49" fill="#7c3aed" />
       <rect x="970" y="286" width="230" height="49" fill="#7c3aed" />
@@ -512,8 +542,8 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
         [150, 50],
         [520, 34],
         [820, 62],
-      ].map(([x, cy]) => (
-        <g key={x} opacity="0.9">
+      ].map(([x, cy], i) => (
+        <g key={x} opacity="0.9" className="sc-drift" style={{ animationDelay: `${i * -13}s` }}>
           <ellipse cx={x} cy={cy} rx="46" ry="14" fill="#ffffff" />
           <ellipse cx={x - 22} cy={cy + 4} rx="26" ry="12" fill="#ffffff" />
           <ellipse cx={x + 26} cy={cy + 5} rx="30" ry="12" fill="#ffffff" />
@@ -540,9 +570,9 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
       ))}
       <Crowd x0={318} x1={882} y0={110} rows={3} gap={20} size={6.5} colors={["#22c55e", "#f8fafc", "#facc15", "#dc2626", "#1d4ed8"]} />
       <rect x="180" y="96" width="112" height="70" rx="5" fill="#111827" />
-      <text x="236" y="120" textAnchor="middle" fontSize="12" fontWeight="800" fill="#f8fafc" fontFamily={FONT} letterSpacing="2">
+      <Fit x={236} y={120} w={92} size={12} fill="#f8fafc">
         CITY UNITED
-      </text>
+      </Fit>
       <text x="212" y="152" textAnchor="middle" fontSize="26" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
         0
       </text>
@@ -553,9 +583,9 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
       {Array.from({ length: 10 }, (_, i) => (
         <g key={i}>
           <rect x={20 + i * 116} y="174" width="112" height="16" fill={i % 2 ? "#f8fafc" : "#15803d"} />
-          <text x={76 + i * 116} y="186" textAnchor="middle" fontSize="9" fontWeight="800" fill={i % 2 ? "#15803d" : "#f8fafc"} fontFamily={FONT} letterSpacing="2">
+          <Fit x={76 + i * 116} y={186} w={i % 2 ? 60 : 84} size={9} fill={i % 2 ? "#15803d" : "#f8fafc"}>
             {i % 2 ? "GO CITY" : "ALGEBRIDGE"}
-          </text>
+          </Fit>
         </g>
       ))}
       {bands.map((b, i) => (
@@ -568,10 +598,12 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
       <ellipse cx="600" cy="372" rx="6" ry="3" fill="#f8fafc" />
       <path d="M520 410 Q600 452 680 410" fill="none" stroke="#f8fafc" strokeWidth="4" />
       <ellipse cx="600" cy="870" rx="240" ry="80" fill="none" stroke="#f8fafc" strokeWidth="5" />
-      {[40, 1160].map((x) => (
+      {[40, 1160].map((x, i) => (
         <g key={x}>
           <rect x={x - 2} y={GOAL.line - 46} width="4" height="46" fill="#e5e7eb" />
-          <path d={`M${x + 2} ${GOAL.line - 46} l18 7 l-18 7Z`} fill="#facc15" />
+          <g className="sc-sway" style={{ transformOrigin: `${x + 2}px ${GOAL.line - 46}px`, animationDelay: `${i * -1.6}s` }}>
+            <path d={`M${x + 2} ${GOAL.line - 46} l18 7 l-18 7Z`} fill="#facc15" />
+          </g>
         </g>
       ))}
       {/* Dugouts on both sides: a shelter, the substitutes, a ball bag and cones. */}
@@ -627,19 +659,37 @@ export function CourtScene({ game, netHit }: { game: CourtGameId; netHit?: boole
 
 /* ── Veronica: an outdoor rink in winter ─────────────────────────── */
 
+/** The bulbs strung over the rink: where each hangs, from the sag of the line. */
+const BULBS = [50, 130, 210, 290, 370, 450, 530, 610, 690, 770, 850, 930, 1010, 1090, 1170].map((x, i) => {
+  const t = x / 1200;
+  const y = 140 + 90 * Math.sin(Math.PI * (t < 0.5 ? t * 2 : (t - 0.5) * 2)) * (t < 0.5 ? 1 : 0.55) + 20;
+  return { x, y: Math.round(y * 10) / 10, color: ["#fbbf24", "#fb7185", "#38bdf8", "#4ade80", "#c084fc", "#fb923c"][i % 6] };
+});
+
+/** Snow, in three sheets that fall at their own speeds; each is drawn twice so the loop is seamless. */
+function Snow({ seed, fall, r }: { seed: number; fall: string; r: number }) {
+  const flakes = Array.from({ length: 24 }, (_, i) => ({ x: (i * 173 + seed * 61) % 1200, y: (i * 97 + seed * 37) % 440 }));
+  return (
+    <g className="sc-snow" style={{ ["--fall" as string]: fall }}>
+      {[0, -440].map((dy) =>
+        flakes.map((f, i) => <circle key={`${dy}-${i}`} cx={f.x} cy={f.y + dy} r={r} fill="#ffffff" opacity="0.85" />)
+      )}
+    </g>
+  );
+}
+
 /**
  * The rink she skates on, out on its own in the snow: boards with a red
- * rail, mountains and evergreens behind, stands either side, a warming hut
- * with a skate booth and a Zamboni beside it, lamp posts, a snowman, a
- * string of bulbs over it all, and snow coming down. The ice is the same
- * ellipse the game has always used (`RINK` in lib/rink.ts), so her skating
- * and the seven decoration spots around the boards are unchanged.
+ * rail, mountains and evergreens behind (the end trees strung with lights),
+ * stands either side, a skate booth, a warming hut with smoke from its
+ * chimney, a Zamboni, lamp posts, a cocoa stand and a fire to warm up at,
+ * a snowman, bulbs twinkling over it all and snow coming down. The ice is
+ * the same ellipse the game has always used (`RINK` in lib/rink.ts), so her
+ * skating and the seven decoration spots around the boards are unchanged.
  */
 export function RinkScene() {
   const R = RINK;
   const trees = [40, 130, 215, 300, 380, 470, 560, 650, 740, 830, 920, 1010, 1100, 1180];
-  const bulbs = ["#fbbf24", "#fb7185", "#38bdf8", "#4ade80", "#c084fc", "#fb923c"];
-  const flakes = Array.from({ length: 70 }, (_, i) => ({ x: (i * 173) % 1200, y: (i * 97) % 440, r: 1.4 + (i % 3) * 0.7 }));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" aria-hidden>
       <defs>
@@ -653,17 +703,18 @@ export function RinkScene() {
       <circle cx="960" cy="150" r="52" fill="#fff7e0" />
       {/* Mountains, then snowy hills. */}
       <path d="M0 300 L120 180 L220 250 L340 150 L460 260 L560 200 L660 290 L780 170 L900 260 L1010 190 L1120 280 L1200 230 L1200 340 L0 340Z" fill="#cbd5e1" />
-      <path d="M340 150 L380 190 L300 200Z M780 170 L820 208 L740 214Z M1010 190 L1040 222 L980 226Z" fill="#f8fafc" />
+      <path d="M340 150 L380 190 L300 200Z M780 170 L820 208 L740 214Z M1010 190 L1040 222 L980 226Z M120 180 L150 214 L96 218Z" fill="#f8fafc" />
       <path d="M0 330 Q200 250 420 300 Q600 340 800 280 Q1000 230 1200 300 L1200 460 L0 460Z" fill="#e2e8f0" />
       <path d="M0 360 Q260 300 520 340 Q760 370 1000 320 Q1120 300 1200 330 L1200 460 L0 460Z" fill="#f1f5f9" />
       {/* Birds, far off. */}
       {[[260, 120], [300, 108], [340, 124]].map(([x, y]) => (
         <path key={x} d={`M${x - 8} ${y} q8 -6 16 0`} fill="none" stroke="#64748b" strokeWidth="1.5" />
       ))}
-      {/* Evergreens in a row, snow on their tips. */}
+      {/* Evergreens in a row, snow on their tips, lights on the two at the ends. */}
       {trees.map((x, i) => {
         const h = 120 + ((i * 37) % 60);
         const base = 430;
+        const lit = i === 0 || i === trees.length - 1;
         return (
           <g key={x}>
             <rect x={x - 6} y={base - 18} width="12" height="22" fill="#5b3a21" />
@@ -671,6 +722,10 @@ export function RinkScene() {
             <path d={`M${x} ${base - h + 26} L${x + 32} ${base - 42} L${x - 32} ${base - 42}Z`} fill="#2f7a4d" />
             <path d={`M${x} ${base - h} L${x + 10} ${base - h + 22} L${x - 10} ${base - h + 22}Z`} fill="#f8fafc" opacity="0.9" />
             <path d={`M${x - 14} ${base - h + 46} q14 -6 28 0 l-4 6 q-10 -4 -20 0Z`} fill="#f8fafc" opacity="0.8" />
+            {lit &&
+              [[-6, 40], [8, 54], [-16, 70], [14, 84], [-24, 98], [4, 108], [22, 116], [-10, 122]].map(([dx, dy], j) => (
+                <circle key={j} cx={x + dx} cy={base - h + dy} r="4" fill={["#fbbf24", "#fb7185", "#38bdf8", "#4ade80"][j % 4]} className="sc-twinkle" style={{ animationDelay: `${j * -0.45}s` }} />
+              ))}
           </g>
         );
       })}
@@ -691,15 +746,15 @@ export function RinkScene() {
           <Crowd x0={x0 + 14} x1={x1 - 8} y0={360} rows={2} gap={40} size={12} colors={["#1d4ed8", "#dc2626", "#0f766e", "#f8fafc", "#7c3aed", "#f97316"]} />
         </g>
       ))}
-      {/* The skate booth, the warming hut with its window lit, the Zamboni. */}
+      {/* The skate booth, the warming hut with its chimney going, the Zamboni: one tidy row. */}
       <rect x="404" y="368" width="104" height="80" fill="#1e40af" />
       <rect x="404" y="368" width="52" height="80" fill="#2563eb" />
       <path d="M396 370 L456 340 L516 370Z" fill="#f8fafc" />
       <rect x="418" y="392" width="76" height="30" fill="#0b1220" />
       <rect x="418" y="392" width="76" height="4" fill="#facc15" />
-      <text x="456" y="414" textAnchor="middle" fontSize="13" fontWeight="800" fill="#facc15" fontFamily={FONT} letterSpacing="2">
+      <Fit x={456} y={414} w={56} size={13} fill="#facc15">
         SKATES
-      </text>
+      </Fit>
       {[428, 448, 468, 488].map((x, i) => (
         <g key={x}>
           <rect x={x - 6} y="430" width="12" height="9" rx="2" fill={i % 2 ? "#f8fafc" : "#1f2937"} />
@@ -716,7 +771,7 @@ export function RinkScene() {
       <rect x="640" y="272" width="14" height="30" fill="#475569" />
       <rect x="638" y="268" width="18" height="6" fill="#64748b" />
       {[0, 1, 2].map((i) => (
-        <circle key={i} cx={650 + i * 6} cy={258 - i * 10} r={4 + i} fill="#e2e8f0" opacity={0.7 - i * 0.15} />
+        <circle key={i} cx="647" cy="262" r={5 + i} fill="#e2e8f0" className="sc-smoke" style={{ animationDelay: `${i * -1.3}s` }} />
       ))}
       <rect x="546" y="356" width="40" height="34" rx="2" fill="#fde68a" />
       <rect x="564" y="356" width="4" height="34" fill="#5b3a21" />
@@ -724,52 +779,81 @@ export function RinkScene() {
       <rect x="614" y="366" width="42" height="68" fill="#3f2a1a" />
       <circle cx="648" cy="402" r="3" fill="#facc15" />
       <rect x="536" y="292" width="128" height="26" rx="4" fill="#1e3a8a" />
-      <text x="600" y="311" textAnchor="middle" fontSize="17" fontWeight="800" fill="#facc15" fontFamily={FONT} letterSpacing="3">
+      <Fit x={600} y={311} w={112} size={15} fill="#facc15">
         ALGEBRIDGE RINK
-      </text>
+      </Fit>
       <rect x="700" y="392" width="100" height="44" rx="6" fill="#1d4ed8" />
       <rect x="700" y="380" width="44" height="20" rx="4" fill="#1e40af" />
       <rect x="708" y="384" width="28" height="12" fill="#bae6fd" />
       <rect x="760" y="400" width="34" height="22" rx="3" fill="#facc15" />
+      <circle cx="722" cy="378" r="4" fill="#f97316" className="sc-blink" />
       {[716, 782].map((x) => (
         <circle key={x} cx={x} cy="438" r="9" fill="#1f2937" />
       ))}
       <rect x="700" y="428" width="100" height="6" fill="#0f172a" opacity="0.3" />
-      {/* Lamp posts, a snowman, a bench, footprints to the hut. */}
+      {/* Lamp posts either side, lit. */}
       {[36, 1164].map((x) => (
         <g key={x}>
           <rect x={x - 3} y="500" width="6" height="200" fill="#334155" />
           <rect x={x - 14} y="488" width="28" height="18" rx="4" fill="#475569" />
           <rect x={x - 10} y="504" width="20" height="5" rx="2" fill="#fef3c7" />
-          <circle cx={x} cy="510" r="26" fill="#fde68a" opacity="0.18" />
+          <circle cx={x} cy="512" r="30" fill="#fde68a" opacity="0.16" />
         </g>
       ))}
-      <circle cx="52" cy="748" r="22" fill="#ffffff" />
-      <circle cx="52" cy="712" r="16" fill="#ffffff" />
-      <circle cx="52" cy="684" r="12" fill="#ffffff" />
-      <rect x="44" y="666" width="16" height="10" fill="#1f2937" />
-      <rect x="40" y="674" width="24" height="3" fill="#1f2937" />
-      <path d="M52 684 l10 2 l-10 2Z" fill="#f97316" />
-      {[[49, 681], [56, 681], [52, 706], [52, 716]].map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="#1f2937" />
+      {/* A cocoa stand at the front left, a cup steaming on the counter. */}
+      <rect x="70" y="704" width="120" height="66" fill="#9a3412" />
+      <rect x="70" y="704" width="60" height="66" fill="#b45309" />
+      <rect x="66" y="698" width="128" height="10" rx="3" fill="#f8fafc" />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <path key={i} d={`M${64 + i * 22} 684 L${86 + i * 22} 684 L${86 + i * 22} 698 L${64 + i * 22} 698Z`} fill={i % 2 ? "#f8fafc" : "#dc2626"} />
       ))}
-      <path d="M40 696 q-14 -8 -22 -18 M64 696 q14 -8 22 -18" stroke="#5b3a21" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <rect x="82" y="716" width="96" height="22" rx="3" fill="#1f2937" />
+      <Fit x={130} y={732} w={76} size={12} fill="#fde68a">
+        HOT COCOA
+      </Fit>
+      <rect x="108" y="746" width="14" height="14" rx="2" fill="#f8fafc" />
+      <rect x="140" y="746" width="14" height="14" rx="2" fill="#f8fafc" />
+      {[0, 1].map((i) => (
+        <circle key={i} cx={115 + i * 32} cy="742" r="3" fill="#e2e8f0" className="sc-smoke" style={{ animationDelay: `${i * -1.7}s` }} />
+      ))}
+      {/* A fire to warm up at, at the front right, two people with their hands out. */}
+      <ellipse cx="1080" cy="764" rx="34" ry="12" fill="#94a3b8" />
+      <ellipse cx="1080" cy="760" rx="26" ry="8" fill="#475569" />
+      <rect x="1064" y="750" width="32" height="6" rx="2" fill="#5b3a21" transform="rotate(-18 1080 753)" />
+      <rect x="1064" y="750" width="32" height="6" rx="2" fill="#7c4a2a" transform="rotate(20 1080 753)" />
+      <g className="sc-flame">
+        <path d="M1066 754 Q1070 728 1080 722 Q1090 728 1094 754Z" fill="#f97316" />
+        <path d="M1072 754 Q1076 736 1080 732 Q1084 736 1088 754Z" fill="#fde047" />
+      </g>
+      <circle cx="1080" cy="746" r="34" fill="#fb923c" opacity="0.14" />
+      <Person x={1032} y={768} h={56} shirt="#1d4ed8" skin="#e0ac86" hair="#6b4426" />
+      <Person x={1128} y={768} h={56} shirt="#dc2626" skin="#6f432a" hair="#111111" />
+      {/* A snowman by the boards, footprints to the hut. */}
+      <circle cx="52" cy="640" r="20" fill="#ffffff" />
+      <circle cx="52" cy="608" r="15" fill="#ffffff" />
+      <circle cx="52" cy="582" r="11" fill="#ffffff" />
+      <rect x="44" y="565" width="16" height="10" fill="#1f2937" />
+      <rect x="40" y="573" width="24" height="3" fill="#1f2937" />
+      <path d="M52 582 l10 2 l-10 2Z" fill="#f97316" />
+      {[[49, 579], [56, 579], [52, 603], [52, 612]].map(([x, y]) => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="#1f2937" />
+      ))}
+      <path d="M40 594 q-14 -8 -22 -18 M64 594 q14 -8 22 -18" stroke="#5b3a21" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <rect x="38" y="596" width="28" height="5" rx="2" fill="#dc2626" />
       {[[590, 468], [604, 480], [592, 492], [606, 504]].map(([x, y]) => (
         <ellipse key={`${x}-${y}`} cx={x} cy={y} rx="4" ry="2.4" fill="#cbd5e1" />
       ))}
-      {/* A string of bulbs over everything. */}
+      {/* A string of bulbs over everything, each twinkling on its own. */}
       <path d="M0 140 Q300 250 600 190 T1200 140" fill="none" stroke="#475569" strokeWidth="3" />
-      {[50, 130, 210, 290, 370, 450, 530, 610, 690, 770, 850, 930, 1010, 1090, 1170].map((x, i) => {
-        const t = x / 1200;
-        const y = 140 + 90 * Math.sin(Math.PI * (t < 0.5 ? t * 2 : (t - 0.5) * 2)) * (t < 0.5 ? 1 : 0.55) + 6;
-        return (
-          <g key={x}>
-            <rect x={x - 2} y={y} width="4" height="8" fill="#475569" />
-            <circle cx={x} cy={y + 14} r="7" fill={bulbs[i % bulbs.length]} />
-            <circle cx={x} cy={y + 14} r="12" fill={bulbs[i % bulbs.length]} opacity="0.25" />
+      {BULBS.map((b, i) => (
+        <g key={b.x}>
+          <rect x={b.x - 2} y={b.y - 14} width="4" height="8" fill="#475569" />
+          <g className="sc-twinkle" style={{ animationDelay: `${i * -0.37}s` }}>
+            <circle cx={b.x} cy={b.y} r="7" fill={b.color} />
+            <circle cx={b.x} cy={b.y} r="12" fill={b.color} opacity="0.25" />
           </g>
-        );
-      })}
+        </g>
+      ))}
       {/* Snowbanks pushed up against the boards. */}
       <ellipse cx={R.cx} cy={R.cy + 8} rx={R.rx + 62} ry={R.ry + 52} fill="#ffffff" />
       <ellipse cx={R.cx} cy={R.cy + 16} rx={R.rx + 62} ry={R.ry + 48} fill="#e2e8f0" opacity="0.7" />
@@ -782,6 +866,10 @@ export function RinkScene() {
       <ellipse cx={R.cx} cy={R.cy - 3} rx={R.rx + 4} ry={R.ry + 4} fill="#f1f5f9" />
       <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} fill="#dbe7f3" />
       <ellipse cx={R.cx} cy={R.cy - 2} rx={R.rx - 4} ry={R.ry - 4} fill="#f4f8fc" />
+      {/* The bulbs' colours, caught in the ice. */}
+      {BULBS.filter((b) => b.x > 260 && b.x < 940).map((b, i) => (
+        <ellipse key={b.x} cx={b.x} cy={R.cy - R.ry + 34} rx="40" ry="9" fill={b.color} opacity="0.09" className="sc-twinkle" style={{ animationDelay: `${(i + 3) * -0.37}s` }} />
+      ))}
       <ellipse cx={R.cx} cy={R.cy} rx={R.rx * 0.36} ry={R.ry * 0.36} fill="none" stroke="#3b82f6" strokeWidth="4" opacity="0.8" />
       <circle cx={R.cx} cy={R.cy} r="5" fill="#3b82f6" opacity="0.8" />
       <rect x={R.cx - 2} y={R.cy - R.ry + 8} width="4" height={R.ry * 2 - 16} fill="#dc2626" opacity="0.55" />
@@ -795,9 +883,9 @@ export function RinkScene() {
       <path d={`M${R.cx - 260} ${R.cy + 40} q60 -30 130 -6`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
       <path d={`M${R.cx + 40} ${R.cy + 70} q80 -40 170 -20`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
       {/* Snow coming down. */}
-      {flakes.map((f, i) => (
-        <circle key={i} cx={f.x} cy={f.y} r={f.r} fill="#ffffff" opacity="0.85" />
-      ))}
+      <Snow seed={1} fall="18s" r={2.2} />
+      <Snow seed={2} fall="26s" r={1.6} />
+      <Snow seed={3} fall="36s" r={1.2} />
     </svg>
   );
 }
