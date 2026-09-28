@@ -88,6 +88,11 @@ export function Head({ look, jaw = "oval", children }: { id?: string; look: Look
       {/* Two tones: the shade, then the lit face a touch up and to the left. */}
       <path d={FACE_SHAPES[jaw]} fill={look.skinShade} />
       <path d={FACE_SHAPES[jaw]} fill={look.skin} transform="translate(1.7 0.3) scale(0.945)" style={{ transformOrigin: "50px 25.5px" }} />
+      {/* Form, in flat layers: light on the forehead and the near cheekbone, shade at the jaw and the far temple. */}
+      <ellipse cx="46.5" cy="18.6" rx="6.4" ry="3.4" fill={look.skinLight} opacity="0.2" />
+      <ellipse cx="43.4" cy="29" rx="3.8" ry="2.3" fill={look.skinLight} opacity="0.16" />
+      <path d="M52.6 34 Q59 36.4 61.6 30.4 Q60.8 37.2 52.4 39.2Z" fill={look.skinShade} opacity="0.2" />
+      <path d="M38.2 25.6 Q38.6 32 41.2 35.2 Q39.4 31.6 39.6 25.2Z" fill={look.skinShade} opacity="0.14" />
       <ellipse cx="62.9" cy="27.2" rx="2.6" ry="3.6" fill={look.skin} />
       <path d="M62.2 25.4 Q64.2 27.2 62.8 29.4" stroke={look.skinShade} strokeWidth="0.8" fill="none" opacity="0.7" strokeLinecap="round" />
       {children}
@@ -95,32 +100,128 @@ export function Head({ look, jaw = "oval", children }: { id?: string; look: Look
   );
 }
 
-/**
- * Brows, eyes, nose and mouth, the simple way: strokes and dots. `smile`
- * runs from 0 (a level mouth) to 1 (a wide smile); `blush` adds colour to
- * the cheeks.
- */
-export function Face({ look, smile = 0.6, blush, young = false }: { look: Look; smile?: number; blush?: string; young?: boolean }) {
-  // A younger face has bigger eyes, set a touch lower, under lighter brows.
-  const ex = young ? 2.15 : 1.9;
-  const ey = young ? 2.5 : 2.2;
-  const cy = young ? 27.8 : 27.3;
+export type EyeKind = "almond" | "round" | "narrow";
+export type BrowKind = "soft" | "thin-arched" | "straight-thick";
+export type NoseKind = "narrow" | "medium" | "wide";
+export type LipKind = "thin" | "medium" | "full";
+export type MouthKind = "soft" | "closed-smile" | "smile";
+
+/** What makes a face this person's: the shape of each feature, and the expression. */
+export interface FaceSpec {
+  eye?: EyeKind;
+  /** 1 is the usual size. */
+  eyeSize?: number;
+  brow?: BrowKind;
+  nose?: NoseKind;
+  lips?: LipKind;
+  mouth?: MouthKind;
+}
+
+function Eye({ id, cx, cy, look, kind, size, tag }: { id?: string; cx: number; cy: number; look: Look; kind: EyeKind; size: number; tag: string }) {
+  const w = 3.5 * size;
+  const up = (kind === "round" ? 3.6 : kind === "narrow" ? 2.3 : 3.0) * size;
+  const down = (kind === "round" ? 2.4 : kind === "narrow" ? 1.5 : 2.0) * size;
+  const white = `M${cx - w} ${cy} Q${cx} ${cy - up * 1.4} ${cx + w} ${cy} Q${cx} ${cy + down * 1.35} ${cx - w} ${cy}Z`;
+  const r = 2.2 * size;
+  const ix = cx + 0.35;
+  const iy = cy + 0.15;
+  const clip = id ? `${id}-${tag}` : undefined;
   return (
     <g>
-      <path d={young ? "M42 23 Q45.2 21.6 48.4 22.8" : "M41.8 23.4 Q45.2 21.5 48.6 23"} stroke={look.hair} strokeWidth={young ? 1.25 : 1.5} fill="none" strokeLinecap="round" />
-      <path d={young ? "M52.4 22.8 Q55.6 21.6 58.8 23" : "M52.2 23 Q55.6 21.5 59 23.4"} stroke={look.hair} strokeWidth={young ? 1.25 : 1.5} fill="none" strokeLinecap="round" />
-      <ellipse cx="45.4" cy={cy} rx={ex} ry={ey} fill={look.iris} />
-      <ellipse cx="55.8" cy={cy} rx={ex} ry={ey} fill={look.iris} />
-      <circle cx="46" cy={cy - 0.7} r="0.6" fill="#ffffff" opacity="0.8" />
-      <circle cx="56.4" cy={cy - 0.7} r="0.6" fill="#ffffff" opacity="0.8" />
-      <path d="M50.8 29.6 Q51.9 31.6 50.4 32.5" stroke={look.skinShade} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      {clip && (
+        <clipPath id={clip}>
+          <path d={white} />
+        </clipPath>
+      )}
+      <path d={white} fill="#f6efe9" />
+      <g clipPath={clip ? `url(#${clip})` : undefined}>
+        <circle cx={ix} cy={iy} r={r} fill={look.iris} />
+        <circle cx={ix} cy={iy} r={r * 0.5} fill="#070402" />
+        <circle cx={ix + 0.7} cy={iy - 0.8} r="0.55" fill="#ffffff" opacity="0.92" />
+        {/* The lid's shadow across the top of the eye. */}
+        <path d={`M${cx - w} ${cy} Q${cx} ${cy - up * 1.4} ${cx + w} ${cy} Q${cx} ${cy - up * 0.6} ${cx - w} ${cy}Z`} fill="#000000" opacity="0.13" />
+      </g>
+      {/* The lash line, a flick at the outer corner, the lower lid, and the crease above. */}
+      <path d={`M${cx - w} ${cy + 0.1} Q${cx} ${cy - up * 1.4} ${cx + w} ${cy}`} stroke={look.hair} strokeWidth="1.25" fill="none" strokeLinecap="round" />
+      <path d={`M${cx + w} ${cy} l1.1 -1`} stroke={look.hair} strokeWidth="1" strokeLinecap="round" />
+      <path d={`M${cx - w + 0.5} ${cy + 0.5} Q${cx} ${cy + down * 1.35} ${cx + w - 0.3} ${cy + 0.3}`} stroke={look.skinShade} strokeWidth="0.75" fill="none" opacity="0.6" />
+      <path d={`M${cx - w + 0.3} ${cy - 1.3} Q${cx} ${cy - up * 2} ${cx + w} ${cy - 1}`} stroke={look.skinShade} strokeWidth="0.6" fill="none" opacity="0.3" />
+    </g>
+  );
+}
+
+/** A brow, drawn for the left eye; the right one is its mirror about the nose. */
+function Brow({ kind, color, right }: { kind: BrowKind; color: string; right?: boolean }) {
+  const d =
+    kind === "thin-arched"
+      ? "M49.6 22.2 Q45.2 18.9 41 22.2 Q45.2 20.6 49.4 23.3Z"
+      : kind === "straight-thick"
+        ? "M49.8 21.6 Q45.4 20.4 41 21.8 Q45.2 22.9 49.6 23.8Z"
+        : "M49.6 21.8 Q45.6 19.9 41.2 22.4 Q45.4 21.8 49.4 23.6Z";
+  return <path d={d} fill={color} transform={right ? "translate(101.6 0) scale(-1 1)" : undefined} />;
+}
+
+function Nose({ kind, look }: { kind: NoseKind; look: Look }) {
+  const tip = kind === "wide" ? 3 : kind === "medium" ? 2.4 : 1.9;
+  const nostril = kind === "wide" ? 1.3 : kind === "medium" ? 1.05 : 0.85;
+  const spread = kind === "wide" ? 2.3 : kind === "medium" ? 1.9 : 1.6;
+  return (
+    <g>
+      <path d="M51.4 26.4 Q52.9 30 52 33" stroke={look.skinShade} strokeWidth="1" fill="none" opacity="0.45" strokeLinecap="round" />
+      <ellipse cx="50.9" cy="33.1" rx={tip} ry={tip * 0.55} fill={look.skinShade} opacity="0.22" />
+      <ellipse cx={50.9 - spread} cy="33.9" rx={nostril} ry={nostril * 0.5} fill={look.skinShade} opacity="0.7" />
+      <ellipse cx={50.9 + spread} cy="33.8" rx={nostril} ry={nostril * 0.5} fill={look.skinShade} opacity="0.7" />
+      <path d={`M${50.9 - spread - 0.9} 33.4 q-0.8 -1.6 0.6 -2.4 M${50.9 + spread + 0.9} 33.4 q0.8 -1.6 -0.6 -2.4`} stroke={look.skinShade} strokeWidth="0.7" fill="none" opacity="0.5" strokeLinecap="round" />
+      <ellipse cx="50.6" cy="32.3" rx={tip * 0.42} ry="0.6" fill={look.skinLight} opacity="0.35" />
+    </g>
+  );
+}
+
+function Mouth({ lips, mouth, look }: { lips: LipKind; mouth: MouthKind; look: Look }) {
+  const Y = 36.9;
+  const lift = mouth === "smile" ? 1.5 : mouth === "closed-smile" ? 0.75 : 0.15;
+  const uh = lips === "full" ? 1.9 : lips === "medium" ? 1.4 : 1.0;
+  const lh = lips === "full" ? 3.2 : lips === "medium" ? 2.4 : 1.8;
+  const Yc = Y - lift;
+  return (
+    <g>
+      <path d={`M46 ${Yc + 0.2} Q50.7 ${Y + lh + lift * 0.6} 55.4 ${Yc + 0.2} Q50.7 ${Y + 1.2} 46 ${Yc + 0.2}Z`} fill={look.lipLight} />
+      {mouth === "smile" && <path d={`M46.8 ${Yc + 0.3} Q50.7 ${Y + 1.7} 54.6 ${Yc + 0.3} Q50.7 ${Y + 0.9} 46.8 ${Yc + 0.3}Z`} fill="#fbf7f2" opacity="0.95" />}
+      <path d={`M45.6 ${Yc} Q47.6 ${Y - uh} 49.6 ${Y - uh * 0.6} Q50.7 ${Y - uh - 0.3} 51.8 ${Y - uh * 0.6} Q53.8 ${Y - uh} 55.8 ${Yc} Q50.7 ${Y + 0.9} 45.6 ${Yc}Z`} fill={look.lip} />
+      <path d={`M45.6 ${Yc} Q50.7 ${Y + 1.1 + lift * 0.3} 55.8 ${Yc}`} stroke={look.lip} strokeWidth="0.6" fill="none" opacity="0.85" strokeLinecap="round" />
+      {lips !== "thin" && <ellipse cx="50.7" cy={Y + lh * 0.55} rx="1.6" ry="0.5" fill="#ffffff" opacity="0.16" />}
+    </g>
+  );
+}
+
+/**
+ * A face drawn to its person: each feature's shape comes from `spec`, with
+ * the older `smile`, `blush` and `young` still honoured for anyone without
+ * one. `id` lets the irises sit inside the eyes.
+ */
+export function Face({ id, look, smile = 0.6, blush, young = false, spec = {} }: { id?: string; look: Look; smile?: number; blush?: string; young?: boolean; spec?: FaceSpec }) {
+  const eye = spec.eye ?? "almond";
+  const size = spec.eyeSize ?? (young ? 1.08 : 1);
+  const brow = spec.brow ?? "soft";
+  const nose = spec.nose ?? "medium";
+  const lips = spec.lips ?? "medium";
+  const mouth = spec.mouth ?? (smile >= 0.8 ? "smile" : smile >= 0.3 ? "closed-smile" : "soft");
+  return (
+    <g>
+      <Brow kind={brow} color={look.hair} />
+      <Brow kind={brow} color={look.hair} right />
+      <Eye id={id} cx={45.2} cy={27} look={look} kind={eye} size={size} tag="eyeL" />
+      <Eye id={id} cx={56.4} cy={27} look={look} kind={eye} size={size} tag="eyeR" />
+      <Nose kind={nose} look={look} />
+      <ellipse cx="43" cy="31.8" rx="3.4" ry="2" fill={look.skinShade} opacity="0.1" />
+      <ellipse cx="58.6" cy="32" rx="3.4" ry="2" fill={look.skinShade} opacity="0.1" />
       {blush && (
         <g>
-          <circle cx="43" cy="31.6" r="2.4" fill={blush} opacity="0.55" />
-          <circle cx="58.6" cy="31.6" r="2.4" fill={blush} opacity="0.55" />
+          <circle cx="43" cy="31.6" r="2.6" fill={blush} opacity="0.45" />
+          <circle cx="58.6" cy="31.6" r="2.6" fill={blush} opacity="0.45" />
         </g>
       )}
-      <path d={`M46 ${35.8 - smile * 0.4} Q50.6 ${36.4 + smile * 3.2} 55.2 ${35.8 - smile * 0.4}`} stroke={look.lip} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <Mouth lips={lips} mouth={mouth} look={look} />
     </g>
   );
 }

@@ -157,7 +157,14 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
             {["M41.4 12.2 Q44.6 8.2 48.4 7.8", "M46.6 9.4 Q50 6.8 53.8 7.2", "M52.6 8.2 Q56.4 8 59 10.8", "M43.2 15.2 Q46 12.4 49.4 12.2"].map((d) => (
               <path key={d} d={d} stroke={SH.hairLight} strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.5" />
             ))}
-            <Face look={SH} smile={0.75} young />
+            <Face id={id} look={SH} spec={{ eye: "narrow", eyeSize: 0.95, brow: "straight-thick", nose: "narrow", lips: "thin", mouth: "closed-smile" }} />
+            {/* Thin dark frames, as in his photo. */}
+            <g fill="none" stroke="#1f2937" strokeWidth="1.1">
+              <rect x="40.2" y="23.2" width="9.4" height="6.6" rx="1.6" />
+              <rect x="51.8" y="23.2" width="9.4" height="6.6" rx="1.6" />
+              <path d="M49.6 26 L51.8 26" />
+              <path d="M40.2 25.2 L37.4 25.6 M61.2 25.2 L63.4 25.6" />
+            </g>
           </Head>
         </g>
       </g>
@@ -174,9 +181,9 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
 /* ── Jo: cheer ──────────────────────────────────────────────────── */
 
 const JO: Look = {
-  skin: "#5c3a26",
-  skinShade: "#44281a",
-  skinLight: "#76513b",
+  skin: "#503021",
+  skinShade: "#3a2215",
+  skinLight: "#6c4632",
   hair: "#120b09",
   hairLight: "#2f1d16",
   iris: "#241611",
@@ -237,26 +244,32 @@ export function Jo({ pose = "idle", facing = 1, className }: Props) {
         <Head id={id} look={JO} jaw="round">
           {/* Hair braided back from the hairline into the tail; a bow where it gathers. */}
           <path d="M36.8 26.4 C36.2 12.6 43.2 8.6 50 8.6 C57.2 8.6 64 13 63.4 27 C61.8 18.8 56.4 15.4 50.2 15.4 C44 15.6 38.8 19.6 36.8 26.4Z" fill={JO.hair} />
-          {["M40.6 22 Q42.6 14 46.6 11.2", "M44 17.6 Q45.4 13.2 47.6 10.6", "M50 15.6 Q49 12.4 48.4 10.4", "M56 17.2 Q52.6 12.8 49.4 10.4", "M60.8 22.4 Q56 14.4 50.6 10.6"].map((d) => (
-            <path key={d} d={d} stroke={JO.hairLight} strokeWidth="0.9" fill="none" strokeLinecap="round" opacity="0.8" />
+          {/* Cornrows running straight back to the tail, the partings showing between them, her edges laid. */}
+          {["M41 20.8 Q42.6 13.6 46.2 10.2", "M44.6 17 Q45.6 12.4 47.4 9.6", "M48.6 15.4 Q48.6 11.6 48.6 9.2", "M52.6 15.4 Q52.2 11.6 50.2 9.2", "M56.6 17 Q55 12.4 51.6 9.6", "M60 20.8 Q57.6 13.6 53.4 10.2"].map((d) => (
+            <path key={d} d={d} stroke={JO.hairLight} strokeWidth="2.2" fill="none" strokeLinecap="round" />
           ))}
+          {["M42.8 18.6 Q44 13 46.8 9.8", "M46.6 16 Q47 12 48 9.4", "M50.6 15.2 Q50.4 11.4 49.4 9.2", "M54.6 16 Q53.6 12 50.9 9.4", "M58.4 18.6 Q56.4 13 52.6 9.8"].map((d) => (
+            <path key={d} d={d} stroke={JO.skinShade} strokeWidth="0.7" fill="none" strokeLinecap="round" opacity="0.85" />
+          ))}
+          <path d="M38.2 21.2 q1 2.2 -0.6 4.2 M61.8 21.4 q-1 2.2 0.6 4.2" stroke={JO.hair} strokeWidth="0.8" fill="none" strokeLinecap="round" />
           <path d="M44.4 13.2 l-4.6 -5.2 l6.4 1.6Z M44.4 13.2 l-6.6 1.4 l3.6 4Z" fill={JO_KIT.bow} />
           <circle cx="44.6" cy="13.4" r="1.9" fill="#eab308" />
-          <Face look={JO} smile={0.85} />
-          {/* Round tortoiseshell glasses. */}
+          <Face id={id} look={JO} spec={{ eye: "round", eyeSize: 1, brow: "thin-arched", nose: "wide", lips: "full", mouth: "closed-smile" }} />
+          {/* Big round tortoiseshell glasses. */}
           <g>
-            <circle cx="45.2" cy="26.8" r="5.3" fill="#ffffff" opacity="0.1" />
-            <circle cx="56.5" cy="26.8" r="5.3" fill="#ffffff" opacity="0.1" />
-            <circle cx="45.2" cy="26.8" r="5.3" fill="none" stroke={JO_KIT.tortoise} strokeWidth="1.5" />
-            <circle cx="56.5" cy="26.8" r="5.3" fill="none" stroke={JO_KIT.tortoise} strokeWidth="1.5" />
-            <path d="M41.2 23.4 A5.3 5.3 0 0 1 46.4 21.6" stroke={JO_KIT.tortoiseLight} strokeWidth="1.1" fill="none" />
-            <path d="M52.5 23.4 A5.3 5.3 0 0 1 57.7 21.6" stroke={JO_KIT.tortoiseLight} strokeWidth="1.1" fill="none" />
-            <path d="M50.5 26.4 L51.2 26.4" stroke={JO_KIT.tortoise} strokeWidth="1.5" />
-            <path d="M39.9 26.2 L37.2 25.6" stroke={JO_KIT.tortoise} strokeWidth="1.2" />
-            <path d="M61.8 26.2 L63.6 25.8" stroke={JO_KIT.tortoise} strokeWidth="1.2" />
+            <circle cx="44.8" cy="27.2" r="5.7" fill="#ffffff" opacity="0.08" />
+            <circle cx="57" cy="27.2" r="5.7" fill="#ffffff" opacity="0.08" />
+            <circle cx="44.8" cy="27.2" r="5.7" fill="none" stroke={JO_KIT.tortoise} strokeWidth="1.7" />
+            <circle cx="57" cy="27.2" r="5.7" fill="none" stroke={JO_KIT.tortoise} strokeWidth="1.7" />
+            <path d="M40.6 23.6 A5.7 5.7 0 0 1 46 21.6" stroke={JO_KIT.tortoiseLight} strokeWidth="1.2" fill="none" />
+            <path d="M52.8 23.6 A5.7 5.7 0 0 1 58.2 21.6" stroke={JO_KIT.tortoiseLight} strokeWidth="1.2" fill="none" />
+            <path d="M50.5 26.6 L51.3 26.6" stroke={JO_KIT.tortoise} strokeWidth="1.6" />
+            <path d="M39.1 26.4 L37 25.8" stroke={JO_KIT.tortoise} strokeWidth="1.3" />
+            <path d="M62.7 26.4 L63.8 25.8" stroke={JO_KIT.tortoise} strokeWidth="1.3" />
+            <path d="M41.6 24.2 l2 -1.4" stroke="#ffffff" strokeWidth="0.8" opacity="0.5" strokeLinecap="round" />
           </g>
-          <Hoop x={63} y={32.4} gold={JO_KIT.gold} />
-          <Hoop x={37} y={32.4} gold={JO_KIT.gold} />
+          <circle cx="63" cy="32.8" r="2.6" fill="none" stroke={JO_KIT.gold} strokeWidth="1.2" />
+          <circle cx="37" cy="32.8" r="2.6" fill="none" stroke={JO_KIT.gold} strokeWidth="1.2" />
         </Head>
       </g>
       <Leg cls="p-leg p-leg-front" side="front" look={JO} id={id} sock={sock} shoe={sneaker(JOINT.frontLegX, false)} />
@@ -355,12 +368,12 @@ export function Jordyn({ pose = "idle", facing = 1, className }: Props) {
   return (
     <Frame id="volleyball" name="Jordyn" pose={pose} facing={facing} className={className}>
       <SkinDefs id={id} look={JD} />
-      <Leg cls="p-leg p-leg-back" side="back" look={JD} id={id} shorts={shorts} kneePad={pad} sock={sock} shoe={shoe(JOINT.backLegX, true)} />
+      <Leg cls="p-leg p-leg-back" side="back" look={JD} id={id} w={0.94} shorts={shorts} kneePad={pad} sock={sock} shoe={shoe(JOINT.backLegX, true)} />
       <g className="p-body" style={{ transformOrigin: "50px 100px" }}>
         {JD_BACK_BRAIDS.map((b) => (
           <BraidToCurls key={b.ax} {...b} />
         ))}
-        <Arm cls="p-arm p-arm-back" side="back" look={JD} id={id} sleeve={{ base: JD_KIT.jersey, shade: JD_KIT.jerseyShade }} />
+        <Arm cls="p-arm p-arm-back" side="back" look={JD} id={id} w={0.94} sleeve={{ base: JD_KIT.jersey, shade: JD_KIT.jerseyShade }} />
         {/* Jersey: purple, a white V at the neck, a white band, her number. */}
         <Cloth base={JD_KIT.jersey} shade={JD_KIT.jerseyShade} />
         <path d="M43 51.4 L50.6 64.8 L58.2 51.4 L55.6 51.4 L50.6 60.2 L45.6 51.4Z" fill={JD_KIT.white} />
@@ -379,7 +392,7 @@ export function Jordyn({ pose = "idle", facing = 1, className }: Props) {
         >
           7
         </text>
-        <Arm cls="p-arm p-arm-front" side="front" look={JD} id={id} sleeve={{ base: JD_KIT.jersey, shade: JD_KIT.jerseyShade }} />
+        <Arm cls="p-arm p-arm-front" side="front" look={JD} id={id} w={0.94} sleeve={{ base: JD_KIT.jersey, shade: JD_KIT.jerseyShade }} />
         <Head id={id} look={JD} jaw="oval">
           {/* A middle part, the braids framing her face. */}
           <path d="M36.8 26 C36 12 43 8.4 50 8.4 C57 8.4 64 12 63.2 26 C62 17.4 57.2 14.2 50.6 14.2 L49.4 14.2 C43 14.2 38 17.6 36.8 26Z" fill={JD.hair} />
@@ -387,10 +400,10 @@ export function Jordyn({ pose = "idle", facing = 1, className }: Props) {
           {JD_FRONT_BRAIDS.map((b) => (
             <BraidToCurls key={b.ax} {...b} />
           ))}
-          <Face look={JD} smile={0.6} />
+          <Face id={id} look={JD} spec={{ eye: "almond", eyeSize: 1.1, brow: "thin-arched", nose: "medium", lips: "full", mouth: "soft" }} />
         </Head>
       </g>
-      <Leg cls="p-leg p-leg-front" side="front" look={JD} id={id} shorts={shorts} kneePad={pad} sock={sock} shoe={shoe(JOINT.frontLegX, false)} />
+      <Leg cls="p-leg p-leg-front" side="front" look={JD} id={id} w={0.94} shorts={shorts} kneePad={pad} sock={sock} shoe={shoe(JOINT.frontLegX, false)} />
     </Frame>
   );
 }
@@ -422,20 +435,22 @@ const RY_KIT = {
 };
 
 // Box braids worn down: most fall behind her shoulders, a few in front on each side.
-const RY_BACK_BRAIDS = Array.from({ length: 9 }, (_, i) => {
-  const ax = 40 + i * 2.5;
-  const ay = 15.5 + Math.abs(i - 4) * 1.2;
-  const ex = ax + (ax - 50) * 0.7;
-  const ey = 90 + (i % 3) * 3.5;
-  return { d: `M${ax} ${ay} Q${ax + (ax - 50) * 0.28} ${(ay + ey) / 2} ${ex} ${ey}`, red: i % 4 === 1 };
+const RY_BACK_BRAIDS = Array.from({ length: 13 }, (_, i) => {
+  const ax = 39.4 + i * 1.8;
+  const ay = 15.2 + Math.abs(i - 6) * 0.9;
+  const ex = ax + (ax - 50) * 0.75;
+  const ey = 90 + (i % 4) * 3;
+  return { d: `M${ax} ${ay} Q${ax + (ax - 50) * 0.28} ${(ay + ey) / 2} ${ex} ${ey}`, red: i % 3 === 1 };
 });
 const RY_FRONT_BRAIDS = [
-  { d: "M39.6 21 Q34.6 52 34 91", red: false },
-  { d: "M40.5 16.6 Q37.4 54 37.6 95", red: true },
-  { d: "M42.8 14 Q40.6 52 41.4 97", red: false },
-  { d: "M60.6 16 Q64.6 52 65.6 90", red: false },
-  { d: "M62.3 20.4 Q67 50 69 86", red: true },
-  { d: "M58.4 13.6 Q62.4 52 63 95", red: false },
+  { d: "M39.2 22 Q34 52 33.2 92", red: false },
+  { d: "M39.8 18.4 Q35.6 54 35.8 96", red: true },
+  { d: "M40.8 15.8 Q37.6 54 38.4 98", red: false },
+  { d: "M42.8 13.8 Q40.2 52 41.2 97", red: true },
+  { d: "M61 17.6 Q65 52 66.4 91", red: false },
+  { d: "M62.4 21.6 Q67.6 50 69.8 86", red: true },
+  { d: "M59.6 14.6 Q63.2 52 64.2 96", red: false },
+  { d: "M57.6 13.4 Q61.2 54 61.8 98", red: false },
 ];
 
 export function Rayla({ pose = "idle", facing = 1, className }: Props) {
@@ -454,12 +469,12 @@ export function Rayla({ pose = "idle", facing = 1, className }: Props) {
   return (
     <Frame id="soccer" name="Rayla" pose={pose} facing={facing} className={className}>
       <SkinDefs id={id} look={RY} />
-      <Leg cls="p-leg p-leg-back" side="back" look={RY} id={id} shorts={shorts} sock={sock} shoe={cleat(JOINT.backLegX, true)} />
+      <Leg cls="p-leg p-leg-back" side="back" look={RY} id={id} w={1.06} shorts={shorts} sock={sock} shoe={cleat(JOINT.backLegX, true)} />
       <g className="p-body" style={{ transformOrigin: "50px 100px" }}>
         {RY_BACK_BRAIDS.map((b) => (
-          <Braid key={b.d} d={b.d} color={b.red ? RY_KIT.tint : RY.hair} tint={b.red ? RY_KIT.tintLight : RY.hairLight} width={3} />
+          <Braid key={b.d} d={b.d} color={b.red ? RY_KIT.tint : RY.hair} tint={b.red ? RY_KIT.tintLight : RY.hairLight} width={2.4} />
         ))}
-        <Arm cls="p-arm p-arm-back" side="back" look={RY} id={id} sleeve={{ base: RY_KIT.kit, shade: RY_KIT.kitShade }} />
+        <Arm cls="p-arm p-arm-back" side="back" look={RY} id={id} w={1.06} sleeve={{ base: RY_KIT.kit, shade: RY_KIT.kitShade }} />
         {/* Red kit with a white collar and white block letters across the chest. */}
         <Cloth base={RY_KIT.kit} shade={RY_KIT.kitShade} />
         <path d="M43.4 51.7 Q50 49.2 56.6 51.7 L56 53.6 Q50 51.6 44 53.6Z" fill={RY_KIT.white} />
@@ -480,30 +495,32 @@ export function Rayla({ pose = "idle", facing = 1, className }: Props) {
         {/* A thin gold chain. */}
         <path d="M45.4 51.6 Q50 59.4 54.6 51.6" stroke={RY_KIT.gold} strokeWidth="0.9" fill="none" />
         <circle cx="50" cy="58.6" r="1" fill={RY_KIT.gold} />
-        <Arm cls="p-arm p-arm-front" side="front" look={RY} id={id} sleeve={{ base: RY_KIT.kit, shade: RY_KIT.kitShade }} />
+        <Arm cls="p-arm p-arm-front" side="front" look={RY} id={id} w={1.06} sleeve={{ base: RY_KIT.kit, shade: RY_KIT.kitShade }} />
         <Head id={id} look={RY} jaw="round">
-          {/* Braids from a part just left of centre. */}
+          {/* Braids from a part just left of centre, her edges laid at the temples. */}
           <path d="M36.6 25.4 C36.4 12 43 8.6 50 8.6 C57.4 8.6 63.6 12.8 63.4 25.8 C62.4 17.8 56.8 14.6 50 14.8 C43.2 15 38 18.6 36.6 25.4Z" fill={RY.hair} />
           <path d="M47.2 9.2 L46.6 15" stroke={RY.skinShade} strokeWidth="0.9" strokeLinecap="round" />
+          <path d="M38.4 19.8 q1.2 2.2 -0.4 4.6 M61.8 20 q-1.2 2.2 0.4 4.6" stroke={RY.hair} strokeWidth="0.8" fill="none" strokeLinecap="round" />
           {RY_FRONT_BRAIDS.map((b) => (
-            <Braid key={b.d} d={b.d} color={b.red ? RY_KIT.tint : RY.hair} tint={b.red ? RY_KIT.tintLight : RY.hairLight} width={3} />
+            <Braid key={b.d} d={b.d} color={b.red ? RY_KIT.tint : RY.hair} tint={b.red ? RY_KIT.tintLight : RY.hairLight} width={2.4} />
           ))}
-          <Face look={RY} smile={0.4} />
-          {/* Thick black rectangular glasses. */}
+          <Face id={id} look={RY} spec={{ eye: "almond", eyeSize: 0.92, brow: "soft", nose: "wide", lips: "full", mouth: "closed-smile" }} />
+          {/* Chunky black rectangular glasses, big on her face. */}
           <g>
-            <rect x="39.3" y="22.5" width="9.9" height="7.7" rx="2.2" fill="#ffffff" opacity="0.08" />
-            <rect x="51.6" y="22.5" width="9.9" height="7.7" rx="2.2" fill="#ffffff" opacity="0.08" />
-            <rect x="39.3" y="22.5" width="9.9" height="7.7" rx="2.2" fill="none" stroke={RY_KIT.frames} strokeWidth="1.9" />
-            <rect x="51.6" y="22.5" width="9.9" height="7.7" rx="2.2" fill="none" stroke={RY_KIT.frames} strokeWidth="1.9" />
-            <path d="M49.2 25.4 L51.6 25.4" stroke={RY_KIT.frames} strokeWidth="1.8" />
-            <path d="M39.3 24.6 L37.2 25.2" stroke={RY_KIT.frames} strokeWidth="1.6" strokeLinecap="round" />
-            <path d="M61.5 24.6 L63.4 25.2" stroke={RY_KIT.frames} strokeWidth="1.6" strokeLinecap="round" />
+            <rect x="38.2" y="22" width="11.4" height="8.6" rx="2.4" fill="#ffffff" opacity="0.07" />
+            <rect x="51.6" y="22" width="11.4" height="8.6" rx="2.4" fill="#ffffff" opacity="0.07" />
+            <rect x="38.2" y="22" width="11.4" height="8.6" rx="2.4" fill="none" stroke={RY_KIT.frames} strokeWidth="2.1" />
+            <rect x="51.6" y="22" width="11.4" height="8.6" rx="2.4" fill="none" stroke={RY_KIT.frames} strokeWidth="2.1" />
+            <path d="M49.6 25.6 L51.6 25.6" stroke={RY_KIT.frames} strokeWidth="2" />
+            <path d="M38.2 24.4 L36.6 25" stroke={RY_KIT.frames} strokeWidth="1.7" strokeLinecap="round" />
+            <path d="M63 24.4 L64.2 25" stroke={RY_KIT.frames} strokeWidth="1.7" strokeLinecap="round" />
+            <path d="M40.2 23.8 l2.4 -0.6" stroke="#ffffff" strokeWidth="0.8" opacity="0.5" strokeLinecap="round" />
           </g>
           <Hoop x={63} y={32.4} gold={RY_KIT.gold} />
           <Hoop x={37} y={32.4} gold={RY_KIT.gold} />
         </Head>
       </g>
-      <Leg cls="p-leg p-leg-front" side="front" look={RY} id={id} shorts={shorts} sock={sock} shoe={cleat(JOINT.frontLegX, false)} />
+      <Leg cls="p-leg p-leg-front" side="front" look={RY} id={id} w={1.06} shorts={shorts} sock={sock} shoe={cleat(JOINT.frontLegX, false)} />
     </Frame>
   );
 }
