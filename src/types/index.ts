@@ -38,6 +38,19 @@ export interface PracticeProblem {
    */
   decimalPlaces?: number;
   explanation: string;
+  /**
+   * Wrong answers this problem invites, each with why it comes up. A student
+   * who gives one is told what went wrong in their own terms (see
+   * lib/diagnose.ts), instead of "try again".
+   */
+  traps?: Trap[];
+}
+
+/** A classic wrong answer for a problem shape, and the slip behind it. */
+export interface Trap {
+  value: string | number;
+  /** Why that answer comes up, written to the student, with the right answer left out. */
+  why: string;
 }
 
 export interface Skill {

@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { PracticeProblem, Skill } from "@/types";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { MathText, PromptText } from "@/components/PromptText";
+import { MistakeNote } from "@/components/MistakeNote";
+import { WorkedSteps } from "@/components/WorkedSteps";
 import { SignKeys } from "@/components/SignKeys";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { Icon } from "@/components/Icon";
+import { diagnoseMistake } from "@/lib/diagnose";
 import { answerIsRight } from "@/lib/grading";
 import { CHECK_LENGTH, today } from "@/lib/path";
 import { recordSkillCheck } from "@/lib/progress";
@@ -38,6 +41,8 @@ export function SkillCheck({
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
   const [phase, setPhase] = useState<Phase>("asking");
+  /** The answer that ended the check, read for where it went wrong. */
+  const [lastGiven, setLastGiven] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const day = useRef(today()).current;
   useScratchpadSurface(`${skill.id}:${index}`);
@@ -66,6 +71,7 @@ export function SkillCheck({
   function submit(given: string) {
     if (phase !== "asking" || !given.trim()) return;
     if (!answerIsRight(problem, given)) {
+      setLastGiven(given);
       setPhase("failed");
       return;
     }
@@ -98,13 +104,21 @@ export function SkillCheck({
   }
 
   if (phase === "failed") {
+    const mistake = diagnoseMistake(problem, { given: lastGiven });
     return (
       <div className="text-center">
         <p className="font-semibold text-slate-900">Good try.</p>
         <p className="mt-1 text-sm text-slate-600">
-          The answer was <span className="font-semibold text-slate-900"><MathText text={String(problem.answer)} /></span>.{" "}
-          <MathText text={problem.explanation} />
+          The answer was <span className="font-semibold text-slate-900"><MathText text={String(problem.answer)} /></span>.
         </p>
+        {mistake.note && (
+          <div className="mt-3 text-left">
+            <MistakeNote diagnosis={mistake} given={lastGiven} />
+          </div>
+        )}
+        <div className="mt-3 text-left text-sm text-slate-600">
+          <WorkedSteps text={problem.explanation} />
+        </div>
         <p className="mt-3 text-sm text-slate-600">
           Your next try opens tomorrow, and finishing {afterTitle} opens this skill today.
         </p>

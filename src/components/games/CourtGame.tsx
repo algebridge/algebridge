@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
-import { GameChip, GameProblemDialog } from "@/components/games/GameProblemDialog";
+import { GameChip, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { Player } from "@/components/games/Players";
 import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
@@ -72,7 +72,7 @@ export function CourtGame({
   const [target, setTarget] = useState<Target | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
-  const [verdict, setVerdict] = useState<{ right: boolean; paid: number } | null>(null);
+  const [verdict, setVerdict] = useState<GameVerdict | null>(null);
   const [move, setMove] = useState(0);
   const [acting, setActing] = useState(false);
   const [pop, setPop] = useState<{ text: string; key: number; x: number; y: number } | null>(null);
@@ -250,7 +250,7 @@ export function CourtGame({
     } else {
       playWrong();
       setSession((s) => ({ ...s, run: 0 }));
-      setVerdict({ right: false, paid: 0 });
+      setVerdict({ right: false, paid: 0, given });
     }
   }
 
