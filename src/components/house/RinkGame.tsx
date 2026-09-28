@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
-import { GameChip, GameProblemDialog } from "@/components/games/GameProblemDialog";
+import { GameChip, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
 import { useSound } from "@/hooks/useSound";
@@ -58,7 +58,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const [ring, setRing] = useState<Ring | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
-  const [verdict, setVerdict] = useState<{ right: boolean; paid: number } | null>(null);
+  const [verdict, setVerdict] = useState<GameVerdict | null>(null);
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
@@ -244,7 +244,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
     } else {
       playWrong();
       setSession((s) => ({ ...s, run: 0 }));
-      setVerdict({ right: false, paid: 0 });
+      setVerdict({ right: false, paid: 0, given });
     }
   }
 

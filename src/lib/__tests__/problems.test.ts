@@ -833,6 +833,8 @@ function rootCheck(p: any): string | null | "unread" {
     ["junk", /NaN|Infinity|\[object|\bnull\b|(?<!is |an )undefined(?! slope)/],
   ];
   let served = 0;
+  let withTraps = 0;
+  let trapAnswerMentions = 0;
   const problems: string[] = [];
   const report = (skill: string, what: string, text: string) => {
     if (problems.length < 12) problems.push(`[${skill}] ${what}: ${text.slice(0, 120)}`);
@@ -858,6 +860,14 @@ function rootCheck(p: any): string | null | "unread" {
             if (new Set(p.choices.map(norm)).size !== p.choices.length) report(skill.id, "a repeated choice", JSON.stringify(p.choices));
             if (p.choices.filter((c: string) => answerIsRight(p, c)).length !== 1) report(skill.id, "the key is not exactly one choice", `${p.prompt} ${JSON.stringify(p.choices)}`);
           }
+          // A trap is a wrong answer with a reason. One that grades right is not a slip, and its reason must not hand over the key.
+          for (const t of p.traps ?? []) {
+            if (answerIsRight(p, String(t.value))) report(skill.id, "a trap that is the right answer", `${p.prompt} -> ${t.value}`);
+            if (!t.why?.trim() || /→|\[object|NaN|(?<!is |an )undefined(?! slope)/.test(t.why)) report(skill.id, "a trap without a reason", `${p.prompt} -> ${t.value}: ${t.why}`);
+            if (p.type === "numeric" && Number.isInteger(Number(p.answer)) && Math.abs(Number(p.answer)) >= 10 && new RegExp(`(^|[^\\d.\\-−/^])${Number(p.answer)}(?![\\d.])`).test(t.why)) trapAnswerMentions++;
+            if (typeof t.value === "number" && !Number.isFinite(t.value)) report(skill.id, "a trap that is not a number", p.prompt);
+          }
+          if (p.traps?.length) withTraps++;
           if (p.type === "error-analysis" && !(p.wrongStepIndex >= 0 && p.wrongStepIndex < p.steps.length)) report(skill.id, "the wrong step is off the list", p.prompt);
           if (p.type === "step-order" && JSON.stringify([...p.correctOrder].sort()) !== JSON.stringify(p.steps.map((_: string, i: number) => i))) report(skill.id, "the step order is not a permutation", p.prompt);
         }
@@ -865,7 +875,9 @@ function rootCheck(p: any): string | null | "unread" {
       }
     }
   }
-  console.log(`hygiene: ${served} served problems read, ${problems.length ? "problems found" : "all clean"}`);
+  const trapShare = Math.round((100 * withTraps) / served);
+  console.log(`hygiene: ${served} served problems read, ${problems.length ? "problems found" : "all clean"}; ${trapShare}% carry named traps (${trapAnswerMentions} trap reasons mention the key's number)`);
+  if (trapShare < 75) report("course", `only ${trapShare}% of served problems carry named traps`, "add traps to the generators that lost them");
   if (problems.length) {
     for (const line of problems) console.log("  FAIL", line);
     process.exit(1);

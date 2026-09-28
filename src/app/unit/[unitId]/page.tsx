@@ -4,6 +4,8 @@ import { getUnit, units } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitPath } from "@/components/UnitPath";
 import { UnitProgressHeader } from "@/components/UnitProgressHeader";
+import { QuoteCard } from "@/components/QuoteCard";
+import { quoteForUnit } from "@/data/quotes";
 import { hueVars, unitHue } from "@/lib/hues";
 
 export function generateStaticParams() {
@@ -30,6 +32,9 @@ export default async function UnitPage({
       {/* The unit's banner stays open so a shared link still says what it
           leads to. The skills behind it need an account. */}
       <UnitProgressHeader unit={unit} />
+
+      {/* A mathematician on this unit's ground, source and all. */}
+      <QuoteCard quote={quoteForUnit(unit.id)} variant="banner" />
 
       <CourseGate>
         <div className="space-y-6">

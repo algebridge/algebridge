@@ -6,10 +6,20 @@ import { MathText, PromptText } from "@/components/PromptText";
 import { SignKeys } from "@/components/SignKeys";
 import { ScratchpadButton } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
+import { MistakeNote } from "@/components/MistakeNote";
+import { WorkedSteps } from "@/components/WorkedSteps";
+import { diagnoseMistake } from "@/lib/diagnose";
 import { hueVars, unitHue } from "@/lib/hues";
 import { stripVariantTag } from "@/lib/personalize";
 import { displayAnswer } from "@/lib/problem-utils";
 import { rinkPayFor, type RinkProblem } from "@/lib/rink";
+
+/** How a game answer went: right or not, what it paid, and what was given when it was wrong. */
+export interface GameVerdict {
+  right: boolean;
+  paid: number;
+  given?: string;
+}
 
 /**
  * The problem a game stops for, over everything: the same card on the rink
@@ -28,7 +38,7 @@ export function GameProblemDialog({
   label,
 }: {
   open: RinkProblem;
-  verdict: { right: boolean; paid: number } | null;
+  verdict: GameVerdict | null;
   answer: string;
   setAnswer: (v: string) => void;
   onCheck: (given: string) => void;
@@ -39,6 +49,8 @@ export function GameProblemDialog({
 }) {
   const answerRef = useRef<HTMLInputElement>(null);
   const problem = open.problem;
+  // A wrong answer is read for where it went wrong, in the student's own numbers.
+  const mistake = verdict && !verdict.right && verdict.given !== undefined ? diagnoseMistake(problem, { given: verdict.given }) : null;
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
       <div style={hueVars(unitHue(open.unitId))} className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -117,9 +129,12 @@ export function GameProblemDialog({
                 </p>
               </div>
               {!verdict.right && (
-                <p className="mt-2 px-1 text-sm text-slate-600">
-                  <MathText text={problem.explanation} />
-                </p>
+                <div className="mt-2 space-y-2 text-sm text-slate-600">
+                  {mistake?.note && <MistakeNote diagnosis={mistake} given={verdict.given} />}
+                  <div className="px-1">
+                    <WorkedSteps text={problem.explanation} />
+                  </div>
+                </div>
               )}
               <button type="button" autoFocus onClick={onContinue} className="btn-primary mt-4 w-full">
                 {continueLabel}

@@ -6,6 +6,8 @@ import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { GamesBanner } from "@/components/GamesBanner";
 import { Icon, type IconName } from "@/components/Icon";
+import { QuoteCard } from "@/components/QuoteCard";
+import { HOME_QUOTES } from "@/data/quotes";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 
@@ -47,6 +49,26 @@ export default function HomePage() {
           <ProgressOverview />
         </div>
       </CourseGate>
+
+      {/* Why the course is worth the work, in the words of people who built
+          the subject. Every quote is real and carries its source. */}
+      <section className="panel" id="why-algebra">
+        <div className="panel-head">
+          <p className="panel-title">Why Algebra 1</p>
+        </div>
+        <div className="p-5">
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
+            Algebra is where a letter stands in for a number you have yet to find, and every unit here is a way of
+            finding it. The rest of high school math is built on it, and so is most of science. The people who built
+            the subject said why it matters better than we can.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {HOME_QUOTES.map((q) => (
+              <QuoteCard key={q.id} quote={q} />
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel-head">

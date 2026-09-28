@@ -1,4 +1,4 @@
-import type { PracticeProblem } from "@/types";
+import type { PracticeProblem, Trap } from "@/types";
 
 export const PROBLEMS_PER_SKILL = 50;
 
@@ -247,6 +247,37 @@ export function fractionText(x: number): string | null {
     if (Math.abs(x * d - n) < 1e-7) return frac(n, d);
   }
   return null;
+}
+
+function trapKey(v: string | number): string {
+  return String(v).replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
+}
+
+/**
+ * A problem's traps, cleaned: nothing that is the right answer (a slip that
+ * lands on the key is not a slip), nothing twice, nothing that is not a
+ * number when it claims to be. Generators list their candidates freely and
+ * this keeps the honest ones.
+ */
+export function trapsFor(answer: string | number, candidates: (Trap | null | false | undefined)[]): Trap[] {
+  const out: Trap[] = [];
+  const key = trapKey(answer);
+  const ansNum = typeof answer === "number" ? answer : /^-?\d+(\.\d+)?$/.test(key) ? Number(key) : NaN;
+  const same = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  for (const t of candidates) {
+    if (!t || !t.why) continue;
+    if (typeof t.value === "number") {
+      if (!Number.isFinite(t.value)) continue;
+      if (Number.isFinite(ansNum) && same(t.value, ansNum)) continue;
+      if (out.some((o) => typeof o.value === "number" && same(o.value, t.value as number))) continue;
+    } else {
+      const k = trapKey(t.value);
+      if (!k || k === key) continue;
+      if (out.some((o) => trapKey(o.value) === k)) continue;
+    }
+    out.push(t);
+  }
+  return out;
 }
 
 /**

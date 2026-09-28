@@ -1086,5 +1086,62 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("every card has a height its picture is drawn at", G.GAME_CARDS.every((c) => c.height >= 150 && c.height <= 190));
 }
 
+// --- Where a wrong answer went wrong ------------------------------------------
+{
+  const D = await import("../diagnose.ts");
+  const Q = await import("../../data/quotes.ts");
+  const num = (prompt: string, answer: number, extra: Record<string, unknown> = {}) =>
+    ({ id: "t", type: "numeric", prompt, hint: "h", answer, explanation: "e", ...extra }) as any;
+  const mc = (prompt: string, answer: string, choices: string[], extra: Record<string, unknown> = {}) =>
+    ({ id: "t", type: "multiple-choice", prompt, hint: "h", answer, choices, explanation: "e", ...extra }) as any;
+  const d = (p: any, given: string) => D.diagnoseMistake(p, { given });
+
+  ok("the numbers a question is built from", D.promptNumbers("Solve for x: 3x − 4 = 11").join() === "3,4,11" && D.promptNumbers("Convert 2.5 hours to seconds.").join() === "2.5" && D.promptNumbers("Convert 15,840 feet. 10^5").join() === "15840,10");
+  ok("a sign slip", d(num("Solve for x: x + 7 = 2", -5), "5").kind === "sign");
+  ok("an upside-down fraction", d(num("Find the slope between (1, 2) and (4, 4).", 2 / 3), "3/2").kind === "reciprocal");
+  ok("a decimal point off by a place", d(num("Convert 3 kilometers to meters.", 3000), "300").kind === "tens" && d(num("Convert 3 kilometers to meters.", 3000), "30000").note.includes("right"));
+  const added = d(num("Solve for x: x + 7 = 12", 5), "19");
+  ok("a number moved the wrong way is twice off, and named", added.kind === "offby" && added.note.includes("twice the 7") && added.fix!.includes("subtract it from both sides") && !added.note.includes("5"));
+  const missing = d(num("Solve for x: x − 3 = 5", 8), "5");
+  ok("a number that never came in", missing.kind === "offby" && missing.note.includes("3 less"));
+  const mult = d(num("Solve for x: 4x = 20", 5), "80");
+  ok("a factor multiplied where it should divide", mult.kind === "factor" && mult.note.includes("4 times 4") && mult.fix!.includes("dividing both sides by 4"));
+  ok("a factor that was never divided in", d(num("Solve for x: 3x = 21", 7), "21").kind === "factor");
+  ok("no equation, no equation advice", d(num("Convert 3 miles to feet.", 15840), "15846").fix === undefined);
+  ok("a square too many", d(num("Simplify √64", 8), "64").kind === "square");
+  const rounded = d(num("Value after 3 years? (round to the hundredths place)", 1157.63, { decimalPlaces: 2 }), "1157.6");
+  ok("close but rounded early", rounded.kind === "close" && rounded.fix!.includes("hundredths"));
+  ok("one arithmetic step on the question's numbers", d(num("You drive 150 miles using 5 gallons. Miles per gallon?", 30), "155").kind === "combo");
+  ok("words in the number box", d(num("Solve for x: 2x = 8", 4), "four").kind === "unread");
+  ok("no pattern means no claim", d(num("Solve for x: 2x = 8", 4), "17").kind === "none" && d(num("Solve for x: 2x = 8", 4), "17").note === "");
+  const trapped = d(num("Convert 3 miles to feet. (1 mile = 5280 ft)", 15840, { traps: [{ value: 3 / 5280, why: "Miles are the bigger unit." }] }), "0.000568");
+  ok("a generator's own trap comes first", trapped.kind === "trap" && trapped.note === "Miles are the bigger unit.");
+  ok("traps match a choice by text", d(mc("Which factor?", "16 oz / 1 lb", ["16 oz / 1 lb", "1 lb / 16 oz"], { traps: [{ value: "1 lb / 16 oz", why: "Upside down." }] }), "1 lb / 16 oz").note === "Upside down.");
+  ok("a flipped inequality", d(mc("Solve: -2x > 6", "x < -3", ["x < -3", "x > -3"]), "x > -3").kind === "flip");
+  ok("an inequality boundary with the wrong sign", d(mc("Solve", "x < -3", ["x < -3", "x < 3"]), "x < 3").kind === "boundary");
+  ok("the boundary in or out", d(mc("Solve", "x ≤ 4", ["x ≤ 4", "x < 4"]), "x < 4").note.includes("counts"));
+  ok("half of a compound inequality", d(mc("Solve", "1 < x < 5", ["1 < x < 5", "x < 5"]), "x < 5").kind === "half");
+  ok("between instead of outside", d(mc("Solve |x| > 3", "x < -3 or x > 3", ["-3 < x < 3"]), "-3 < x < 3").kind === "half");
+  ok("numeric choices read like typed numbers", d(mc("What is the y-intercept of y = 3x − 5?", "-5", ["-5", "5", "3"]), "5").kind === "sign");
+  const ea = { id: "t", type: "error-analysis", prompt: "p", hint: "h", wrongStepIndex: 2, steps: ["a", "b", "c"], explanation: "e" } as any;
+  ok("picking a right step says so", D.diagnoseMistake(ea, { given: "", step: 0 }).note.startsWith("Step 1 is right") && D.diagnoseMistake(ea, { given: "", step: 2 }).kind === "none");
+  const so = { id: "t", type: "step-order", prompt: "p", hint: "h", correctOrder: [0, 1, 2], steps: ["a", "b", "c"], explanation: "e" } as any;
+  ok("the first misplaced step is named", D.diagnoseMistake(so, { given: "", order: [0, 2, 1] }).note.includes("step 2") && D.diagnoseMistake(so, { given: "", order: [1, 0, 2] }).note.includes("first step"));
+  const secrets = [
+    num("Solve for x: x + 7 = 12", 5), num("Solve for x: 4x = 20", 5), num("Convert 3 kilometers to meters.", 3000), num("Find the slope", 2 / 3),
+  ];
+  ok("no note ever states the answer", secrets.every((p) => ["19", "80", "300", "3/2", "-5", "0.66", "17", "four"].every((g) => !new RegExp(`(^|[^\\d.])${String(p.answer).replace(".", "\\.")}($|[^\\d.])`).test(d(p, g).note))));
+  ok("working splits at the arrows", D.explanationSteps("3x + 4 = 19 → 3x = 15 → x = 5").length === 3 && D.explanationSteps("One sentence.").length === 1);
+
+  // Quotes: real, sourced, and always the same one for the same place.
+  ok("every quote carries who said it and where", Q.QUOTES.every((q) => q.text.length > 20 && q.who && q.role && q.source && q.about));
+  ok("no quote twice", new Set(Q.QUOTES.map((q) => q.id)).size === Q.QUOTES.length && new Set(Q.QUOTES.map((q) => q.text)).size === Q.QUOTES.length);
+  ok("a quote for every unit, the same each time", units.every((u) => Q.quoteForUnit(u.id) === Q.quoteForUnit(u.id) && Q.QUOTES.includes(Q.quoteForUnit(u.id))));
+  ok("units get a quote written for their ground", Q.quoteForUnit("linear-equations-graphs").units?.includes("linear-equations-graphs") === true);
+  ok("the finish line is about doing the work", ["practice", "understanding", "problems"].includes(Q.quoteForFinish("two-step-equations").about));
+  ok("three on the course page, from the word's origin to now", Q.HOME_QUOTES.length === 3 && Q.HOME_QUOTES[0].id === "khwarizmi");
+  ok("no em dashes in any quote card", Q.QUOTES.every((q) => !`${q.text}${q.who}${q.role}${q.source}`.includes("—")));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

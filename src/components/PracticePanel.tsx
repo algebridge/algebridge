@@ -24,6 +24,11 @@ import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
 import { useSpeech } from "@/hooks/useSpeech";
 import { AnswerFeedback } from "@/components/AnswerFeedback";
+import { MistakeNote } from "@/components/MistakeNote";
+import { QuoteCard } from "@/components/QuoteCard";
+import { WorkedSteps } from "@/components/WorkedSteps";
+import { quoteForFinish } from "@/data/quotes";
+import { diagnoseMistake, type Attempt } from "@/lib/diagnose";
 import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
 import { setCalculatorAccess } from "@/lib/calculator-access";
@@ -191,6 +196,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  /** What was tried last, read for where it went wrong once it is marked. */
+  const [lastTry, setLastTry] = useState<Attempt | null>(null);
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
@@ -465,6 +472,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     setShowHint(false);
     setShowExplanation(false);
     setAttempts(0);
+    setLastTry(null);
     setEliminated([]);
     setEliminatedSteps([]);
     setRevealed(false);
@@ -510,6 +518,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       correct = answerIsRight(problem, userAnswer);
     }
 
+    setLastTry({
+      given: problem.type === "multiple-choice" ? (selectedChoice ?? "") : userAnswer,
+      step: selectedStep,
+      order: [...stepOrder],
+    });
     const firstTry = attempts === 0;
     setFeedback(correct ? "correct" : "wrong");
     setFeedbackSeed((s) => s + 1);
@@ -707,6 +720,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   const over = feedback === "correct" || revealed;
 
+  // A wrong answer, read for where it went wrong: shown under the retry
+  // message (with the answer left out) and again on the worked answer.
+  const mistake = lastTry && (feedback === "wrong" || revealed) ? diagnoseMistake(problem, lastTry) : null;
+  const typed = lastTry?.given && problem.type !== "error-analysis" && problem.type !== "step-order" ? lastTry.given : undefined;
+
   return (
     <div className="space-y-4">
       {celebration && (
@@ -757,6 +775,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 Keep practicing
               </button>
             </div>
+          </div>
+          <div className="mt-4 border-t border-white/20 pt-3">
+            <QuoteCard quote={quoteForFinish(skill.id)} variant="line" />
           </div>
         </div>
       )}
@@ -1066,9 +1087,14 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           <div className="mt-4">
             <AnswerFeedback state={feedback} seed={feedbackSeed} />
             {feedback === "correct" && showExplanation && (
-              <p className="mt-2 px-1 text-sm text-slate-600">
-                <MathText text={problem.explanation} />
-              </p>
+              <div className="mt-2 px-1 text-sm text-slate-600">
+                <WorkedSteps text={problem.explanation} />
+              </div>
+            )}
+            {feedback === "wrong" && mistake?.note && (
+              <div className="mt-2">
+                <MistakeNote diagnosis={mistake} />
+              </div>
             )}
             {feedback === "wrong" && attempts === 1 && !ps.isComplete && !practiceOnly && (
               <p className="mt-2 px-1 text-xs text-slate-500">
@@ -1089,9 +1115,25 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 The answer: <strong className="font-semibold"><MathText text={answerText(problem)!} /></strong>
               </p>
             )}
-            <p className="mt-1.5 leading-relaxed">
-              <MathText text={problem.explanation} />
-            </p>
+            {mistake?.note && (
+              <p className="mt-1.5 leading-relaxed">
+                {typed && (
+                  <>
+                    You put <strong className="font-semibold"><MathText text={typed} /></strong>.{" "}
+                  </>
+                )}
+                {mistake.note}
+                {mistake.fix ? ` ${mistake.fix}` : ""}
+              </p>
+            )}
+            <div className="mt-2">
+              <WorkedSteps text={problem.explanation} />
+            </div>
+            {skill.keyIdea && (
+              <p className="mt-2.5 border-t border-sky-200 pt-2 text-xs leading-relaxed text-sky-900">
+                <span className="font-semibold">Key idea:</span> {skill.keyIdea}
+              </p>
+            )}
             {!practiceOnly && !ps.isComplete && (
               <p className="mt-2 text-xs text-sky-800">The next first try counts toward the {ps.required}.</p>
             )}
