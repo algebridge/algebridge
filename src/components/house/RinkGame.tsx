@@ -53,6 +53,12 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const paused = useRef(false);
+  /**
+   * Her routine, from a video of the real one: a spiral once she is flying,
+   * a shoot-the-duck crouch on a long glide, and a kneeling lunge to finish
+   * when she stops. `move` is what she is doing and `until` when it ends.
+   */
+  const routine = useRef<{ glide: number; move: "" | "spiral" | "duck" | "kneel"; until: number; wasMoving: boolean }>({ glide: 0, move: "", until: 0, wasMoving: false });
   const seen = useRef(new Set<string>());
 
   const [ring, setRing] = useState<Ring | null>(null);
@@ -200,7 +206,31 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
           const s = Math.min(1, speed / MAX_SPEED);
           svg.style.transform = facing.current === -1 ? "scaleX(-1)" : "";
           svg.style.setProperty("--stride", `${Math.max(0.26, 0.9 - s * 0.6)}s`);
-          svg.classList.toggle("veronica-moving", s > 0.06);
+          const moving = s > 0.06;
+          svg.classList.toggle("veronica-moving", moving);
+          const r = routine.current;
+          r.glide = s > 0.5 ? r.glide + dt : moving ? r.glide : 0;
+          if (r.move && now >= r.until) r.move = "";
+          if (!r.move) {
+            if (!moving && r.wasMoving && r.glide > 1.2) {
+              r.move = "kneel";
+              r.until = now + 1700;
+              r.glide = 0;
+            } else if (moving && r.glide > 2.6) {
+              r.move = "duck";
+              r.until = now + 1000;
+              r.glide = 0.4;
+            } else if (moving && s > 0.85 && r.glide > 1.1) {
+              r.move = "spiral";
+              r.until = now + 1300;
+            }
+          }
+          if (r.move === "spiral" && !(moving && s > 0.5)) r.move = "";
+          if (r.move === "duck" && !moving) r.move = "";
+          r.wasMoving = moving;
+          svg.classList.toggle("veronica-spiral", r.move === "spiral");
+          svg.classList.toggle("veronica-duck", r.move === "duck");
+          svg.classList.toggle("veronica-kneel", r.move === "kneel");
         }
       }
 

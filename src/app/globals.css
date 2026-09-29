@@ -339,6 +339,83 @@ html.lenis body {
 .veronica-spin {
   animation: v-spin 0.7s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
+/* Her routine, from the real one. A spiral when she is flying: the back leg
+   lifted straight out behind, both arms out, a forward lean. */
+.veronica-spiral .v-leg-back {
+  animation: none;
+  transform: rotate(78deg);
+}
+.veronica-spiral .v-leg-front {
+  animation: none;
+  transform: rotate(-4deg);
+}
+.veronica-spiral .v-body,
+.veronica-spiral .v-skirt {
+  transform: rotate(22deg);
+}
+.veronica-spiral .v-arm-front {
+  animation: none;
+  transform: rotate(-108deg);
+}
+.veronica-spiral .v-arm-back {
+  animation: none;
+  transform: rotate(112deg);
+}
+/* Shoot the duck: down in a crouch on one skate, the other leg straight
+   out in front, one hand brushing the ice. */
+.veronica-duck .v-body,
+.veronica-duck .v-skirt {
+  transform: translateY(24px) rotate(30deg);
+}
+.veronica-duck .v-leg-front {
+  animation: none;
+  transform: translateY(24px) rotate(-84deg);
+}
+.veronica-duck .v-leg-back {
+  animation: none;
+  transform: translateY(24px) scaleY(0.45) rotate(10deg);
+}
+.veronica-duck .v-arm-front {
+  animation: none;
+  transform: rotate(-30deg);
+}
+.veronica-duck .v-arm-back {
+  animation: none;
+  transform: rotate(96deg);
+}
+/* The finish: a kneeling lunge, one knee on the ice, the other leg out to
+   the front, arms wide. */
+.veronica-kneel .v-body,
+.veronica-kneel .v-skirt {
+  animation: none;
+  transform: translateY(28px) rotate(-6deg);
+}
+.veronica-kneel .v-leg-back {
+  animation: none;
+  transform: translateY(28px) rotate(96deg);
+}
+.veronica-kneel .v-leg-front {
+  animation: none;
+  transform: translateY(28px) rotate(-78deg);
+}
+.veronica-kneel .v-arm-front {
+  animation: none;
+  transform: rotate(-100deg);
+}
+.veronica-kneel .v-arm-back {
+  animation: none;
+  transform: rotate(100deg);
+}
+.veronica-spiral .v-leg,
+.veronica-spiral .v-arm,
+.veronica-duck .v-leg,
+.veronica-duck .v-arm,
+.veronica-duck .v-body,
+.veronica-kneel .v-leg,
+.veronica-kneel .v-arm,
+.veronica-kneel .v-body {
+  transition: transform 0.35s ease-out;
+}
 /* An empty spot by the rink, shown while placing. */
 .dh-slot {
   background: rgba(255, 255, 255, 0.4);
