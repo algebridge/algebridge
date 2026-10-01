@@ -1,0 +1,80 @@
+{
+  "manifest_version": 3,
+  "name": "AlgeBridge Hints",
+  "short_name": "AlgeBridge",
+  "version": "0.1.0",
+  "description": "Spots Algebra 1 and 2 problems on any web page and gives step by step hints to solve them, never the answer.",
+  "homepage_url": "https://learn.algebridge.org",
+  "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://learn.algebridge.org/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "*://learn.algebridge.org/*",
+        "*://algebridge.org/*",
+        "*://www.algebridge.org/*"
+      ],
+      "js": [
+        "src/detect.js",
+        "src/mascot.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_title": "AlgeBridge Hints",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "commands": {
+    "open-panel": {
+      "suggested_key": {
+        "default": "Alt+Shift+H",
+        "mac": "Alt+Shift+H"
+      },
+      "description": "Open AlgeBridge hints"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/ui.css"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "use_dynamic_url": true
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  }
+}

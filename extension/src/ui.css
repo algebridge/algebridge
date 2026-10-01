@@ -1,0 +1,1564 @@
+/*
+ * AlgeBridge Hints page UI.
+ * content.js reads this file and puts it in a <style> inside the shadow root of
+ * <algebridge-hints>, so nothing here touches the page and page CSS cannot
+ * reach in. Sizes are in px on purpose: rem would follow the page's root size.
+ * Tokens live on .ab-root (not :host) so page rules on the host cannot change them.
+ *
+ * Look: Knowt's extension popup. A white card at the top right with pill tabs,
+ * Archie with a bold title and one big pill button, and a light grey well of
+ * white cards. The same card grows into the hint view.
+ */
+
+.ab-root {
+  --ab-blue: #2563eb;
+  --ab-blue-hover: #1d4ed8;
+  --ab-blue-soft: #eff6ff;
+  --ab-blue-tint: #dbeafe;
+  --ab-blue-line: #bfdbfe;
+  --ab-blue-off: #a9c1f5;
+  --ab-ink: #0f172a;
+  --ab-body: #334155;
+  --ab-muted: #475569;
+  --ab-faint: #64748b;
+  --ab-quiet: #94a3b8;
+  --ab-line: #e6e8ee;
+  --ab-card-line: #eceff4;
+  --ab-field-line: #dfe3ea;
+  --ab-surface: #ffffff;
+  --ab-well: #f4f6f9;
+  --ab-tab: #eef1f6;
+  --ab-good-ink: #166534;
+  --ab-good-soft: #f0fdf4;
+  --ab-good-line: #bbf7d0;
+  --ab-warn-ink: #92400e;
+  --ab-warn-soft: #fffbeb;
+  --ab-warn-line: #fde68a;
+  --ab-warn-tint: #fef3c7;
+  --ab-shadow: 0 18px 48px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --ab-font: ui-rounded, "SF Pro Rounded", "Nunito", "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  font-family: var(--ab-font);
+  font-size: 14px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  text-indent: 0;
+  white-space: normal;
+  direction: ltr;
+  color: var(--ab-ink);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: none;
+}
+
+/* Resets use :where() so they never outrank the component classes below. */
+:where(.ab-root) *,
+:where(.ab-root) *::before,
+:where(.ab-root) *::after {
+  box-sizing: border-box;
+}
+
+.ab-root [hidden] {
+  display: none !important;
+}
+
+:where(.ab-root) :where(p, h2, ol, ul, li) {
+  margin: 0;
+  padding: 0;
+}
+
+:where(.ab-root) :where(ol, ul) {
+  list-style: none;
+}
+
+:where(.ab-root) button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+:where(.ab-root) button:disabled {
+  cursor: default;
+}
+
+:where(.ab-root) :focus-visible {
+  outline: 2px solid var(--ab-blue);
+  outline-offset: 2px;
+}
+
+:where(.ab-root) :where(sup, sub) {
+  font-size: 0.72em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+:where(.ab-root) sup {
+  top: -0.5em;
+}
+
+:where(.ab-root) sub {
+  bottom: -0.22em;
+}
+
+.ab-ico,
+.ab-mascot,
+.ab-face,
+.ab-mark-svg {
+  flex: none;
+  display: block;
+}
+
+.ab-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ab-math {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ab-ink);
+}
+
+.ab-oneline {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------- */
+/* Buttons                                                           */
+/* ---------------------------------------------------------------- */
+
+.ab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.ab-primary {
+  background: var(--ab-blue);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+}
+
+.ab-primary:hover:not(:disabled) {
+  background: var(--ab-blue-hover);
+}
+
+.ab-primary:disabled {
+  background: var(--ab-blue-off);
+  box-shadow: none;
+}
+
+.ab-secondary {
+  background: var(--ab-surface);
+  color: var(--ab-ink);
+  border: 1px solid var(--ab-field-line);
+}
+
+.ab-secondary:hover:not(:disabled) {
+  background: var(--ab-well);
+  border-color: #cdd3dd;
+}
+
+.ab-secondary:disabled {
+  color: var(--ab-quiet);
+}
+
+.ab-secondary.ab-on {
+  background: var(--ab-blue-soft);
+  border-color: var(--ab-blue);
+  color: var(--ab-blue-hover);
+}
+
+.ab-quiet,
+.ab-quiet:disabled {
+  background: var(--ab-tab);
+  color: var(--ab-faint);
+  box-shadow: none;
+}
+
+.ab-ghost {
+  color: var(--ab-muted);
+}
+
+.ab-ghost:hover:not(:disabled) {
+  background: var(--ab-well);
+  color: var(--ab-ink);
+}
+
+.ab-small {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.ab-big {
+  height: 46px;
+  padding: 0 26px;
+  font-size: 15px;
+}
+
+.ab-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--ab-faint);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ab-icon-btn:hover {
+  background: var(--ab-well);
+  color: var(--ab-ink);
+}
+
+.ab-small-icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Markers beside problems, and the outline on hover                 */
+/* ---------------------------------------------------------------- */
+
+.ab-markers {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.ab-marker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ab-blue);
+  box-shadow: 0 0 0 2px #ffffff, 0 1px 4px rgba(15, 23, 42, 0.3);
+  pointer-events: auto;
+  will-change: transform;
+  transition: filter 120ms ease, box-shadow 120ms ease;
+}
+
+.ab-marker:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--ab-blue-line), 0 2px 6px rgba(15, 23, 42, 0.3);
+}
+
+/* Solved: a small green check on the marker's lower right. */
+.ab-marker-check {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 1.5px #ffffff;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.ab-marker-check .ab-ico {
+  stroke-width: 4;
+}
+
+.ab-outline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border: 2px solid var(--ab-blue);
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.06);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- */
+/* The sheet: one card at the top right                              */
+/* ---------------------------------------------------------------- */
+
+.ab-sheet {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: min(640px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-line);
+  border-radius: 20px;
+  box-shadow: var(--ab-shadow);
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.ab-enter {
+  animation: ab-drop 260ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.ab-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 10px 10px 12px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.ab-dragging .ab-head {
+  cursor: grabbing;
+}
+
+.ab-logo {
+  flex: none;
+  display: inline-flex;
+}
+
+.ab-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ab-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ab-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ab-muted);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ab-tab:hover:not(.ab-on) {
+  background: var(--ab-well);
+  color: var(--ab-ink);
+}
+
+.ab-tab.ab-on {
+  background: var(--ab-tab);
+  color: var(--ab-ink);
+}
+
+.ab-tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.ab-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ab-blue-tint);
+  color: var(--ab-blue-hover);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-close {
+  margin-right: -2px;
+}
+
+.ab-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-view > * {
+  min-height: 0;
+}
+
+.ab-swap {
+  animation: ab-fade 200ms ease-out both;
+}
+
+/* The grey well and the white cards inside it */
+
+.ab-well {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 12px;
+  padding: 8px;
+  background: var(--ab-well);
+  border-radius: 16px;
+}
+
+/* A well that scrolls holds an inner scroller: the grey box and its round
+   corners stay still, and bubbles fade out softly at the top and bottom
+   edges instead of being cut by a hard line. */
+.ab-thread-well,
+.ab-idea-well,
+.ab-page-well {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ab-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cdd3dd transparent;
+}
+
+.ab-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9px, #000 calc(100% - 9px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9px, #000 calc(100% - 9px), transparent 100%);
+}
+
+.ab-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ab-pcard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 10px 10px 14px;
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-card-line);
+  border-radius: 14px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ab-pcard:hover {
+  border-color: var(--ab-blue-line);
+  box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.12);
+}
+
+.ab-pcard:focus-visible {
+  outline-offset: -1px;
+}
+
+.ab-pcard-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: -4px;
+  border-radius: 8px;
+  background: var(--ab-tab);
+  color: var(--ab-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ab-pcard-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.ab-pcard-math {
+  max-width: 100%;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ab-ink);
+}
+
+.ab-pcard-meta,
+.ab-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--ab-tab);
+  color: var(--ab-faint);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ab-pcard-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--ab-blue-soft);
+  color: var(--ab-blue-hover);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ab-pcard:hover .ab-pcard-pill:not(.ab-current) {
+  background: var(--ab-blue);
+  color: #ffffff;
+}
+
+.ab-pcard-pill.ab-current {
+  background: var(--ab-tab);
+  color: var(--ab-muted);
+}
+
+/* Solved problems: the number becomes a green check and the pill says so. */
+.ab-pcard-num.ab-pcard-done {
+  background: #dcfce7;
+  color: var(--ab-good-ink);
+}
+
+.ab-pcard-done .ab-ico {
+  stroke-width: 2.8;
+}
+
+.ab-pcard-pill.ab-solved,
+.ab-pcard:hover .ab-pcard-pill.ab-solved {
+  background: var(--ab-good-soft);
+  color: var(--ab-good-ink);
+}
+
+.ab-more {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  margin: -2px 0 -1px;
+  padding: 0 8px 0 12px;
+  border-radius: 999px;
+  color: var(--ab-blue-hover);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ab-more:hover {
+  background: var(--ab-blue-tint);
+}
+
+/* Found: Archie, the title, one big button */
+
+.ab-found {
+  flex: none;
+}
+
+.ab-hero {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 4px 18px 16px 14px;
+}
+
+.ab-hero-art {
+  width: 96px;
+  height: 96px;
+}
+
+/* Archie's box includes room for confetti; let him spill a little past the
+   column so he reads as big as Knowt's Kai. */
+.ab-hero-art .ab-mascot {
+  width: 110px;
+  height: 110px;
+  margin: -8px -7px -6px;
+}
+
+.ab-hero-title {
+  text-wrap: balance;
+  font-size: 17.5px;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  color: var(--ab-ink);
+}
+
+.ab-hero-sub {
+  text-wrap: pretty;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ab-muted);
+}
+
+.ab-go {
+  margin-top: 12px;
+  min-width: 148px;
+}
+
+.ab-preview-well {
+  margin-bottom: 4px;
+}
+
+/* On this page */
+
+.ab-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-page-head {
+  flex: none;
+  padding: 2px 18px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ab-muted);
+}
+
+.ab-page-well {
+  max-height: min(430px, calc(100vh - 170px));
+  margin-bottom: 4px;
+}
+
+.ab-page-well > .ab-scroll {
+  padding: 8px;
+}
+
+.ab-page-empty {
+  padding: 14px 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ab-body);
+}
+
+/* ---------------------------------------------------------------- */
+/* The hint view                                                     */
+/* ---------------------------------------------------------------- */
+
+.ab-work {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 8px 6px 8px 12px;
+  background: var(--ab-blue-soft);
+  border: 1px solid var(--ab-blue-line);
+  border-radius: 14px;
+}
+
+.ab-notice-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ab-notice-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ab-blue-hover);
+}
+
+.ab-notice-text .ab-math {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.ab-problem {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 12px 14px;
+}
+
+.ab-problem-art {
+  flex: none;
+  width: 52px;
+  height: 52px;
+}
+
+.ab-problem-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.ab-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ab-chip.ab-solved-chip {
+  flex: none;
+  gap: 4px;
+  padding: 0 8px 0 6px;
+  background: #dcfce7;
+  color: var(--ab-good-ink);
+}
+
+.ab-solved-chip .ab-ico {
+  stroke-width: 3;
+}
+
+.ab-problem-view {
+  width: 100%;
+  cursor: text;
+}
+
+.ab-problem-math {
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.35;
+  color: var(--ab-ink);
+  overflow-wrap: anywhere;
+  max-height: 66px;
+  overflow-y: auto;
+  outline: none;
+}
+
+/* The problem heading takes focus only so screen readers announce it; it
+   is not a tab stop, so it needs no ring. */
+.ab-problem-math:focus,
+.ab-problem-math:focus-visible {
+  outline: none;
+}
+
+.ab-edit {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.ab-textarea {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 9px 12px;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ab-ink);
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-field-line);
+  border-radius: 14px;
+}
+
+.ab-textarea:focus,
+.ab-input:focus {
+  outline: none;
+  border-color: var(--ab-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.ab-textarea::placeholder,
+.ab-input::placeholder {
+  color: var(--ab-quiet);
+}
+
+.ab-edit-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Chat */
+
+.ab-thread-well,
+.ab-idea-well {
+  flex: 1 1 auto;
+  min-height: 84px;
+}
+
+.ab-thread-well > .ab-scroll,
+.ab-idea-well > .ab-scroll {
+  gap: 10px;
+  padding: 12px 12px 12px 10px;
+}
+
+.ab-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ab-msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.ab-avatar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+
+/* Archie's face sits by the last bubble of each run, like a chat app. */
+.ab-msg.ab-archie:has(+ .ab-msg.ab-archie) .ab-avatar {
+  visibility: hidden;
+}
+
+.ab-bubble {
+  min-width: 0;
+  max-width: calc(100% - 34px);
+  padding: 10px 13px 11px;
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-card-line);
+  border-radius: 16px 16px 16px 6px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ab-ink);
+  overflow-wrap: anywhere;
+}
+
+.ab-step {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--ab-faint);
+}
+
+.ab-latest .ab-step {
+  color: var(--ab-blue);
+}
+
+.ab-intro .ab-bubble {
+  color: var(--ab-body);
+}
+
+.ab-you {
+  justify-content: flex-end;
+}
+
+.ab-you .ab-bubble {
+  max-width: 82%;
+  background: var(--ab-blue);
+  border-color: var(--ab-blue);
+  border-radius: 16px 16px 6px 16px;
+  color: #ffffff;
+}
+
+.ab-you .ab-bubble :where(sup, sub) {
+  color: inherit;
+}
+
+.ab-you-label {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+/* Check results, in the chat */
+
+.ab-party {
+  flex: none;
+  width: 60px;
+  height: 60px;
+  margin: 0 -4px -4px -8px;
+}
+
+.ab-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ab-party + .ab-verdict {
+  max-width: calc(100% - 56px);
+}
+
+.ab-verdict-ico {
+  flex: none;
+  display: inline-flex;
+  margin-top: 2px;
+}
+
+.ab-verdict-text {
+  min-width: 0;
+}
+
+.ab-verdict.ab-good .ab-verdict-text {
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.ab-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ab-faint);
+}
+
+.ab-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ab-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ab-quiet);
+  animation: ab-dot 1s ease-in-out infinite;
+}
+
+.ab-dots i:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.ab-dots i:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+.ab-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--ab-warn-soft);
+  border: 1px solid var(--ab-warn-line);
+  border-radius: 14px;
+  color: var(--ab-warn-ink);
+}
+
+.ab-error .ab-ico {
+  margin-top: 1px;
+}
+
+.ab-error-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ab-error-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.ab-error-text + .ab-btn {
+  margin-top: 8px;
+}
+
+/* Try again while the server asks for a wait: off, and slowly filling up. */
+.ab-retry {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ab-retry-label {
+  position: relative;
+}
+
+.ab-retry.ab-waiting::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ab-blue-tint);
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: ab-wait var(--ab-wait-total, 30s) linear var(--ab-wait-delay, 0s) both;
+}
+
+/* The idea */
+
+.ab-idea {
+  padding: 13px 14px 14px;
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-card-line);
+  border-radius: 16px;
+}
+
+.ab-idea-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--ab-ink);
+}
+
+.ab-idea-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ab-warn-tint);
+  color: #b45309;
+}
+
+.ab-idea-text {
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ab-idea-empty {
+  padding: 8px 6px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ab-body);
+}
+
+/* Dock: Next hint, Check my answer, Ask */
+
+.ab-dock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+
+.ab-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ab-next {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ab-check {
+  flex: none;
+  padding: 0 15px;
+}
+
+/* Solved: Next problem (or Done) leads; Next hint sits beside it. */
+.ab-move {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ab-solved-dock .ab-next {
+  flex: none;
+  padding: 0 16px;
+}
+
+.ab-form {
+  display: flex;
+  gap: 6px;
+}
+
+.ab-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ab-ink);
+  background: var(--ab-surface);
+  border: 1px solid var(--ab-field-line);
+  border-radius: 999px;
+}
+
+.ab-form .ab-btn {
+  height: 40px;
+}
+
+.ab-ask {
+  position: relative;
+  display: flex;
+}
+
+.ab-ask-input {
+  padding-right: 48px;
+  background: var(--ab-well);
+  border-color: var(--ab-line);
+}
+
+.ab-ask-input:focus {
+  background: var(--ab-surface);
+}
+
+.ab-send {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ab-blue);
+  color: #ffffff;
+  transition: background-color 120ms ease;
+}
+
+.ab-send:hover:not(:disabled) {
+  background: var(--ab-blue-hover);
+}
+
+.ab-send:disabled {
+  background: var(--ab-blue-off);
+}
+
+.ab-good {
+  background: var(--ab-good-soft);
+  border: 1px solid var(--ab-good-line);
+  color: var(--ab-good-ink);
+}
+
+.ab-warn {
+  background: var(--ab-warn-soft);
+  border: 1px solid var(--ab-warn-line);
+  color: var(--ab-warn-ink);
+}
+
+/* Footer */
+
+.ab-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px 12px 18px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ab-faint);
+}
+
+.ab-later {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ab-muted);
+}
+
+.ab-later:hover {
+  background: var(--ab-well);
+  color: var(--ab-ink);
+}
+
+/* ---------------------------------------------------------------- */
+/* The round button at the bottom right                              */
+/* ---------------------------------------------------------------- */
+
+.ab-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ab-blue);
+  box-shadow: 0 12px 28px -8px rgba(37, 99, 235, 0.6), 0 2px 6px rgba(15, 23, 42, 0.16);
+  pointer-events: auto;
+  animation: ab-pop 220ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.ab-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px -8px rgba(37, 99, 235, 0.65), 0 2px 6px rgba(15, 23, 42, 0.16);
+}
+
+.ab-fab:focus-visible {
+  outline-offset: 3px;
+}
+
+.ab-fab.ab-bounce {
+  animation: ab-bounce 700ms cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+
+/* Set a little out from the corner so it clears Archie's right eye. */
+.ab-fab-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ab-ink);
+  box-shadow: 0 0 0 2px #ffffff;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- */
+/* Archie in motion (all of it off with reduced motion)              */
+/* ---------------------------------------------------------------- */
+
+.ab-hero-art .ab-m-fig {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ab-m-pop 650ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+.ab-hero-art .ab-m-wave {
+  transform-box: view-box;
+  transform-origin: 95px 66px;
+  animation: ab-m-wave 1100ms ease-in-out 300ms 1 both;
+}
+
+.ab-m-bit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ab-m-bit 800ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: var(--ab-d, 0ms);
+}
+
+.ab-pose-party .ab-m-fig {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ab-m-hop 900ms ease-out both;
+}
+
+.ab-m-tdot {
+  animation: ab-m-think 1200ms ease-in-out infinite;
+  animation-delay: var(--ab-d, 0ms);
+}
+
+@keyframes ab-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ab-fade {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ab-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ab-bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+  55% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes ab-wait {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ab-dot {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.55;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes ab-m-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ab-m-wave {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: rotate(-16deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+  75% {
+    transform: rotate(-10deg);
+  }
+}
+
+@keyframes ab-m-bit {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ab-m-hop {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateY(-7%);
+  }
+  50% {
+    transform: none;
+  }
+  70% {
+    transform: translateY(-3%);
+  }
+}
+
+@keyframes ab-m-think {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Small frames, motion, print, high contrast                        */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 400px) {
+  .ab-hero {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 12px;
+    padding-right: 14px;
+  }
+
+  .ab-hero-art {
+    width: 84px;
+    height: 84px;
+  }
+
+  .ab-hero-art .ab-mascot {
+    width: 96px;
+    height: 96px;
+    margin: -7px -6px -5px;
+  }
+
+  .ab-tab {
+    padding: 0 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ab-logo {
+    display: none;
+  }
+
+  .ab-tab {
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+}
+
+@media (max-height: 560px) {
+  .ab-sheet {
+    top: 8px;
+    max-height: calc(100vh - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-enter,
+  .ab-swap,
+  .ab-fab,
+  .ab-fab.ab-bounce,
+  .ab-dots i,
+  .ab-hero-art .ab-m-fig,
+  .ab-hero-art .ab-m-wave,
+  .ab-m-bit,
+  .ab-pose-party .ab-m-fig,
+  .ab-m-tdot,
+  .ab-retry.ab-waiting::before {
+    animation: none !important;
+  }
+
+  .ab-btn,
+  .ab-marker,
+  .ab-fab,
+  .ab-pcard,
+  .ab-tab {
+    transition: none;
+  }
+
+  .ab-fab:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .ab-root {
+    display: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .ab-marker,
+  .ab-fab,
+  .ab-sheet,
+  .ab-pcard,
+  .ab-bubble {
+    border: 1px solid CanvasText;
+  }
+
+  .ab-tab.ab-on {
+    outline: 1px solid CanvasText;
+  }
+
+  .ab-outline {
+    border-color: Highlight;
+  }
+}

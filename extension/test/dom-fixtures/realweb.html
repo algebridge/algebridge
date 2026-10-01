@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Real web page shapes</title>
+<!-- Small copies of markup that extension/test/realweb.mjs found on real pages
+     (Oct 2026) where detect.js was wrong. Each section names its source. -->
+</head>
+<body>
+<main>
+
+<!-- Paul's Online Math Notes practice page: a "Solution" link after each problem,
+     and log(3) at the end of a line, which once split off as list marker "(3)" -->
+<section>
+  <p>Solve each of the following equations and check your answer.</p>
+  <ol class="practice-problems">
+    <li id="lamar-1">4x − 7(2 − x) = 3x + 2 <a href="#s1">Solution</a></li>
+    <li id="lamar-2">log(6x) − log(4 − x) = log(3) <a href="#s2">Solution</a></li>
+  </ol>
+</section>
+
+<!-- Paul's notes page: the example again as a collapsible header with a part letter -->
+<section>
+  <p>Example 1 Solve each of the following equations.</p>
+  <ol><li id="notes-a">3(x + 5) = 2(−6 − x) − 2x</li></ol>
+  <details><summary><span class="soln-list-item">a</span> 3(x + 5) = 2(−6 − x) − 2x <span>Show Solution</span></summary><p>x = −27/7</p></details>
+</section>
+
+<!-- Math is Fun: fractions drawn as <span class="f"><u>top</u><em>bottom</em></span>,
+     worked steps under each example, a table of identities, an answer line -->
+<section>
+  <h3 id="mif-fraction">Example: solve for x: <span class="f"><u>2x</u><em>x−3</em></span> + 3 = <span class="f"><u>6</u><em>x−3</em></span></h3>
+  <h3 id="mif-solve">Example: Solve 3(x + 2) = 15</h3>
+  <div><p>Expand 3(x + 2):</p><p>3x + 6 = 15</p></div>
+  <div><p>Subtract 6 from both sides:</p><p>3x = 9</p></div>
+  <div><p>Divide by 3:</p><p>x = 3</p></div>
+  <table>
+    <tr><th>In disguise</th><th></th><th>In Standard Form</th></tr>
+    <tr><td id="mif-disguise">2(w<sup>2</sup> − 2w) = 5</td><td>Expand (undo the brackets),<br>and move 5 to left</td><td>2w<sup>2</sup> − 4w − 5 = 0</td></tr>
+  </table>
+  <table>
+    <tr><td>a<sup>2</sup> − b<sup>2</sup></td><td>=</td><td>(a+b)(a−b)</td></tr>
+    <tr><td>a<sup>2</sup> + 2ab + b<sup>2</sup></td><td>=</td><td>(a+b)(a+b)</td></tr>
+  </table>
+  <p>So we can factor the whole expression into:</p>
+  <p>2y+6 = 2(y+3)</p>
+  <p>Answer: x = 2 ± 1.5i</p>
+  <p id="mif-log">Example: What is log<sub>5</sub>(625) ... ?</p>
+</section>
+
+<!-- Wikipedia: reference marks, formulas, densities, a citation -->
+<section>
+  <p id="wiki-golden">The golden ratio is found as the positive solution of the quadratic equation x<sup>2</sup> − x − 1 = 0.<sup class="reference"><a href="#c12">[12]</a></sup></p>
+  <p>x = (−b ± √(b<sup>2</sup> − 4ac)) / (2a)</p>
+  <p>I = V/R or V = IR or R = V/I.</p>
+  <table><tr><th>Density</th><td>11,936.9/sq mi (4,608.86/km<sup>2</sup>)</td></tr></table>
+  <ol class="references"><li>Spiegel, Murray R.; Moyer, R.E. (2006), Schaum's outline of college algebra, New York: McGraw-Hill, ISBN 978-0-07-145227-4, p. 264</li></ol>
+</section>
+
+<!-- Purplemath: a worked example told in the first person -->
+<section>
+  <h4 id="pm-1">Solve x<sup>2</sup> + 5x + 6 = 0, and check.</h4>
+  <p>So the first thing I have to do is factor:</p>
+  <p>x<sup>2</sup> + 5x + 6 = (x + 2)(x + 3)</p>
+  <p>(x + 2)(x + 3) = 0</p>
+  <p>x + 2 = 0 or x + 3 = 0</p>
+</section>
+
+<!-- W3Schools assignment operators table -->
+<table>
+  <tr><th>Operator</th><th>Example</th><th>Same As</th></tr>
+  <tr><td>+=</td><td>x += y</td><td>x = x + y</td></tr>
+  <tr><td>%=</td><td>x %= y</td><td>x = x % y</td></tr>
+</table>
+
+<!-- OpenStax: translate-and-solve items under one line of directions -->
+<section>
+  <p>In the following exercises, translate to an equation and solve.</p>
+  <ol>
+    <li id="os-146">u divided by 7 is equal to −49.</li>
+    <li id="os-150">The quotient of b and −6 is 18.</li>
+  </ol>
+</section>
+
+<!-- Khan Academy video page: viewer comments (one restates the problem, then
+     its own steps) and the transcript -->
+<div class="comment"><p>Can't we just -10/x^x, do we have to multiply the 7 too?</p></div>
+<div class="comment"><p>I got the right answer too when I added 10/x both sides of the equation.</p>
+  <p id="khan-problem">7-10/x=2+15/x</p><p>7+10/x-10/x=2+10/x+15/x</p><p>7=2+25/x</p><p>-2+7=-2+2+25/x</p><p>5=25/x</p><p>5=x</p></div>
+<div itemprop="transcript">So I have the equation 7 minus 10/x is equal to 2 plus 15/x. And then your right-hand
+side, once again, distribute the x. x times 2 is 2x. x times 15/x, well, that is just 15.</div>
+
+</main>
+</body>
+</html>

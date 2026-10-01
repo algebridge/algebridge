@@ -6,7 +6,7 @@ export default function PrivacyPage() {
   return (
     <article className="prose-slate mx-auto max-w-2xl">
       <h1 className="page-title">Privacy Policy</h1>
-      <p className="mt-1 text-sm text-slate-500">Last updated: July 2026</p>
+      <p className="mt-1 text-sm text-slate-500">Last updated: October 2026</p>
 
       <div className="mt-6 space-y-6 text-slate-700">
         <section>
@@ -52,6 +52,26 @@ export default function PrivacyPage() {
             <li>You can <strong>delete your account and all associated data</strong> at any time from your profile.</li>
             <li>You can edit or remove your profile photo and bio whenever you like.</li>
           </ul>
+        </section>
+
+        <section id="extension">
+          <h2 className="text-lg font-bold text-slate-900">AlgeBridge Hints browser extension</h2>
+          <p className="mt-2">
+            AlgeBridge Hints is our Chrome extension. It spots Algebra 1 and Algebra 2 problems
+            on the pages you visit and gives step by step hints, never the answer. It works
+            without an account.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li><strong>Reading the page</strong>, the extension looks for math on the page you have open, right on your computer. Nothing from the page is sent just because you opened it.</li>
+            <li><strong>When you ask for a hint</strong>, check an answer, or ask a question, it sends AlgeBridge only that one problem (up to 600 characters), the hints you have already seen for it, the answer or question you typed, if any, and which kind of help you asked for. It also sends back a sealed note our server made for that problem on your last hint, which only our server can open. Nothing else from the page goes with it: no page address, no browsing history, no cookies, and no AlgeBridge login. The text is processed by the AI service we use (Groq, with OpenAI as a backup) to write your hint. We do not log or save it.</li>
+            <li><strong>A random install ID</strong>, made when you add the extension, goes with each request. It is not linked to your name, email, or AlgeBridge account. Our server holds it, your internet address, and a scrambled fingerprint of the problem only in memory, to count requests over the last 10 minutes so no one can ask for too many hints or answer checks in a short time. We do not save them to a database.</li>
+            <li><strong>Settings and counts</strong>, your on or off choice, how problems are shown, and any sites you paused are saved in Chrome&apos;s extension storage (and synced to your Chrome profile if you use Chrome sync). Today&apos;s count of problems spotted and hints used stays on your device.</li>
+          </ul>
+          <p className="mt-2">
+            The extension has no ads and does not collect your browsing history. When you pause it on a
+            site or turn it off from its toolbar button, it sends nothing from those pages. Removing it
+            from Chrome clears its settings and counts from your browser.
+          </p>
         </section>
 
         <section>

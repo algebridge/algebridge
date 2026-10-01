@@ -12,7 +12,13 @@
     "test:practice": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/practice.test.ts",
     "stories:warm": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/warm-story-library.ts",
     "furniture:export": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/export-furniture-png.ts",
-    "test:problems": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/problems.test.ts"
+    "test:problems": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/problems.test.ts",
+    "test:extension": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/extension.test.ts",
+    "test:detect": "node extension/test/detect.test.mjs",
+    "extension:icons": "node extension/scripts/build-icons.mjs",
+    "extension:pack": "node extension/scripts/pack.mjs",
+    "test:detect:dom": "node extension/test/dom.test.mjs",
+    "test:ui": "node extension/test/ui-harness.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
