@@ -869,7 +869,7 @@ ok("verify: how-many questions are skipped", verify("How many solutions does x^2
     ok(`generic hint for ${k} is a clean question`, g.endsWith("?") && !EM_DASH.test(g) && !EMOJI.test(g) && X.findLeak(g, ctx0) === null, g);
   }
   const concept = X.deterministicConcept(ctx0, LINEAR_SOL);
-  ok("concept fallback uses the solver's idea", concept === LINEAR_SOL.concept);
+  ok("concept fallback uses the friendly line for the kind", concept === X.deterministicConcept(ctx0, { ...LINEAR_SOL, concept: "" }) && /balanced/.test(concept), concept);
   for (const s of [X.DONE_REPLY, X.GATE_REPLY, X.UNIVERSAL_HINT, X.UNREADABLE_REPLY, X.UNSURE_REPLY, X.COMPLEX_REPLY]) {
     ok(`copy is house style: ${s.slice(0, 30)}`, !EM_DASH.test(s) && !EMOJI.test(s));
   }
@@ -1483,7 +1483,7 @@ try {
     const done = await post(req({ sealed, action: "next", hints: ["a", "b"] }));
     ok("past the last step: the done reply", done.body.reply === X.DONE_REPLY && done.body.done === true && done.body.step === -1);
     const concept = await post(req({ sealed, action: "concept" }));
-    ok("sealed + no model: concept works", concept.status === 200 && concept.body.reply === LINEAR_SOL.concept && concept.body.step === -1);
+    ok("sealed + no model: concept works", concept.status === 200 && /balanced/.test(String(concept.body.reply)) && concept.body.step === -1, String(concept.body.reply));
     const right = await post(req({ sealed, action: "check", answer: "x = 4" }));
     ok("sealed + no model: a right check", right.status === 200 && right.body.verdict === "correct" && right.body.source === "local");
     const wrong = await post(req({ sealed, action: "check", answer: "x = 5" }));
@@ -1826,6 +1826,17 @@ try {
 }
 ok("nothing reached the network", strayFetch === 0);
 ok("problem text never reached the logs", !logged.some((l) => l.includes("2x + 3") || l.includes("x^2")), logged.join(" | ").slice(0, 300));
+
+// --- Digits written in other scripts are digits (Oct 1 attack) ------------------------
+{
+  ok("foldDigits: fullwidth, Arabic-Indic, Devanagari, math bold", X.foldDigits("\uff14 \u0664 \u096a \ud835\udfd2") === "4 4 4 4");
+  ok("foldDigits: circled numbers", X.foldDigits("\u2463").trim() === "4" && X.foldDigits("\u2469").trim() === "10");
+  ok("foldDigits leaves superscripts and plain text alone", X.foldDigits("x\u00b2 + 3x = 10") === "x\u00b2 + 3x = 10");
+  const ctxD = leakCtx(LINEAR, LINEAR_SOL, 0);
+  for (const bad of ["So x = \uff14.", "x = \u0664", "x = \u096a", "x = \ud835\udfd2", "x = \u2463"]) {
+    ok(`leak caught in another script: ${JSON.stringify(bad)}`, leaks(bad, ctxD) !== null);
+  }
+}
 
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

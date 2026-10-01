@@ -1766,7 +1766,7 @@
     P.heroSub.textContent =
       total === 1
         ? "Press Get a hint to work through it one step at a time."
-        : "Pick one below, or press Get a hint to start with the first.";
+        : "Pick one below, or press Get a hint for the next one to solve.";
     P.go.setAttribute("aria-label", total === 1 ? "Get a hint" : "Get a hint for the first problem");
     const shown = items.slice(0, 3);
     fillCards(P.previews, shown, { mode: "preview", numbered: false });
