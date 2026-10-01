@@ -283,7 +283,10 @@ export async function POST(request: Request) {
     if (!valid.ok) return fail(400, "bad-request", valid.message);
     const req = valid.req;
 
-    const ip = clientKey(request);
+    // Vercel sets x-vercel-forwarded-for itself and overwrites any client-sent X-Forwarded-For
+    // (https://vercel.com/docs/headers/request-headers), so on production this key cannot be forged.
+    // A local dev server trusts the header, which is fine for development.
+    const ip = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || clientKey(request);
     if (!allowIp(ip) || !allowInstall(req.install)) {
       return fail(429, "rate", MESSAGES.rate, { retryAfter: 60 });
     }

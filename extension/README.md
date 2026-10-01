@@ -76,13 +76,13 @@ mode on, which is the only time Chrome reports them.
 By default the extension talks to `https://learn.algebridge.org`. To use your local
 Next.js server instead:
 
-1. Run `npm run dev` in the repo (it serves `http://localhost:3000`).
+1. Run `npm run dev -- -p 3216` in the repo (it serves `http://localhost:3216`).
 2. In `chrome://extensions`, on the AlgeBridge Hints card, click **service worker** to open
    its DevTools.
 3. In that console, run:
 
 ```js
-setApiBase("http://localhost:3000")
+setApiBase("http://localhost:3216")
 ```
 
 Switch back to the live site with:

@@ -2376,9 +2376,36 @@ const CHOICE_PATTERNS: RegExp[] = [
  * "x = value" statements for every final value (0 and ±1 included), and
  * pointing at a lettered answer choice. Returns why, or null when clean.
  */
+/** Zero code points of the Unicode decimal-digit blocks a reply could use to write a number. */
+const DIGIT_ZEROS = [
+  0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0de6, 0x0e50,
+  0x0ed0, 0x0f20, 0x1040, 0x1090, 0x17e0, 0x1810, 0x1946, 0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50,
+  0xa620, 0xa8d0, 0xa900, 0xa9d0, 0xa9f0, 0xaa50, 0xabf0, 0xff10,
+];
+
+/**
+ * Every digit written as a plain ASCII digit, so "x = ٤" (Arabic-Indic), fullwidth "４",
+ * mathematical bold "𝟒" or circled "④" read as 4 to the leak filter. Superscripts are
+ * left alone: normalizeMath turns them into powers.
+ */
+export function foldDigits(s: string): string {
+  return Array.from(String(s ?? ""))
+    .map((ch) => {
+      const cp = ch.codePointAt(0) ?? 0;
+      if (cp >= 0x1d7ce && cp <= 0x1d7ff) return String((cp - 0x1d7ce) % 10);
+      for (const z of DIGIT_ZEROS) if (cp >= z && cp <= z + 9) return String(cp - z);
+      // Circled, parenthesized and full-stop numbers: their compatibility form is the plain number.
+      if ((cp >= 0x2460 && cp <= 0x249b) || (cp >= 0x24ea && cp <= 0x24ff) || (cp >= 0x2776 && cp <= 0x2793)) {
+        return ` ${ch.normalize("NFKC").replace(/[().]/g, "")} `;
+      }
+      return ch;
+    })
+    .join("");
+}
+
 export function findLeak(reply: string, ctx: LeakContext): LeakReason | null {
   const sol = ctx.solution;
-  const text = M.normalizeMath(reply);
+  const text = M.normalizeMath(foldDigits(reply));
   const allowed = allowedNumbers(ctx);
   const allowedHas = (x: number) => allowed.some((a) => M.close(a, x, 1e-9));
   const forbidden = forbiddenNumbers(ctx);
@@ -2707,11 +2734,14 @@ export function genericHint(ctx: LeakContext, kind: Kind): string {
 
 export function deterministicConcept(ctx: LeakContext, sol: Solution): string {
   // The solver's sentence when it says something ("Apply exponent rules" does not), else the line for the kind.
+  // The hand-written line for the kind reads like a teacher talking; the solver's sentence is often
+  // textbook-stiff ("The problem requires using the distributive property..."), so it is the backup.
+  const line = KIND_CONCEPTS[sol.kind] ?? KIND_CONCEPTS.expression;
+  if (!findLeak(line, ctx)) return line;
   let own = cleanReply(sol.concept || "");
   if (own && !/[.?!]$/.test(own)) own += ".";
   if (own && own.split(/\s+/).length >= 12 && !findLeak(own, ctx)) return own;
-  const line = KIND_CONCEPTS[sol.kind] ?? KIND_CONCEPTS.expression;
-  return findLeak(line, ctx) ? KIND_CONCEPTS.expression : line;
+  return KIND_CONCEPTS.expression;
 }
 
 /** A reply for an "ask" gated as an answer request. */
