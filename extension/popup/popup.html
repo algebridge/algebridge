@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=320">
+  <title>AlgeBridge Hints</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="popup">
+    <header class="top">
+      <svg class="mark" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="12" fill="#2563eb"/>
+        <g fill="none" stroke="#ffffff" stroke-linejoin="miter">
+          <path d="M7.7 18 L12 6.4 L16.3 18" stroke-width="2.1"/>
+          <path d="M3 13.1 H21" stroke-width="1.5"/>
+          <path d="M3.6 15.4 H5.4 C6.7 15.4 7.6 16.2 8.2 17.6 M20.4 15.4 H18.6 C17.3 15.4 16.4 16.2 15.8 17.6" stroke-width="1.25"/>
+        </g>
+      </svg>
+      <div class="brand">
+        <h1>AlgeBridge Hints</h1>
+        <p class="status" id="status-line">Hints are on</p>
+      </div>
+      <label class="switch" title="Turn hints on or off">
+        <input type="checkbox" id="enabled" role="switch" aria-label="Hints on">
+        <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+      </label>
+    </header>
+
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-art" id="hero-art" aria-hidden="true"></div>
+      <div class="hero-text">
+        <h2 id="hero-title">Stuck on a problem?</h2>
+        <p id="hero-sub">Open hints and work through it one step at a time.</p>
+      </div>
+    </section>
+
+    <div class="open">
+      <button type="button" class="pill primary" id="open-panel">Open hints on this page</button>
+      <p class="note" id="open-note" role="status" aria-live="polite"></p>
+    </div>
+
+    <fieldset class="modes" id="mode-group">
+      <legend>Show problems as</legend>
+      <div class="pills">
+        <label class="pill-choice">
+          <input type="radio" name="mode" value="popup" aria-describedby="mode-help">
+          <span>Pop-up</span>
+        </label>
+        <label class="pill-choice">
+          <input type="radio" name="mode" value="badge" aria-describedby="mode-help">
+          <span>Markers</span>
+        </label>
+        <label class="pill-choice">
+          <input type="radio" name="mode" value="off" aria-describedby="mode-help">
+          <span>When I ask</span>
+        </label>
+      </div>
+      <p class="mode-help" id="mode-help"></p>
+    </fieldset>
+
+    <div class="well site" id="site-row">
+      <div class="site-text">
+        <span class="site-label" id="site-label">Pause on this site</span>
+        <span class="site-help" id="site-help"></span>
+      </div>
+      <label class="switch small" title="Pause hints on this site">
+        <input type="checkbox" id="paused" role="switch" aria-labelledby="site-label">
+        <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+      </label>
+    </div>
+
+    <section class="well counts" aria-label="Today">
+      <div class="count">
+        <span class="num" id="count-seen">0</span>
+        <span class="label">problems today</span>
+      </div>
+      <div class="count">
+        <span class="num" id="count-hints">0</span>
+        <span class="label">hints today</span>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p class="promise">Hints only. The answer stays yours to find.</p>
+      <p class="links">
+        <a href="https://learn.algebridge.org/privacy#extension" id="privacy-link">Privacy</a>
+        <span class="dot" aria-hidden="true"></span>
+        <a href="https://learn.algebridge.org" id="site-link">learn.algebridge.org</a>
+        <span class="shortcut" id="shortcut" hidden></span>
+      </p>
+    </footer>
+  </main>
+  <script src="../src/mascot.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

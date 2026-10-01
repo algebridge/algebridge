@@ -1,0 +1,383 @@
+/*
+ * AlgeBridge Hints toolbar popup. Same family as the on-page card: a white
+ * card, pill controls, rounded type and AlgeBridge blue. Always light, like
+ * the card, so the two look the same on every page and every system theme.
+ */
+:root {
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --blue-soft: #eff6ff;
+  --blue-line: #bfdbfe;
+  --ink: #0f172a;
+  --text: #334155;
+  --muted: #64748b;
+  --tab: #475569;
+  --line: #e6e8ee;
+  --card-line: #eceff4;
+  --well: #f4f6f9;
+  --pill: #eef1f6;
+  --track: #cbd5e1;
+  --surface: #ffffff;
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+}
+
+body {
+  width: 320px;
+  font-family: var(--font);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 14px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Header                                                            */
+/* ---------------------------------------------------------------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mark { flex: none; display: block; }
+.brand { flex: 1; min-width: 0; }
+h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.status {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- */
+/* Switch (a pill track)                                             */
+/* ---------------------------------------------------------------- */
+
+.switch {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.track {
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--track);
+  transition: background-color 140ms ease;
+}
+.thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
+  transition: transform 160ms ease;
+}
+.switch input:checked + .track { background: var(--blue); }
+.switch input:checked + .track .thumb { transform: translateX(16px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--blue); outline-offset: 2px; }
+.switch input:disabled { cursor: default; }
+.switch input:disabled + .track { opacity: 0.45; }
+.switch.small .track { width: 36px; height: 22px; }
+.switch.small .thumb { width: 16px; height: 16px; }
+.switch.small input:checked + .track .thumb { transform: translateX(14px); }
+
+/* ---------------------------------------------------------------- */
+/* Hero: mascot on the left, title and one line on the right         */
+/* ---------------------------------------------------------------- */
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+}
+.hero-art {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+}
+.hero-art > svg { display: block; max-width: 72px; max-height: 72px; }
+.hero-art .fallback {
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  background: var(--blue-soft);
+  display: grid;
+  place-items: center;
+}
+.hero-text { min-width: 0; }
+.hero h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.hero p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- */
+/* Pill buttons                                                      */
+/* ---------------------------------------------------------------- */
+
+.open { display: flex; flex-direction: column; gap: 8px; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
+}
+.primary {
+  width: 100%;
+  height: 46px;
+  padding: 0 20px;
+  background: var(--blue);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25), 0 6px 16px -6px rgba(37, 99, 235, 0.55);
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.primary:hover:not(:disabled) { background: var(--blue-hover); }
+.primary:active:not(:disabled) { transform: translateY(1px); }
+.primary:disabled {
+  background: var(--pill);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: default;
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.note:empty { display: none; }
+.note.warn {
+  padding: 9px 12px;
+  border: 1px solid var(--blue-line);
+  border-radius: 14px;
+  background: var(--blue-soft);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- */
+/* Mode choice: pill tabs like the card's header                     */
+/* ---------------------------------------------------------------- */
+
+.modes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+legend {
+  padding: 0;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.pills {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--well);
+}
+.pill-choice {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  cursor: pointer;
+}
+.pill-choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.pill-choice span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tab);
+  white-space: nowrap;
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+.pill-choice:hover span { color: var(--ink); }
+.pill-choice input:checked + span {
+  background: var(--surface);
+  color: var(--blue);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 2px 8px -2px rgba(15, 23, 42, 0.12);
+}
+.pill-choice input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 1px; }
+.modes:disabled .pill-choice { cursor: default; }
+.modes:disabled .pills,
+.modes:disabled .mode-help { opacity: 0.5; }
+.mode-help {
+  margin: 8px 2px 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.mode-help:empty { display: none; }
+
+/* ---------------------------------------------------------------- */
+/* Wells (light grey trays, like the card's problem list)            */
+/* ---------------------------------------------------------------- */
+
+.well {
+  border-radius: 16px;
+  background: var(--well);
+}
+
+.site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.site-text { display: flex; flex-direction: column; min-width: 0; }
+.site-label {
+  color: var(--ink);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-help { font-size: 12px; color: var(--muted); }
+.site-help:empty { display: none; }
+
+/* ---------------------------------------------------------------- */
+/* Today                                                             */
+/* ---------------------------------------------------------------- */
+
+.counts {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+.count {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 9px 12px;
+  border: 1px solid var(--card-line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.num {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.label { font-size: 12px; color: var(--muted); }
+
+/* ---------------------------------------------------------------- */
+/* Footer                                                            */
+/* ---------------------------------------------------------------- */
+
+.foot {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.foot p { margin: 0; }
+.links {
+  margin-top: 6px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.links a {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.links a:hover { text-decoration: underline; }
+.dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--track);
+}
+.shortcut { margin-left: auto; white-space: nowrap; }
+kbd {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--pill);
+  color: var(--tab);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

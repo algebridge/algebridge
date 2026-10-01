@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assignment: Multi-Step Equations</title>
+<style>
+  body { margin: 0; background: #eef1f5; font: 15px/1.5 "Helvetica Neue", Arial, sans-serif; color: #222; }
+  .nav { height: 48px; background: #2d3e50; color: #fff; display: flex; align-items: center; padding: 0 20px; font-weight: 700; gap: 24px; }
+  .nav span { font-weight: 400; opacity: 0.8; }
+  .layout { display: flex; gap: 20px; max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+  .side { width: 220px; flex: none; background: #fff; border-radius: 6px; padding: 14px; height: fit-content; }
+  .side h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: #667; }
+  .side div { padding: 6px 8px; border-radius: 4px; font-size: 14px; }
+  .side .on { background: #dfe9f7; }
+  .main { flex: 1; background: #fff; border-radius: 6px; padding: 28px 32px; min-height: 420px; }
+  .dm-progress { font-size: 13px; color: #667; margin-bottom: 16px; }
+  .dm-problem { margin-bottom: 24px; }
+  .dm-instructions { font-size: 16px; margin-bottom: 10px; }
+  .dm-math { font: 24px/1.4 "Times New Roman", Times, serif; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+  .row input { font: 18px "Times New Roman", Times, serif; width: 140px; padding: 6px 8px; border: 1px solid #aab; border-radius: 4px; }
+  button { font: 600 14px "Helvetica Neue", Arial, sans-serif; padding: 9px 16px; border-radius: 4px; border: 1px solid #2d6cdf; background: #2d6cdf; color: #fff; cursor: pointer; }
+  button.alt { background: #fff; color: #2d6cdf; }
+</style>
+</head>
+<body>
+<div class="nav">MathPractice <span>Assignments</span> <span>Grades</span></div>
+<div class="layout">
+  <div class="side">
+    <h4>Assignment</h4>
+    <div class="on">Multi-Step Equations</div>
+    <div>Literal Equations</div>
+    <div>Inequalities</div>
+  </div>
+  <div class="main">
+    <div class="dm-progress">Problem <span id="num">1</span> of 5. Due Oct 3.</div>
+    <div id="slot">
+      <div class="dm-problem">
+        <div class="dm-instructions">Solve for x.</div>
+        <div class="dm-math" id="math">7x - 4 = 3x + 12</div>
+      </div>
+    </div>
+    <div class="row">
+      <label for="ans">x =</label>
+      <input id="ans" type="text" autocomplete="off">
+      <button type="button" id="submit">Submit Answer</button>
+      <button type="button" class="alt" id="next">Next Problem</button>
+    </div>
+  </div>
+</div>
+<script>
+  // Like DeltaMath: the problem changes without a page load. Odd clicks swap
+  // the text in place; even clicks rebuild the problem element.
+  var problems = [
+    ["Solve for x.", "7x - 4 = 3x + 12"],
+    ["Solve for x.", "5(x + 2) = 3x - 6"],
+    ["Solve for y.", "2y/3 + 4 = 10"],
+    ["Solve for x.", "x^2 - 7x + 10 = 0"],
+    ["Solve for x.", "4 - 3(x - 1) = 2x + 17"]
+  ];
+  var i = 0;
+  document.getElementById("next").addEventListener("click", function () {
+    i = (i + 1) % problems.length;
+    document.getElementById("num").textContent = String(i + 1);
+    document.getElementById("ans").value = "";
+    if (i % 2 === 1) {
+      document.querySelector(".dm-instructions").textContent = problems[i][0];
+      document.getElementById("math").textContent = problems[i][1];
+    } else {
+      var slot = document.getElementById("slot");
+      var box = document.createElement("div");
+      box.className = "dm-problem";
+      var ins = document.createElement("div");
+      ins.className = "dm-instructions";
+      ins.textContent = problems[i][0];
+      var m = document.createElement("div");
+      m.className = "dm-math";
+      m.id = "math";
+      m.textContent = problems[i][1];
+      box.appendChild(ins);
+      box.appendChild(m);
+      slot.replaceChildren(box);
+    }
+  });
+</script>
+</body>
+</html>

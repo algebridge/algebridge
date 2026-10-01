@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hidden elements</title>
+<style>
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .collapsed { height: 0; overflow: hidden; }
+  .offstage { display: none; }
+  .panel-body { height: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+<main>
+  <p id="visible">Solve 5x − 2 = 13</p>
+  <p style="display:none">Solve 7x + 1 = 22</p>
+  <div style="visibility:hidden"><p>Solve 2x + 9 = 1</p></div>
+  <p hidden>Factor x² − 64</p>
+  <div class="collapsed"><p>Solve 4x + 4 = 20</p></div>
+  <div class="panel-body"><div><p>Solve 11x = 33</p></div></div>
+  <span class="sr-only">Solve 3x + 3 = 9</span>
+  <div class="offstage"><p>Solve 8x − 8 = 40</p></div>
+  <div aria-hidden="true"><p>Solve 9x + 2 = 29</p></div>
+  <template><p>Solve 6x + 6 = 18</p></template>
+  <noscript><p>Solve 10x = 70</p></noscript>
+  <p>Your work: <textarea>Solve 9x = 27</textarea> <input type="text" value="2x + 1 = 5"></p>
+  <div contenteditable="true">Solve x + 11 = 20</div>
+  <p id="with-answer">Solve 6x = 42 <span style="display:none">Answer: x = 7</span></p>
+</main>
+</body>
+</html>
