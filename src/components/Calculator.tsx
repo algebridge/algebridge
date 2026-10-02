@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/Icon";
+import { AlgebridgeCalculator } from "@/components/calc/AlgebridgeCalculator";
 import { DesmosCalculator } from "@/components/DesmosCalculator";
-import { Keypad } from "@/components/Keypad";
 import {
   getCalculatorAccess,
   getServerCalculatorAccess,
@@ -18,13 +18,11 @@ import {
   DESMOS_MODES,
   MIN_SIZE,
   desmosApiKey,
-  desmosAppUrl,
   expandedSize,
   fitSize,
-  openDesmosWindow,
   readCalculatorSizes,
   saveCalculatorSizes,
-  type DesmosMode,
+  type CalculatorMode,
 } from "@/lib/desmos";
 import {
   keepOnScreen,
@@ -39,12 +37,14 @@ import { getServerSidebarState, getSidebarState, subscribeSidebar } from "@/lib/
 
 /**
  * The calculator: a launcher in the bottom-right corner and a panel that can
- * be dragged, resized and expanded.
+ * be dragged, resized and expanded. It opens on Scientific, with Graphing one
+ * tap away.
  *
- * With a Desmos API key the panel is Desmos (Scientific first, Graphing one
- * tap away). Without one it is AlgeBridge's own keypad, with Desmos a tap
- * away in a small window of its own. Desmos is never framed: its terms say
- * so (lib/desmos.ts has the details).
+ * With a Desmos API key the two calculators are Desmos's own. Without one
+ * (production today) they are AlgeBridge's own (components/calc): an
+ * expression list over a keypad, and graph paper beside a list, the way
+ * students know calculators from class. Desmos is never framed: its terms
+ * say so (lib/desmos.ts has the details).
  *
  * When the AI sidebar is docked open on the right, the launcher and the panel
  * rest beside it, never under it.
@@ -91,30 +91,6 @@ function ExpandMark({ expanded }: { expanded: boolean }) {
   );
 }
 
-/**
- * A link to desmos.com that opens a small window of its own, or, if a popup
- * blocker stops that, a normal new tab (the link's own behaviour). A click
- * with a modifier key is left to the browser, so Cmd-click still means a tab.
- */
-function OpenDesmos({ mode, children }: { mode: DesmosMode; children: ReactNode }) {
-  return (
-    <a
-      href={desmosAppUrl(mode)}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => {
-        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        if (openDesmosWindow(mode)) e.preventDefault();
-      }}
-      aria-label={`Open the Desmos ${mode} calculator in a new window`}
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:border-bridge-300 hover:bg-bridge-50 hover:text-bridge-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
-    >
-      {children}
-      <Icon name="external" size={12} className="text-slate-400" />
-    </a>
-  );
-}
-
 const NUDGE_KEY = "algebridge-calculator-position";
 const PANEL_ID = "algebridge-calculator";
 /** How far one arrow key press on the resize corner grows or shrinks the panel. */
@@ -122,8 +98,6 @@ const KEY_STEP = 24;
 /** Where the launcher and the panel rest, from the right of the space they have and from the bottom. */
 const REST_RIGHT = 20;
 const REST_BOTTOM = 96;
-/** The keypad's width; its height is whatever the keys need. */
-const KEYPAD_WIDTH = 320;
 /**
  * The slide beside an opening or closing sidebar: the same length and curve
  * as the sidebar's own (helper.css), and none while the sidebar is being
@@ -156,23 +130,22 @@ const getServerHeight = () => 800;
 export function Calculator() {
   const [open, setOpen] = useState(false);
   /**
-   * The panel is made the first time it is opened (so Desmos never loads on
-   * a page where nobody wants it) and then kept, hidden while closed, so a
-   * sum on the keypad is still there when the student comes back to it.
+   * The panel is made the first time it is opened (so nothing loads on a page
+   * where nobody wants it) and then kept, hidden while closed, so a sum or a
+   * graph is still there when the student comes back to it.
    */
   const [made, setMade] = useState(false);
   /** Read in the browser once mounted: in development it can come from localStorage. */
   const [apiKey, setApiKey] = useState<string | null>(null);
-  /** Desmos would not load and the student asked for the keypad instead. */
-  const [keypadFallback, setKeypadFallback] = useState(false);
-  const desmos = !!apiKey && !keypadFallback;
+  /** Desmos would not load and the student asked for AlgeBridge's own calculators instead. */
+  const [ownFallback, setOwnFallback] = useState(false);
+  const desmos = !!apiKey && !ownFallback;
   /** Scientific on every fresh visit; a switch lasts until the page reloads. */
-  const [mode, setModeState] = useState<DesmosMode>(DEFAULT_MODE);
-  const [expandedChoice, setExpanded] = useState(false);
-  const expanded = desmos && expandedChoice;
+  const [mode, setModeState] = useState<CalculatorMode>(DEFAULT_MODE);
+  const [expanded, setExpanded] = useState(false);
   const expandedRef = useRef(expanded);
   expandedRef.current = expanded;
-  const [sizes, setSizes] = useState<Record<DesmosMode, Size>>(DEFAULT_SIZES);
+  const [sizes, setSizes] = useState<Record<CalculatorMode, Size>>(DEFAULT_SIZES);
   const sizesRef = useRef(sizes);
   sizesRef.current = sizes;
   /**
@@ -191,9 +164,7 @@ export function Calculator() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   /** Whether typing goes to the calculator right now, which the panel shows. */
-  const [focusKeys, setFocusKeys] = useState(false);
-  const [keypadKeys, setKeypadKeys] = useState(false);
-  const hasKeys = desmos ? focusKeys : keypadKeys;
+  const [hasKeys, setHasKeys] = useState(false);
   const isPhone = useSyncExternalStore(subscribePhone, getPhone, getServerPhone);
   const vw = useSyncExternalStore(subscribeWindowSize, getWidth, getServerWidth);
   const vh = useSyncExternalStore(subscribeWindowSize, getHeight, getServerHeight);
@@ -212,9 +183,9 @@ export function Calculator() {
   const available = access !== false;
   const shown = open && available;
 
-  const size: Size = desmos
-    ? fitSize(expanded ? expandedSize(area, sizes[mode]) : sizes[mode], area)
-    : fitSize({ width: KEYPAD_WIDTH, height: area.height }, area);
+  const size: Size = fitSize(expanded ? expandedSize(area, sizes[mode]) : sizes[mode], area);
+  /** On a phone the panel is a sheet across the screen (inset-x-2), whatever size was saved. */
+  const panelWidth = isPhone ? vw - 16 : size.width;
 
   useEffect(() => {
     const saved = readOffset(NUDGE_KEY);
@@ -281,19 +252,18 @@ export function Calculator() {
       return () => window.clearTimeout(timer);
     }
     check();
-  }, [shown, nudge, size.width, size.height, isPhone, shift, vw, vh, expanded, desmos, settle, publish]);
+  }, [shown, nudge, size.width, size.height, isPhone, shift, vw, vh, expanded, desmos, mode, settle, publish]);
 
-  // Who has the keyboard in Desmos. Worth showing, otherwise a student types
-  // into the calculator and wonders why the answer box is empty. (The keypad
-  // keeps track of this itself and reports it.)
+  // Who has the keyboard. Worth showing, otherwise a student types into the
+  // calculator and wonders why the answer box is empty.
   useEffect(() => {
-    if (!shown || !desmos) {
-      setFocusKeys(false);
+    if (!shown) {
+      setHasKeys(false);
       return;
     }
     const check = () => {
       const el = document.activeElement;
-      setFocusKeys(!!el && el !== document.body && !!bodyRef.current?.contains(el) && !el.closest("[inert]"));
+      setHasKeys(!!el && el !== document.body && !!bodyRef.current?.contains(el) && !el.closest("[inert]"));
     };
     const later = () => window.setTimeout(check, 0);
     window.addEventListener("blur", later);
@@ -307,7 +277,7 @@ export function Calculator() {
       document.removeEventListener("focusin", check);
       document.removeEventListener("focusout", later);
     };
-  }, [shown, desmos]);
+  }, [shown]);
 
   /**
    * Takes the keyboard back from inside `area` (the panel, or just the
@@ -332,11 +302,9 @@ export function Calculator() {
     [takeKeysBack]
   );
 
-  const closeFromKeypad = useCallback(() => close(true), [close]);
-
-  const fallBackToKeypad = useCallback(() => {
+  const fallBackToOwn = useCallback(() => {
     takeKeysBack(bodyRef.current, false);
-    setKeypadFallback(true);
+    setOwnFallback(true);
   }, [takeKeysBack]);
 
   /**
@@ -345,7 +313,7 @@ export function Calculator() {
    * sits at the right of the top bar, stays almost under the pointer.
    */
   const setMode = useCallback(
-    (next: DesmosMode) => {
+    (next: CalculatorMode) => {
       if (next === mode) return;
       // The calculator being put away keeps no keyboard.
       takeKeysBack(bodyRef.current, false);
@@ -500,11 +468,9 @@ export function Calculator() {
   let placement = "";
   let style: React.CSSProperties | undefined;
   if (isPhone) {
-    placement = desmos
-      ? expanded
-        ? "inset-2"
-        : "inset-x-2 bottom-2 h-[62dvh]"
-      : "inset-x-2 bottom-2 max-h-[calc(100dvh-16px)] overflow-y-auto";
+    // A bottom sheet. AlgeBridge's graphing calculator stacks its graph over
+    // its list and keypad, so it takes most of the screen.
+    placement = expanded ? "inset-2" : !desmos && mode === "graphing" ? "inset-x-2 bottom-2 h-[86dvh]" : "inset-x-2 bottom-2 h-[62dvh]";
   } else if (expanded) {
     // Centred in the space it has, beside an open sidebar.
     style = {
@@ -514,14 +480,12 @@ export function Calculator() {
       height: size.height,
     };
   } else {
-    placement = desmos
-      ? SHIFT_MOTION
-      : `max-h-[calc(100dvh-16px)] overflow-y-auto ${SHIFT_MOTION}`;
+    placement = SHIFT_MOTION;
     style = {
       right: REST_RIGHT + shift,
       bottom: REST_BOTTOM,
       width: size.width,
-      height: desmos ? size.height : undefined,
+      height: size.height,
       transform: `translate(${nudge.x}px, ${nudge.y}px)`,
     };
   }
@@ -566,7 +530,7 @@ export function Calculator() {
           aria-hidden={!shown}
           inert={!shown}
           onKeyDown={onPanelKey}
-          data-engine={desmos ? "desmos" : "keypad"}
+          data-engine={desmos ? "desmos" : "algebridge"}
           data-expanded={expanded ? "true" : undefined}
           className={`fixed z-50 flex flex-col rounded-2xl border border-slate-200 bg-white ${PANEL_SHADOW} ${placement} ${
             shown ? "animate-fade-in" : "pointer-events-none invisible"
@@ -583,39 +547,38 @@ export function Calculator() {
             }`}
           >
             {canDrag && <Icon name="grip" size={14} className="shrink-0 text-slate-300" />}
-            {!desmos && <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Calculator</span>}
-            <div className="ml-auto flex items-center gap-1">
-              {desmos && (
-                <div role="group" aria-label="Kind of calculator" className="mr-1 flex rounded-lg bg-slate-100 p-0.5">
-                  {DESMOS_MODES.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      aria-pressed={mode === m.id}
-                      onClick={() => setMode(m.id)}
-                      className={`rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
-                        mode === m.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {desmos && (
-                <button
-                  type="button"
-                  onClick={toggleExpanded}
-                  aria-pressed={expanded}
-                  aria-label="Expand calculator"
-                  title={expanded ? "Back to the usual size" : "Expand"}
-                  className={`rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
-                    expanded ? "bg-bridge-50 text-bridge-700 hover:bg-bridge-100" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                  }`}
-                >
-                  <ExpandMark expanded={expanded} />
-                </button>
-              )}
+            {/* The name only where it fits beside the switch and the buttons: at the smallest size it would push Close out of the panel. */}
+            {!desmos && panelWidth >= 360 && (
+              <span className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">Calculator</span>
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <div role="group" aria-label="Kind of calculator" className="mr-1 flex rounded-lg bg-slate-100 p-0.5">
+                {DESMOS_MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={mode === m.id}
+                    onClick={() => setMode(m.id)}
+                    className={`rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
+                      mode === m.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={toggleExpanded}
+                aria-pressed={expanded}
+                aria-label="Expand calculator"
+                title={expanded ? "Back to the usual size" : "Expand"}
+                className={`rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
+                  expanded ? "bg-bridge-50 text-bridge-700 hover:bg-bridge-100" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                }`}
+              >
+                <ExpandMark expanded={expanded} />
+              </button>
               <button
                 type="button"
                 onClick={() => close(true)}
@@ -630,36 +593,30 @@ export function Calculator() {
           {/* The ring says where typing goes: inside it, keys are the calculator's. */}
           <div
             ref={bodyRef}
-            className={`relative mx-2 overflow-hidden rounded-xl border bg-white transition-colors ${
-              desmos ? "min-h-0 flex-1" : "shrink-0"
-            } ${hasKeys ? "border-bridge-400 ring-2 ring-bridge-100" : "border-slate-200"}`}
+            className={`relative mx-2 min-h-0 flex-1 overflow-hidden rounded-xl border bg-white transition-colors ${
+              hasKeys ? "border-bridge-400 ring-2 ring-bridge-100" : "border-slate-200"
+            }`}
           >
             {desmos && apiKey ? (
-              <DesmosCalculator apiKey={apiKey} mode={mode} open={shown} onUseKeypad={fallBackToKeypad} />
+              <DesmosCalculator apiKey={apiKey} mode={mode} open={shown} onUseKeypad={fallBackToOwn} />
             ) : (
-              <Keypad
-                open={shown}
-                panelRef={panelRef}
-                launcherRef={launcherRef}
-                onClose={closeFromKeypad}
-                onKeysChange={setKeypadKeys}
-              />
+              <AlgebridgeCalculator mode={mode} open={shown} />
             )}
             {busy && <div aria-hidden className="absolute inset-0" />}
           </div>
 
-          {desmos ? (
-            <div className={`flex h-8 shrink-0 items-center justify-between gap-2 pr-3 ${isPhone ? "pl-3" : "pl-7"}`}>
-              {/* Short enough to sit beside the credit at the smallest size; the
-                  ring around the calculator shows where "here" is. */}
-              <p aria-live="polite" className="truncate text-[11px] font-medium text-bridge-700">
-                {hasKeys && (
-                  <>
-                    <span aria-hidden>Typing goes here</span>
-                    <span className="sr-only">Typing goes to the calculator</span>
-                  </>
-                )}
-              </p>
+          <div className={`flex h-8 shrink-0 items-center justify-between gap-2 pr-3 ${isPhone ? "pl-3" : "pl-7"}`}>
+            {/* Short enough to sit beside the credit at the smallest size; the
+                ring around the calculator shows where "here" is. */}
+            <p aria-live="polite" className="truncate text-[11px] font-medium text-bridge-700">
+              {hasKeys && (
+                <>
+                  <span aria-hidden>Typing goes here</span>
+                  <span className="sr-only">Typing goes to the calculator</span>
+                </>
+              )}
+            </p>
+            {desmos && (
               <a
                 href={DESMOS_CREDIT_URL}
                 target="_blank"
@@ -669,20 +626,10 @@ export function Calculator() {
                 Calculator by Desmos
                 <Icon name="external" size={12} />
               </a>
-            </div>
-          ) : (
-            <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
-              <span id={`${PANEL_ID}-desmos`} className="text-[11px] font-medium text-slate-500">
-                Open Desmos
-              </span>
-              <div role="group" aria-labelledby={`${PANEL_ID}-desmos`} className="flex items-center gap-1.5">
-                <OpenDesmos mode="scientific">Scientific</OpenDesmos>
-                <OpenDesmos mode="graphing">Graphing</OpenDesmos>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {desmos && !isPhone && (
+          {!isPhone && (
             <button
               type="button"
               aria-label="Resize calculator. Use the arrow keys to make it bigger or smaller."

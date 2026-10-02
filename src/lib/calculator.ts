@@ -318,13 +318,16 @@ export function formatResult(n: number): string {
   if (n === 0) return "0";
   const sign = n < 0 ? "−" : "";
   const a = Math.abs(n);
-  if (a >= 1e12 || a < 1e-6) {
+  // The size is judged after rounding to 10 digits: 10^12 − 1 rounds to
+  // 10^12, which is shown 1×10^12, not 1000000000000.
+  const shown = Number(a.toPrecision(10));
+  if (shown >= 1e12 || a < 1e-6) {
     const [mantissa, exp] = a.toExponential(6).split("e");
     const m = mantissa.includes(".") ? mantissa.replace(/0+$/, "").replace(/\.$/, "") : mantissa;
     const e = Number(exp);
     return `${sign}${m}×10^${e < 0 ? `−${-e}` : e}`;
   }
-  let str = String(Number(a.toPrecision(10)));
+  let str = String(shown);
   if (str.includes(".")) str = str.replace(/0+$/, "").replace(/\.$/, "");
   return sign + str;
 }

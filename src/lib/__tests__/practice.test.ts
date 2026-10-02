@@ -711,6 +711,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("which reads back right", near(C.evaluate(tinyResult), 3.333333e-7));
   ok("6.02×10^23 has no float fuzz", C.formatResult(6.02 * 10 ** 23) === "6.02×10^23", C.formatResult(6.02 * 10 ** 23));
   ok("2^64 fits the screen", C.formatResult(2 ** 64) === "1.844674×10^19", C.formatResult(2 ** 64));
+  ok("10^12 − 1 rounds to 1×10^12, not 1000000000000", C.formatResult(1e12 - 1) === "1×10^12", C.formatResult(1e12 - 1));
   ok("negatives use the keypad's minus", C.formatResult(-12) === "−12" && C.evaluate("−12+2") === -10);
   // Chaining from a result uses the real value, not the 10 digits shown.
   const third = C.evaluate("1÷3");
@@ -755,6 +756,256 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("typed code is refused, never run", injected.startsWith("Unexpected character"), injected);
 }
 
+// --- The calculator: AlgeBridge's own Scientific (lib/calc-engine.ts) -------
+{
+  const E = await import("../calc-engine.ts");
+  const near = (a: number | undefined, b: number, tol = 1e-9) => a !== undefined && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b));
+  const one = (text: string, degrees = true) => E.evaluateScientific([text], degrees)[0];
+  const val = (text: string, degrees = true) => one(text, degrees).value;
+  const shown = (text: string) => one(text).text;
+  const err = (text: string, degrees = true) => one(text, degrees).error ?? "";
+  // What the verification run types.
+  ok("3.5*12 is 42", shown("3.5*12") === "42");
+  ok("sqrt(144) is 12", val("sqrt(144)") === 12 && val("√(144)") === 12 && val("√144") === 12);
+  ok("sin(30) in degrees is 0.5", shown("sin(30)") === "0.5");
+  ok("sin(30) in radians is not", near(val("sin(30)", false), Math.sin(30)));
+  ok("5! is 120", val("5!") === 120 && val("0!") === 1);
+  // Functions.
+  ok("cos(90°) is exactly 0, not 6×10^−17", shown("cos(90)") === "0" && shown("sin(180)") === "0");
+  ok("tan(45°) is 1", shown("tan(45)") === "1");
+  ok("tan(90°) is undefined", err("tan(90)") === "Undefined");
+  ok("tan(π/2) in radians is undefined too", err("tan(π/2)", false) === "Undefined");
+  ok("sin⁻¹(0.5) is 30 in degrees", shown("sin^-1(0.5)") === "30" && shown("arcsin(0.5)") === "30");
+  ok("cos⁻¹(0) is π/2 in radians", near(val("cos^-1(0)", false), Math.PI / 2));
+  ok("sin⁻¹ outside −1 to 1 says so", err("sin^-1(2)") === "sin⁻¹ takes a number from −1 to 1");
+  ok("sin^2(30) is a power, not an inverse", shown("sin^2(30)") === "0.25");
+  ok("sin 30 + 1 reads as sin(30) + 1", shown("sin 30 + 1") === "1.5");
+  ok("ln(e) is 1, log(1000) is 3", shown("ln(e)") === "1" && shown("log(1000)") === "3");
+  ok("log base n: log_2(8) is 3", shown("log_2(8)") === "3" && shown("log_(0.5)(4)") === "−2");
+  ok("log of a negative says so", err("log(-1)") === "log takes a number greater than 0");
+  ok("absolute value both ways", val("|−5|") === 5 && val("abs(-3)") === 3 && val("||-2|-3|") === 1);
+  ok("round half away from zero", val("round(2.5)") === 3 && val("round(-2.5)") === -3 && val("round(2.675, 2)") === 2.68);
+  ok("e is Euler's number", near(val("e"), Math.E) && near(val("2e"), 2 * Math.E));
+  ok("π and e are constants, not letters to set", err("e = 3").includes("already has a value"));
+  ok("percent is ÷100", val("50%") === 0.5 && near(val("1000(1+5%)^2"), 1102.5));
+  ok("0.5! uses gamma", near(val("0.5!"), 0.886226925452758, 1e-8));
+  ok("a negative factorial says so", err("(-3)!") === "! needs a whole number 0 or more");
+  // Roots, nested.
+  ok("√(√16) is 2", val("√(√(16))") === 2);
+  ok("cube root of the square root of 64 is 2", near(val("root(3, root(2, 64))"), 2));
+  ok("odd roots of negatives work", near(val("root(3,-8)"), -2));
+  ok("even roots of negatives say so", err("root(2,-4)") === "Can't take an even root of a negative number");
+  ok("√ of a negative says so", err("√(-4)") === "Can't take √ of a negative number");
+  // Order of operations.
+  ok("−3^2 is −9, 2^3^2 is 512", val("-3^2") === -9 && val("2^3^2") === 512);
+  ok("6/2(1+2) is 9, read left to right", val("6/2(1+2)") === 9);
+  ok("x² pasted in works", E.evaluateScientific(["x = 4", "x²"])[1].value === 16);
+  // ans and row references.
+  const ans = E.evaluateScientific(["3.5*12", "", "ans/2", "ans_1 + 5", "ans_4 * 2"]);
+  ok("ans is the answer above, skipping empty rows", ans[2].value === 21);
+  ok("ans_1 is row 1's answer", ans[3].value === 47 && ans[4].value === 94);
+  ok("ans on the first row says there is none", err("ans") === "There is no answer above yet");
+  ok("a row can't use its own answer", E.evaluateScientific(["ans_1"])[0].error === "A row can't use its own answer");
+  ok("a row that is not there says so", E.evaluateScientific(["1", "ans_9"])[1].error === "There is no row 9");
+  // Letters and functions, from any row.
+  const vars = E.evaluateScientific(["2a", "a = 3", "b = a + 1", "f(x) = x^2 + 1", "f(b)", "x = 4", "1/2x"]);
+  ok("a letter set below works above", vars[0].value === 6);
+  ok("a = 3 shows no = beside it, a computed one does", vars[1].show === false && vars[2].show === true && vars[2].value === 4);
+  ok("functions work: f(b) is 17", vars[3].kind === "define" && vars[4].value === 17);
+  ok("1/2x is (1/2)x, the way it reads", vars[6].value === 2);
+  ok("a plain number needs no = beside it", one("42").show === false && one("-7").show === false);
+  // Errors.
+  ok("dividing by zero says so", err("1/0") === "Can't divide by zero");
+  ok("a half-typed row is incomplete, not wrong", one("3+").incomplete === true && one("√()").incomplete === true && one("sin()").incomplete === true);
+  ok("a letter with no value says how to give it one", err("q") === "Give q a value first, like q = 3");
+  const loop = E.evaluateScientific(["a = b", "b = a", "c = c + 1"]);
+  ok("loops are caught", loop.every((r) => r.error === E.LOOP_MESSAGE));
+  const twice = E.evaluateScientific(["q = 1", "q = 2", "q"]);
+  ok("a letter set twice says so", twice.every((r) => r.error === "q is defined more than once"));
+  ok("an extra bracket says so", err("2)") === "There is an extra )");
+  ok("points belong to Graphing", err("(1,2)") === "Points and lists work in Graphing");
+  ok("too many decimal points says so", err("1.2.3") === "Too many decimal points in 1.2.3");
+  ok("typed code never runs", one("alert(1)").kind === "error" && one("constructor").kind === "error");
+  const engineSource = readFileSync(new URL("../calc-engine.ts", import.meta.url), "utf8");
+  ok("the engine has no eval or Function", !/\beval\s*\(|new Function|\bFunction\s*\(/.test(engineSource));
+  // Never e-notation: the keypad's ×10^n rules.
+  ok("10^21 shows as 1×10^21", shown("10^21") === "1×10^21");
+  ok("1/3000000 shows as 3.333333×10^−7", shown("1/3000000") === "3.333333×10^−7");
+  ok("2^64 fits", shown("2^64") === "1.844674×10^19");
+  ok("0.1 + 0.2 − 0.3 is 0, not 5.6×10^−17", shown("0.1+0.2-0.3") === "0");
+  ok("no result ever has an e in it", ["10^21", "1/3000000", "2^64", "170!", "0.1^9"].every((t) => !/e/.test(shown(t) ?? "e")));
+
+  // Drawing a row: what is raised, what sits under a radical, what is hidden.
+  const sq = E.parseRow("x^2+1");
+  ok("x^2+1 raises only the 2", sq.layout.groups.length === 1 && sq.layout.groups[0].t === "sup" && sq.layout.groups[0].s === 2 && sq.layout.groups[0].e === 3 && sq.layout.hidden.has(1));
+  const rad = E.parseRow("√(144)");
+  ok("√(144) puts 144 under the bar with its brackets hidden", rad.layout.groups[0].t === "rad" && rad.layout.hidden.has(1) && rad.layout.hidden.has(5) && rad.layout.sign.has(0));
+  const nth = E.parseRow("root(3,8)");
+  ok("root(3,8) is drawn ³√8", nth.layout.groups.some((g) => g.t === "idx") && nth.layout.groups.some((g) => g.t === "rad") && nth.layout.sign.has(6));
+  ok("an empty exponent gets a box", E.layoutTree(2, E.parseRow("2^").layout).some((it) => it.t === "grp" && it.empty));
+  ok("log_2 lowers the 2", E.parseRow("log_2(8)").layout.groups.some((g) => g.t === "sub" && g.s === 4 && g.e === 5));
+  // Edits, as the keys make them.
+  const at = (text: string, k: number) => ({ text, start: k, end: k });
+  const b1 = E.backspace(at("√(144)", 2));
+  ok("backspace just inside a radical takes the radical off", b1.text === "144" && b1.end === 0);
+  ok("backspace after a radical steps inside", E.backspace(at("√(144)", 6)).end === 5);
+  ok("backspace takes a function name in one go", E.backspace(at("sin(30)", 3)).text === "(30)");
+  ok("backspace takes an empty pair together", E.backspace(at("2()", 2)).text === "2");
+  ok("( closes itself", E.insertText(at("", 0), "(").text === "()");
+  ok("but not in front of a number", E.insertText(at("2", 0), "(").text === "(2");
+  ok(") steps over the one already there", E.insertText(at("(2)", 2), ")").end === 3);
+  ok("typing sqrt makes √, pi makes π, <= makes ≤", E.insertText(at("sqr", 3), "t").text === "√" && E.insertText(at("p", 1), "i").text === "π" && E.insertText(at("x<", 2), "=").text === "x≤");
+  ok("an operator on an empty row starts from ans", E.insertText(at("", 0), "+", { ansFirst: true }).text === "ans+");
+  ok("right arrow at the end closes an open bracket", E.stepCaret(at("√(144", 5), 1, false).text === "√(144)");
+  ok("and leaves an exponent", E.stepCaret(at("x^2", 3), 1, false).text === "x^2 " && E.evaluateScientific(["x = 3", "x^2 3"])[1].value === 27);
+  ok("the caret skips over a word", E.stepCaret(at("sin(30)", 0), 1, false).end === 3);
+
+  // Fractions: a typed / is drawn stacked, ÷ stays inline.
+  const g = (text: string, t: string) => E.parseRow(text).layout.groups.filter((x) => x.t === t);
+  const half = E.parseRow("1/2");
+  ok("1/2 is a fraction: 1 over 2, the / hidden", g("1/2", "frac").length === 1 && g("1/2", "num")[0].s === 0 && g("1/2", "den")[0].s === 2 && half.layout.hidden.has(1));
+  ok("1÷2 stays inline", g("1÷2", "frac").length === 0 && E.evaluateScientific(["1÷2"])[0].value === 0.5);
+  const ratio = E.parseRow("(x+1)/(x-1)");
+  ok("(x+1)/(x-1) hides the brackets that only wrap one part", [0, 4, 6, 10].every((k) => ratio.layout.hidden.has(k)));
+  ok("−5/2 keeps its minus in front of the bar", g("-5/2", "num")[0].s === 1 && E.evaluateScientific(["-5/2"])[0].value === -2.5);
+  ok("1/2x is drawn ½x and worked out as (1/2)x", g("1/2x", "den")[0].e === 3 && E.evaluateScientific(["x = 4", "1/2x"])[1].value === 2);
+  const nest = E.layoutTree(5, E.parseRow("1/2/4").layout);
+  const outer = nest[0] as { t: string; g: { t: string }; items: { t: string; g?: { t: string }; items?: { t: string; g?: { t: string } }[] }[] };
+  ok("1/2/4 nests: ½ is the numerator of the outer fraction", outer.g.t === "frac" && outer.items[0].g?.t === "num" && outer.items[0].items?.[0].g?.t === "frac");
+  const open = E.layoutTree(2, E.parseRow("1/").layout)[0] as { items: { t: string; g?: { t: string }; empty?: boolean }[] };
+  ok("1/ has an empty denominator box inside the fraction", open.items.some((it) => it.g?.t === "den" && it.empty));
+  ok("backspace at the start of a denominator goes to the numerator's end", JSON.stringify(E.backspace(at("12/34", 3))) === '{"text":"12/34","start":2,"end":2}');
+  ok("backspace with an empty denominator takes the bar", E.backspace(at("1/", 2)).text === "1" && E.backspace(at("1/()", 3)).text === "1");
+  ok("backspace with an empty numerator takes the bar", E.backspace(at("/2", 1)).text === "2");
+  ok("backspace inside a numerator's hidden bracket keeps the bracket", E.backspace(at("(x+1)/2", 1)).text === "(x+1)/2");
+  ok("/ over a selection makes it the numerator", E.insertText({ text: "x+1", start: 0, end: 3 }, "/").text === "(x+1)/");
+  // Unit conversion: what a word problem prints.
+  ok("5,280 is 5280 in Scientific", val("5,280") === 5280 && val("5,280*12") === 63360 && val("1,000,000.5") === 1000000.5);
+  ok("a comma in brackets still separates numbers", val("round(2.675, 2)") === 2.68 && err("(1,000)") === "Points and lists work in Graphing");
+  ok("1,000,00 is not a number with commas", err("1,000,00") === "Points and lists work in Graphing");
+  ok("5 280 asks for the space to go, not 5 × 280", err("5 280") === "Remove the space: 5280");
+  ok("3 1/2 says how to write a mixed number", err("3 1/2") === "For a mixed number, write 3 + 1/2");
+  ok("20% of 50 is 10", val("20% of 50") === 10 && val("20%of 50") === 10);
+  ok("the caret steps over of", E.caretStops("20% of 50").join() === E.caretStops("20% of 50").map((_, k) => k !== 5).join());
+  // Statistics and the other func keys.
+  ok("mean, median, stdev", val("mean(1,2,3)") === 2 && val("mean([1,2,3,4])") === 2.5 && val("median(3,1,2,10)") === 2.5 && near(val("stdev(2,4,4,4,5,5,7,9)"), 2.138089935299395));
+  ok("nCr and nPr", val("nCr(5,2)") === 10 && val("nPr(5,2)") === 20 && val("ncr(52,5)") === 2598960 && val("nCr(3,5)") === 0);
+  ok("nCr needs whole numbers", err("nCr(2.5,1)") === "nCr takes two whole numbers, like nCr(5, 2)");
+  ok("gcd (or gcf) and lcm", val("gcd(12,18)") === 6 && val("gcf(12, 18, 30)") === 6 && val("lcm(4,6)") === 12);
+  ok("a name it does not have says so", err("sum(1,2)") === "sum isn't on this calculator" && err("average(1,2)") === "average isn't on this calculator");
+  ok("two letters before a bracket are still a product", E.evaluateScientific(["a = 3", "b = 2", "ab(2)"])[2].value === 12);
+  // The fraction toggle.
+  ok("answers as fractions", E.fractionText(0.75) === "3/4" && E.fractionText(1 / 3 + 1 / 4) === "7/12" && E.fractionText(-2.5) === "−5/2");
+  ok("no fraction for whole numbers or for π", E.fractionText(3) === undefined && E.fractionText(Math.PI) === undefined && E.fractionText(Math.SQRT2) === undefined);
+  ok("Scientific offers the fraction with the answer", one("1/3+1/4").fraction === "7/12" && one("2^10").fraction === undefined);
+}
+
+// --- The calculator: AlgeBridge's own Graphing (lib/calc-graph.ts) ---------
+{
+  const G = await import("../calc-graph.ts");
+  const rows = G.evaluateGraph(["y = 2x + 3", "y = x^2 - 4", "(2, 7)", "y > 2x + 1", "y <= x^2", "y = mx + b", "x = 3", "2x + 3y = 6", "f(x) = x^2", "f(3)", "(1,2),(3,4)", "x^2 + y^2 < 9", "x < 2", "[(0,0),(5,5)]"]);
+  const kind = (i: number) => rows[i].plot?.kind;
+  ok("y = 2x + 3 is a curve in x", kind(0) === "fx" && (rows[0].plot as { f: (x: number) => number }).f(1) === 5);
+  ok("y = x^2 − 4 too", kind(1) === "fx");
+  ok("(2, 7) is a point", kind(2) === "points" && JSON.stringify((rows[2].plot as { pts: unknown }).pts) === '[{"x":2,"y":7}]');
+  ok("lists of points, with or without brackets", (rows[10].plot as { pts: unknown[] }).pts.length === 2 && (rows[13].plot as { pts: unknown[] }).pts.length === 2);
+  ok("y > 2x + 1 shades above its line", kind(3) === "ineq-fx" && G.regionContains(rows[3].plot!, 0, 5) && !G.regionContains(rows[3].plot!, 0, 0));
+  ok("a strict inequality leaves out its boundary", !G.regionContains(rows[3].plot!, 0, 1));
+  ok("y ≤ x² includes its boundary", G.regionContains(rows[4].plot!, 0, 0) && G.regionContains(rows[4].plot!, 2, 4) && !G.regionContains(rows[4].plot!, 0, 1));
+  ok("x < 2 shades to the left", kind(12) === "ineq-fy" && G.regionContains(rows[12].plot!, 1, 100) && !G.regionContains(rows[12].plot!, 3, 0));
+  ok("x² + y² < 9 shades inside the circle", kind(11) === "implicit" && G.regionContains(rows[11].plot!, 0, 0) && !G.regionContains(rows[11].plot!, 3, 3));
+  ok("y = mx + b offers sliders for m and b, in that order", rows[5].missing.join() === "m,b" && !rows[5].plot);
+  ok("x = 3 is a vertical line", kind(6) === "fy" && (rows[6].plot as { g: (y: number) => number }).g(42) === 3);
+  ok("2x + 3y = 6 graphs from standard form", kind(7) === "implicit");
+  ok("f(x) = x^2 is drawn and f(3) shows 9", kind(8) === "fx" && rows[9].value === "9");
+  const sl = G.evaluateGraph(["y = mx + b", "m = 1", "b = 2.5"]);
+  ok("a = number is a slider from −10 to 10", sl[1].slider?.name === "m" && sl[1].slider.min === -10 && sl[1].slider.max === 10 && sl[2].slider?.value === 2.5);
+  ok("with sliders set, the line draws", sl[0].plot?.kind === "fx" && (sl[0].plot as { f: (x: number) => number }).f(2) === 4.5);
+  ok("a slider value is written back plainly", G.sliderText("m", 1.30000001, 0.1) === "m = 1.3" && G.sliderText("m", -0.04, 0.1) === "m = 0");
+  ok("a big value widens its slider", G.makeSlider("a", 50).max === 50 && G.makeSlider("a", 50).min === -50);
+  ok("half-typed rows are incomplete", G.evaluateGraph(["y = 2x +"])[0].incomplete === true);
+  ok("a plain sum shows its value", G.evaluateGraph(["2+3"])[0].value === "5" && G.evaluateGraph(["1/0"])[0].error === "Can't divide by zero");
+  ok("x and y in a row with no = says what to do", G.evaluateGraph(["x + y"])[0].error?.startsWith("To graph this") === true);
+  ok("in Graphing x = 3 is a line, not a letter", G.evaluateGraph(["x = 3", "x + 1"])[1].plot?.kind === "fx");
+  // Sampling.
+  const tenth = 20 / 400;
+  const recip = G.sampleCurve((x) => 1 / x, -10, 10, 400, -10, 10, tenth);
+  ok("1/x breaks at 0 instead of drawing a wall", recip.length === 2 && recip[0][recip[0].length - 2] < 0 && recip[1][0] > 0);
+  ok("tan x on −10 to 10 is 7 separate pieces", G.sampleCurve(Math.tan, -10, 10, 400, -10, 10, tenth).length === 7);
+  const root = G.sampleCurve(Math.sqrt, -10, 10, 400, -10, 10, tenth);
+  ok("√x starts exactly where it is defined", root.length === 1 && Math.abs(root[0][0]) < 1e-9);
+  const para = G.sampleCurve((x) => x * x, -10, 10, 400, -10, 10, tenth)[0];
+  let worst = 0;
+  for (let i = 2; i < para.length; i += 2) {
+    const inView = Math.abs(para[i + 1]) <= 10 || Math.abs(para[i - 1]) <= 10;
+    if (inView) worst = Math.max(worst, Math.abs(para[i + 1] - para[i - 1]) / tenth);
+  }
+  ok("a parabola is sampled smooth: no step over 2 pixels on screen", worst <= 2.01, String(worst));
+  // Roots, intercepts, turning points, intersections.
+  const q = (x: number) => x * x - 4;
+  const lin = (x: number) => 2 * x + 3;
+  ok("x² − 4 crosses at −2 and 2", G.findRoots(q, -10, 10).map((r) => Math.round(r * 1e9) / 1e9).join() === "-2,2");
+  ok("(x − 1)² touches at 1", G.findRoots((x) => (x - 1) ** 2, -10, 10).length === 1);
+  ok("1/x has no root at its break", G.findRoots((x) => 1 / x, -10, 10).length === 0);
+  ok("the x-axis itself has no isolated roots", G.findRoots(() => 0, -10, 10).length === 0);
+  const meet = G.findRoots((x) => lin(x) - q(x), -10, 10);
+  ok("y = 2x + 3 meets y = x² − 4 at 1 ± √8", meet.length === 2 && Math.abs(meet[0] - (1 - Math.sqrt(8))) < 1e-9 && Math.abs(meet[1] - (1 + Math.sqrt(8))) < 1e-9);
+  const low = G.findExtrema(q, -10, 10);
+  ok("x² − 4 turns at (0, −4)", low.length === 1 && Math.abs(low[0].x) < 1e-6 && low[0].y === -4);
+  ok("1/x has no turning point at its break", G.findExtrema((x) => 1 / x, -10, 10).length === 0);
+  const pois = G.pointsOfInterest(rows[1].plot!, [rows[0].plot!, rows[6].plot!], -10, 10, -10, 10).map(G.formatPoint);
+  ok("the gray dots on y = x² − 4: intercepts, vertex, both meetings in view", ["(−2, 0)", "(2, 0)", "(0, −4)", "(−1.828, −0.657)", "(3, 5)"].every((p) => pois.includes(p)), pois.join(" "));
+  const std = G.pointsOfInterest(rows[7].plot!, [], -10, 10, -10, 10).map(G.formatPoint);
+  ok("2x + 3y = 6 crosses at (3, 0) and (0, 2)", std.includes("(3, 0)") && std.includes("(0, 2)"), std.join(" "));
+  // Implicit curves and regions.
+  const line = G.contour((x, y) => 2 * x + 3 * y - 6, -10, 10, -10, 10, 50, 50);
+  let off = 0;
+  for (let i = 0; i < line.length; i += 2) off = Math.max(off, Math.abs(2 * line[i] + 3 * line[i + 1] - 6));
+  ok("a line from standard form is exact", line.length > 0 && off < 1e-9);
+  const chained = G.chainSegments(line, 1e-6);
+  ok("its pieces join into one polyline", chained.length === 1);
+  const disk = G.region((x, y) => x * x + y * y - 9, "<", -10, 10, -10, 10, 100, 100);
+  let area = 0;
+  for (let i = 0; i < disk.rects.length; i += 4) area += disk.rects[i + 2] * disk.rects[i + 3];
+  for (const poly of disk.polys) {
+    let a2 = 0;
+    for (let i = 0; i < poly.length; i += 2) {
+      const j = (i + 2) % poly.length;
+      a2 += poly[i] * poly[j + 1] - poly[j] * poly[i + 1];
+    }
+    area += Math.abs(a2) / 2;
+  }
+  ok("the shaded disk has the disk's area", Math.abs(area - 9 * Math.PI) < 0.1, area.toFixed(3));
+  ok("holds() reads the inequality signs", G.holds("<", -1) && !G.holds("<", 0) && G.holds("<=", 0) && G.holds(">=", 0) && !G.holds(">", Number.NaN));
+  // The view.
+  const v = G.homeView(440, 500);
+  ok("home is x from −10 to 10 around the origin", v.cx === 0 && v.cy === 0 && G.fromPx(v, 0) === -10 && G.fromPx(v, 440) === 10);
+  const z = G.zoomAt(v, 100, 120, 2);
+  ok("zooming keeps the point under the pointer still", Math.abs(G.fromPx(z, 100) - G.fromPx(v, 100)) < 1e-12 && Math.abs(G.fromPy(z, 120) - G.fromPy(v, 120)) < 1e-12 && z.scale === v.scale * 2);
+  ok("grid: majors every 2 and minors every 0.5 at the start", JSON.stringify(G.gridStep(22)) === '{"major":2,"minor":0.5}');
+  ok("grid steps are 1, 2 or 5 times a power of ten", [0.003, 0.4, 7, 90, 2500].every((s) => /^(1|2|5)$/.test(String(Number((G.gridStep(s).major / 10 ** Math.floor(Math.log10(G.gridStep(s).major))).toPrecision(3))))));
+  ok("labels and coordinates never use e", G.formatTick(2000000, 1000000) === "2×10⁶" && G.formatCoord(1.5e-7) === "1.5×10⁻⁷" && G.formatCoord(Math.sqrt(3)) === "1.732" && G.formatCoord(-2) === "−2");
+  // One format per axis, and labels thinned before they collide.
+  const tiny = G.axisFormat(0, 2e-4, 5e-5);
+  ok("a zoomed-in axis is all ×10ⁿ, never mixed with 0.0001", [tiny(5e-5), tiny(1e-4), tiny(1.5e-4)].join() === "5×10⁻⁵,1×10⁻⁴,1.5×10⁻⁴");
+  const near3 = G.axisFormat(2.9999, 3.0001, 1e-5);
+  ok("zoomed in around 3, decimals with the places the step needs", near3(3.00001) === "3.00001" && near3(3) === "3");
+  ok("a far-out axis is all ×10ⁿ", G.axisFormat(-8e6, 8e6, 2e6)(-6e6) === "−6×10⁶");
+  ok("labels that would touch are thinned to round numbers", G.labelEvery(1e5, 50, 52) === 2 && G.labelEvery(2, 80, 20) === 1 && G.labelEvery(50, 40, 30) === 2 && G.labelEvery(20, 30, 40) === 5);
+  ok("a slider value never reads back as e", G.sliderText("a", 1e21, 1) === "a = 1000000000000000000000");
+  // Speed: what a row's plot depends on, and the grid read once.
+  const sig = (texts: string[]) => G.evaluateGraph(texts).map((r) => r.sig);
+  const s1 = sig(["y = mx + b", "m = 1", "b = 2", "x^2 + y^2 < 9", "f(x) = a x", "a = 3", "y = f(x) + 1"]);
+  const s2 = sig(["y = mx + b", "m = 1.5", "b = 2", "x^2 + y^2 < 9", "f(x) = a x", "a = 3", "y = f(x) + 1"]);
+  const s3 = sig(["y = mx + b", "m = 1", "b = 2", "x^2 + y^2 < 9", "f(x) = a x", "a = 4", "y = f(x) + 1"]);
+  ok("moving m changes y = mx + b and nothing else", s1[0] !== s2[0] && s1[3] === s2[3] && s1[6] === s2[6]);
+  ok("a letter inside a function reaches the rows that use it", s1[6] !== s3[6] && s1[4] !== s3[4] && s1[0] === s3[0]);
+  const F = (x: number, y: number) => x * x + y * y - 9;
+  const grid = G.gridValues(F, -10, 10, -10, 10, 40, 40);
+  ok("contour and region read the same grid", JSON.stringify(G.contour(F, -10, 10, -10, 10, 40, 40, grid)) === JSON.stringify(G.contour(F, -10, 10, -10, 10, 40, 40)) && JSON.stringify(G.region(F, "<", -10, 10, -10, 10, 40, 40, grid)) === JSON.stringify(G.region(F, "<", -10, 10, -10, 10, 40, 40)));
+  ok("in Graphing 1,000 is still a list", G.evaluateGraph(["1,000"])[0].error === "Lists of points can be graphed, like (1, 2), (3, 4)");
+}
+
 // --- The calculator panel: Desmos by API only, never framed ------------------
 {
   const D = await import("../desmos.ts");
@@ -773,35 +1024,24 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     return /desmos/i.test(text) && (/<iframe/i.test(text) || /createElement\(\s*["']iframe/i.test(text));
   });
   ok("no shipped file frames Desmos", framesDesmos.length === 0, framesDesmos.map((u) => u.pathname).join(", "));
-  const panelFiles = ["components/Calculator.tsx", "components/DesmosCalculator.tsx", "components/Keypad.tsx", "lib/desmos.ts"];
+  const panelFiles = ["components/Calculator.tsx", "components/DesmosCalculator.tsx", "components/Keypad.tsx", "lib/desmos.ts", ...readdirSync(new URL("components/calc/", srcRoot)).map((f) => `components/calc/${f}`)];
   ok("the calculator files hold no iframe at all", panelFiles.every((f) => !/<iframe/i.test(readFileSync(new URL(f, srcRoot), "utf8"))));
-  ok("Open Desmos goes to the scientific calculator", D.desmosAppUrl("scientific") === "https://www.desmos.com/scientific");
-  ok("or the graphing one", D.desmosAppUrl("graphing") === "https://www.desmos.com/calculator");
+  // Without a key the panel is AlgeBridge's own calculators: no link out, and no Desmos name or look-alike branding.
+  const ownFiles = ["components/Keypad.tsx", ...readdirSync(new URL("components/calc/", srcRoot)).map((f) => `components/calc/${f}`), "lib/calc-engine.ts", "lib/calc-graph.ts"];
+  const named = ownFiles.filter((f) => /Desmos/.test(readFileSync(new URL(f, srcRoot), "utf8")));
+  ok("AlgeBridge's own calculators never name Desmos", named.length === 0, named.join(", "));
+  const panelText = readFileSync(new URL("components/Calculator.tsx", srcRoot), "utf8");
+  ok("the no-key panel has no Open Desmos links", !/Open Desmos|desmos\.com\/(scientific|calculator)|openDesmosWindow/.test(panelText));
+  ok("and lib/desmos has nothing left that opens desmos.com", !("openDesmosWindow" in D) && !("desmosAppUrl" in D));
+  ok("the Desmos credit shows only in API mode", /\{desmos && \(\s*<a\s+href=\{DESMOS_CREDIT_URL\}/.test(panelText));
+  ok("no key opens AlgeBridge's own calculators", /<AlgebridgeCalculator mode=\{mode\} open=\{shown\} \/>/.test(panelText));
   ok("the API script carries the key", D.desmosScriptUrl("abc123def456") === `https://www.desmos.com/api/${D.DESMOS_API_VERSION}/calculator.js?apiKey=abc123def456`);
   ok("a key is trimmed", D.cleanApiKey("  dcb31709b452b1cf9dc26972add0fda6 ") === "dcb31709b452b1cf9dc26972add0fda6");
   ok("anything that is not a key never reaches the URL", [null, undefined, "", "abc", "abc123def&x=1", "key with spaces", "<script>"].every((k) => D.cleanApiKey(k) === null));
-  ok("no key in the test run means the keypad", D.desmosApiKey() === null || !!process.env.NEXT_PUBLIC_DESMOS_API_KEY);
+  ok("no key in the test run means AlgeBridge's own calculators", D.desmosApiKey() === null || !!process.env.NEXT_PUBLIC_DESMOS_API_KEY);
   ok("every fresh open is Scientific", D.DEFAULT_MODE === "scientific" && D.DESMOS_MODES[0].id === "scientific");
   ok("Graphing is the other choice", D.DESMOS_MODES.length === 2 && D.DESMOS_MODES[1].id === "graphing");
   ok("Desmos credit points at Desmos", D.DESMOS_CREDIT_URL === "https://www.desmos.com");
-  // Open Desmos: a small window of its own, or a normal tab when blocked.
-  {
-    const w = (globalThis as unknown as { window: Record<string, unknown> }).window;
-    const calls: unknown[][] = [];
-    const popup = { opener: {} as unknown, focus() {} };
-    w.open = (...args: unknown[]) => (calls.push(args), popup);
-    ok("Open Desmos opens a window", D.openDesmosWindow("scientific") === true);
-    ok("named and sized", JSON.stringify(calls[0]) === JSON.stringify(["https://www.desmos.com/scientific", "desmos", "width=440,height=680"]), JSON.stringify(calls[0]));
-    ok("and Desmos gets no handle back to the page", popup.opener === null);
-    w.open = () => null;
-    ok("a blocked popup says so, so the link opens a tab", D.openDesmosWindow("graphing") === false);
-    w.open = () => {
-      throw new Error("blocked");
-    };
-    ok("a popup that throws says so too", D.openDesmosWindow("graphing") === false);
-    delete w.open;
-    ok("no window.open, no crash", D.openDesmosWindow("graphing") === false);
-  }
   // Sizes: bigger by default, each saved one checked.
   const defaults = D.parseSizes(null);
   ok("Scientific opens at 400 by 560", defaults.scientific.width === 400 && defaults.scientific.height === 560);
