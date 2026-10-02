@@ -13,7 +13,7 @@ export default function NotebookPage() {
             Your private space for notes, worked-out steps, and questions for your tutor.
           </p>
         </div>
-        <Link href="/" className="btn-secondary text-sm">Back to Course</Link>
+        <Link href="/" className="btn-secondary text-sm">Back to the course</Link>
       </div>
       <div className="card">
         <Notebook />

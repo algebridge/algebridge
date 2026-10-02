@@ -370,7 +370,7 @@ export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
         onClick={onStageClick}
-        className={`relative aspect-[3/2] w-full touch-none overflow-hidden select-none ${night ? "dh-night" : ""} ${
+        className={`relative isolate aspect-[3/2] w-full touch-none overflow-hidden select-none ${night ? "dh-night" : ""} ${
           placing && view === "front" ? "cursor-crosshair" : ""
         }`}
       >
@@ -560,7 +560,7 @@ export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
           ) : null}
         </div>
 
-        <p className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-700 backdrop-blur-sm">
+        <p className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700">
           {hint}
         </p>
       </div>
@@ -683,7 +683,7 @@ function PieceActions({
       className="dh-actions absolute -translate-x-1/2 -translate-y-full"
       style={{ left: `${left}%`, top: `${top}%`, zIndex: 900 }}
     >
-      <div className="rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-lg backdrop-blur-sm">
+      <div className="rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-lg">
         <div className="flex items-center gap-1">
           <span className="max-w-[9rem] truncate px-1.5 text-xs font-semibold text-slate-800">{item.name}</span>
           <ActionButton label={showColors ? "Colours, hide" : "Colour"} pressed={showColors} onClick={onShowColors}>

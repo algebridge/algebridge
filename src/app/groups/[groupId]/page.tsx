@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { GroupThread } from "@/components/GroupThread";
 import { getGroup } from "@/lib/groups";
 import type { GroupInfo } from "@/types";
+import { Icon } from "@/components/Icon";
 
 export default function GroupPage() {
   const params = useParams();
@@ -42,12 +43,13 @@ export default function GroupPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3">
-      <Link href="/groups" className="text-sm text-slate-500 hover:text-slate-700">
-        ← All groups
+      <Link href="/groups" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <Icon name="arrow-left" size={15} />
+        All groups
       </Link>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-bridge-100 text-lg">
-          {group?.kind === "all_tutors" ? "🧑‍🏫" : "👥"}
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-bridge-100 text-bridge-700" aria-hidden>
+          <Icon name={group?.kind === "all_tutors" ? "tutors" : "groups"} size={19} />
         </div>
         <h1 className="font-display text-xl tracking-wide text-slate-900">
           {loadingGroup ? "…" : group?.name ?? "Group"}

@@ -12,8 +12,8 @@ import { HOME_QUOTES } from "@/data/quotes";
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 
 const HOW_IT_WORKS: { icon: IconName; title: string; desc: string; tone: string }[] = [
-  { icon: "play", title: "Watch", desc: "A short lesson video from a maths teacher who explains it well.", tone: "bg-sky-50 text-sky-700" },
-  { icon: "spark", title: "Practice", desc: "Get five problems right, set in things you're into.", tone: "bg-violet-50 text-violet-700" },
+  { icon: "play", title: "Watch", desc: "A short lesson video from a math teacher who explains it well.", tone: "bg-sky-50 text-sky-700" },
+  { icon: "pen", title: "Practice", desc: "Get five problems right, set in things you're into.", tone: "bg-violet-50 text-violet-700" },
   { icon: "check", title: "Complete", desc: "The skill turns green and opens the next one on your path.", tone: "bg-emerald-50 text-emerald-700" },
   { icon: "review", title: "Review", desc: "Finished skills come back later, so they stay sharp.", tone: "bg-amber-50 text-amber-700" },
 ];

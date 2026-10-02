@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { TOAST_EVENT, type ToastPayload } from "@/lib/notify";
+import { withoutEmoji } from "@/components/RewardMark";
 
 const AUTO_DISMISS_MS = 4500;
 /**
@@ -54,17 +55,18 @@ export function ToastHost() {
           key={toast.id}
           className="animate-toast-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-lg sm:w-96"
         >
-          {toast.icon ? (
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${TONE[toast.tone ?? "info"]}`}>
-              <Icon name={toast.icon} size={18} />
-            </span>
-          ) : (
-            <span className="text-2xl">{toast.emoji}</span>
-          )}
+          {/* Always a line icon: an emoji in a toast's payload is left out,
+              since it draws differently on every device. */}
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${TONE[toast.tone ?? "info"]}`}>
+            <Icon
+              name={toast.icon ?? (toast.tone === "reward" ? "trophy" : toast.tone === "success" ? "check" : "hint")}
+              size={18}
+            />
+          </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">{toast.title}</p>
+            <p className="text-sm font-semibold text-slate-900">{withoutEmoji(toast.title)}</p>
             {toast.description && (
-              <p className="mt-0.5 text-sm text-slate-500">{toast.description}</p>
+              <p className="mt-0.5 text-sm text-slate-500">{withoutEmoji(toast.description)}</p>
             )}
           </div>
           <button

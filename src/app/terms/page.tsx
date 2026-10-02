@@ -56,7 +56,7 @@ export default function TermsPage() {
       <div className="mt-8 flex gap-3 text-sm">
         <Link href="/privacy" className="btn-secondary">Privacy Policy</Link>
         <Link href="/safety" className="btn-secondary">Safety &amp; Trust</Link>
-        <Link href="/" className="btn-secondary">Back to Course</Link>
+        <Link href="/" className="btn-secondary">Back to the course</Link>
       </div>
     </article>
   );

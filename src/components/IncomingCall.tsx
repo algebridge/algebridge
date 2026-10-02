@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getPublicProfile, sendCallDecline, subscribeToRing, type RingPayload } from "@/lib/social";
 import { showToast } from "@/lib/notify";
+import { Icon } from "@/components/Icon";
 
 /**
  * App-wide listener that "rings" the current user when someone calls them.
@@ -79,7 +80,7 @@ export function IncomingCall() {
         });
       },
       (byName) => {
-        showToast({ emoji: "📵", title: `${byName} declined the call.` });
+        showToast({ icon: "phone", tone: "info", title: `${byName} declined the call.` });
       }
     );
     return () => {
@@ -108,8 +109,8 @@ export function IncomingCall() {
   return (
     <div className="fixed inset-x-0 top-4 z-[60] flex justify-center px-4">
       <div className="animate-pop-in flex w-full max-w-sm items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-        <div className="flex h-11 w-11 shrink-0 animate-pulse items-center justify-center rounded-full bg-bridge-100 text-xl">
-          📞
+        <div className="flex h-11 w-11 shrink-0 animate-pulse items-center justify-center rounded-full bg-bridge-100 text-bridge-700" aria-hidden>
+          <Icon name="phone" size={20} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-slate-900">{incoming.callerName}</p>

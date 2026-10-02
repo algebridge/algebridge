@@ -232,6 +232,26 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [expiredFor, setExpiredFor] = useState<string | null>(null);
   /** Bumped when a pause after an empty reply ends, to look again. */
   const [quietTick, setQuietTick] = useState(0);
+
+  // A wrong answer gets a small physical cue on the answer box: a short
+  // shake, skipped for anyone who asked for less motion.
+  useEffect(() => {
+    if (feedback !== "wrong") return;
+    const el = answerRef.current;
+    if (!el || typeof el.animate !== "function") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    el.animate(
+      [
+        { transform: "translateX(0)" },
+        { transform: "translateX(-6px)" },
+        { transform: "translateX(6px)" },
+        { transform: "translateX(-4px)" },
+        { transform: "translateX(3px)" },
+        { transform: "translateX(0)" },
+      ],
+      { duration: 360, easing: "ease-out" }
+    );
+  }, [feedback, feedbackSeed]);
   /**
    * What each problem showed the first time it was on screen. A story that
    * lands while a student is reading the original never swaps the text out
@@ -577,7 +597,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         playLevelUp();
         const info = getLevelInfo(result.progress.xp);
         showToast({
-          icon: "spark",
+          icon: "star",
           tone: "info",
           title: `Level ${result.newLevelNumber}: ${info.title}`,
           description: "Your XP reached a new level.",
@@ -762,7 +782,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   href={next.href}
                   className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03]"
                 >
-                  Next: {next.title} →
+                  Next: {next.title}
+                  <Icon name="arrow-right" size={15} className="ml-1.5 inline-block align-[-2px]" />
                 </Link>
               ) : (
                 <Link href="/" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm">
@@ -784,9 +805,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-panel">
         {practiceOnly ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2">
               <Icon name="eye" size={16} className="text-slate-400" />
               Practice mode
@@ -797,18 +818,20 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </span>
           </div>
         ) : ps.isComplete ? (
-          <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="text-sm font-medium text-emerald-800">
             <span className="inline-flex items-center gap-2">
-              <Icon name="check" size={16} />
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <Icon name="check" size={13} />
+              </span>
               Skill complete. You got {ps.required} right.
             </span>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <div className="flex min-w-0 items-center gap-3 text-sm text-slate-600">
             {/* Progress, drawn. A student should see how close they are
                 without reading a sentence. A miss never empties a pip. */}
             <SolvedPips done={ps.solved} total={ps.required} />
-            <span>
+            <span className="min-w-0">
               {ps.solved === 0 ? (
                 <>
                   Get <strong>{ps.required} right</strong> to finish this skill. First tries count.
@@ -824,7 +847,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </span>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {combo >= 2 && (
             // Hotter the longer the run: amber at two, a flame-orange fill from three.
             <span
@@ -883,7 +906,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           places; a plain problem keeps the page's neutral card. */}
       <div
         style={hueVars(scene?.topic ? topicHue(scene.topic) : HUES.blue)}
-        className={`relative overflow-hidden rounded-2xl border bg-white p-6 shadow-sm ${scene?.topic ? "hue-line" : "border-slate-200"}`}
+        className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-panel sm:p-6 ${scene?.topic ? "hue-line" : "border-slate-200"}`}
       >
         {scene?.topic && <span aria-hidden className="hue-bar absolute inset-x-0 top-0 h-1.5" />}
         {xpPopup && (
@@ -894,8 +917,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             +{xpPopup.amount} XP
           </span>
         )}
-        <div className="flex items-start justify-between gap-3">
-          <p className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
             Problem {(problemIndex % allProblems.length) + 1}
             {scene?.topic && <span className="hue-wash rounded-full px-2 py-0.5 font-semibold normal-case tracking-normal">{scene.topic}</span>}
           </p>
@@ -929,7 +952,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </p>
           </div>
         ) : (
-          <PromptText text={displayPrompt} />
+          <PromptText text={displayPrompt} className="mt-3 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
         )}
 
         {/* Numeric input */}
@@ -952,7 +975,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               }
               aria-label="Your answer"
               disabled={over}
-              className="h-12 min-w-0 flex-1 rounded-xl border border-slate-300 px-4 text-lg focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200 disabled:bg-slate-50"
+              className={`h-12 w-0 min-w-0 flex-1 rounded-xl border px-4 text-lg transition-colors focus:outline-none focus:ring-2 ${
+                feedback === "correct"
+                  ? "border-emerald-400 bg-emerald-50 font-semibold text-emerald-900 ring-2 ring-emerald-100"
+                  : over
+                    ? "border-slate-200 bg-slate-50 text-slate-500"
+                    : feedback === "wrong"
+                      ? "border-amber-400 ring-2 ring-amber-100 focus:border-amber-500 focus:ring-amber-200"
+                      : "border-slate-300 focus:border-bridge-500 focus:ring-bridge-200"
+              }`}
             />
             <SignKeys value={userAnswer} onChange={setUserAnswer} inputRef={answerRef} disabled={over} />
           </div>
@@ -1068,7 +1099,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" up`}
                 >
-                  ↑
+                  <Icon name="chevron-up" size={18} />
                 </button>
                 <button
                   type="button"
@@ -1077,7 +1108,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" down`}
                 >
-                  ↓
+                  <Icon name="chevron-down" size={18} />
                 </button>
               </div>
             ))}
@@ -1087,15 +1118,17 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         {/* Feedback */}
         {feedback && !revealed && (
           <div className="mt-4">
-            <AnswerFeedback state={feedback} seed={feedbackSeed} />
+            {feedback === "wrong" && mistake?.note ? (
+              <div className="animate-pop-in overflow-hidden rounded-xl border border-amber-200 bg-amber-50">
+                <AnswerFeedback state="wrong" seed={feedbackSeed} flush />
+                <MistakeNote diagnosis={mistake} flush />
+              </div>
+            ) : (
+              <AnswerFeedback state={feedback} seed={feedbackSeed} />
+            )}
             {feedback === "correct" && showExplanation && (
               <div className="mt-2 px-1 text-sm text-slate-600">
                 <WorkedSteps text={problem.explanation} />
-              </div>
-            )}
-            {feedback === "wrong" && mistake?.note && (
-              <div className="mt-2">
-                <MistakeNote diagnosis={mistake} />
               </div>
             )}
             {feedback === "wrong" && attempts === 1 && !ps.isComplete && !practiceOnly && (
@@ -1168,9 +1201,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         {showNudge && !over && (
           <div className="mt-4 rounded-xl border border-bridge-100 bg-bridge-50 px-4 py-3 sm:flex sm:items-center sm:gap-3">
             <div className="min-w-0 sm:flex-1">
-              <p className="text-sm font-semibold text-bridge-900">Stuck? Talk it through with the AI helper.</p>
+              <p className="text-sm font-semibold text-bridge-900">Stuck? Talk it through with Archie.</p>
               <p className="mt-0.5 text-xs text-bridge-800">
-                It can see this problem and coaches you one step at a time.
+                Archie, your AI study buddy, can see this problem and coaches you one step at a time.
               </p>
             </div>
             <div className="mt-3 flex shrink-0 gap-2 sm:mt-0">
@@ -1183,7 +1216,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 onKeyDown={ignoreSpaceKey}
                 className="btn-primary btn-sm"
               >
-                Ask the AI helper
+                Ask Archie
               </button>
               <button
                 type="button"
@@ -1216,7 +1249,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               onKeyDown={ignoreSpaceKey}
               className="btn-primary"
             >
-              Next Problem →
+              Next Problem
+              <Icon name="arrow-right" size={16} />
             </button>
           )}
 
@@ -1266,12 +1300,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 /** Problems banked so far: filled for each one right, hollow for what is still owed. */
 function SolvedPips({ done, total }: { done: number; total: number }) {
   return (
-    <span className="flex items-center gap-1" aria-label={`${done} of ${total} right`}>
+    <span className="flex shrink-0 items-center gap-1" aria-label={`${done} of ${total} right`}>
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
           aria-hidden
-          className={`h-2.5 w-2.5 rounded-full transition ${
+          className={`h-3 w-3 rounded-full transition ${
             i < done ? "bg-emerald-500" : "bg-slate-300"
           }`}
         />

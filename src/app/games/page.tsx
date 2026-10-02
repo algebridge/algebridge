@@ -117,7 +117,13 @@ export default function GamesPage() {
 
       <div
         ref={stage}
-        className={`relative aspect-[3/2] w-full touch-none select-none overflow-hidden rounded-2xl shadow-raised ring-1 ring-slate-900/5 ${placing ? "cursor-crosshair" : ""}`}
+        className={`relative aspect-[3/2] w-full touch-none select-none overflow-hidden rounded-2xl shadow-raised ring-1 ring-slate-900/5 ${placing ? "cursor-crosshair" : ""} ${
+          // Before play, keep the scene's high z-index controls (Play,
+          // Decorate) inside it, so they never paint over the sticky header.
+          // During play the question dialog is a fixed overlay inside the
+          // stage and must stay above everything, so the stage stays open.
+          playing ? "" : "isolate"
+        }`}
       >
         {picked === "rink" ? (
           <>
@@ -190,15 +196,15 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
       type="button"
       onClick={onPick}
       aria-pressed={active}
-      className={`flex min-w-0 flex-col items-center rounded-xl border px-1 pb-2 pt-2 text-center transition ${
-        active ? "border-transparent bg-white shadow-md" : "border-slate-200 bg-white hover:bg-slate-50"
+      className={`flex min-w-0 flex-col items-center rounded-xl border px-1 pb-2 pt-2 text-center transition duration-150 ease-out active:scale-[0.98] ${
+        active ? "border-transparent bg-white shadow-md" : "border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-raised"
       }`}
       style={active ? { boxShadow: `0 0 0 2px ${card.accent}, 0 6px 16px -6px rgba(15,23,42,0.25)` } : undefined}
       title={best > 0 ? `${card.title}. Best run ${best}.` : card.title}
     >
       <span
-        className="flex h-16 w-full items-end justify-center overflow-hidden rounded-lg sm:h-24"
-        style={{ background: `linear-gradient(to bottom, ${card.accent}22, ${card.accent}55)` }}
+        className="figures-still flex h-16 w-full items-end justify-center overflow-hidden rounded-lg sm:h-24"
+        style={{ background: `${card.accent}2e` }}
       >
         <span className="block translate-y-1" style={{ width: `${(card.height / 182) * 58}%`, maxWidth: "3.5rem" }}>
           {card.id === "rink" ? <Veronica pose="idle" className="w-full" /> : <Player game={card.id} pose="idle" className="w-full" />}
@@ -206,6 +212,11 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
       </span>
       <span className="mt-1.5 w-full truncate text-xs font-semibold text-slate-900 sm:text-sm">{card.player}</span>
       <span className="w-full truncate text-[10px] text-slate-500 sm:text-xs">{card.sport}</span>
+      <span
+        aria-hidden
+        className={`mt-1 h-1 w-6 rounded-full transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
+        style={{ background: card.accent }}
+      />
     </button>
   );
 }
@@ -215,7 +226,7 @@ function StageChrome({ title, children }: { title: string; children: React.React
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pt-2.5 sm:pt-4" style={{ zIndex: 360 }}>
-        <p className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-slate-900 shadow-sm backdrop-blur-sm sm:text-base">{title}</p>
+        <p className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-slate-900 shadow-sm sm:text-base">{title}</p>
       </div>
       <div className="absolute inset-x-0 top-[38%] flex justify-center gap-2 sm:top-[42%]" style={{ zIndex: 360 }}>
         {children}

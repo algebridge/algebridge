@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
+import { Icon } from "@/components/Icon";
+import { withoutEmoji } from "@/components/RewardMark";
 import { useAuth } from "@/lib/auth";
 import { setLeaderboardOptIn } from "@/lib/bridgeys";
 import { fetchMyStanding, fetchNationwideLeaderboard, type LeaderboardSort } from "@/lib/leaderboard";
@@ -88,19 +90,54 @@ export default function LeaderboardPage() {
     <div className="space-y-6">
       <header>
         <h1 className="page-title">Leaderboard</h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="page-subtitle">
           The top five students across AlgeBridge, kept current as everyone learns. Names show as a first name and
           an initial.
         </p>
       </header>
 
+      {/* A visitor: the board's rows are only readable to signed-in
+          accounts, so this is a locked door, said once, not an error. The
+          outline of the podium shows what is behind it, with no names or
+          numbers in it. */}
       {!user && (
-        <div className="rounded-xl border border-bridge-200 bg-bridge-50 p-4 text-sm text-bridge-800">
-          <Link href="/login" className="font-semibold underline">
-            Sign in
-          </Link>{" "}
-          to see the board and take your place on it with your Bridgeys, lessons and house.
-        </div>
+        <section aria-labelledby="board-locked" className="space-y-4">
+          <div aria-hidden className="grid grid-cols-5 gap-2 sm:gap-3">
+            {[1, 2, 3, 4, 5].map((rank) => (
+              <div
+                key={rank}
+                className="flex h-24 flex-col rounded-2xl border border-slate-200 bg-white p-2.5 sm:h-40 sm:p-4"
+              >
+                <span className="scale-75 self-start sm:scale-100">
+                  <RankBadge rank={rank} />
+                </span>
+                <span className="mt-2 h-2.5 w-3/4 rounded bg-slate-100 sm:mt-4 sm:h-3" />
+                <span className="mt-2 hidden h-3 w-1/2 rounded bg-slate-100 sm:block" />
+                <span className="mt-auto h-4 w-1/2 rounded bg-slate-100 sm:h-6" />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600">
+              <Icon name="leaderboard" size={24} />
+            </span>
+            <h2 id="board-locked" className="mt-3 text-base font-semibold text-slate-900">
+              The board is for signed-in students
+            </h2>
+            <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-600">
+              Sign in to see who is on top and where you stand. Your Bridgeys, lessons and house put you on it, shown as
+              your first name and an initial.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link href="/login?mode=signin" className="btn-primary">
+                Sign in
+              </Link>
+              <Link href="/login" className="btn-secondary">
+                Create free account
+              </Link>
+            </div>
+          </div>
+        </section>
       )}
 
       {user && !configured && (
@@ -109,6 +146,8 @@ export default function LeaderboardPage() {
         </div>
       )}
 
+      {user && (
+      <>
       <div role="tablist" aria-label="Rank by" className="inline-flex w-full gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto">
         {SORT_OPTIONS.map((option) => {
           const active = sort === option.id;
@@ -119,7 +158,7 @@ export default function LeaderboardPage() {
               role="tab"
               aria-selected={active}
               onClick={() => setSort(option.id)}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition sm:flex-none ${
+              className={`flex-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-semibold transition sm:flex-none sm:px-4 sm:text-sm ${
                 active ? "bg-white text-bridge-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -136,17 +175,13 @@ export default function LeaderboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">
           <p>{error}</p>
         </div>
       ) : top.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-600">
-          {/* The rows are only readable to signed-in accounts, so a visitor
-              sees nothing here; that is a locked door, not an empty room. */}
-          <p className="font-semibold text-slate-800">{user ? "The board is empty so far." : "The board is for signed-in students."}</p>
-          <p className="mt-1 text-sm">
-            {user ? "Finish a skill and earn Bridgeys to take the first place." : "Sign in to see who is on top and where you stand."}
-          </p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
+          <p className="font-semibold text-slate-800">The board is empty so far.</p>
+          <p className="mt-1 text-sm">Finish a skill and earn Bridgeys to take the first place.</p>
         </div>
       ) : (
         <>
@@ -170,7 +205,7 @@ export default function LeaderboardPage() {
                       {entry.displayName}
                       {isMe && <span className="ml-1.5 text-xs font-medium text-bridge-600">you</span>}
                     </p>
-                    <p className="truncate text-xs text-slate-500">{entry.equippedTitle ?? "Student"}</p>
+                    <p className="truncate text-xs text-slate-500">{entry.equippedTitle ? withoutEmoji(entry.equippedTitle) : "Student"}</p>
                     <p className="mt-3 flex items-baseline gap-1.5">
                       <span className="font-display text-3xl leading-none tracking-tight text-slate-900 tabular-nums">
                         {valueFor(entry, sort).toLocaleString()}
@@ -220,7 +255,7 @@ export default function LeaderboardPage() {
                           {entry.displayName}
                           {isMe && <span className="ml-2 text-xs text-bridge-600">you</span>}
                         </td>
-                        <td className="px-4 py-2.5 hidden text-slate-600 sm:table-cell">{entry.equippedTitle ?? "-"}</td>
+                        <td className="px-4 py-2.5 hidden text-slate-600 sm:table-cell">{entry.equippedTitle ? withoutEmoji(entry.equippedTitle) : "-"}</td>
                         <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{valueFor(entry, sort).toLocaleString()}</td>
                       </tr>
                     );
@@ -230,6 +265,9 @@ export default function LeaderboardPage() {
             </section>
           )}
         </>
+      )}
+
+      </>
       )}
 
       {/* ── Where you stand ─────────────────────────────────────── */}

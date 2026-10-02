@@ -28,7 +28,7 @@ export function CourseHeader() {
   // dashboard. Signed-in students swap to their own numbers once auth resolves.
   if (!user) {
     return (
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-bridge-800 via-bridge-900 to-violet-950 text-white">
+      <section className="relative overflow-hidden rounded-2xl bg-bridge-900 text-white">
         <DotPattern
           width={20}
           height={20}
@@ -44,24 +44,24 @@ export function CourseHeader() {
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-bridge-300">
             Algebra 1 · Grades 7-10
           </p>
-          <h1 className="mt-2.5 max-w-2xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-            The full Algebra 1 course, one skill at a time.
+          <h1 className="mt-2.5 max-w-2xl text-balance font-display text-[36px] font-normal leading-[1.04] tracking-[0.01em] sm:text-[48px]">
+            The full Algebra&nbsp;1 course, one skill at a time.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-bridge-100">
             Watch a short lesson, see the idea drawn out, then practice until it
             sticks. Teachers run their classes here; students get a real tutor when
             they&apos;re stuck. Free, with no ads.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
               href="/login"
-              className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-bridge-900 transition hover:bg-bridge-50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-bridge-900 shadow-sm transition hover:-translate-y-px hover:bg-bridge-50 sm:w-auto"
             >
               Create free account
             </Link>
             <Link
               href="/login?mode=signin"
-              className="rounded-lg border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-white/30 px-5 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-white/10 sm:w-auto"
             >
               I already have an account
             </Link>
@@ -85,12 +85,12 @@ export function CourseHeader() {
   return (
     <section style={hueVars(hue)} className="hue-banner relative overflow-hidden rounded-2xl">
       {continueTarget && (
-        <UnitMark unitId={continueTarget.unitId} size={220} className="pointer-events-none absolute -right-6 -top-12 opacity-[0.14]" />
+        <UnitMark unitId={continueTarget.unitId} size={168} className="pointer-events-none absolute -right-4 -top-6 hidden opacity-[0.12] sm:block" />
       )}
       <div className="relative flex flex-wrap items-start justify-between gap-4 px-6 py-6 sm:px-8">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-80">Algebra 1 · Grades 7-10</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-[28px]">
+          <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">
             {mounted && continueTarget ? `Unit ${continueTarget.unitNumber}: ${continueTarget.unitTitle}` : "Your course"}
           </h1>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed opacity-90">
@@ -123,7 +123,7 @@ export function CourseHeader() {
           {continueTarget && (
             <Link
               href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-              className="shrink-0 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03] hover:bg-slate-50"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px hover:bg-slate-50"
             >
               Continue learning
             </Link>
@@ -158,7 +158,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-bridge-300">{label}</dt>
-      <dd className="mt-0.5 text-2xl font-bold">{value}</dd>
+      <dd className="mt-0.5 font-display text-3xl font-normal tracking-[0.01em]">{value}</dd>
     </div>
   );
 }

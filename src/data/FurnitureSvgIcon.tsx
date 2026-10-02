@@ -86,6 +86,6 @@ export function FurnitureSvgIcon({ id }: { id: string }) {
     case "time-machine":
       return (<><ellipse cx="50" cy="52" rx="36" ry="28" fill="#64748b" stroke={s} strokeWidth={w} /><ellipse cx="50" cy="52" rx="24" ry="18" fill="#94a3b8" stroke={s} strokeWidth={2} /><circle cx="50" cy="52" r="10" fill="#38bdf8" stroke={s} strokeWidth={2} /><rect x="46" y="18" width="8" height="16" fill="#475569" stroke={s} strokeWidth={2} /><circle cx="50" cy="14" r="6" fill="#fde047" stroke={s} strokeWidth={2} /></>);
     default:
-      return (<><rect x="20" y="20" width="60" height="60" rx="10" fill="#e2e8f0" stroke={s} strokeWidth={w} /><text x="50" y="58" textAnchor="middle" fontSize="22">📦</text></>);
+      return (<><rect x="20" y="20" width="60" height="60" rx="10" fill="#e2e8f0" stroke={s} strokeWidth={w} /><path d="M34 42 50 34l16 8v18l-16 8-16-8Z M34 42l16 8 16-8 M50 50v18" fill="none" stroke={s} strokeWidth={2} strokeLinejoin="round" /></>);
   }
 }

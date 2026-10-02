@@ -77,7 +77,7 @@ export default function WorkspacePage() {
       <div className="mx-auto max-w-md space-y-4 text-center">
         <h1 className="page-title">Workspace</h1>
         <p className="text-slate-600">The workspace is for tutors and administrators.</p>
-        <Link href="/" className="btn-primary inline-block">Back to Course</Link>
+        <Link href="/" className="btn-primary inline-block">Back to the course</Link>
       </div>
     );
   }

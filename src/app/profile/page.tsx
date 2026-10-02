@@ -8,6 +8,7 @@ import { updateMyProfile, uploadAvatar } from "@/lib/social";
 import { InterestsPicker } from "@/components/InterestsPicker";
 import { getInterests } from "@/lib/progress";
 import type { InterestProfile } from "@/lib/interests";
+import { Icon } from "@/components/Icon";
 
 export default function ProfilePage() {
   const { user, profile, loading, configured, refreshProfile } = useAuth();
@@ -173,13 +174,22 @@ export default function ProfilePage() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Link href="/messages" className="btn-secondary">💬 Messages</Link>
+        <Link href="/messages" className="btn-secondary">
+          <Icon name="messages" size={16} />
+          Messages
+        </Link>
         {isTutor ? (
-          <Link href="/tutor-hub" className="btn-secondary">👩‍🏫 Tutor Hub</Link>
+          <Link href="/tutor-hub" className="btn-secondary">
+            <Icon name="students" size={16} />
+            Tutor Hub
+          </Link>
         ) : (
-          <Link href="/tutors" className="btn-secondary">🔎 Find a Tutor</Link>
+          <Link href="/tutors" className="btn-secondary">
+            <Icon name="search" size={16} />
+            Find a tutor
+          </Link>
         )}
-        <Link href="/" className="btn-secondary">Back to Course</Link>
+        <Link href="/" className="btn-secondary">Back to the course</Link>
       </div>
     </div>
   );

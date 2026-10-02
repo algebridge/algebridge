@@ -84,7 +84,7 @@ export function SkillListItem({ skill, unitId, index }: SkillListItemProps) {
           {skill.description}
         </p>
       </div>
-      <span className="text-slate-300 group-hover:text-bridge-500">→</span>
+      <Icon name="arrow-right" size={16} className="shrink-0 text-slate-300 group-hover:text-bridge-500" />
     </Link>
   );
 }

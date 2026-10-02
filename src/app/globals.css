@@ -1093,3 +1093,29 @@ html.lenis body {
   .helper-dot,
   .helper-in { animation: none !important; }
 }
+
+/* ── Performance (Oct 2026) ──────────────────────────────────
+   Animating SVG pieces costs a style recalc and a layout every frame, which
+   is what made idle pages busy (measured: 60 layouts a second on home and
+   /games). Figures shown as pictures (the home banner, the games picker)
+   hold still until hovered, and slow background effects step a few times a
+   second instead of 60: nobody can see the difference in a twinkle or a
+   drifting cloud, and the CPU can. */
+.figures-still *,
+.figures-still *::before,
+.figures-still *::after {
+  animation-play-state: paused !important;
+}
+.figures-still:hover *,
+button:hover > .figures-still *,
+a:hover .figures-still * {
+  animation-play-state: running !important;
+}
+.sc-twinkle { animation-timing-function: steps(4, jump-none); }
+.sc-bob { animation-timing-function: steps(5, jump-none); }
+.sc-sway { animation-timing-function: steps(8, jump-none); }
+.sc-sweep { animation-timing-function: steps(18, jump-none); }
+.sc-drift { animation-timing-function: steps(46, jump-none); }
+.sc-smoke { animation-timing-function: steps(12, jump-none); }
+.sc-flame { animation-timing-function: steps(3, jump-none); }
+.dh-cloud { animation-timing-function: steps(240, jump-none); will-change: auto; }

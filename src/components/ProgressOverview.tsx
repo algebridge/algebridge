@@ -26,8 +26,9 @@ export function ProgressOverview() {
     <section id="progress" className="panel">
       <div className="panel-head">
         <p className="panel-title">Your progress</p>
-        <Link href="/achievements" className="text-xs font-medium text-bridge-700 hover:underline">
-          All achievements →
+        <Link href="/achievements" className="inline-flex items-center gap-1 text-xs font-medium text-bridge-700 hover:underline">
+          All achievements
+          <Icon name="arrow-right" size={13} />
         </Link>
       </div>
       <div className="p-5">

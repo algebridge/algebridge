@@ -49,7 +49,7 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-bold text-slate-900">Your choices</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>You can use AlgeBridge without an account (progress stays in your browser).</li>
-            <li>You can <strong>delete your account and all associated data</strong> at any time from your profile.</li>
+            <li>You can <strong>delete your account and all associated data</strong> at any time from your account settings.</li>
             <li>You can edit or remove your profile photo and bio whenever you like.</li>
           </ul>
         </section>
@@ -94,7 +94,7 @@ export default function PrivacyPage() {
       <div className="mt-8 flex gap-3 text-sm">
         <Link href="/terms" className="btn-secondary">Terms of Service</Link>
         <Link href="/safety" className="btn-secondary">Safety &amp; Trust</Link>
-        <Link href="/" className="btn-secondary">Back to Course</Link>
+        <Link href="/" className="btn-secondary">Back to the course</Link>
       </div>
     </article>
   );

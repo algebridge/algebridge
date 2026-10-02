@@ -34,14 +34,15 @@ export function UnitCard({ unit }: UnitCardProps) {
     <Link
       href={`/unit/${unit.id}`}
       style={hueVars(hue)}
-      className={`card-link group relative block overflow-hidden ${locked ? "opacity-80 saturate-50 hover:opacity-100 hover:saturate-100" : ""}`}
+      className="card-link group relative block overflow-hidden"
     >
-      {/* The unit's color, as a band down the side; a locked unit keeps it, muted. */}
-      <span aria-hidden className="hue-bar absolute inset-y-0 left-0 w-1.5" />
+      {/* The unit's color, as a band down the side; a locked unit keeps it,
+          muted. The card itself stays solid white either way. */}
+      <span aria-hidden className={`hue-bar absolute inset-y-0 left-0 w-1.5 ${locked ? "opacity-40" : ""}`} />
       <div className="flex items-start gap-4 pl-2">
         <span
-          className={`hue-wash flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-110 ${
-            locked ? "text-slate-400" : ""
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105 ${
+            locked ? "bg-slate-100 text-slate-500" : "hue-wash"
           }`}
         >
           {locked ? <Icon name="lock" size={18} /> : <UnitMark unitId={unit.id} size={24} />}
@@ -50,14 +51,14 @@ export function UnitCard({ unit }: UnitCardProps) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="hue-ink text-[11px] font-semibold uppercase tracking-[0.08em]">Unit {unit.number}</p>
-              <h3 className={`mt-0.5 text-base font-semibold group-hover:text-slate-950 ${locked ? "text-slate-600" : "text-slate-900"}`}>
+              <h3 className={`mt-0.5 text-base font-semibold group-hover:text-slate-950 ${locked ? "text-slate-700" : "text-slate-900"}`}>
                 {unit.title}
               </h3>
             </div>
             {isComplete && <span className="badge-success shrink-0">Complete</span>}
             {locked && <span className="badge-neutral shrink-0">Locked</span>}
           </div>
-          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-600">{unit.description}</p>
+          <p className={`mt-1 line-clamp-2 text-sm leading-relaxed ${locked ? "text-slate-500" : "text-slate-600"}`}>{unit.description}</p>
         </div>
       </div>
       <div className="mt-4 flex items-center gap-3 pl-2">

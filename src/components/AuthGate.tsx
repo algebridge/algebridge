@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { RealNameForm } from "@/components/RealNameForm";
+import { Icon } from "@/components/Icon";
 
 interface AuthGateProps {
   children: React.ReactNode;
@@ -70,8 +71,8 @@ export function AuthGate({
           <ul className="space-y-1.5 text-sm text-slate-600">
             {bullets.map((line) => (
               <li key={line} className="flex gap-2">
-                <span aria-hidden className="text-bridge-600">
-                  ✓
+                <span aria-hidden className="mt-0.5 shrink-0 text-bridge-600">
+                  <Icon name="check" size={15} />
                 </span>
                 {line}
               </li>

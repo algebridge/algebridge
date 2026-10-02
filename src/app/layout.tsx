@@ -80,8 +80,9 @@ export default function RootLayout({
                 {children}
               </main>
               <footer className="border-t border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 sm:px-6">
-                <p>Free forever. Videos, practice, and real tutors. Algebra 1, grades 7-10.</p>
+                <p>Free forever. Videos, practice, and real tutors. Algebra&nbsp;1, grades 7-10.</p>
                 <nav className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
+                  <Link href="/schools" className="font-medium text-slate-600 hover:text-bridge-600">For schools</Link>
                   <Link href="/privacy" className="hover:text-bridge-600">Privacy Policy</Link>
                   <Link href="/terms" className="hover:text-bridge-600">Terms of Service</Link>
                   <Link href="/safety" className="hover:text-bridge-600">Safety &amp; Trust</Link>

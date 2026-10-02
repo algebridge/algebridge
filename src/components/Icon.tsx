@@ -1,7 +1,8 @@
 /**
  * Small stroke-icon set for navigation and page headers.
  * Line icons (rather than emoji) are what make the app read as a platform
- * instead of a toy, emoji stay in the rewards/house features on purpose.
+ * instead of a toy. The whole app uses them, rewards and the house included:
+ * emoji draw differently on every device.
  */
 
 export type IconName =
@@ -44,7 +45,19 @@ export type IconName =
   | "spark"
   | "x-circle"
   | "pen"
-  | "eraser";
+  | "eraser"
+  | "arrow-right"
+  | "arrow-left"
+  | "school"
+  | "star"
+  | "mic"
+  | "mic-off"
+  | "video"
+  | "video-off"
+  | "phone"
+  | "flag"
+  | "shield"
+  | "search";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -228,6 +241,64 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M7 20h11" />
       <path d="M5.5 15.5 14 7a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12.5 18.5H9L5.5 15.5Z" />
       <path d="M10 11l5 5" />
+    </>
+  ),
+  "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
+  "arrow-left": <path d="M19 12H5M11 6l-6 6 6 6" />,
+  school: (
+    <>
+      <path d="M3.5 20h17" />
+      <path d="M5.5 20v-8.5L12 7l6.5 4.5V20" />
+      <path d="M12 7V3h4.5l-1.2 1.5L16.5 6H12" />
+      <path d="M10 20v-4.5h4V20" />
+    </>
+  ),
+  star: <path d="m12 3.8 2.5 5.1 5.6.8-4 4 .9 5.6L12 16.6l-5 2.7.9-5.6-4-4 5.6-.8Z" />,
+  mic: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+    </>
+  ),
+  "mic-off": (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+      <path d="m4 4 16 16" />
+    </>
+  ),
+  video: (
+    <>
+      <rect x="3" y="6.5" width="12.5" height="11" rx="2" />
+      <path d="m15.5 10.5 5-3v9l-5-3" />
+    </>
+  ),
+  "video-off": (
+    <>
+      <rect x="3" y="6.5" width="12.5" height="11" rx="2" />
+      <path d="m15.5 10.5 5-3v9l-5-3" />
+      <path d="m3 3 18 18" />
+    </>
+  ),
+  phone: (
+    <path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 5.3 5.3l1.4-2.2L19 14.5V18a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+  ),
+  flag: (
+    <>
+      <path d="M5.5 21V4" />
+      <path d="M5.5 4.5h11l-2 3.75 2 3.75h-11" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3.5 5 6v5.5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9V6Z" />
+      <path d="m9 12 2.2 2.2 4-4.2" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
     </>
   ),
   "x-circle": (

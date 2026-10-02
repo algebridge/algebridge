@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { listTutors } from "@/lib/social";
 import type { TutorDirectoryEntry } from "@/types";
+import { Icon } from "@/components/Icon";
 
 export default function TutorsPage() {
   const { user, loading } = useAuth();
@@ -30,7 +31,7 @@ export default function TutorsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="page-title">Find a Tutor</h1>
+        <h1 className="page-title">Find a tutor</h1>
         <p className="mt-1 text-sm text-slate-500">
           Stuck on something? Message any tutor for help, or jump on a video call.
         </p>
@@ -69,8 +70,9 @@ export default function TutorsPage() {
                   <p className="truncate font-semibold text-slate-900">
                     {t.displayName ?? "Tutor"}
                   </p>
-                  <span className="rounded-full bg-bridge-100 px-2 py-0.5 text-[10px] font-semibold text-bridge-700">
-                    👩‍🏫 Tutor
+                  <span className="inline-flex items-center gap-1 rounded-full bg-bridge-100 px-2 py-0.5 text-[10px] font-semibold text-bridge-700">
+                    <Icon name="tutors" size={12} />
+                    Tutor
                   </span>
                 </div>
               </div>
@@ -79,8 +81,9 @@ export default function TutorsPage() {
               </p>
               {user && (
                 <div className="mt-4">
-                  <Link href={`/messages/${t.id}`} className="btn-primary block w-full text-center text-sm">
-                    💬 Message
+                  <Link href={`/messages/${t.id}`} className="btn-primary w-full text-sm">
+                    <Icon name="messages" size={16} />
+                    Message
                   </Link>
                   <p className="mt-2 text-center text-xs text-slate-400">
                     Message to ask for help, your tutor can start a video call with you.

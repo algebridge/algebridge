@@ -7,6 +7,7 @@ import { UnitProgressHeader } from "@/components/UnitProgressHeader";
 import { QuoteCard } from "@/components/QuoteCard";
 import { quoteForUnit } from "@/data/quotes";
 import { hueVars, unitHue } from "@/lib/hues";
+import { Icon } from "@/components/Icon";
 
 export function generateStaticParams() {
   return units.map((unit) => ({ unitId: unit.id }));
@@ -47,14 +48,16 @@ export default async function UnitPage({
           <div className="flex justify-between border-t border-slate-200 pt-4">
             {unit.number > 1 ? (
               <Link href={`/unit/${units[unit.number - 2].id}`} className="btn-secondary text-sm">
-                ← Previous unit
+                <Icon name="arrow-left" size={16} />
+                Previous unit
               </Link>
             ) : (
               <span />
             )}
             {unit.number < units.length ? (
               <Link href={`/unit/${units[unit.number].id}`} className="btn-primary text-sm">
-                Next unit →
+                Next unit
+                <Icon name="arrow-right" size={16} />
               </Link>
             ) : (
               <span />

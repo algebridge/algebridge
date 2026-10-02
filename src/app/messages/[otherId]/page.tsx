@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { MessageThread } from "@/components/MessageThread";
 import { getPublicProfile, ringUser, type PublicProfile } from "@/lib/social";
 import { roomIdFor } from "@/lib/call-utils";
+import { Icon } from "@/components/Icon";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -58,8 +59,9 @@ export default function ConversationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3">
-      <Link href="/messages" className="text-sm text-slate-500 hover:text-slate-700">
-        ← All messages
+      <Link href="/messages" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <Icon name="arrow-left" size={15} />
+        All messages
       </Link>
       {loadingOther ? (
         <p className="text-center text-slate-400">Loading conversation…</p>
