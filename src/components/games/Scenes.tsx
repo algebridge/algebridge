@@ -25,24 +25,46 @@ const SHIRTS = ["#1d4ed8", "#facc15", "#ef4444", "#f8fafc", "#22c55e", "#7c3aed"
 const SKINS = ["#f1c7a5", "#b07a55", "#6f432a", "#8d5a3b", "#e0ac86", "#4b2d1c"];
 const HAIRS = ["#1c1210", "#4a2c17", "#c9a24a", "#2b1b12", "#6b4426", "#111111"];
 
+/** Rounds to hundredths, so a computed coordinate prints the same on the server and in the browser. */
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
 /**
- * A crowd in rows: heads with hair, shirts in team colours, a few arms up,
- * placed by a fixed pattern so the server and the browser agree.
+ * A crowd in rows: people with sloped shoulders, heads lit from the upper
+ * left with the far cheek in shade, hair cut four ways (short, long to the
+ * shoulders, a bun, cropped), shirts in team colors, a few arms up. Placed
+ * by a fixed pattern so the server and the browser agree.
  */
 function Crowd({ x0, x1, y0, rows, gap, size, colors = SHIRTS }: { x0: number; x1: number; y0: number; rows: number; gap: number; size: number; colors?: string[] }) {
   const out: React.ReactNode[] = [];
+  const s = size;
   for (let r = 0; r < rows; r += 1) {
     const y = y0 + r * gap;
     const row: React.ReactNode[] = [];
-    for (let x = x0 + (r % 2) * (size * 1.1); x < x1; x += size * 2.3) {
+    for (let x = x0 + (r % 2) * (s * 1.1); x < x1; x += s * 2.3) {
       const k = Math.round(x * 7 + r * 13);
       const up = k % 9 === 0;
+      const skin = SKINS[(k >> 2) % SKINS.length];
+      const hy = y - s * 0.45;
+      const X = (v: number) => r2(x + v * s);
+      const Y = (v: number) => r2(y + v * s);
+      const cut = (k >> 4) % 4;
+      const hair =
+        cut === 1
+          ? `M${X(-0.68)} ${Y(-0.4)} Q${X(-0.72)} ${Y(-1.2)} ${X(0)} ${Y(-1.15)} Q${X(0.72)} ${Y(-1.2)} ${X(0.68)} ${Y(-0.4)} L${X(0.72)} ${Y(0.45)} L${X(0.44)} ${Y(0.4)} Q${X(0.5)} ${Y(-0.78)} ${X(0)} ${Y(-0.84)} Q${X(-0.5)} ${Y(-0.78)} ${X(-0.44)} ${Y(0.4)} L${X(-0.72)} ${Y(0.45)}Z`
+          : cut === 2
+            ? `M${X(-0.64)} ${Y(-0.45)} Q${X(-0.66)} ${Y(-1.15)} ${X(0)} ${Y(-1.12)} Q${X(0.66)} ${Y(-1.15)} ${X(0.64)} ${Y(-0.45)} Q${X(0.45)} ${Y(-0.86)} ${X(0)} ${Y(-0.88)} Q${X(-0.45)} ${Y(-0.86)} ${X(-0.64)} ${Y(-0.45)}Z M${X(0.02)} ${Y(-1.5)} a${r2(s * 0.3)} ${r2(s * 0.3)} 0 1 0 0.01 0Z`
+            : cut === 3
+              ? `M${X(-0.6)} ${Y(-0.6)} Q${X(-0.6)} ${Y(-1.1)} ${X(0)} ${Y(-1.08)} Q${X(0.6)} ${Y(-1.1)} ${X(0.6)} ${Y(-0.6)} Q${X(0.3)} ${Y(-0.96)} ${X(0)} ${Y(-0.96)} Q${X(-0.3)} ${Y(-0.96)} ${X(-0.6)} ${Y(-0.6)}Z`
+              : `M${X(-0.64)} ${Y(-0.45)} Q${X(-0.66)} ${Y(-1.15)} ${X(0)} ${Y(-1.12)} Q${X(0.66)} ${Y(-1.15)} ${X(0.64)} ${Y(-0.45)} Q${X(0.45)} ${Y(-0.84)} ${X(0)} ${Y(-0.8)} Q${X(-0.45)} ${Y(-0.84)} ${X(-0.64)} ${Y(-0.45)}Z`;
       row.push(
         <g key={`${r}-${x}`}>
-          <rect x={x - size * 0.9} y={y} width={size * 1.8} height={size * 1.6} rx={size * 0.6} fill={colors[k % colors.length]} />
-          {up && <rect x={x + size * 0.7} y={y - size * 1.4} width={size * 0.5} height={size * 1.8} rx={size * 0.25} fill={SKINS[(k >> 2) % SKINS.length]} />}
-          <circle cx={x} cy={y - size * 0.35} r={size * 0.7} fill={SKINS[(k >> 2) % SKINS.length]} />
-          <path d={`M${x - size * 0.7} ${y - size * 0.5} Q${x} ${y - size * 1.35} ${x + size * 0.7} ${y - size * 0.5}`} fill={HAIRS[(k >> 3) % HAIRS.length]} />
+          {/* Shoulders, sloping from the neck. */}
+          <path d={`M${X(-1)} ${Y(1.6)} C${X(-1)} ${Y(0.6)} ${X(-0.78)} ${Y(0.18)} ${X(-0.3)} ${Y(0.1)} L${X(0.3)} ${Y(0.1)} C${X(0.78)} ${Y(0.18)} ${X(1)} ${Y(0.6)} ${X(1)} ${Y(1.6)}Z`} fill={colors[k % colors.length]} />
+          {up && <rect x={X(0.7)} y={Y(-1.5)} width={r2(s * 0.42)} height={r2(s * 1.8)} rx={r2(s * 0.21)} fill={skin} />}
+          <circle cx={x} cy={r2(hy)} r={r2(s * 0.62)} fill={skin} />
+          {/* The far cheek turned from the light. */}
+          <path d={`M${X(0.12)} ${Y(-1.06)} A${r2(s * 0.62)} ${r2(s * 0.62)} 0 0 1 ${X(0.12)} ${Y(0.16)} A${r2(s * 0.44)} ${r2(s * 0.62)} 0 0 0 ${X(0.12)} ${Y(-1.06)}Z`} fill="#000000" opacity="0.16" />
+          <path d={hair} fill={HAIRS[(k >> 3) % HAIRS.length]} />
         </g>
       );
     }
@@ -65,18 +87,39 @@ function Fit({ x, y, w, size, fill, children, weight = 800, spacing }: { x: numb
   );
 }
 
-/** A small person standing or sitting: a coach, an official, a substitute. */
+/**
+ * A small person standing or sitting: a coach, an official, a substitute.
+ * Drawn to a real person's proportions (the head about a seventh of the
+ * height), lit from the upper left with the far side in shade; `stripes`
+ * dresses a referee.
+ */
 function Person({ x, y, h, shirt, skin = "#b07a55", hair = "#1c1210", stripes = false }: { x: number; y: number; h: number; shirt: string; skin?: string; hair?: string; stripes?: boolean }) {
-  const head = h * 0.2;
+  const u = h / 100;
+  // Across from the middle, and up from the feet, in hundredths of the height.
+  const X = (v: number) => r2(x + v * u);
+  const Y = (v: number) => r2(y - v * u);
+  const hr = r2(7.4 * u);
   return (
     <g>
-      <rect x={x - h * 0.16} y={y - h * 0.62} width={h * 0.32} height={h * 0.4} rx={h * 0.06} fill={shirt} />
-      {stripes &&
-        [0, 1, 2].map((i) => <rect key={i} x={x - h * 0.16 + i * h * 0.11 + h * 0.03} y={y - h * 0.62} width={h * 0.05} height={h * 0.4} fill="#111827" />)}
-      <rect x={x - h * 0.14} y={y - h * 0.24} width={h * 0.12} height={h * 0.24} fill="#1f2937" />
-      <rect x={x + h * 0.02} y={y - h * 0.24} width={h * 0.12} height={h * 0.24} fill="#1f2937" />
-      <circle cx={x} cy={y - h * 0.74} r={head} fill={skin} />
-      <path d={`M${x - head} ${y - h * 0.76} Q${x} ${y - h * 1.0} ${x + head} ${y - h * 0.76}`} fill={hair} />
+      <ellipse cx={X(1)} cy={r2(y + 0.6 * u)} rx={r2(14 * u)} ry={r2(2.4 * u)} fill="#0f172a" opacity="0.16" />
+      {/* Trousers, then shoes. */}
+      <path d={`M${X(-10)} ${Y(50)} L${X(-0.6)} ${Y(50)} L${X(-1.4)} ${Y(4)} L${X(-8.6)} ${Y(4)}Z M${X(0.6)} ${Y(50)} L${X(10)} ${Y(50)} L${X(8.8)} ${Y(4)} L${X(1.6)} ${Y(4)}Z`} fill="#1f2937" />
+      <path d={`M${X(-9.4)} ${Y(5)} L${X(-1)} ${Y(5)} L${X(0.4)} ${Y(0)} L${X(-9.8)} ${Y(0)}Z M${X(1.2)} ${Y(5)} L${X(9.4)} ${Y(5)} L${X(11.4)} ${Y(0)} L${X(1)} ${Y(0)}Z`} fill="#0b0f17" />
+      {/* Arms at the sides: the forearms and hands below the sleeves. */}
+      <path d={`M${X(-16.6)} ${Y(66)} L${X(-12.4)} ${Y(66)} L${X(-12.6)} ${Y(42)} L${X(-16)} ${Y(42)}Z M${X(12.4)} ${Y(66)} L${X(16.6)} ${Y(66)} L${X(16)} ${Y(42)} L${X(12.6)} ${Y(42)}Z`} fill={skin} />
+      {/* The shirt: sloped shoulders, short sleeves, the hem at the hips. */}
+      <path
+        d={`M${X(-4.6)} ${Y(82)} C${X(-9)} ${Y(81)} ${X(-14)} ${Y(80)} ${X(-15.6)} ${Y(77)} L${X(-17.4)} ${Y(64)} L${X(-12)} ${Y(63)} L${X(-11.2)} ${Y(46)} L${X(11.2)} ${Y(46)} L${X(12)} ${Y(63)} L${X(17.4)} ${Y(64)} L${X(15.6)} ${Y(77)} C${X(14)} ${Y(80)} ${X(9)} ${Y(81)} ${X(4.6)} ${Y(82)}Z`}
+        fill={shirt}
+      />
+      {stripes && <path d={`M${X(-8)} ${Y(80.6)} L${X(-5)} ${Y(81.4)} L${X(-5)} ${Y(46)} L${X(-8)} ${Y(46)}Z M${X(-1.5)} ${Y(82)} L${X(1.5)} ${Y(82)} L${X(1.5)} ${Y(46)} L${X(-1.5)} ${Y(46)}Z M${X(5)} ${Y(81.4)} L${X(8)} ${Y(80.6)} L${X(8)} ${Y(46)} L${X(5)} ${Y(46)}Z`} fill="#111827" />}
+      {/* The far side of the body in shade. */}
+      <path d={`M${X(4.6)} ${Y(82)} C${X(9)} ${Y(81)} ${X(14)} ${Y(80)} ${X(15.6)} ${Y(77)} L${X(17.4)} ${Y(64)} L${X(12)} ${Y(63)} L${X(11.2)} ${Y(46)} L${X(10)} ${Y(4)} L${X(4)} ${Y(4)} L${X(4)} ${Y(50)} L${X(3)} ${Y(82)}Z`} fill="#000000" opacity="0.16" />
+      {/* Neck and head, the far cheek in shade, then the hair. */}
+      <path d={`M${X(-3)} ${Y(86)} L${X(3)} ${Y(86)} L${X(3.4)} ${Y(80.6)} L${X(-3.4)} ${Y(80.6)}Z`} fill={skin} />
+      <circle cx={x} cy={Y(91)} r={hr} fill={skin} />
+      <path d={`M${X(1.4)} ${Y(98.3)} A${hr} ${hr} 0 0 1 ${X(1.4)} ${Y(83.7)} A${r2(5 * u)} ${hr} 0 0 0 ${X(1.4)} ${Y(98.3)}Z`} fill="#000000" opacity="0.18" />
+      <path d={`M${X(-7.6)} ${Y(90)} Q${X(-8)} ${Y(99.4)} ${X(0)} ${Y(99.2)} Q${X(8)} ${Y(99.4)} ${X(7.6)} ${Y(90)} Q${X(5.6)} ${Y(95)} ${X(0)} ${Y(95.2)} Q${X(-5.6)} ${Y(95)} ${X(-7.6)} ${Y(90)}Z`} fill={hair} />
     </g>
   );
 }

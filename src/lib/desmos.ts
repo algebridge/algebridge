@@ -1,8 +1,7 @@
 import { EDGE, type Size } from "./floating-panel";
 
 /**
- * Desmos in the calculator panel, the calculator many students already use
- * in class.
+ * The calculator panel's two calculators, and Desmos for when there is a key.
  *
  * Desmos's Terms of Service (section 5) say its tools may not be framed or
  * mirrored without their consent, so there is no iframe anywhere: Desmos runs
@@ -12,16 +11,21 @@ import { EDGE, type Size } from "./floating-panel";
  *   localStorage override below), Desmos's own script draws the calculator
  *   straight into our panel. Work is saved with getState and comes back when
  *   the panel opens again.
- * - With no key, the panel is AlgeBridge's own keypad calculator
- *   (lib/calculator.ts), and "Open Desmos" opens desmos.com in a small window
- *   of its own. Linking is fine; framing is not.
+ * - With no key, the panel is AlgeBridge's own Scientific and Graphing
+ *   calculators (components/calc, maths in lib/calc-engine.ts and
+ *   lib/calc-graph.ts). They work the way students know from class, an
+ *   expression list over a keypad and graph paper beside it, and they carry
+ *   AlgeBridge's name only: nothing in them says or looks like it is Desmos.
  *
- * Nothing here touches the network until the calculator is first opened.
+ * The sizes, Expand and the saved size below are the panel's, whichever
+ * calculator is in it. Nothing here touches the network until the calculator
+ * is first opened, and without a key it never does.
  */
 
-export type DesmosMode = "scientific" | "graphing";
+export type CalculatorMode = "scientific" | "graphing";
+export type DesmosMode = CalculatorMode;
 
-/** Scientific first: it is what the panel opens on, and the one most problems need. */
+/** Scientific first: it is what the panel opens on, and the one most problems need. `title` names Desmos's own, in API mode only. */
 export const DESMOS_MODES: { id: DesmosMode; label: string; title: string }[] = [
   { id: "scientific", label: "Scientific", title: "Desmos scientific calculator" },
   { id: "graphing", label: "Graphing", title: "Desmos graphing calculator" },
@@ -31,7 +35,7 @@ export const DESMOS_MODES: { id: DesmosMode; label: string; title: string }[] = 
  * What every fresh open starts on. A switch to Graphing lasts for the rest of
  * the visit (it lives in component state), never across a reload.
  */
-export const DEFAULT_MODE: DesmosMode = "scientific";
+export const DEFAULT_MODE: CalculatorMode = "scientific";
 
 export const DESMOS_ORIGIN = "https://www.desmos.com";
 /** The version desmos.com/api documents today. Pinned, so a new major release cannot change the panel under us. */
@@ -88,46 +92,6 @@ export function desmosApiKey(): string | null {
 
 export function desmosScriptUrl(key: string): string {
   return `${DESMOS_ORIGIN}/api/${DESMOS_API_VERSION}/calculator.js?apiKey=${encodeURIComponent(key)}`;
-}
-
-/** The desmos.com page "Open Desmos" goes to: a link, never a frame. */
-export function desmosAppUrl(mode: DesmosMode): string {
-  return mode === "graphing" ? `${DESMOS_ORIGIN}/calculator` : `${DESMOS_ORIGIN}/scientific`;
-}
-
-/** A small window beside the lesson, about the size of the panel. */
-export const DESMOS_WINDOW_NAME = "desmos";
-export const DESMOS_WINDOW_FEATURES = "width=440,height=680";
-
-/**
- * Opens Desmos in its own small window and says whether one opened. When it
- * did not (a popup blocker), the caller lets its link open a normal new tab.
- *
- * "noopener" is left out of the features on purpose: with it, window.open
- * always returns null, so a blocked popup and an open one look the same. The
- * opener is cut by hand instead, while the new window is still on about:blank
- * and that is allowed, so desmos.com never gets a handle back to AlgeBridge.
- */
-export function openDesmosWindow(mode: DesmosMode): boolean {
-  if (typeof window === "undefined" || typeof window.open !== "function") return false;
-  let win: Window | null = null;
-  try {
-    win = window.open(desmosAppUrl(mode), DESMOS_WINDOW_NAME, DESMOS_WINDOW_FEATURES);
-  } catch {
-    win = null;
-  }
-  if (!win) return false;
-  try {
-    win.opener = null;
-  } catch {
-    /* a Desmos window that was already open, cut off when it first opened */
-  }
-  try {
-    win.focus();
-  } catch {
-    /* bringing it to the front is a nicety */
-  }
-  return true;
 }
 
 /** Sizes as saved, each one checked; anything missing or odd is the default. */
