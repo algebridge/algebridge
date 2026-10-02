@@ -6,6 +6,7 @@ import { units } from "@/data/curriculum";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { getSkillsDueForReview, type ReviewItem } from "@/lib/spaced-repetition";
 import { PracticeGate } from "@/components/PracticeGate";
+import { Icon } from "@/components/Icon";
 
 export default function ReviewPage() {
   return (
@@ -83,7 +84,7 @@ function ReviewQueue() {
                   {item.unitTitle} · {item.dueReason}
                 </p>
               </div>
-              <span className="shrink-0 text-sm text-slate-300 group-hover:text-bridge-600">→</span>
+              <Icon name="arrow-right" size={16} className="shrink-0 text-slate-300 group-hover:text-bridge-600" />
             </Link>
           </li>
         ))}

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { createAlgeGroup, listMyGroups } from "@/lib/groups";
 import { listAllStudents } from "@/lib/social";
 import type { GroupInfo, StudentDirectoryEntry } from "@/types";
+import { Icon } from "@/components/Icon";
 
 export default function GroupsPage() {
   const { user, profile, loading } = useAuth();
@@ -100,8 +101,8 @@ export default function GroupsPage() {
           {groups.map((g) => (
             <li key={g.id}>
               <Link href={`/groups/${g.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bridge-100 text-xl">
-                  {g.kind === "all_tutors" ? "🧑‍🏫" : "👥"}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bridge-100 text-bridge-700" aria-hidden>
+                  <Icon name={g.kind === "all_tutors" ? "tutors" : "groups"} size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -152,8 +153,8 @@ export default function GroupsPage() {
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
                       {s.displayName ?? s.email}
                     </span>
-                    <span className={`text-sm ${picked.has(s.id) ? "text-bridge-600" : "text-slate-300"}`}>
-                      {picked.has(s.id) ? "✓" : "+"}
+                    <span className={picked.has(s.id) ? "text-bridge-600" : "text-slate-300"} aria-hidden>
+                      <Icon name={picked.has(s.id) ? "check" : "plus"} size={16} />
                     </span>
                   </button>
                 ))

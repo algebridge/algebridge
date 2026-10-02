@@ -33,6 +33,7 @@ import {
 } from "@/lib/bridgeys";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { showToast } from "@/lib/notify";
+import { TitleMark } from "@/components/RewardMark";
 import type { FurnitureItem, UserProgress } from "@/types";
 
 type Tab = "house" | "shop" | "titles";
@@ -168,7 +169,7 @@ export default function HousePage() {
                 ) : (
                   <>
                     Bridgeys, earned by finishing skills.{" "}
-                    <Link href="/learn" className="font-semibold text-bridge-600 hover:underline">
+                    <Link href="/" className="font-semibold text-bridge-600 hover:underline">
                       Earn more
                     </Link>
                   </>
@@ -177,8 +178,9 @@ export default function HousePage() {
             </div>
           </div>
 
-          {/* 2x2 on a phone so the four stats stay a block, one row from sm up. */}
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:gap-x-8">
+          {/* Three columns on a phone, so the five stats take two rows and
+              the house stays near the top; one row from sm up. */}
+          <dl className="grid grid-cols-3 gap-x-4 gap-y-3 sm:flex sm:gap-x-8">
             <SummaryStat label="Furniture" value={`${stats.owned}/${stats.total}`} />
             <SummaryStat label="Houses" value={`${stats.houses}/${HOUSE_STYLES.length}`} />
             <SummaryStat label="Garden" value={`${stats.garden}`} />
@@ -671,12 +673,7 @@ export default function HousePage() {
                   className={`card flex flex-col p-4 ${equipped ? "ring-2 ring-bridge-500" : ""}`}
                 >
                   <div className="flex items-start gap-3">
-                    <span
-                      aria-hidden
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-2xl ring-1 ring-inset ring-slate-200"
-                    >
-                      {title.emoji}
-                    </span>
+                    <TitleMark id={title.id} name={title.name} />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-semibold text-slate-900">{title.name}</h3>
                       <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
@@ -736,8 +733,8 @@ export default function HousePage() {
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="eyebrow">{label}</dt>
-      <dd className="mt-0.5 text-lg font-semibold text-slate-900 tabular-nums">{value}</dd>
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</dt>
+      <dd className="mt-0.5 text-lg font-semibold text-slate-900 tabular-nums sm:text-xl">{value}</dd>
     </div>
   );
 }

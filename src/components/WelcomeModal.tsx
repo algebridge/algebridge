@@ -9,12 +9,12 @@ const STEPS: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "play",
     title: "Watch a short video",
-    body: "Every skill starts with a quick lesson from a top math teacher on YouTube.",
+    body: "Every skill starts with a short YouTube lesson from a math teacher who explains it clearly.",
   },
   {
     icon: "check",
     title: "Practice until it clicks",
-    body: "Get five right on the first try and the skill is done. Every one you get stays banked, even after a miss. Stuck? Ask the AI helper, or message a real tutor from the Tutors page.",
+    body: "Get five right on the first try and the skill is done. Every one you get stays banked, even after a miss. Stuck? Ask Archie, your AI study buddy, or message a real tutor from the Tutors page.",
   },
   {
     icon: "lock",
@@ -54,17 +54,15 @@ export function WelcomeModal() {
             height={64}
             className="animate-gentle-bounce mx-auto"
           />
-          <h2 className="mt-3 font-display text-xl tracking-wide text-slate-900">Welcome to AlgeBridge!</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Here&apos;s how to make the most of your algebra journey.
-          </p>
+          <h2 className="mt-3 font-display text-2xl tracking-wide text-slate-900">Welcome to AlgeBridge</h2>
+          <p className="mt-1 text-sm text-slate-500">Here is how every skill works, in three steps.</p>
         </div>
 
         <div className="mt-6 rounded-2xl bg-bridge-50 p-5 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-bridge-600 shadow-panel ring-1 ring-bridge-100">
             <Icon name={current.icon} size={24} />
           </span>
-          <h3 className="mt-2 font-bold text-slate-900">{current.title}</h3>
+          <h3 className="mt-3 font-bold text-slate-900">{current.title}</h3>
           <p className="mt-1 text-sm text-slate-600">{current.body}</p>
         </div>
 

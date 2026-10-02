@@ -1,1 +1,121 @@
-/* App-wide UI polish (Oct 2026). Kept apart from globals.css so concurrent work never collides. */
+/* App-wide UI polish (Oct 2026). Kept apart from globals.css so concurrent work never collides.
+   This file loads after globals.css, so a rule here with the same selector wins. */
+
+/* ---- Page titles ------------------------------------------------
+   Anton is the brand face (the wordmark, the Bridgey balance, the
+   leaderboard numbers). Page titles take it too, so every screen
+   reads as AlgeBridge rather than a template. */
+.page-title {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  color: #0f172a;
+  text-wrap: balance;
+}
+@media (min-width: 640px) {
+  .page-title {
+    font-size: 36px;
+  }
+}
+/* Room between a small eyebrow label and the tall display title under it. */
+.eyebrow + .page-title {
+  margin-top: 0.375rem;
+}
+
+/* ---- Buttons ----------------------------------------------------
+   One height scale and one radius for every button. A lift on hover
+   instead of a 3% zoom, which blurred the label and made rows jitter. */
+.btn-primary,
+.btn-secondary {
+  min-height: 40px;
+  border-radius: 0.75rem;
+}
+.btn-primary:hover,
+.btn-secondary:hover {
+  transform: translateY(-1px);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 14px -6px rgb(37 99 235 / 0.55);
+}
+.btn-primary:active,
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  transform: none;
+  box-shadow: none;
+}
+.btn-sm {
+  min-height: 34px;
+  border-radius: 0.625rem;
+}
+
+/* ---- Surfaces ---------------------------------------------------
+   Cards, panels and skill rows share the rounded-2xl family of the
+   heroes and the problem card. Clickable cards lift; they no longer zoom. */
+.card,
+.card-link,
+.panel {
+  border-radius: 1rem;
+}
+.skill-card {
+  border-radius: 0.875rem;
+}
+.card-link:hover,
+.skill-card:hover {
+  transform: translateY(-2px);
+}
+/* A quiet header line instead of a grey admin-table strip. */
+.panel-head {
+  background-color: transparent;
+  border-bottom-color: #f1f5f9;
+}
+
+/* ---- Keyboard focus ---------------------------------------------
+   Plain links and tabs get the brand ring; on a colored surface it
+   turns white so it stays visible. Buttons with their own ring keep it. */
+:where(a, button, summary, [role="tab"], [role="radio"], [tabindex]):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+:where(.hue-banner, .hue-solid, .bg-bridge-900, .bg-violet-700) :focus-visible {
+  outline-color: #fff;
+}
+
+/* ---- Mobile menu ------------------------------------------------
+   The sheet drops in over the page with a scrim behind it. Reduced
+   motion collapses both animations (globals.css). */
+@keyframes menu-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes menu-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.menu-sheet-in {
+  animation: menu-sheet-in 160ms ease-out;
+}
+.menu-scrim-in {
+  animation: menu-scrim-in 160ms ease-out;
+}
+
+/* ---- Media ------------------------------------------------------
+   An embedded video never sets the width of its column. */
+iframe {
+  max-width: 100%;
+}

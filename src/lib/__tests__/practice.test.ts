@@ -1242,5 +1242,29 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("no em dashes in any quote card", Q.QUOTES.every((q) => !`${q.text}${q.who}${q.role}${q.source}`.includes("—")));
 }
 
+// --- Standards alignment (src/data/standards.ts) ---------------------------
+// Owned by the "For schools" page work. Every skill cites a real CCSS-M code
+// in the official shape, and nothing points at a skill that is not there.
+{
+  const S = await import("../../data/standards.ts");
+  const skillIds = units.flatMap((u) => u.skills.map((s) => s.id));
+  const known = new Set(skillIds);
+  const cited = Object.values(S.SKILL_STANDARDS).flat();
+  const unmapped = skillIds.filter((id) => !(S.SKILL_STANDARDS[id]?.length && S.standardsForSkill(id).length === S.SKILL_STANDARDS[id].length));
+  ok("every skill cites at least one defined standard", unmapped.length === 0, unmapped.join(", "));
+  const strays = Object.keys(S.SKILL_STANDARDS).filter((id) => !known.has(id));
+  ok("no standards for a skill id the course does not have", strays.length === 0, strays.join(", "));
+  const badShape = cited.filter((c) => !S.STANDARD_CODE_PATTERN.test(c));
+  ok("every cited code has the official CCSS-M shape", badShape.length === 0, badShape.join(", "));
+  ok("the pattern refuses shapes that are not CCSS-M codes", ["HSA.REI.B.3", "A-REI.B.3", "HSA-REI.3", "HSA-REI.B.3b", "9.EE.A.1", "HSX-REI.B.3", "8.EE.E.1", "hsa-rei.b.3"].every((c) => !S.STANDARD_CODE_PATTERN.test(c)));
+  ok("every standard carries a summary, its domain and the official link", Object.values(S.STANDARDS).every((s) => S.STANDARD_CODE_PATTERN.test(s.code) && s.summary.length > 20 && s.domain.length > 0 && s.url === S.officialStandardUrl(s.code)));
+  ok("official links follow the site's own paths", S.officialStandardUrl("HSA-REI.B.3") === "https://www.thecorestandards.org/Math/Content/HSA/REI/B/3/" && S.officialStandardUrl("6.RP.A.3.d") === "https://www.thecorestandards.org/Math/Content/6/RP/A/3/d/");
+  ok("levels follow the codes", Object.values(S.STANDARDS).every((s) => (s.level === "HS") === s.code.startsWith("HS") && (s.level === "HS" || s.code.startsWith(`${s.level}.`))));
+  ok("no skill lists a code twice", Object.values(S.SKILL_STANDARDS).every((cs) => new Set(cs).size === cs.length));
+  ok("no standard defined that no skill cites", Object.keys(S.STANDARDS).every((c) => cited.includes(c)));
+  ok("codes left off on purpose are real shapes on real skills, and really left off", S.NOT_CLAIMED.every((n) => known.has(n.skillId) && S.STANDARD_CODE_PATTERN.test(n.code) && !S.SKILL_STANDARDS[n.skillId].includes(n.code) && n.reason.length > 20));
+  ok("summaries use plain US English with no em or en dashes", [...Object.values(S.STANDARDS).map((s) => s.summary), ...S.NOT_CLAIMED.map((n) => n.reason)].every((t) => !/[—–]/.test(t) && !/\bmaths\b/i.test(t)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

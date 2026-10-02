@@ -26,11 +26,12 @@ import { bridgeysForSkill } from "@/lib/gamification";
 import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";
 import { UnitMark } from "@/components/UnitMark";
+import { StandardsChip } from "@/components/StandardsChip";
 
 /** A step of the lesson checklist: its number, or a check once it is done. */
 function StepMark({ n, done }: { n: number; done: boolean }) {
   return done ? (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
       <Icon name="check" size={16} />
     </span>
   ) : (
@@ -176,9 +177,16 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
       <CourseGate>
         {!state ? (
-          <div className="space-y-4" aria-busy="true">
-            <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
-            <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+          <div className="space-y-6" aria-busy="true" aria-label="Loading the lesson">
+            <div className="h-14 animate-pulse rounded-xl bg-slate-200/60" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="h-16 animate-pulse rounded-xl bg-slate-200/60" />
+              <div className="h-16 animate-pulse rounded-xl bg-slate-200/60" />
+            </div>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+              <div className="aspect-video animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-3" />
+              <div className="hidden h-72 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2 lg:block" />
+            </div>
           </div>
         ) : !state.open && !looking ? (
           <LockedSkill
@@ -239,19 +247,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               </p>
               <ProgressStatus level={mastery} />
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
               <div
-                className="hue-bar h-full rounded-full transition-all duration-500"
+                className="hue-bar h-full min-w-[8px] rounded-full transition-all duration-500"
                 style={{ width: `${unitProgress.total ? (unitProgress.completed / unitProgress.total) * 100 : 0}%` }}
               />
             </div>
           </div>
 
-          {/* 3-step checklist */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* The two steps: watch, then practice. The one to do now is ringed. */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div
               className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-                videoStepSatisfied ? "border-emerald-200 bg-emerald-50" : "hue-tint"
+                videoStepSatisfied ? "border-emerald-200 bg-emerald-50" : "hue-tint ring-2 ring-[var(--hue-line)]"
               }`}
             >
               <StepMark n={1} done={videoStepSatisfied} />
@@ -270,7 +278,9 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
                 isSkillComplete
                   ? "border-emerald-200 bg-emerald-50"
-                  : "border-slate-200 bg-white"
+                  : videoStepSatisfied
+                    ? "hue-line border bg-white ring-2 ring-[var(--hue-line)]"
+                    : "border-slate-200 bg-white"
               }`}
             >
               <StepMark n={2} done={isSkillComplete} />
@@ -289,8 +299,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             </div>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-5">
-            <div className="space-y-6 lg:col-span-3">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+            <div className="min-w-0 space-y-6 lg:col-span-3">
               <section>
                 <h2 className="section-title mb-3">Step 1: Watch</h2>
                 <VideoPlayer
@@ -318,7 +328,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <div>
                     <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
                     <p className="mt-1 text-sm text-slate-600">
-                      Message any tutor, or hop on a video call with a shared whiteboard,
+                      Message any tutor. They can start a video call with a shared whiteboard,
                       your notebook, and a calculator, right here on AlgeBridge.
                     </p>
                   </div>
@@ -330,7 +340,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               </section>
             </div>
 
-            <aside className="lg:col-span-2">
+            <aside className="min-w-0 lg:col-span-2">
               <div className="card sticky top-24 space-y-4">
                 <div>
                   <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
@@ -339,6 +349,9 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 <div>
                   <h3 className="font-bold text-slate-900">Key idea</h3>
                   <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
+                  {/* The Common Core standards this skill teaches, for a
+                      teacher or parent checking alignment. */}
+                  <StandardsChip skillId={skill.id} className="mt-3" />
                 </div>
                 {looking && state && !state.open ? (
                   <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
@@ -376,13 +389,14 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             </aside>
           </div>
 
-          <div className="flex justify-between border-t border-slate-200 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
             {prev ? (
               <Link
                 href={`/learn/${prev.unitId}/${prev.skill.id}`}
                 className="btn-secondary text-sm"
               >
-                ← Previous
+                <Icon name="arrow-left" size={16} />
+                Previous
               </Link>
             ) : (
               <span />
@@ -392,16 +406,17 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 href={`/learn/${next.unitId}/${next.skill.id}`}
                 className="btn-primary text-sm"
               >
-                Next skill →
+                Next skill
+                <Icon name="arrow-right" size={16} />
               </Link>
             ) : next ? (
-              <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+              <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
                 <Icon name="lock" size={15} />
                 Finish this skill to open {next.skill.title}
               </span>
             ) : (
               <Link href="/" className="btn-primary text-sm">
-                Back to course
+                Back to the course
               </Link>
             )}
           </div>

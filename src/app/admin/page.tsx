@@ -224,7 +224,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-md space-y-4 text-center">
         <h1 className="page-title">Admin</h1>
         <p className="text-slate-600">This area is for administrators only.</p>
-        <Link href="/" className="btn-primary inline-block">Back to Course</Link>
+        <Link href="/" className="btn-primary inline-block">Back to the course</Link>
       </div>
     );
   }

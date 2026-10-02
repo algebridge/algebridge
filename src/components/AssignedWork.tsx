@@ -13,6 +13,7 @@ import {
   dueLabel,
 } from "@/lib/assignments";
 import type { UserProgress } from "@/types";
+import { Icon } from "@/components/Icon";
 
 /**
  * "What does my teacher want me to do?", the first question a student in a
@@ -51,8 +52,9 @@ export function AssignedWork() {
     <section className="panel">
       <div className="panel-head">
         <p className="panel-title">Assigned to you</p>
-        <Link href="/classes" className="text-xs font-medium text-bridge-700 hover:underline">
-          All classes →
+        <Link href="/classes" className="inline-flex items-center gap-1 text-xs font-medium text-bridge-700 hover:underline">
+          All classes
+          <Icon name="arrow-right" size={13} />
         </Link>
       </div>
       <ul className="divide-y divide-slate-100">

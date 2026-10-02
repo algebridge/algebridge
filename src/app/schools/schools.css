@@ -1,0 +1,306 @@
+/*
+ * For schools page (/schools).
+ *
+ * Mostly the print stylesheet: the page is meant to be handed to a district
+ * as a clean two to three page handout, so the app's chrome (header, side
+ * nav, footer, Archie, the calculator, floating buttons) is dropped and the
+ * content is set tighter.
+ *
+ * Every rule is scoped with :has(.schools-page). Next keeps this stylesheet
+ * loaded after a client-side navigation away, and the scope makes sure it
+ * then does nothing to any other page.
+ *
+ * Print width is about 710 CSS px, so Tailwind's md: and lg: variants are
+ * off when printing; the multi-column layouts are set here instead.
+ */
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.5in 0.55in 0.55in;
+  }
+
+  html:has(.schools-page),
+  body:has(.schools-page) {
+    background: #fff !important;
+  }
+
+  /* ---- Drop the app around the page -------------------------------- */
+  body:has(.schools-page) :is(header, aside, footer, nav, .fixed, .sticky, .helper-dock, .helper-sheet, .helper-launch):not(.schools-page, .schools-page *) {
+    display: none !important;
+  }
+  body:has(.schools-page) .helper-shift > :not(main) {
+    display: none !important;
+  }
+  body:has(.schools-page) .lg\:pl-60,
+  body:has(.schools-page) .helper-shift {
+    padding: 0 !important;
+  }
+  body:has(.schools-page) main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* ---- The handout ------------------------------------------------- */
+  .schools-page {
+    max-width: none !important;
+    color: #0f172a;
+    font-size: 9.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .schools-page * {
+    box-shadow: none !important;
+  }
+  .schools-page a {
+    color: inherit;
+  }
+
+  .schools-hero {
+    padding: 13pt 16pt 12pt !important;
+    border-radius: 10pt !important;
+  }
+  .schools-hero h1 {
+    font-size: 24pt !important;
+    margin-top: 3pt !important;
+  }
+  .schools-lead {
+    font-size: 9.5pt !important;
+    line-height: 1.45 !important;
+    margin-top: 5pt !important;
+    max-width: none !important;
+  }
+  .schools-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    margin-top: 10pt !important;
+    border-radius: 8pt !important;
+  }
+  .schools-facts > div {
+    padding: 5pt 8pt !important;
+  }
+  .schools-facts dt {
+    font-size: 6.5pt !important;
+  }
+  .schools-facts dd:first-of-type {
+    font-size: 11pt !important;
+    margin-top: 1pt !important;
+  }
+  .schools-facts dd + dd {
+    font-size: 7.5pt !important;
+  }
+
+  .schools-body {
+    margin-top: 14pt !important;
+  }
+  .schools-body > * + * {
+    margin-top: 15pt !important;
+  }
+  .schools-section h2 {
+    font-size: 14pt !important;
+  }
+  .schools-num {
+    font-size: 12pt !important;
+  }
+  .schools-intro {
+    font-size: 9.5pt !important;
+    margin-top: 4pt !important;
+    max-width: none !important;
+  }
+  .schools-section > div:last-child {
+    margin-top: 9pt !important;
+  }
+  /* A section heading never ends a page on its own. */
+  .schools-section > div:first-child,
+  .schools-intro {
+    break-after: avoid;
+  }
+  /* Three pages: the course and teachers, the standards, then privacy,
+     accessibility and contact. */
+  #standards,
+  #privacy {
+    break-before: page;
+  }
+
+  /* Cards: tighter, never split across pages. */
+  .schools-card,
+  .schools-unit,
+  .schools-key-group,
+  .schools-notclaimed,
+  .schools-ai,
+  .schools-ai-table tr {
+    break-inside: avoid;
+  }
+  /* Cards flow down two columns, so short and long ones pack together
+     instead of leaving gaps in a row. */
+  .schools-grid {
+    display: block !important;
+    columns: 2;
+    column-gap: 6pt;
+  }
+  .schools-grid > li {
+    margin-bottom: 6pt;
+  }
+  .schools-steps {
+    gap: 6pt !important;
+  }
+  .schools-card {
+    padding: 7pt 9pt !important;
+    border-radius: 8pt !important;
+    gap: 7pt !important;
+  }
+  .schools-card h3 {
+    font-size: 9.5pt !important;
+  }
+  .schools-card p,
+  .schools-card div {
+    font-size: 8.4pt !important;
+    line-height: 1.4 !important;
+  }
+  .schools-card h3 + p,
+  .schools-card h3 + div {
+    margin-top: 2pt !important;
+  }
+  .schools-mark {
+    width: 18pt !important;
+    height: 18pt !important;
+    border-radius: 5pt !important;
+  }
+  .schools-mark svg {
+    width: 11pt;
+    height: 11pt;
+  }
+  .schools-steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+  .schools-steps + div {
+    margin-top: 6pt !important;
+  }
+
+  /* Standards: two columns of units, chips that keep their tint. */
+  .schools-legend {
+    font-size: 8.5pt !important;
+  }
+  .schools-units {
+    columns: 2;
+    column-gap: 8pt;
+    margin-top: 8pt !important;
+  }
+  .schools-unit {
+    margin-bottom: 6pt !important;
+    border-radius: 7pt !important;
+  }
+  .schools-unit h3 {
+    padding: 3.5pt 8pt !important;
+    font-size: 8.75pt !important;
+  }
+  .schools-unit th,
+  .schools-unit td {
+    padding-top: 2pt !important;
+    padding-bottom: 2pt !important;
+    font-size: 8.25pt !important;
+    line-height: 1.25 !important;
+  }
+  .schools-unit th {
+    width: 40% !important;
+  }
+  .schools-unit th {
+    padding-left: 8pt !important;
+  }
+  .schools-unit td {
+    padding-right: 6pt !important;
+  }
+  .schools-page .standards-chip {
+    font-size: 7.25pt !important;
+    line-height: 1.5 !important;
+    padding: 0 3pt !important;
+  }
+  .schools-page ul:has(> li > .standards-chip) {
+    gap: 2.5pt !important;
+  }
+  .schools-notclaimed {
+    padding: 8pt 10pt !important;
+    border-radius: 8pt !important;
+  }
+  .schools-notclaimed,
+  .schools-notclaimed * {
+    font-size: 8.5pt !important;
+  }
+  .schools-notclaimed ul {
+    margin-top: 5pt !important;
+  }
+  .schools-notclaimed li + li {
+    margin-top: 2pt !important;
+  }
+  /* The key runs long; on paper each code is enough, and the web page
+     carries what each one asks. */
+  .schools-key {
+    display: none !important;
+  }
+  .schools-key > p {
+    font-size: 8.5pt !important;
+  }
+  .schools-key-groups {
+    columns: 2;
+    column-gap: 16pt;
+    margin-top: 8pt !important;
+  }
+  .schools-key-group {
+    margin-bottom: 7pt !important;
+  }
+  .schools-key-group h4 {
+    font-size: 7pt !important;
+  }
+  .schools-key-group dl {
+    margin-top: 3pt !important;
+  }
+  .schools-key-group dl > div {
+    font-size: 8pt !important;
+    gap: 6pt !important;
+  }
+  .schools-key-group dl > div + div {
+    margin-top: 2.5pt !important;
+  }
+  .schools-key-group dt {
+    width: 5.6rem !important;
+    font-size: 7.5pt !important;
+    line-height: 1.35 !important;
+  }
+  .schools-key-group dd {
+    line-height: 1.35 !important;
+  }
+
+  /* Privacy: the AI table fits the page width. */
+  .schools-ai {
+    margin-top: 8pt !important;
+    border-radius: 8pt !important;
+  }
+  .schools-ai > div:first-child {
+    padding: 6pt 9pt !important;
+  }
+  .schools-ai-table {
+    min-width: 0 !important;
+  }
+  .schools-ai-table th,
+  .schools-ai-table td {
+    padding: 4pt 9pt !important;
+    font-size: 8.5pt !important;
+    line-height: 1.4 !important;
+  }
+  .schools-fineprint {
+    font-size: 8.5pt !important;
+    margin-top: 8pt !important;
+    max-width: none !important;
+  }
+
+  .schools-contact {
+    grid-template-columns: 1fr 1.3fr !important;
+    gap: 6pt !important;
+  }
+  .schools-contact .font-display {
+    font-size: 20pt !important;
+  }
+  .schools-stamp {
+    margin-top: 10pt !important;
+    font-size: 7.5pt !important;
+  }
+}

@@ -421,7 +421,7 @@ export function CourtGame({
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/85 px-2.5 py-1 text-[11px] font-medium text-slate-700 backdrop-blur-sm sm:bottom-3 sm:left-3 sm:right-auto">
+        <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto">
           <span className="sm:hidden">Drag to move. Get to {game.target}.</span>
           <span className="hidden sm:inline">
             Arrows or WASD to move, drag on a phone. Get to {game.target}. Space for a move. Unit {source.unitNumber} problems, in your head.

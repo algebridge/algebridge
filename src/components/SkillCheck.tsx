@@ -145,7 +145,7 @@ export function SkillCheck({
           ))}
         </span>
       </div>
-      <PromptText text={stripVariantTag(problem.prompt)} />
+      <PromptText text={stripVariantTag(problem.prompt)} className="mt-3 text-lg leading-relaxed text-slate-800" />
 
       {problem.type === "multiple-choice" && problem.choices ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">

@@ -26,6 +26,8 @@ import {
   dueLabel,
 } from "@/lib/assignments";
 import { Icon } from "@/components/Icon";
+import { StandardsChip } from "@/components/StandardsChip";
+import { standardsForSkill } from "@/data/standards";
 import type { ClassAssignment, ClassColor, ClassInfo, RosterStudent } from "@/types";
 
 const COLOR_OPTIONS: { value: ClassColor; label: string; dot: string; soft: string }[] = [
@@ -111,8 +113,8 @@ export default function TeacherDashboardPage() {
   if (!configured) {
     return (
       <EmptyState
-        title="Teacher tools need cloud accounts"
-        body="Classes and rosters live in the cloud so progress follows students between devices. This deployment doesn't have Supabase keys configured yet."
+        title="Teacher tools need accounts"
+        body="Classes and rosters are stored with AlgeBridge accounts, so progress follows students between devices. Accounts are not switched on for this copy of the site."
       />
     );
   }
@@ -275,6 +277,13 @@ export default function TeacherDashboardPage() {
       </div>
     </div>
   );
+}
+
+/** The standards a skill, or a whole unit when no skill is picked, teaches. */
+function scopeStandardCodes(unitId: string, skillId: string): string[] {
+  const unit = units.find((u) => u.id === unitId);
+  const skills = skillId ? [skillId] : unit?.skills.map((s) => s.id) ?? [];
+  return [...new Set(skills.flatMap((id) => standardsForSkill(id).map((s) => s.code)))];
 }
 
 function EmptyState({
@@ -864,13 +873,12 @@ function AssignmentsTab({
     return (
       <div className="panel">
         <div className="panel-body">
-          <h3 className="text-base font-semibold text-slate-900">Assignments aren&apos;t set up yet</h3>
+          {/* For whoever runs the site: assignments need the
+              supabase/schema-classroom.sql update applied to the database. */}
+          <h3 className="text-base font-semibold text-slate-900">Assignments aren&apos;t switched on yet</h3>
           <p className="mt-2 text-sm text-slate-600">
-            This feature needs one database update to be run:{" "}
-            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-              supabase/schema-classroom.sql
-            </code>
-            . Everything else on this page works without it.
+            Assigning units and skills with due dates is not turned on for this site yet. Everything else on this page
+            works without it: your roster, join codes and every student&apos;s progress.
           </p>
         </div>
       </div>
@@ -952,6 +960,8 @@ function AssignmentsTab({
               />
             </div>
           </div>
+          {/* What the chosen scope covers, so it can be matched to a pacing guide. */}
+          <StandardsChip codes={scopeStandardCodes(unitId, skillId)} label="Covers" />
           {error && <p className="field-error">{error}</p>}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? "Adding…" : "Add assignment"}
@@ -1001,6 +1011,7 @@ function AssignmentsTab({
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-slate-900">{assignmentTitle(a)}</p>
                     <p className="text-xs text-slate-500">{assignmentSubtitle(a)}</p>
+                    <StandardsChip codes={scopeStandardCodes(a.unitId, a.skillId ?? "")} label={false} className="mt-1.5" />
                     {a.note && <p className="mt-1 text-xs italic text-slate-500">{a.note}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span

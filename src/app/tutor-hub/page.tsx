@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { listAllStudents, ringUser } from "@/lib/social";
 import { roomIdFor } from "@/lib/call-utils";
 import type { StudentDirectoryEntry } from "@/types";
+import { Icon } from "@/components/Icon";
 
 export default function TutorHubPage() {
   const { user, profile, loading } = useAuth();
@@ -77,7 +78,10 @@ export default function TutorHubPage() {
             Every student on AlgeBridge, message or call anyone who needs help.
           </p>
         </div>
-        <Link href="/messages" className="btn-secondary text-sm">💬 Inbox</Link>
+        <Link href="/messages" className="btn-secondary text-sm">
+          <Icon name="messages" size={16} />
+          Inbox
+        </Link>
       </div>
 
       <input
@@ -109,16 +113,17 @@ export default function TutorHubPage() {
                   </p>
                   <p className="truncate text-xs text-slate-400">{s.email}</p>
                 </div>
-                <Link href={`/messages/${s.id}`} className="btn-secondary text-sm" title="Message">
-                  💬
+                <Link href={`/messages/${s.id}`} className="btn-secondary text-sm" title="Message" aria-label={`Message ${s.displayName ?? "student"}`}>
+                  <Icon name="messages" size={17} />
                 </Link>
                 <button
                   type="button"
                   onClick={() => callStudent(s.id)}
                   className="btn-secondary text-sm"
                   title="Start a video call"
+                  aria-label={`Start a video call with ${s.displayName ?? "student"}`}
                 >
-                  🎥
+                  <Icon name="video" size={17} />
                 </button>
               </li>
             ))}

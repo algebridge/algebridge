@@ -40,7 +40,14 @@ export function MathText({ text }: { text: string }): ReactNode {
  * the sentence around it is context, so the eye should be able to land on
  * the math without reading the rest.
  */
-export function PromptText({ text }: { text: string }) {
+export function PromptText({
+  text,
+  className = "mt-2 text-base leading-relaxed text-slate-700",
+}: {
+  text: string;
+  /** Size and color of the sentence; the math inside keeps its own weight. */
+  className?: string;
+}) {
   const parts = useMemo(() => {
     const out: { text: string; math: boolean }[] = [];
     let cursor = 0;
@@ -56,7 +63,7 @@ export function PromptText({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <p className="mt-2 text-base leading-relaxed text-slate-700">
+    <p className={className}>
       {parts.map((part, i) =>
         part.math ? (
           <span

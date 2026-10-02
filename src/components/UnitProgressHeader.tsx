@@ -32,7 +32,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
   return (
     <header style={hueVars(unitHue(unit.id))} className="hue-banner relative overflow-hidden rounded-2xl">
       {/* The unit's mark, large and faint, as the banner's texture. */}
-      <UnitMark unitId={unit.id} size={220} className="pointer-events-none absolute -right-6 -top-12 opacity-[0.14]" />
+      <UnitMark unitId={unit.id} size={168} className="pointer-events-none absolute -right-4 -top-6 hidden opacity-[0.12] sm:block" />
       <div className="relative px-6 py-7 sm:px-8">
         <div className="flex items-start gap-4">
           <span className="hue-chip flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">
@@ -42,7 +42,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-80">
               Unit {unit.number} of {stats.totalUnits} · {unit.skills.length} skills
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-[28px]">{unit.title}</h1>
+            <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">{unit.title}</h1>
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed opacity-90">{unit.description}</p>
           </div>
         </div>
@@ -62,7 +62,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
 
         {/* The prize. What the unit pays is on the table before the work starts. */}
         {prize && (
-          <div className="hue-chip mt-5 flex items-center gap-3 rounded-xl px-3 py-2.5">
+          <div className="hue-chip mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2.5">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/90">
               <CartoonFurnitureArt itemId={prize.id} size={40} variant="room" />
             </span>
@@ -70,12 +70,12 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
               <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
                 {prizeEarned ? "Earned" : "Unit prize"}
               </p>
-              <p className="truncate text-sm font-semibold">
+              <p className="text-sm font-semibold sm:truncate">
                 {prize.name}
                 <span className="font-normal opacity-90"> · {prizeEarned ? "in your house" : `finish all ${total} skills`}</span>
               </p>
             </div>
-            <p className="shrink-0 text-right text-xs leading-tight opacity-90">
+            <p className="w-full shrink-0 text-left text-xs leading-tight opacity-90 sm:w-auto sm:text-right">
               <span className="block text-sm font-semibold">{unitPay} Bridgeys</span>
               across the unit
             </p>

@@ -11,6 +11,7 @@ import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Icon } from "@/components/Icon";
 import { useAppNavState } from "@/components/AppNavProvider";
 import { isActivePath } from "@/lib/nav";
+import { withSchoolsLink } from "@/components/SideNav";
 import { initialsOf } from "@/lib/name";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -41,6 +42,16 @@ export function Header() {
     setAccountOpen(false);
   }, [pathname]);
 
+  // The phone menu closes on Escape, like the account menu.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!accountOpen) return;
     function onPointerDown(e: MouseEvent) {
@@ -58,7 +69,7 @@ export function Header() {
   }, [accountOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
         {/* Logo, the sidebar carries it on desktop. */}
         <Link href="/" className="flex shrink-0 items-center gap-2 lg:hidden">
@@ -66,13 +77,20 @@ export function Header() {
           <span className="font-display text-base tracking-wide text-slate-900">AlgeBridge</span>
         </Link>
 
-        {/* Stat chips, desktop */}
+        {/* Stat chips, desktop. Until progress loads, quiet placeholders hold
+            their place so the bar does not jump when they arrive. */}
+        {!mounted && (
+          <div className="hidden items-center gap-2 lg:flex" aria-hidden>
+            <span className="h-8 w-28 animate-pulse rounded-full bg-slate-100" />
+            <span className="h-8 w-16 animate-pulse rounded-full bg-slate-100" />
+          </div>
+        )}
         {mounted && (
           <div className="hidden items-center gap-2 lg:flex">
             <Link
               href="/achievements"
               title={`Level ${stats.level}: ${stats.levelTitle}`}
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 transition duration-150 ease-out hover:scale-105 hover:border-bridge-300 hover:bg-bridge-50"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 transition-colors duration-150 ease-out hover:border-bridge-300 hover:bg-bridge-50"
             >
               <span className="text-xs font-semibold text-slate-700">Level {stats.level}</span>
               <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-200">
@@ -96,7 +114,7 @@ export function Header() {
             <Link
               href="/house"
               title="Bridgeys"
-              className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition duration-150 ease-out hover:scale-105 hover:bg-amber-100"
+              className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 transition-colors duration-150 ease-out hover:bg-amber-100"
             >
               <BridgeysLogo size={16} />
               {profile?.unlimitedBridgeys || profile?.isAdmin ? "Unlimited" : stats.bridgeys.toLocaleString()}
@@ -122,7 +140,7 @@ export function Header() {
           {continueTarget && (
             <Link
               href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-              className="rounded-lg bg-bridge-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-bridge-700 lg:hidden"
+              className="inline-flex h-9 items-center rounded-xl bg-bridge-600 px-3.5 text-xs font-semibold text-white transition hover:bg-bridge-700 lg:hidden"
             >
               Continue
             </Link>
@@ -172,7 +190,10 @@ export function Header() {
                       href="/login"
                       className="block bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
                     >
-                      Add your real name to start practicing →
+                      <span className="inline-flex items-center gap-1.5">
+                        Add your real name to start practicing
+                        <Icon name="arrow-right" size={13} />
+                      </span>
                     </Link>
                   )}
                   <div className="p-1.5">
@@ -252,13 +273,26 @@ export function Header() {
         </div>
       )}
 
-      {/* Mobile / tablet nav sheet */}
+      {/* Mobile / tablet nav sheet. It drops over the page, under the header,
+          with a scrim behind it that closes it, instead of pushing the page
+          down and leaving it live underneath. Positioned against the header
+          (its backdrop blur would trap a fixed child anyway). */}
       {menuOpen && (
-        <div data-lenis-prevent className="max-h-[70vh] overflow-y-auto border-t border-slate-200 bg-white lg:hidden">
-          <nav className="px-3 py-3">
-            {sections.map((section) => (
+        <div data-lenis-prevent className="absolute inset-x-0 top-full h-[calc(100dvh-100%)] lg:hidden">
+          <button
+            type="button"
+            aria-label="Close menu"
+            tabIndex={-1}
+            onClick={() => setMenuOpen(false)}
+            className="menu-scrim-in absolute inset-0 h-full w-full touch-none bg-slate-900/30"
+          />
+          <nav
+            aria-label="Main"
+            className="menu-sheet-in relative max-h-full overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-3 pb-4 pt-3 shadow-raised"
+          >
+            {withSchoolsLink(sections).map((section) => (
               <div key={section.title} className="mb-4 last:mb-0">
-                <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   {section.title}
                 </p>
                 <ul className="grid grid-cols-2 gap-1">
@@ -269,7 +303,7 @@ export function Header() {
                         <Link
                           href={item.href}
                           onClick={() => setMenuOpen(false)}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                          className={`flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                             active ? "bg-bridge-50 text-bridge-700" : "text-slate-700 hover:bg-slate-100"
                           }`}
                         >
@@ -290,7 +324,7 @@ export function Header() {
                 </ul>
               </div>
             ))}
-            <div className="flex items-center justify-between border-t border-slate-100 px-2 pt-2">
+            <div className="mt-1 flex items-center justify-between border-t border-slate-100 px-2 pt-3">
               {!user && (
                 <Link
                   href="/login"

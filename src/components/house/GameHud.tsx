@@ -1,6 +1,7 @@
 "use client";
 
 import { getHouseStyle } from "@/data/house-catalog";
+import { Icon } from "@/components/Icon";
 
 interface GameHudProps {
   houseStyleId: string;
@@ -30,7 +31,8 @@ export function GameHud({ houseStyleId, onExit, mode, hint, view, onView, night 
       <div className="flex min-w-0 items-center gap-3">
         {onExit && (
           <button type="button" onClick={onExit} className="btn-secondary btn-sm">
-            ← {mode === "inside" ? "Step outside" : "Back"}
+            <Icon name="arrow-left" size={14} />
+            {mode === "inside" ? "Step outside" : "Back"}
           </button>
         )}
         <p className="panel-title truncate">{house?.name}</p>

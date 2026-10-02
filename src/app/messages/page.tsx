@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { getInbox, subscribeToIncomingMessages } from "@/lib/social";
 import type { ConversationSummary } from "@/types";
+import { Icon } from "@/components/Icon";
 
 export default function MessagesPage() {
   const { user, profile, loading } = useAuth();
@@ -44,7 +45,8 @@ export default function MessagesPage() {
       <div className="flex items-center justify-between">
         <h1 className="page-title">Messages</h1>
         <Link href={isTutor ? "/tutor-hub" : "/tutors"} className="btn-secondary text-sm">
-          {isTutor ? "👩‍🏫 All students" : "🔎 Find a tutor"}
+          <Icon name={isTutor ? "students" : "search"} size={16} />
+          {isTutor ? "All students" : "Find a tutor"}
         </Link>
       </div>
 

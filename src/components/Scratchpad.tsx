@@ -219,7 +219,7 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
         <div
           role="toolbar"
           aria-label="Drawing tools"
-          className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg backdrop-blur-sm"
+          className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg"
         >
           {TOOLS.map((t) => (
             <button

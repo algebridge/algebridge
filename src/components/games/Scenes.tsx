@@ -48,7 +48,7 @@ function Crowd({ x0, x1, y0, rows, gap, size, colors = SHIRTS }: { x0: number; x
     }
     // Each row sways on its own beat, so the stand looks alive without a thousand animations.
     out.push(
-      <g key={r} className="sc-bob" style={{ animationDelay: `${r * -0.7}s` }}>
+      <g key={r} className="sc-bob" style={{ animationDelay: `${(r % 2) * -1.3}s` }}>
         {row}
       </g>
     );
@@ -724,7 +724,7 @@ export function RinkScene() {
             <path d={`M${x - 14} ${base - h + 46} q14 -6 28 0 l-4 6 q-10 -4 -20 0Z`} fill="#f8fafc" opacity="0.8" />
             {lit &&
               [[-6, 40], [8, 54], [-16, 70], [14, 84], [-24, 98], [4, 108], [22, 116], [-10, 122]].map(([dx, dy], j) => (
-                <circle key={j} cx={x + dx} cy={base - h + dy} r="4" fill={["#fbbf24", "#fb7185", "#38bdf8", "#4ade80"][j % 4]} className="sc-twinkle" style={{ animationDelay: `${j * -0.45}s` }} />
+                <circle key={j} cx={x + dx} cy={base - h + dy} r="4" fill={["#fbbf24", "#fb7185", "#38bdf8", "#4ade80"][j % 4]} className="sc-twinkle" style={{ animationDelay: `${(j % 2) * -0.95}s` }} />
               ))}
           </g>
         );
@@ -848,7 +848,7 @@ export function RinkScene() {
       {BULBS.map((b, i) => (
         <g key={b.x}>
           <rect x={b.x - 2} y={b.y - 14} width="4" height="8" fill="#475569" />
-          <g className="sc-twinkle" style={{ animationDelay: `${i * -0.37}s` }}>
+          <g className="sc-twinkle" style={{ animationDelay: `${(i % 2) * -0.95}s` }}>
             <circle cx={b.x} cy={b.y} r="7" fill={b.color} />
             <circle cx={b.x} cy={b.y} r="12" fill={b.color} opacity="0.25" />
           </g>
@@ -868,7 +868,7 @@ export function RinkScene() {
       <ellipse cx={R.cx} cy={R.cy - 2} rx={R.rx - 4} ry={R.ry - 4} fill="#f4f8fc" />
       {/* The bulbs' colours, caught in the ice. */}
       {BULBS.filter((b) => b.x > 260 && b.x < 940).map((b, i) => (
-        <ellipse key={b.x} cx={b.x} cy={R.cy - R.ry + 34} rx="40" ry="9" fill={b.color} opacity="0.09" className="sc-twinkle" style={{ animationDelay: `${(i + 3) * -0.37}s` }} />
+        <ellipse key={b.x} cx={b.x} cy={R.cy - R.ry + 34} rx="40" ry="9" fill={b.color} opacity="0.09" className="sc-twinkle" style={{ animationDelay: `${((i + 1) % 2) * -0.95}s` }} />
       ))}
       <ellipse cx={R.cx} cy={R.cy} rx={R.rx * 0.36} ry={R.ry * 0.36} fill="none" stroke="#3b82f6" strokeWidth="4" opacity="0.8" />
       <circle cx={R.cx} cy={R.cy} r="5" fill="#3b82f6" opacity="0.8" />

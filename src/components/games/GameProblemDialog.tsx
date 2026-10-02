@@ -150,7 +150,7 @@ export function GameProblemDialog({
 /** A small label on the game stage. */
 export function GameChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-slate-800 backdrop-blur-sm sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
+    <span className="inline-flex items-center gap-1 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-slate-800 sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
       {children}
     </span>
   );

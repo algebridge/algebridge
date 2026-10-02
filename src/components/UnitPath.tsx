@@ -55,8 +55,8 @@ export function UnitPath({ unit }: { unit: Unit }) {
                     : current
                       ? "hue-solid hue-ring"
                       : locked
-                        ? "bg-white text-slate-300 ring-1 ring-inset ring-slate-200"
-                        : "hue-wash ring-1 ring-inset ring-slate-200"
+                        ? "border border-slate-200 bg-slate-100 text-slate-400"
+                        : "hue-wash border border-slate-200"
               }`}
               aria-hidden
             >
@@ -72,12 +72,12 @@ export function UnitPath({ unit }: { unit: Unit }) {
             <Link
               href={`/learn/${unit.id}/${skill.id}`}
               className={`skill-card min-w-0 flex-1 ${
-                current ? "hue-line border-2 shadow-raised" : locked ? "bg-slate-50/70" : ""
+                current ? "hue-line border-2 shadow-raised" : locked ? "bg-slate-50" : ""
               }`}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className={`font-semibold ${locked ? "text-slate-600" : "text-slate-900"}`}>{skill.title}</h3>
+                  <h3 className={`font-semibold ${!ready ? "text-slate-700" : locked ? "text-slate-600" : "text-slate-900"}`}>{skill.title}</h3>
                   {/* What finishing it pays, so the trade is visible before the work. */}
                   <span
                     className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { loadNotebook, saveNotebook } from "@/lib/social";
+import { Icon } from "@/components/Icon";
 
 const LOCAL_KEY = "algebridge-notebook";
 
@@ -118,7 +119,10 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
   return (
     <div className={`flex h-full flex-col ${className}`}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className={`font-bold text-slate-900 ${compact ? "text-sm" : ""}`}>📓 Notebook</h3>
+        <h3 className={`flex items-center gap-1.5 font-bold text-slate-900 ${compact ? "text-sm" : ""}`}>
+          <Icon name="notebook" size={compact ? 15 : 17} className="text-bridge-600" />
+          Notebook
+        </h3>
         <span
           className={`text-xs ${saveState === "error" ? "text-red-500" : "text-slate-400"}`}
           aria-live="polite"

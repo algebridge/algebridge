@@ -10,6 +10,7 @@ import {
   subscribeToIncomingMessages,
 } from "@/lib/social";
 import type { DirectMessage, UserRole } from "@/types";
+import { Icon } from "@/components/Icon";
 
 interface MessageThreadProps {
   otherId: string;
@@ -92,7 +93,8 @@ export function MessageThread({
         </div>
         {onStartCall && (
           <button type="button" onClick={onStartCall} className="btn-primary shrink-0 text-sm">
-            🎥 Call
+            <Icon name="video" size={16} />
+            Call
           </button>
         )}
       </div>
@@ -103,7 +105,7 @@ export function MessageThread({
           <p className="text-center text-sm text-slate-400">Loading…</p>
         ) : messages.length === 0 ? (
           <p className="mt-8 text-center text-sm text-slate-400">
-            No messages yet, say hi! 👋
+            No messages yet. Say hi!
           </p>
         ) : (
           messages.map((m) => {

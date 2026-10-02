@@ -4,10 +4,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
-import { buildNav, isActivePath, type NavSection } from "@/lib/nav";
+import { isActivePath, type NavItem, type NavSection } from "@/lib/nav";
 import { useAppNavState } from "@/components/AppNavProvider";
 import { UnitMark } from "@/components/UnitMark";
 import { hueVars, unitHue } from "@/lib/hues";
+
+/**
+ * "For schools" sits in Help, beside Feedback, for a visiting teacher or
+ * district. Shared with the mobile sheet so the two lists stay the same.
+ */
+const FOR_SCHOOLS: NavItem = { href: "/schools", label: "For schools", icon: "school" };
+
+export function withSchoolsLink(sections: NavSection[]): NavSection[] {
+  return sections.map((section) =>
+    section.title === "Help" && !section.items.some((item) => item.href === FOR_SCHOOLS.href)
+      ? { ...section, items: [...section.items, FOR_SCHOOLS] }
+      : section
+  );
+}
 
 /**
  * Persistent left rail on desktop. Keeps the course, the classroom and the
@@ -29,7 +43,7 @@ export function SideNav() {
       </Link>
 
       <nav data-lenis-prevent className="flex-1 overflow-y-auto px-3 py-4">
-        {sections.map((section) => (
+        {withSchoolsLink(sections).map((section) => (
           <NavGroup key={section.title} section={section} pathname={pathname} />
         ))}
       </nav>
@@ -39,7 +53,7 @@ export function SideNav() {
           {/* Where the student is, in that unit's color, with one tap to get back. */}
           <Link
             href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-            className="hue-banner flex items-center gap-3 rounded-xl px-3 py-3 transition duration-150 ease-out hover:scale-[1.02] hover:brightness-110"
+            className="hue-banner flex items-center gap-3 rounded-xl px-3 py-3 transition duration-150 ease-out hover:brightness-110"
           >
             <span className="hue-chip flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
               <UnitMark unitId={continueTarget.unitId} size={20} />
@@ -59,7 +73,7 @@ function NavGroup({ section, pathname }: { section: NavSection; pathname: string
   if (section.items.length === 0) return null;
   return (
     <div className="mb-5 last:mb-0">
-      <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+      <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
         {section.title}
       </p>
       <ul className="space-y-0.5">
@@ -70,9 +84,9 @@ function NavGroup({ section, pathname }: { section: NavSection; pathname: string
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition duration-150 ease-out hover:translate-x-0.5 ${
+                className={`relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out ${
                   active
-                    ? "bg-bridge-50 text-bridge-700"
+                    ? "bg-bridge-50 text-bridge-700 before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-bridge-600"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >

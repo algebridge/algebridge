@@ -22,6 +22,7 @@ import {
 import { getProgress, saveProgress } from "@/lib/progress";
 import { awardBridgeys } from "@/lib/bridgeys";
 import { showToast, fireConfetti } from "@/lib/notify";
+import { Icon } from "@/components/Icon";
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -134,7 +135,7 @@ export default function CallRoomPage() {
 
     // Send the recap to the other participant as a message.
     if (otherId && summaryText) {
-      sendMessage(otherId, `📝 Call recap:\n\n${summaryText}`);
+      sendMessage(otherId, `Call recap:\n\n${summaryText}`);
     }
 
     if (isTutorCall && callSessionIdRef.current) {
@@ -148,8 +149,9 @@ export default function CallRoomPage() {
           saveProgress(p);
           fireConfetti("small");
           showToast({
-            emoji: "🪙",
-            title: `+${CALL_BRIDGEYS} Bridgeys!`,
+            icon: "coin",
+            tone: "reward",
+            title: `+${CALL_BRIDGEYS} Bridgeys`,
             description: "Thanks for meeting with your tutor.",
           });
         }
@@ -462,13 +464,16 @@ export default function CallRoomPage() {
               />
               {statusLabel[status]}
               {isTutorCall && iAmStudent && status !== "ended" && (
-                <span className="ml-2 text-amber-600">· earn {CALL_BRIDGEYS} 🪙 for this call</span>
+                <span className="ml-2 text-amber-700">· earn {CALL_BRIDGEYS} Bridgeys for this call</span>
               )}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/messages/${otherId}`} className="btn-secondary text-sm">💬 Chat</Link>
+          <Link href={`/messages/${otherId}`} className="btn-secondary text-sm">
+            <Icon name="messages" size={16} />
+            Chat
+          </Link>
           {status !== "ended" ? (
             <button type="button" onClick={endCall} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
               End call
@@ -485,7 +490,10 @@ export default function CallRoomPage() {
 
       {status === "ended" ? (
         <div className="card space-y-3">
-          <h2 className="text-lg font-bold text-slate-900">📝 Call summary</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <Icon name="notebook" size={19} className="text-bridge-600" />
+            Call summary
+          </h2>
           {summarizing ? (
             <p className="text-slate-500">Generating your recap…</p>
           ) : summary ? (
@@ -502,7 +510,7 @@ export default function CallRoomPage() {
           )}
           <div className="flex gap-2">
             <Link href={`/messages/${otherId}`} className="btn-secondary text-sm">Go to messages</Link>
-            <Link href="/" className="btn-primary text-sm">Back to course</Link>
+            <Link href="/" className="btn-primary text-sm">Back to the course</Link>
           </div>
         </div>
       ) : (
@@ -534,24 +542,27 @@ export default function CallRoomPage() {
               <button
                 type="button"
                 onClick={toggleMic}
-                className={`rounded-xl px-4 py-2 text-sm font-medium ${micOn ? "bg-slate-100 text-slate-700" : "bg-red-100 text-red-700"}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${micOn ? "bg-slate-100 text-slate-700" : "bg-red-100 text-red-700"}`}
               >
-                {micOn ? "🎤 Mic on" : "🔇 Mic off"}
+                <Icon name={micOn ? "mic" : "mic-off"} size={16} />
+                {micOn ? "Mic on" : "Mic off"}
               </button>
               <button
                 type="button"
                 onClick={toggleCam}
-                className={`rounded-xl px-4 py-2 text-sm font-medium ${camOn ? "bg-slate-100 text-slate-700" : "bg-red-100 text-red-700"}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${camOn ? "bg-slate-100 text-slate-700" : "bg-red-100 text-red-700"}`}
               >
-                {camOn ? "📹 Cam on" : "🚫 Cam off"}
+                <Icon name={camOn ? "video" : "video-off"} size={16} />
+                {camOn ? "Camera on" : "Camera off"}
               </button>
               <button
                 type="button"
                 onClick={() => setCaptions((c) => !c)}
                 title="Live captions power the AI summary at the end of the call"
-                className={`rounded-xl px-4 py-2 text-sm font-medium ${captions ? "bg-bridge-100 text-bridge-700" : "bg-slate-100 text-slate-700"}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${captions ? "bg-bridge-100 text-bridge-700" : "bg-slate-100 text-slate-700"}`}
               >
-                {captions ? "💬 Captions on" : "💬 Captions off"}
+                <Icon name="messages" size={16} />
+                {captions ? "Captions on" : "Captions off"}
               </button>
             </div>
             {captions && (
@@ -575,19 +586,21 @@ export default function CallRoomPage() {
               <button
                 type="button"
                 onClick={() => setTab("whiteboard")}
-                className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "whiteboard" ? "bg-bridge-600 text-white" : "bg-slate-100 text-slate-600"}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${tab === "whiteboard" ? "bg-bridge-600 text-white" : "bg-slate-100 text-slate-600"}`}
               >
-                ✏️ Whiteboard
+                <Icon name="pen" size={16} />
+                Whiteboard
               </button>
               <button
                 type="button"
                 onClick={() => setTab("notebook")}
-                className={`rounded-xl px-4 py-2 text-sm font-medium ${tab === "notebook" ? "bg-bridge-600 text-white" : "bg-slate-100 text-slate-600"}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${tab === "notebook" ? "bg-bridge-600 text-white" : "bg-slate-100 text-slate-600"}`}
               >
-                📓 Notebook
+                <Icon name="notebook" size={16} />
+                Notebook
               </button>
               <span className="ml-auto self-center text-xs text-slate-400">
-                Use the 🧮 button (bottom-right) for the calculator
+                The calculator is the round button at the bottom right
               </span>
             </div>
             <div className="card h-[70vh]">
