@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import {
+  actionAsWords,
+  actionInstruction,
   arithmeticReply,
   classifyIntent,
   ESCALATION_OFFER,
+  exampleFallback,
+  findFormulaCard,
   forbiddenValues,
+  formulaCardText,
+  isHelperAction,
   leaksAnswer,
   leaksAnswerText,
   parseArithmetic,
@@ -11,6 +17,9 @@ import {
   refuseAnswer,
   reminderReply,
   schedulerPrompt,
+  stripEmoji,
+  withoutListMarkers,
+  type HelperAction,
   type HelperContext,
   type HelperMessage,
   type HelperMode,
@@ -29,6 +38,10 @@ import { buildLocalChatReply, stripMarkdownEmphasis } from "@/lib/tutor";
  *   3. Filter the reply. If it contains a value the student was meant to
  *      derive, throw it away and fall back to the local engine.
  *
+ * A quick action ("hint", "example", ...) only shapes the prompt in step 2.
+ * The gates in step 1 read the student's words, and the filter in step 3 runs
+ * on every reply, so no button is a way around either.
+ *
  * With no key configured every branch still works; the replies come from the
  * deterministic engine instead. That is the shipping default.
  */
@@ -37,15 +50,19 @@ interface HelperRequest {
   mode: HelperMode;
   context: HelperContext;
   messages: HelperMessage[];
+  action?: HelperAction;
 }
 
 type Source = "ai" | "local" | "gate";
 
-function systemPrompt(mode: HelperMode, ctx: HelperContext): string {
-  const shared = `You are the AlgeBridge study helper for Algebra 1 students in grades 7 to 10.
-Write plain text. No markdown, no asterisks, no headers, no bullet characters.
+function systemPrompt(mode: HelperMode, ctx: HelperContext, action?: HelperAction, avoid: string[] = []): string {
+  const shared = `You are Archie, the AlgeBridge AI study buddy for Algebra 1 students in grades 7 to 10.
+You are an AI, not a person. If a student asks, say so plainly, and never claim to be human.
+Sound like a warm, upbeat older student who is good at maths: encouraging, never babyish, never sarcastic.
+Write plain text in friendly, plain words. No markdown, no asterisks, no headers, no bullet characters, no emoji.
 Never use an em dash. Use a comma, a period, or a hyphen.
-Keep it to 2 to 4 sentences.`;
+Write powers with a caret, like x^2.
+Keep it short: 2 to 5 short sentences, under 80 words.`;
 
   if (mode === "reminder") {
     return `${shared}
@@ -66,7 +83,14 @@ Worked solution, for your context only and never to be revealed: ${ctx.explanati
 
 Absolute rule: never state the final answer, and never state an intermediate value the student is working towards.
 Guide with one small next step and end with a question.
-If the student proposes an answer, do not confirm or deny it. Have them check it by substituting back.`;
+If the student proposes an answer, do not confirm or deny it. Have them check it by substituting back.${
+    action ? `\n\n${actionInstruction(action, avoid)}` : ""
+  }`;
+}
+
+/** A worked example needs room for its steps; everything else stays short. */
+function tokenBudget(action?: HelperAction): number {
+  return action === "example" ? 700 : 350;
 }
 
 /**
@@ -91,7 +115,8 @@ const GROQ_MODELS = [
 async function callGroq(
   key: string,
   sys: string,
-  msgs: HelperMessage[]
+  msgs: HelperMessage[],
+  maxTokens: number
 ): Promise<{ text: string; model: string }> {
   const preferred = process.env.GROQ_MODEL;
   const models = preferred ? [preferred, ...GROQ_MODELS] : GROQ_MODELS;
@@ -104,8 +129,12 @@ async function callGroq(
         body: JSON.stringify({
           model,
           messages: [{ role: "system", content: sys }, ...msgs],
-          max_tokens: 300,
+          max_tokens: maxTokens,
           temperature: 0.7,
+          // gpt-oss thinks before it answers, and the thinking is billed
+          // against max_tokens. Low effort keeps a short hint fast and stops
+          // the reasoning from eating the whole budget and leaving no reply.
+          ...(model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" } : {}),
         }),
       });
       if (!res.ok) {
@@ -131,7 +160,8 @@ async function callOpenAICompatible(
   key: string,
   model: string,
   sys: string,
-  msgs: HelperMessage[]
+  msgs: HelperMessage[],
+  maxTokens: number
 ): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
@@ -139,7 +169,7 @@ async function callOpenAICompatible(
     body: JSON.stringify({
       model,
       messages: [{ role: "system", content: sys }, ...msgs],
-      max_tokens: 300,
+      max_tokens: maxTokens,
       temperature: 0.6,
     }),
   });
@@ -152,7 +182,8 @@ async function callOpenAICompatible(
 
 async function askModel(
   sys: string,
-  msgs: HelperMessage[]
+  msgs: HelperMessage[],
+  maxTokens = 350
 ): Promise<{ text: string; provider: string } | null> {
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
@@ -163,7 +194,7 @@ async function askModel(
   // up. The key should also be removed from the deployment.
   try {
     if (groq) {
-      const r = await callGroq(groq, sys, msgs);
+      const r = await callGroq(groq, sys, msgs, maxTokens);
       return { text: r.text, provider: `groq:${r.model}` };
     }
     if (openai)
@@ -173,7 +204,8 @@ async function askModel(
           openai,
           "gpt-4o-mini",
           sys,
-          msgs
+          msgs,
+          maxTokens
         ),
         provider: "openai",
       };
@@ -188,7 +220,17 @@ function stripEmDashes(text: string): string {
   return text.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",");
 }
 
-function localFallback(ctx: HelperContext, msgs: HelperMessage[]): string {
+function localFallback(ctx: HelperContext, msgs: HelperMessage[], action?: HelperAction): string {
+  if (action === "example" && ctx.problemPrompt) return exampleFallback(ctx);
+  // Asked for a hint in so many words, the problem's own hint is the honest
+  // answer: it is written for this problem. It still has to pass the filter.
+  const hintIsClean = !!ctx.hint && !leaksAnswer(ctx.hint, forbiddenValues(ctx)) && !leaksAnswerText(ctx.hint, ctx);
+  if (action === "hint" && ctx.problemPrompt && hintIsClean) {
+    return `Here is a hint: ${ctx.hint}\n\nTry just that one step, then tell me what you get.`;
+  }
+  // The local engine steers by the student's words, so a button press is
+  // handed to it as the words that mean the same thing.
+  if (action) msgs = [...msgs, { role: "user", content: actionAsWords(action) }];
   // Without a problem to work on there is nothing for the skill engine to
   // quote, and its templates leave empty slots.
   if (!ctx.problemPrompt) {
@@ -220,12 +262,18 @@ export async function POST(request: Request) {
   }
 
   const mode: HelperMode = body.mode === "reminder" || body.mode === "scheduler" ? body.mode : "tutor";
-  const messages = body.messages.slice(-20);
+  // Only the roles and text of the conversation, whatever else a client sends.
+  const messages: HelperMessage[] = body.messages
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }))
+    .slice(-20);
   const ctx = body.context;
+  // Quick actions shape a tutor's reply. Anything else is ignored, not trusted.
+  const action: HelperAction | undefined = mode === "tutor" && isHelperAction(body.action) ? body.action : undefined;
   const last = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
   const reply = (message: string, source: Source, extra: Record<string, unknown> = {}) =>
-    NextResponse.json({ message: stripEmDashes(stripMarkdownEmphasis(message)), source, ...extra });
+    NextResponse.json({ message: stripEmoji(stripEmDashes(stripMarkdownEmphasis(message))).trim(), source, ...extra });
 
   // --- 1. The two hard gates, which never reach a model -------------------
   //
@@ -254,9 +302,39 @@ export async function POST(request: Request) {
     return reply(ESCALATION_OFFER, "gate", { intent, offerTutor: true });
   }
 
+  // A named formula is reference material with one right statement. The
+  // card says it exactly, instantly, and without a model call.
+  if (mode === "reminder") {
+    const card = findFormulaCard(last);
+    if (card) {
+      return reply(formulaCardText(card), "local", {
+        intent: "formula",
+        card: { name: card.name, formula: card.formula, mnemonic: card.mnemonic },
+      });
+    }
+  }
+
   // --- 2. Ask a model, in every mode -------------------------------------
 
-  const answered = await askModel(systemPrompt(mode, ctx), messages);
+  const forbidden = forbiddenValues(ctx);
+  const leaks = (text: string) => {
+    // List markers are counted out ("1. 2. 3."), not values, so a worked
+    // example's step numbers do not trip the filter on a small answer.
+    const checked = action === "example" ? withoutListMarkers(text) : text;
+    return leaksAnswer(checked, forbidden) || leaksAnswerText(checked, ctx);
+  };
+
+  let answered = await askModel(systemPrompt(mode, ctx, action, forbidden), messages, tokenBudget(action));
+  // A made-up example is full of numbers and can land on a forbidden one by
+  // chance. It gets one more try, told again which numbers to stay off.
+  if (answered && action === "example" && leaks(answered.text)) {
+    const again = await askModel(
+      `${systemPrompt(mode, ctx, action, forbidden)}\nYour last example used a number from the student's own solution. Pick completely different numbers.`,
+      messages,
+      tokenBudget(action)
+    );
+    if (again) answered = again;
+  }
   const raw = answered?.text ?? null;
 
   // Without a key the mode-specific engines are the best answer available.
@@ -268,14 +346,18 @@ export async function POST(request: Request) {
   // --- 3. Filter what came back ------------------------------------------
 
   if (raw) {
-    const forbidden = forbiddenValues(ctx);
-    if (!leaksAnswer(raw, forbidden) && !leaksAnswerText(raw, ctx)) {
-      return reply(raw, "ai", { intent, provider: answered!.provider });
+    if (!leaks(raw)) {
+      return reply(raw, "ai", { intent, action, provider: answered!.provider });
     }
     // The model gave away a value the student was meant to reach. Discard it
     // entirely rather than trying to patch it, and answer deterministically.
-    return reply(localFallback(ctx, messages), "local", { intent, filtered: true, provider: answered!.provider });
+    return reply(localFallback(ctx, messages, action), "local", {
+      intent,
+      action,
+      filtered: true,
+      provider: answered!.provider,
+    });
   }
 
-  return reply(localFallback(ctx, messages), "local", { intent });
+  return reply(localFallback(ctx, messages, action), "local", { intent, action });
 }

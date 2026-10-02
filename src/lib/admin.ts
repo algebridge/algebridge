@@ -91,6 +91,52 @@ export async function fetchAdminUserRows(): Promise<AdminUserRow[]> {
   }));
 }
 
+export interface AdminReview {
+  id: string;
+  /** 1 to 5. Null only for a review sent before the rating column existed and not yet backfilled. */
+  rating: number | null;
+  message: string;
+  createdAt: string;
+  /** The reviewer's display name when they were signed in, otherwise null. */
+  displayName: string | null;
+}
+
+export interface AdminReviews {
+  /** Mean of every rated review, not only the 50 listed. Null with no reviews. */
+  average: number | null;
+  count: number;
+  /** The latest 50, newest first. */
+  reviews: AdminReview[];
+}
+
+/**
+ * Star reviews from /feedback, via admin_reviews() (see
+ * supabase/schema-2026-10-01-reviews.sql). Null when the function is missing
+ * (the migration has not run) or the call fails, and the console then hides
+ * its Reviews section rather than showing an empty one.
+ */
+export async function fetchAdminReviews(): Promise<AdminReviews | null> {
+  const supabase = createClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("admin_reviews");
+  if (error || !data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const avg = d.average == null ? null : Number(d.average);
+  return {
+    average: avg != null && Number.isFinite(avg) ? avg : null,
+    count: num(d.count),
+    reviews: Array.isArray(d.reviews)
+      ? (d.reviews as Record<string, unknown>[]).map((r) => ({
+          id: String(r.id),
+          rating: r.rating == null ? null : num(r.rating),
+          message: String(r.message ?? ""),
+          createdAt: String(r.created_at),
+          displayName: (r.display_name as string) ?? null,
+        }))
+      : [],
+  };
+}
+
 /**
  * Give an account unlimited Bridgeys, or take the allowance back. Admin-only in
  * the database (set_unlimited_bridgeys checks is_admin()), and the column is

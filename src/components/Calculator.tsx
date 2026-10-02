@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
-import { balanceParens, CalcError, evaluate, formatResult, toggleSign, type Carry } from "@/lib/calculator";
+import { DesmosCalculator } from "@/components/DesmosCalculator";
+import { Keypad } from "@/components/Keypad";
 import {
   getCalculatorAccess,
   getServerCalculatorAccess,
@@ -10,58 +11,44 @@ import {
   setCalculatorRect,
   subscribeCalculatorAccess,
 } from "@/lib/calculator-access";
-import { keepOnScreen, readOffset, saveOffset, type Offset } from "@/lib/floating-panel";
+import {
+  DEFAULT_MODE,
+  DEFAULT_SIZES,
+  DESMOS_CREDIT_URL,
+  DESMOS_MODES,
+  MIN_SIZE,
+  desmosApiKey,
+  desmosAppUrl,
+  expandedSize,
+  fitSize,
+  openDesmosWindow,
+  readCalculatorSizes,
+  saveCalculatorSizes,
+  type DesmosMode,
+} from "@/lib/desmos";
+import {
+  keepOnScreen,
+  readOffset,
+  resizeFromBottomLeft,
+  saveOffset,
+  type Offset,
+  type ResizeStart,
+  type Size,
+} from "@/lib/floating-panel";
+import { getServerSidebarState, getSidebarState, subscribeSidebar } from "@/lib/sidebar";
 
-type Key = {
-  label: string;
-  /** What gets appended (defaults to label). Special actions handled separately. */
-  insert?: string;
-  action?: "clear" | "back" | "equals" | "sign";
-  variant?: "num" | "op" | "fn" | "accent" | "danger";
-  aria: string;
-};
-
-const KEYS: Key[] = [
-  { label: "C", action: "clear", variant: "danger", aria: "Clear" },
-  { label: "⌫", action: "back", variant: "fn", aria: "Backspace" },
-  { label: "(", variant: "fn", aria: "Open parenthesis" },
-  { label: ")", variant: "fn", aria: "Close parenthesis" },
-  { label: "÷", variant: "op", aria: "Divide" },
-
-  { label: "7", variant: "num", aria: "Seven" },
-  { label: "8", variant: "num", aria: "Eight" },
-  { label: "9", variant: "num", aria: "Nine" },
-  { label: "√", insert: "√(", variant: "fn", aria: "Square root" },
-  { label: "×", variant: "op", aria: "Multiply" },
-
-  { label: "4", variant: "num", aria: "Four" },
-  { label: "5", variant: "num", aria: "Five" },
-  { label: "6", variant: "num", aria: "Six" },
-  { label: "x²", insert: "^2", variant: "fn", aria: "Squared" },
-  { label: "−", insert: "−", variant: "op", aria: "Subtract" },
-
-  { label: "1", variant: "num", aria: "One" },
-  { label: "2", variant: "num", aria: "Two" },
-  { label: "3", variant: "num", aria: "Three" },
-  { label: "xʸ", insert: "^", variant: "fn", aria: "Power" },
-  { label: "+", variant: "op", aria: "Add" },
-
-  { label: "±", action: "sign", variant: "fn", aria: "Make negative or positive" },
-  { label: "0", variant: "num", aria: "Zero" },
-  { label: ".", variant: "num", aria: "Decimal point" },
-  // Percent problems are why the calculator is offered on some skills; π is
-  // never needed in the ones it is offered on.
-  { label: "%", variant: "fn", aria: "Percent" },
-  { label: "=", action: "equals", variant: "accent", aria: "Equals" },
-];
-
-const VARIANT_CLASS: Record<NonNullable<Key["variant"]>, string> = {
-  num: "bg-white text-slate-800 hover:bg-slate-100 border-slate-200",
-  op: "bg-slate-100 text-slate-900 hover:bg-slate-200 border-slate-200 font-semibold",
-  fn: "bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200",
-  accent: "bg-bridge-600 text-white hover:bg-bridge-700 border-bridge-600 font-bold",
-  danger: "bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-semibold",
-};
+/**
+ * The calculator: a launcher in the bottom-right corner and a panel that can
+ * be dragged, resized and expanded.
+ *
+ * With a Desmos API key the panel is Desmos (Scientific first, Graphing one
+ * tap away). Without one it is AlgeBridge's own keypad, with Desmos a tap
+ * away in a small window of its own. Desmos is never framed: its terms say
+ * so (lib/desmos.ts has the details).
+ *
+ * When the AI sidebar is docked open on the right, the launcher and the panel
+ * rest beside it, never under it.
+ */
 
 /** The launcher glyph: the four operations, which need no explaining. */
 function OperatorMark() {
@@ -75,57 +62,165 @@ function OperatorMark() {
   );
 }
 
-/** How a screen reader should say a result: "−5" and "10^23" read badly as symbols. */
-function spoken(text: string): string {
-  return text.replace(/−/g, "minus ").replace(/×10\^/g, " times 10 to the power ");
+/** Expand, and the way back, in the same line style as the Icon set. */
+function ExpandMark({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {expanded ? (
+        <>
+          <path d="M14 5.5V10h4.5M14 10l6-6" />
+          <path d="M10 18.5V14H5.5M10 14l-6 6" />
+        </>
+      ) : (
+        <>
+          <path d="M14 4h6v6M20 4l-6.5 6.5" />
+          <path d="M10 20H4v-6M4 20l6.5-6.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/**
+ * A link to desmos.com that opens a small window of its own, or, if a popup
+ * blocker stops that, a normal new tab (the link's own behaviour). A click
+ * with a modifier key is left to the browser, so Cmd-click still means a tab.
+ */
+function OpenDesmos({ mode, children }: { mode: DesmosMode; children: ReactNode }) {
+  return (
+    <a
+      href={desmosAppUrl(mode)}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        if (openDesmosWindow(mode)) e.preventDefault();
+      }}
+      aria-label={`Open the Desmos ${mode} calculator in a new window`}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:border-bridge-300 hover:bg-bridge-50 hover:text-bridge-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
+    >
+      {children}
+      <Icon name="external" size={12} className="text-slate-400" />
+    </a>
+  );
 }
 
 const NUDGE_KEY = "algebridge-calculator-position";
-const MAX_DISPLAY_CHARS = 80;
+const PANEL_ID = "algebridge-calculator";
+/** How far one arrow key press on the resize corner grows or shrinks the panel. */
+const KEY_STEP = 24;
+/** Where the launcher and the panel rest, from the right of the space they have and from the bottom. */
+const REST_RIGHT = 20;
+const REST_BOTTOM = 96;
+/** The keypad's width; its height is whatever the keys need. */
+const KEYPAD_WIDTH = 320;
+/**
+ * The slide beside an opening or closing sidebar: the same length and curve
+ * as the sidebar's own (helper.css), and none while the sidebar is being
+ * resized or was already open on load (html[data-helper-resizing|still]).
+ */
+const SHIFT_MS = 300;
+const SHIFT_MOTION =
+  "motion-safe:transition-[right] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.2,0.8,0.2,1)] [html[data-helper-resizing]_&]:transition-none [html[data-helper-still]_&]:transition-none";
+const PANEL_SHADOW = "shadow-[0_18px_50px_-12px_rgb(15_23_42/0.28)]";
+
+/** Below this width the panel is a bottom sheet: no dragging, no corner. */
+const PHONE_QUERY = "(max-width: 639.98px)";
+function subscribePhone(fn: () => void) {
+  const mq = window.matchMedia(PHONE_QUERY);
+  mq.addEventListener("change", fn);
+  return () => mq.removeEventListener("change", fn);
+}
+const getPhone = () => window.matchMedia(PHONE_QUERY).matches;
+const getServerPhone = () => false;
+
+function subscribeWindowSize(fn: () => void) {
+  window.addEventListener("resize", fn);
+  return () => window.removeEventListener("resize", fn);
+}
+const getWidth = () => window.innerWidth;
+const getHeight = () => window.innerHeight;
+const getServerWidth = () => 1280;
+const getServerHeight = () => 800;
 
 export function Calculator() {
   const [open, setOpen] = useState(false);
   /**
+   * The panel is made the first time it is opened (so Desmos never loads on
+   * a page where nobody wants it) and then kept, hidden while closed, so a
+   * sum on the keypad is still there when the student comes back to it.
+   */
+  const [made, setMade] = useState(false);
+  /** Read in the browser once mounted: in development it can come from localStorage. */
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  /** Desmos would not load and the student asked for the keypad instead. */
+  const [keypadFallback, setKeypadFallback] = useState(false);
+  const desmos = !!apiKey && !keypadFallback;
+  /** Scientific on every fresh visit; a switch lasts until the page reloads. */
+  const [mode, setModeState] = useState<DesmosMode>(DEFAULT_MODE);
+  const [expandedChoice, setExpanded] = useState(false);
+  const expanded = desmos && expandedChoice;
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const [sizes, setSizes] = useState<Record<DesmosMode, Size>>(DEFAULT_SIZES);
+  const sizesRef = useRef(sizes);
+  sizesRef.current = sizes;
+  /**
    * Where the panel was dragged, as an offset from its resting corner. The
-   * launcher button never moves: it used to travel with the panel, and a
-   * short drag left parked it under the study helper's button.
+   * launcher button never moves with it: it used to travel with the panel,
+   * and a short drag left it parked under the study helper's button.
    */
   const [nudge, setNudge] = useState<Offset>({ x: 0, y: 0 });
   const appliedRef = useRef(nudge);
   appliedRef.current = nudge;
   const dragRef = useRef<{ px: number; py: number; from: Offset; last: Offset } | null>(null);
-  /**
-   * Where the physical keyboard goes. The calculator only takes keystrokes
-   * after the student taps it, otherwise they'd be unable to type an answer
-   * (or backspace one) with the calculator sitting open beside the problem.
-   */
-  const [keypadActive, setKeypadActive] = useState(false);
-  const [expr, setExprState] = useState("");
-  const exprRef = useRef("");
-  const [history, setHistory] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  /** Said by screen readers, which cannot see a result appear. */
-  const [announcement, setAnnouncement] = useState("");
-  // After "=", the next number press starts a fresh calculation.
-  const replaceRef = useRef(false);
-  const carryRef = useRef<Carry | null>(null);
+  const resizeRef = useRef<{ px: number; py: number; start: ResizeStart } | null>(null);
+  /** While dragging or resizing, a cover keeps the pointer off the calculator underneath. */
+  const [busy, setBusy] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  /** Whether typing goes to the calculator right now, which the panel shows. */
+  const [focusKeys, setFocusKeys] = useState(false);
+  const [keypadKeys, setKeypadKeys] = useState(false);
+  const hasKeys = desmos ? focusKeys : keypadKeys;
+  const isPhone = useSyncExternalStore(subscribePhone, getPhone, getServerPhone);
+  const vw = useSyncExternalStore(subscribeWindowSize, getWidth, getServerWidth);
+  const vh = useSyncExternalStore(subscribeWindowSize, getHeight, getServerHeight);
 
-  const setExpr = useCallback((next: string) => {
-    const capped = next.slice(0, MAX_DISPLAY_CHARS);
-    exprRef.current = capped;
-    setExprState(capped);
-  }, []);
+  // The AI sidebar, when docked open, takes the right edge. Everything here
+  // rests that much further left and keeps out of it.
+  const sidebar = useSyncExternalStore(subscribeSidebar, getSidebarState, getServerSidebarState);
+  const shift = isPhone ? 0 : Math.max(0, Math.round(sidebar.width || 0));
+  const area: Size = { width: Math.max(0, vw - shift), height: vh };
+  const areaRef = useRef(area);
+  areaRef.current = area;
 
   // Practice tells the calculator whether the skill is one it belongs on.
   // Anywhere with no opinion (null) keeps it, so it stays a general tool.
   const access = useSyncExternalStore(subscribeCalculatorAccess, getCalculatorAccess, getServerCalculatorAccess);
   const available = access !== false;
+  const shown = open && available;
+
+  const size: Size = desmos
+    ? fitSize(expanded ? expandedSize(area, sizes[mode]) : sizes[mode], area)
+    : fitSize({ width: KEYPAD_WIDTH, height: area.height }, area);
 
   useEffect(() => {
     const saved = readOffset(NUDGE_KEY);
     if (saved) setNudge(saved);
+    setSizes(readCalculatorSizes());
+    setApiKey(desmosApiKey());
   }, []);
 
   // A skill the calculator is not offered on closes it rather than leaving it
@@ -133,343 +228,478 @@ export function Calculator() {
   // per skill, so this fires on moving to a different skill, never between
   // two problems of the same one.
   useEffect(() => {
-    if (!available) {
-      setOpen(false);
-      setKeypadActive(false);
+    if (available) return;
+    if (document.activeElement instanceof HTMLElement && panelRef.current?.contains(document.activeElement)) {
+      document.activeElement.blur();
     }
+    setOpen(false);
   }, [available]);
 
   useEffect(() => {
-    setCalculatorOpen(open && available);
+    setCalculatorOpen(shown);
     return () => setCalculatorOpen(false);
-  }, [open, available]);
+  }, [shown]);
 
-  /** Pulls the panel fully on screen, e.g. a spot saved on a wider window. */
+  useEffect(() => () => setCalculatorRect(null), []);
+
+  const publish = useCallback(() => {
+    const box = panelRef.current?.getBoundingClientRect();
+    if (box) setCalculatorRect({ left: box.left, top: box.top, right: box.right, bottom: box.bottom });
+  }, []);
+
+  /** Pulls the panel fully into its space, e.g. a spot saved on a wider window. */
   const settle = useCallback(() => {
+    // Expanded, it is placed to fit, from its own left and top.
+    if (expandedRef.current) return;
     const box = panelRef.current?.getBoundingClientRect();
     if (!box) return;
     setNudge((n) => {
-      const next = keepOnScreen(box, appliedRef.current, n);
+      const next = keepOnScreen(box, appliedRef.current, n, areaRef.current);
       return next.x === n.x && next.y === n.y ? n : next;
     });
   }, []);
 
-  // On opening, and whenever it moves, check it is on screen and tell the
-  // study helper where it is.
+  // On opening, and whenever it moves, changes size or the window or the
+  // sidebar changes, check it is in its space and tell the study helper
+  // where it is. After the sidebar opens or closes, the panel slides for
+  // SHIFT_MS, so it is measured once it has arrived.
+  const lastShift = useRef(shift);
   useLayoutEffect(() => {
-    if (!open) {
+    if (!shown) {
+      // A slide while it was closed has finished by the time it opens.
+      lastShift.current = shift;
       setCalculatorRect(null);
       return;
     }
-    settle();
-    const box = panelRef.current?.getBoundingClientRect();
-    if (box) setCalculatorRect({ left: box.left, top: box.top, right: box.right, bottom: box.bottom });
-  }, [open, nudge, settle]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onResize = () => {
-      settle();
-      const box = panelRef.current?.getBoundingClientRect();
-      if (box) setCalculatorRect({ left: box.left, top: box.top, right: box.right, bottom: box.bottom });
+    const check = () => {
+      if (!getPhone()) settle();
+      publish();
     };
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      setCalculatorRect(null);
-    };
-  }, [open, settle]);
-
-  // Live preview of the current expression (grayed under the main line).
-  let preview = "";
-  if (expr.trim() && !replaceRef.current) {
-    try {
-      const formatted = formatResult(evaluate(balanceParens(expr), carryRef.current));
-      if (formatted !== expr) preview = formatted;
-    } catch {
-      preview = "";
+    if (lastShift.current !== shift) {
+      lastShift.current = shift;
+      const timer = window.setTimeout(check, SHIFT_MS + 40);
+      return () => window.clearTimeout(timer);
     }
-  }
+    check();
+  }, [shown, nudge, size.width, size.height, isPhone, shift, vw, vh, expanded, desmos, settle, publish]);
+
+  // Who has the keyboard in Desmos. Worth showing, otherwise a student types
+  // into the calculator and wonders why the answer box is empty. (The keypad
+  // keeps track of this itself and reports it.)
+  useEffect(() => {
+    if (!shown || !desmos) {
+      setFocusKeys(false);
+      return;
+    }
+    const check = () => {
+      const el = document.activeElement;
+      setFocusKeys(!!el && el !== document.body && !!bodyRef.current?.contains(el) && !el.closest("[inert]"));
+    };
+    const later = () => window.setTimeout(check, 0);
+    window.addEventListener("blur", later);
+    window.addEventListener("focus", check);
+    document.addEventListener("focusin", check);
+    document.addEventListener("focusout", later);
+    check();
+    return () => {
+      window.removeEventListener("blur", later);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("focusin", check);
+      document.removeEventListener("focusout", later);
+    };
+  }, [shown, desmos]);
+
+  /**
+   * Takes the keyboard back from inside `area` (the panel, or just the
+   * calculator part of it). Chrome on a Mac does not move focus to a button
+   * that is clicked, so without this a student could close the calculator
+   * and go on typing into it unseen.
+   */
+  const takeKeysBack = useCallback((el0: HTMLElement | null, toLauncher: boolean) => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLElement) || !el0?.contains(el)) return false;
+    if (toLauncher && launcherRef.current) launcherRef.current.focus();
+    else el.blur();
+    return true;
+  }, []);
+
+  const close = useCallback(
+    (returnFocus: boolean) => {
+      const moved = takeKeysBack(panelRef.current, true);
+      if (returnFocus && !moved) launcherRef.current?.focus();
+      setOpen(false);
+    },
+    [takeKeysBack]
+  );
+
+  const closeFromKeypad = useCallback(() => close(true), [close]);
+
+  const fallBackToKeypad = useCallback(() => {
+    takeKeysBack(bodyRef.current, false);
+    setKeypadFallback(true);
+  }, [takeKeysBack]);
+
+  /**
+   * The two calculators are different sizes. The panel keeps its bottom-right
+   * corner, so it never grows over its own launcher, and the switch, which
+   * sits at the right of the top bar, stays almost under the pointer.
+   */
+  const setMode = useCallback(
+    (next: DesmosMode) => {
+      if (next === mode) return;
+      // The calculator being put away keeps no keyboard.
+      takeKeysBack(bodyRef.current, false);
+      setModeState(next);
+    },
+    [mode, takeKeysBack]
+  );
+
+  const toggleExpanded = useCallback(() => setExpanded((e) => !e), []);
+
+  // --- Dragging the panel by its top bar ---------------------------------------
+
+  const canDrag = !isPhone && !expanded;
 
   const onDragStart = useCallback(
     (e: React.PointerEvent) => {
-      // The close button lives inside this drag handle. Without this guard a
-      // press on it starts a drag and calls setPointerCapture, which retargets
-      // the pointer events to the handle so the button's click never fires.
-      if ((e.target as HTMLElement).closest("button")) return;
+      // The buttons live inside this drag handle. Without this guard a press
+      // on one starts a drag and calls setPointerCapture, which retargets the
+      // pointer events to the handle so the button's click never fires.
+      if (!canDrag || (e.target as HTMLElement).closest("button, a")) return;
       dragRef.current = { px: e.clientX, py: e.clientY, from: nudge, last: nudge };
       (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      setBusy(true);
     },
-    [nudge]
+    [nudge, canDrag]
   );
 
   const onDragMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d) return;
     const want = { x: d.from.x + (e.clientX - d.px), y: d.from.y + (e.clientY - d.py) };
-    d.last = keepOnScreen(panelRef.current?.getBoundingClientRect(), appliedRef.current, want);
+    d.last = keepOnScreen(panelRef.current?.getBoundingClientRect(), appliedRef.current, want, areaRef.current);
     setNudge(d.last);
   }, []);
 
   const onDragEnd = useCallback(() => {
     const d = dragRef.current;
+    setBusy(false);
     if (!d) return;
     dragRef.current = null;
     // The last spot moved to, which a quick release can beat the render to.
     saveOffset(NUDGE_KEY, d.last);
   }, []);
 
-  const close = useCallback(() => {
-    setOpen(false);
-    setKeypadActive(false);
+  // --- Resizing from the bottom-left corner --------------------------------------
+
+  const measureStart = useCallback((): ResizeStart | null => {
+    const box = panelRef.current?.getBoundingClientRect();
+    if (!box) return null;
+    // Expanded, the panel is placed from its left and top. Resizing it hands
+    // it back to its resting corner, so the offset that puts it exactly where
+    // it is now is worked out from there.
+    const offset = expandedRef.current
+      ? {
+          x: Math.round(box.right - (areaRef.current.width - REST_RIGHT)),
+          y: Math.round(box.bottom - (areaRef.current.height - REST_BOTTOM)),
+        }
+      : appliedRef.current;
+    return {
+      size: { width: box.width, height: box.height },
+      offset,
+      rect: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+    };
   }, []);
 
-  const press = useCallback(
-    (key: Key) => {
-      setError(null);
-      const e = exprRef.current;
-      const carry = carryRef.current;
-
-      if (key.action === "clear") {
-        setExpr("");
-        setHistory(null);
-        carryRef.current = null;
-        replaceRef.current = false;
-        return;
-      }
-
-      if (key.action === "back") {
-        // An edited result no longer matches the line above it.
-        if (replaceRef.current) setHistory(null);
-        replaceRef.current = false;
-        setExpr(e.slice(0, -1));
-        return;
-      }
-
-      if (key.action === "sign") {
-        setHistory(null);
-        if (replaceRef.current && carry && e === carry.text) {
-          // A result is negated as a whole, "6.02×10^23" included.
-          const value = -carry.value;
-          const text = formatResult(value);
-          carryRef.current = { text, value };
-          setExpr(text);
-          return;
-        }
-        replaceRef.current = false;
-        setExpr(toggleSign(e));
-        return;
-      }
-
-      if (key.action === "equals") {
-        const trimmed = e.trim();
-        if (!trimmed) return;
-        try {
-          const value = evaluate(balanceParens(trimmed), carry);
-          const text = formatResult(value);
-          setHistory(`${balanceParens(trimmed)} =`);
-          carryRef.current = { text, value };
-          replaceRef.current = true;
-          setExpr(text);
-          setAnnouncement(`equals ${spoken(text)}`);
-        } catch (err) {
-          const message = err instanceof CalcError ? err.message : "Something went wrong";
-          setError(message);
-          setAnnouncement(message);
-        }
-        return;
-      }
-
-      // A value/operator key.
-      const text = key.insert ?? key.label;
-      const isOperator = key.variant === "op" || text === "^" || text === "^2" || text === "%";
-      if (replaceRef.current) {
-        replaceRef.current = false;
-        setHistory(null);
-        if (!isOperator) {
-          // After "=", a fresh number starts a new calculation.
-          carryRef.current = null;
-          setExpr(text);
-          return;
-        }
-        // An operator continues from the result. A negative or scientific
-        // result goes in brackets, so "−5" then x² reads (−5)^2, which is
-        // the 25 it works out to.
-        if (carry && e === carry.text && !/^[0-9.]+$/.test(carry.text)) {
-          carryRef.current = { text: `(${carry.text})`, value: carry.value };
-          setExpr(`(${carry.text})${text}`);
-          return;
-        }
-      }
-      setExpr(e + text);
+  const applyResize = useCallback(
+    (start: ResizeStart, dx: number, dy: number) => {
+      const next = resizeFromBottomLeft(start, dx, dy, MIN_SIZE, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+      setSizes((s) => {
+        const updated = { ...s, [mode]: next.size };
+        sizesRef.current = updated;
+        return updated;
+      });
+      setNudge(next.offset);
+      appliedRef.current = next.offset;
+      setExpanded(false);
+      return next;
     },
-    [setExpr]
+    [mode]
   );
 
-  // Tapping the calculator hands it the keyboard; touching anything else hands
-  // the keyboard back to the page (the answer box, usually).
-  useEffect(() => {
-    if (!open) return;
-    function isInsideCalculator(node: EventTarget | null): boolean {
-      if (!(node instanceof Node)) return false;
-      return !!panelRef.current?.contains(node) || !!launcherRef.current?.contains(node);
-    }
-    function onPointerDown(ev: PointerEvent) {
-      setKeypadActive(isInsideCalculator(ev.target));
-    }
-    // Covers Tab-ing into the answer box, and browsers that don't focus a
-    // <button> on tap (Safari), where pointerdown is the only signal.
-    function onFocusIn(ev: FocusEvent) {
-      setKeypadActive(isInsideCalculator(ev.target));
-    }
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("focusin", onFocusIn, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("focusin", onFocusIn, true);
-    };
-  }, [open]);
+  const onResizeStart = useCallback(
+    (e: React.PointerEvent) => {
+      const start = measureStart();
+      if (!start) return;
+      e.preventDefault();
+      resizeRef.current = { px: e.clientX, py: e.clientY, start };
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      setBusy(true);
+    },
+    [measureStart]
+  );
 
-  // Keyboard support, only while the keypad holds the keyboard.
-  useEffect(() => {
-    if (!open || !keypadActive) return;
-    function onKey(ev: KeyboardEvent) {
-      // Browser shortcuts (zoom, copy, cut) stay the browser's.
-      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-      const k = ev.key;
-      if (k === "Escape") {
-        // Only this panel closes; the study helper stays open.
-        ev.stopPropagation();
-        close();
-        launcherRef.current?.focus();
-        return;
-      }
-      // A key the student tabbed to is pressed with Enter or Space, like any
-      // other button, instead of Enter meaning "=".
-      const target = ev.target instanceof HTMLElement ? ev.target : null;
-      if ((k === "Enter" || k === " ") && target?.closest("button") && panelRef.current?.contains(target)) return;
+  const onResizeMove = useCallback(
+    (e: React.PointerEvent) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      applyResize(r.start, e.clientX - r.px, e.clientY - r.py);
+    },
+    [applyResize]
+  );
 
-      const map: Record<string, Key | undefined> = {
-        "*": KEYS.find((x) => x.label === "×"),
-        x: KEYS.find((x) => x.label === "×"),
-        "/": KEYS.find((x) => x.label === "÷"),
-        "-": KEYS.find((x) => x.label === "−"),
-        Enter: KEYS.find((x) => x.action === "equals"),
-        "=": KEYS.find((x) => x.action === "equals"),
-        Backspace: KEYS.find((x) => x.action === "back"),
-        Delete: KEYS.find((x) => x.action === "clear"),
+  const onResizeEnd = useCallback(() => {
+    setBusy(false);
+    if (!resizeRef.current) return;
+    resizeRef.current = null;
+    saveCalculatorSizes(sizesRef.current);
+    saveOffset(NUDGE_KEY, appliedRef.current);
+  }, []);
+
+  /** Arrow keys on the corner: left and down grow it, right and up shrink it. */
+  const onResizeKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      const step: Record<string, [number, number]> = {
+        ArrowLeft: [-KEY_STEP, 0],
+        ArrowRight: [KEY_STEP, 0],
+        ArrowDown: [0, KEY_STEP],
+        ArrowUp: [0, -KEY_STEP],
       };
+      const move = step[e.key];
+      const start = move && measureStart();
+      if (!move || !start) return;
+      e.preventDefault();
+      const next = applyResize(start, move[0], move[1]);
+      saveCalculatorSizes(sizesRef.current);
+      saveOffset(NUDGE_KEY, next.offset);
+    },
+    [applyResize, measureStart]
+  );
 
-      const direct = /^[0-9]$/.test(k) || k === "." || k === "+" || k === "(" || k === ")" || k === "^" || k === "%";
-      const mapped = map[k];
-      if (!direct && !mapped) return;
+  /**
+   * Keys typed in the calculator belong to it: the practice page's Enter and
+   * 1-9 shortcuts, and the study helper's Escape, never see them. Escape
+   * closes this panel only.
+   */
+  const onPanelKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        e.preventDefault();
+        close(true);
+      }
+    },
+    [close]
+  );
 
-      // Capture phase + stopPropagation so the practice panel's own Enter and
-      // 1-9 shortcuts don't also fire off the same keystroke.
-      ev.preventDefault();
-      ev.stopPropagation();
-      press(direct ? { label: k, variant: k === "%" || k === "^" ? "fn" : "num", aria: k } : mapped!);
-    }
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [open, keypadActive, press, close]);
+  // --- Where the panel goes -------------------------------------------------------
 
-  if (!available) return null;
+  let placement = "";
+  let style: React.CSSProperties | undefined;
+  if (isPhone) {
+    placement = desmos
+      ? expanded
+        ? "inset-2"
+        : "inset-x-2 bottom-2 h-[62dvh]"
+      : "inset-x-2 bottom-2 max-h-[calc(100dvh-16px)] overflow-y-auto";
+  } else if (expanded) {
+    // Centred in the space it has, beside an open sidebar.
+    style = {
+      left: Math.round((area.width - size.width) / 2),
+      top: Math.round((area.height - size.height) / 2),
+      width: size.width,
+      height: size.height,
+    };
+  } else {
+    placement = desmos
+      ? SHIFT_MOTION
+      : `max-h-[calc(100dvh-16px)] overflow-y-auto ${SHIFT_MOTION}`;
+    style = {
+      right: REST_RIGHT + shift,
+      bottom: REST_BOTTOM,
+      width: size.width,
+      height: desmos ? size.height : undefined,
+      transform: `translate(${nudge.x}px, ${nudge.y}px)`,
+    };
+  }
 
   return (
     <>
-      <button
-        ref={launcherRef}
-        type="button"
-        onClick={() => {
-          setOpen((o) => {
-            // Opening is itself a tap on the calculator, so it takes the keyboard.
-            setKeypadActive(!o);
-            return !o;
-          });
-        }}
-        aria-label={open ? "Close calculator" : "Open calculator"}
-        aria-expanded={open}
-        title="Calculator"
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition hover:bg-bridge-700 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2"
-      >
-        {open ? <Icon name="close" size={22} /> : <OperatorMark />}
-      </button>
+      {available && (
+        <button
+          ref={launcherRef}
+          type="button"
+          onClick={() => {
+            if (open) {
+              close(false);
+            } else {
+              setMade(true);
+              setOpen(true);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && open) {
+              e.stopPropagation();
+              close(false);
+            }
+          }}
+          aria-label={open ? "Close calculator" : "Open calculator"}
+          aria-expanded={open}
+          aria-controls={made ? PANEL_ID : undefined}
+          title="Calculator"
+          style={{ right: REST_RIGHT + shift }}
+          className="fixed bottom-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition-[right,background-color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-bridge-700 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 motion-reduce:transition-none [html[data-helper-resizing]_&]:transition-none [html[data-helper-still]_&]:transition-none"
+        >
+          {open ? <Icon name="close" size={22} /> : <OperatorMark />}
+        </button>
+      )}
 
-      {open && (
+      {made && (
         <div
           ref={panelRef}
+          id={PANEL_ID}
           role="dialog"
           aria-label="Calculator"
-          className={`animate-fade-in fixed bottom-24 right-5 z-50 max-h-[calc(100dvh-1rem)] w-[19rem] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl border bg-white p-3 shadow-2xl ${
-            keypadActive ? "border-bridge-400 ring-2 ring-bridge-200" : "border-slate-200"
+          aria-hidden={!shown}
+          inert={!shown}
+          onKeyDown={onPanelKey}
+          data-engine={desmos ? "desmos" : "keypad"}
+          data-expanded={expanded ? "true" : undefined}
+          className={`fixed z-50 flex flex-col rounded-2xl border border-slate-200 bg-white ${PANEL_SHADOW} ${placement} ${
+            shown ? "animate-fade-in" : "pointer-events-none invisible"
           }`}
-          style={{ transform: `translate(${nudge.x}px, ${nudge.y}px)` }}
+          style={style}
         >
           <div
             onPointerDown={onDragStart}
             onPointerMove={onDragMove}
             onPointerUp={onDragEnd}
             onPointerCancel={onDragEnd}
-            className="mb-2 flex touch-none cursor-grab items-center justify-between px-1 active:cursor-grabbing"
-          >
-            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <Icon name="grip" size={14} className="text-slate-300" />
-              Calculator
-            </span>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close calculator"
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            >
-              <Icon name="close" size={16} />
-            </button>
-          </div>
-
-          {/* Display */}
-          <div className="mb-2 rounded-xl bg-slate-900 px-4 py-3 text-right [@media(max-height:520px)]:py-1.5">
-            <div className="min-h-4 break-all text-xs text-slate-400">{history ?? ""}</div>
-            <div className="min-h-[2rem] break-all font-mono text-2xl font-semibold tabular-nums text-white">
-              {expr || "0"}
-            </div>
-            <div className="min-h-5 break-all font-mono text-sm text-slate-400">
-              {error ? <span className="text-red-300">{error}</span> : preview ? `= ${preview}` : ""}
-            </div>
-          </div>
-          <p className="sr-only" aria-live="polite">
-            {announcement}
-          </p>
-
-          {/* Who has the keyboard. Worth saying out loud, otherwise a student
-              types into the calculator and wonders why the answer box is empty. */}
-          <p
-            aria-live="polite"
-            className={`mb-2 px-1 text-[11px] leading-snug [@media(max-height:520px)]:hidden ${
-              keypadActive ? "text-bridge-700" : "text-slate-400"
+            className={`flex shrink-0 select-none items-center gap-2 py-2 pl-2.5 pr-2 ${
+              canDrag ? "touch-none cursor-grab active:cursor-grabbing" : ""
             }`}
           >
-            {keypadActive
-              ? "Typing goes to the calculator. Click your answer box to type there."
-              : "Typing goes to your answer. Tap the keypad to use it."}
-          </p>
-
-          {/* Keypad */}
-          <div className="grid grid-cols-5 gap-1.5">
-            {KEYS.map((key) => (
+            {canDrag && <Icon name="grip" size={14} className="shrink-0 text-slate-300" />}
+            {!desmos && <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Calculator</span>}
+            <div className="ml-auto flex items-center gap-1">
+              {desmos && (
+                <div role="group" aria-label="Kind of calculator" className="mr-1 flex rounded-lg bg-slate-100 p-0.5">
+                  {DESMOS_MODES.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={mode === m.id}
+                      onClick={() => setMode(m.id)}
+                      className={`rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
+                        mode === m.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {desmos && (
+                <button
+                  type="button"
+                  onClick={toggleExpanded}
+                  aria-pressed={expanded}
+                  aria-label="Expand calculator"
+                  title={expanded ? "Back to the usual size" : "Expand"}
+                  className={`rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
+                    expanded ? "bg-bridge-50 text-bridge-700 hover:bg-bridge-100" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  }`}
+                >
+                  <ExpandMark expanded={expanded} />
+                </button>
+              )}
               <button
-                key={key.label}
                 type="button"
-                onClick={() => press(key)}
-                aria-label={key.aria}
-                className={`h-11 rounded-lg border text-base transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-bridge-400 [@media(max-height:520px)]:h-8 ${
-                  VARIANT_CLASS[key.variant ?? "num"]
-                }`}
+                onClick={() => close(true)}
+                aria-label="Close calculator"
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
               >
-                {key.label}
+                <Icon name="close" size={16} />
               </button>
-            ))}
+            </div>
           </div>
+
+          {/* The ring says where typing goes: inside it, keys are the calculator's. */}
+          <div
+            ref={bodyRef}
+            className={`relative mx-2 overflow-hidden rounded-xl border bg-white transition-colors ${
+              desmos ? "min-h-0 flex-1" : "shrink-0"
+            } ${hasKeys ? "border-bridge-400 ring-2 ring-bridge-100" : "border-slate-200"}`}
+          >
+            {desmos && apiKey ? (
+              <DesmosCalculator apiKey={apiKey} mode={mode} open={shown} onUseKeypad={fallBackToKeypad} />
+            ) : (
+              <Keypad
+                open={shown}
+                panelRef={panelRef}
+                launcherRef={launcherRef}
+                onClose={closeFromKeypad}
+                onKeysChange={setKeypadKeys}
+              />
+            )}
+            {busy && <div aria-hidden className="absolute inset-0" />}
+          </div>
+
+          {desmos ? (
+            <div className={`flex h-8 shrink-0 items-center justify-between gap-2 pr-3 ${isPhone ? "pl-3" : "pl-7"}`}>
+              {/* Short enough to sit beside the credit at the smallest size; the
+                  ring around the calculator shows where "here" is. */}
+              <p aria-live="polite" className="truncate text-[11px] font-medium text-bridge-700">
+                {hasKeys && (
+                  <>
+                    <span aria-hidden>Typing goes here</span>
+                    <span className="sr-only">Typing goes to the calculator</span>
+                  </>
+                )}
+              </p>
+              <a
+                href={DESMOS_CREDIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1 rounded text-[11px] font-medium text-slate-500 transition-colors hover:text-bridge-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
+              >
+                Calculator by Desmos
+                <Icon name="external" size={12} />
+              </a>
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5">
+              <span id={`${PANEL_ID}-desmos`} className="text-[11px] font-medium text-slate-500">
+                Open Desmos
+              </span>
+              <div role="group" aria-labelledby={`${PANEL_ID}-desmos`} className="flex items-center gap-1.5">
+                <OpenDesmos mode="scientific">Scientific</OpenDesmos>
+                <OpenDesmos mode="graphing">Graphing</OpenDesmos>
+              </div>
+            </div>
+          )}
+
+          {desmos && !isPhone && (
+            <button
+              type="button"
+              aria-label="Resize calculator. Use the arrow keys to make it bigger or smaller."
+              title="Drag to resize"
+              onPointerDown={onResizeStart}
+              onPointerMove={onResizeMove}
+              onPointerUp={onResizeEnd}
+              onPointerCancel={onResizeEnd}
+              onKeyDown={onResizeKey}
+              className="group absolute bottom-0 left-0 h-6 w-6 cursor-nesw-resize touch-none rounded-bl-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
+            >
+              <span
+                aria-hidden
+                className="absolute bottom-[7px] left-[7px] h-2.5 w-2.5 rounded-bl-[3px] border-b-2 border-l-2 border-slate-300 transition-colors group-hover:border-bridge-500"
+              />
+            </button>
+          )}
         </div>
       )}
     </>

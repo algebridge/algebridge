@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { StarGlyph, StarRating, StarsDisplay, starCountLabel } from "@/components/StarRating";
 import { useAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,9 +11,15 @@ import { createClient } from "@/lib/supabase/client";
  * A place to say what's working, what's confusing and what's wrong, from
  * anyone, signed in or not. A problem card links here with the problem
  * already filled in.
+ *
+ * Reviews live here too: "Leave a review" at the top of the list, and an
+ * offer to leave one right after any other feedback is sent. A review is 1 to
+ * 5 stars plus a few words on why. Only the AlgeBridge team reads them (the
+ * admin console); they are never posted anywhere.
  */
 
 const KINDS: { id: string; label: string; hint: string }[] = [
+  { id: "review", label: "Leave a review", hint: "Rate AlgeBridge from 1 to 5 stars and say why." },
   { id: "problem", label: "A problem reads wrong", hint: "Awkward wording, a wrong answer key, a story that makes no sense." },
   { id: "broken", label: "Something is broken", hint: "A button, a page, a save that went missing." },
   { id: "confusing", label: "Something is confusing", hint: "You were unsure what to do next." },
@@ -22,6 +29,86 @@ const KINDS: { id: string; label: string; hint: string }[] = [
 ];
 
 type State = "idle" | "sending" | "sent" | "email";
+type Outcome = "ok" | "slow-down" | "email";
+
+const MAX = 2000;
+const SLOW_DOWN = "That is a lot of feedback in a short time. Give it a few minutes.";
+
+// After a review, this device stops offering another one for a while.
+const REVIEWED_KEY = "algebridge-reviewed-at";
+const REVIEW_QUIET_DAYS = 90;
+
+function rememberReview() {
+  try {
+    window.localStorage.setItem(REVIEWED_KEY, String(Date.now()));
+  } catch {
+    /* private mode: the offer just shows again next time */
+  }
+}
+
+function reviewedRecently(): boolean {
+  try {
+    const at = Number(window.localStorage.getItem(REVIEWED_KEY));
+    return at > 0 && Date.now() - at < REVIEW_QUIET_DAYS * 86_400_000;
+  } catch {
+    return false;
+  }
+}
+
+async function sessionToken(): Promise<string> {
+  try {
+    const { data } = (await createClient()?.auth.getSession()) ?? { data: { session: null } };
+    return data.session?.access_token ?? "";
+  } catch {
+    return ""; // signed out is fine
+  }
+}
+
+async function postFeedback(payload: {
+  kind: string;
+  message: string;
+  contact: string;
+  page: string;
+  rating?: number;
+}): Promise<Outcome> {
+  const token = await sessionToken();
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, token }),
+    });
+    const data = (await res.json()) as { ok: boolean; reason?: string };
+    if (data.ok) return "ok";
+    if (data.reason === "slow-down") return "slow-down";
+    // The table is missing or the request was refused: email carries it instead.
+    return "email";
+  } catch {
+    return "email";
+  }
+}
+
+function mailtoFor(kind: string, message: string, page: string, contact: string, rating: number): string {
+  const subject = kind === "review" ? "AlgeBridge review" : `AlgeBridge feedback (${kind})`;
+  const stars = kind === "review" && rating ? `Rating: ${rating} of 5 stars\n\n` : "";
+  const body = `${stars}${message}\n\n${page ? `Page: ${page}\n` : ""}${contact ? `Contact: ${contact}\n` : ""}`;
+  return `mailto:support@algebridge.org?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function EmailFallback({ href }: { href: string }) {
+  return (
+    <div className="notice-info">
+      <p className="font-medium">Sending straight from here is off right now.</p>
+      <p className="mt-1">
+        Your message is ready to go by email instead, word for word.{" "}
+        <a href={href} className="font-semibold underline">
+          Open it in your mail app
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
 
 export default function FeedbackPage() {
   const { user } = useAuth();
@@ -29,8 +116,11 @@ export default function FeedbackPage() {
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
   const [page, setPage] = useState("");
+  const [rating, setRating] = useState(0);
   const [state, setState] = useState<State>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ kind: string; rating: number } | null>(null);
+  const [offerReview, setOfferReview] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -45,43 +135,43 @@ export default function FeedbackPage() {
     }
   }, []);
 
-  const mailto = `mailto:support@algebridge.org?subject=${encodeURIComponent(`AlgeBridge feedback (${kind})`)}&body=${encodeURIComponent(
-    `${message}\n\n${page ? `Page: ${page}\n` : ""}${contact ? `Contact: ${contact}\n` : ""}`
-  )}`;
+  const isReview = kind === "review";
+  const ready = message.trim().length >= 3 && (!isReview || rating > 0);
+  const replyTo = contact.trim() || (user?.email ?? "");
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (message.trim().length < 3 || state === "sending") return;
+    if (!ready || state === "sending") return;
     setState("sending");
     setError(null);
-    let token = "";
-    try {
-      const { data } = (await createClient()?.auth.getSession()) ?? { data: { session: null } };
-      token = data.session?.access_token ?? "";
-    } catch {
-      /* signed out is fine */
+    const outcome = await postFeedback({
+      kind,
+      message: message.trim(),
+      contact: replyTo,
+      page,
+      ...(isReview ? { rating } : {}),
+    });
+    if (outcome === "ok") {
+      if (isReview) rememberReview();
+      setSent({ kind, rating: isReview ? rating : 0 });
+      setOfferReview(!isReview && !reviewedRecently());
+      setState("sent");
+      return;
     }
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, message: message.trim(), contact: contact.trim() || (user?.email ?? ""), page, token }),
-      });
-      const data = (await res.json()) as { ok: boolean; reason?: string };
-      if (data.ok) {
-        setState("sent");
-        return;
-      }
-      if (data.reason === "slow-down") {
-        setError("That is a lot of feedback in a short time. Give it a few minutes.");
-        setState("idle");
-        return;
-      }
-      // The table is missing or the request was refused: email carries it instead.
-      setState("email");
-    } catch {
-      setState("email");
+    if (outcome === "slow-down") {
+      setError(SLOW_DOWN);
+      setState("idle");
+      return;
     }
+    setState("email");
+  }
+
+  function startOver(nextKind: string) {
+    setMessage("");
+    setRating(0);
+    setKind(nextKind);
+    setSent(null);
+    setState("idle");
   }
 
   return (
@@ -95,32 +185,53 @@ export default function FeedbackPage() {
         </p>
       </header>
 
-      {state === "sent" ? (
+      {state === "sent" && sent ? (
         <section className="panel">
-          <div className="flex items-start gap-3 p-6">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <Icon name="check" size={20} />
-            </span>
-            <div>
-              <p className="font-semibold text-slate-900">Got it. Thank you.</p>
-              <p className="mt-1 text-sm text-slate-600">It has been passed on. Back to the course whenever you like.</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link href="/" className="btn-primary btn-sm">
-                  Back to the course
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMessage("");
-                    setState("idle");
-                  }}
-                  className="btn-secondary btn-sm"
-                >
-                  Send another
-                </button>
+          {sent.kind === "review" ? (
+            <div className="flex items-start gap-3 p-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50">
+                <StarGlyph size={22} fill="#f5b301" stroke="#d99a00" strokeWidth={1.3} />
+              </span>
+              <div>
+                <p className="font-semibold text-slate-900">Thanks for the review.</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                  <StarsDisplay value={sent.rating} size={18} />
+                  <span>
+                    You gave AlgeBridge {starCountLabel(sent.rating)}. It goes straight to the people who build it.
+                  </span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href="/" className="btn-primary btn-sm">
+                    Back to the course
+                  </Link>
+                  <button type="button" onClick={() => startOver("problem")} className="btn-secondary btn-sm">
+                    Send other feedback
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-3 p-6">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Icon name="check" size={20} />
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-900">Got it. Thank you.</p>
+                  <p className="mt-1 text-sm text-slate-600">It has been passed on. Back to the course whenever you like.</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link href="/" className="btn-primary btn-sm">
+                      Back to the course
+                    </Link>
+                    <button type="button" onClick={() => startOver(sent.kind)} className="btn-secondary btn-sm">
+                      Send another
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {offerReview && <ReviewOffer page={page} contact={replyTo} />}
+            </>
+          )}
         </section>
       ) : (
         <form onSubmit={send} className="panel">
@@ -133,7 +244,7 @@ export default function FeedbackPage() {
                     key={k.id}
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition ${
                       kind === k.id ? "border-bridge-400 bg-bridge-50" : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
+                    } ${k.id === "review" ? "sm:col-span-2 sm:items-center" : ""}`}
                   >
                     <input
                       type="radio"
@@ -141,32 +252,54 @@ export default function FeedbackPage() {
                       value={k.id}
                       checked={kind === k.id}
                       onChange={() => setKind(k.id)}
-                      className="mt-1 accent-bridge-600"
+                      className={`accent-bridge-600 ${k.id === "review" ? "mt-1 sm:mt-0" : "mt-1"}`}
                     />
-                    <span>
+                    <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-slate-900">{k.label}</span>
                       {k.hint && <span className="block text-xs text-slate-500">{k.hint}</span>}
                     </span>
+                    {k.id === "review" && (
+                      <span className="hidden shrink-0 sm:block">
+                        <StarsDisplay value={5} size={18} label="Five stars" />
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>
             </fieldset>
 
+            {isReview && (
+              <div>
+                <p id="review-stars-label" className="label">
+                  How many stars would you give AlgeBridge?
+                </p>
+                <div className="mt-1.5">
+                  <StarRating value={rating} onChange={setRating} labelledBy="review-stars-label" />
+                </div>
+              </div>
+            )}
+
             <div>
               <label htmlFor="feedback-message" className="label">
-                Tell us
+                {isReview ? "What made you give that rating?" : "Tell us"}
               </label>
               <textarea
                 id="feedback-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={6}
-                maxLength={2000}
+                rows={isReview ? 4 : 6}
+                maxLength={MAX}
                 required
-                placeholder="What happened, or what you'd change. The more specific, the faster it gets fixed."
+                placeholder={
+                  isReview
+                    ? "What helps you most, and what would make it better?"
+                    : "What happened, or what you'd change. The more specific, the faster it gets fixed."
+                }
                 className="field mt-1.5 resize-y"
               />
-              <p className="field-hint">{message.length} of 2000</p>
+              <p className="field-hint">
+                {message.length} of {MAX}
+              </p>
             </div>
 
             <div>
@@ -185,28 +318,117 @@ export default function FeedbackPage() {
 
             {error && <p className="notice-warn">{error}</p>}
 
-            {state === "email" && (
-              <div className="notice-info">
-                <p className="font-medium">Sending straight from here is off right now.</p>
-                <p className="mt-1">
-                  Your message is ready to go by email instead, word for word.{" "}
-                  <a href={mailto} className="font-semibold underline">
-                    Open it in your mail app
-                  </a>
-                  .
-                </p>
-              </div>
-            )}
+            {state === "email" && <EmailFallback href={mailtoFor(kind, message, page, contact, rating)} />}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-              <p className="text-xs text-slate-500">{page ? `About: ${page.slice(0, 90)}${page.length > 90 ? "..." : ""}` : "No page attached."}</p>
-              <button type="submit" disabled={state === "sending" || message.trim().length < 3} className="btn-primary disabled:opacity-50">
-                {state === "sending" ? "Sending" : "Send feedback"}
+              <p className="text-xs text-slate-500">
+                {isReview
+                  ? rating === 0
+                    ? "Pick your stars, then send."
+                    : "Only the AlgeBridge team reads reviews."
+                  : page
+                    ? `About: ${page.slice(0, 90)}${page.length > 90 ? "..." : ""}`
+                    : "No page attached."}
+              </p>
+              <button type="submit" disabled={state === "sending" || !ready} className="btn-primary disabled:opacity-50">
+                {state === "sending" ? "Sending" : isReview ? "Send review" : "Send feedback"}
               </button>
             </div>
           </div>
         </form>
       )}
     </div>
+  );
+}
+
+/**
+ * Shown under "Got it. Thank you." after any other feedback: stars first, and
+ * the box for why opens once a star is picked, so saying yes is one tap.
+ */
+function ReviewOffer({ page, contact }: { page: string; contact: string }) {
+  const [rating, setRating] = useState(0);
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<"ask" | "sending" | "sent" | "email" | "later">("ask");
+  const [error, setError] = useState<string | null>(null);
+  const ready = rating > 0 && message.trim().length >= 3;
+
+  if (status === "later") return null;
+
+  if (status === "sent") {
+    return (
+      <div className="border-t border-slate-100 px-6 py-5">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <StarsDisplay value={rating} size={18} />
+          <span className="font-semibold text-slate-900">Thanks for the review.</span>
+          <span className="text-slate-600">It goes straight to the people who build AlgeBridge.</span>
+        </div>
+      </div>
+    );
+  }
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ready || status === "sending") return;
+    setStatus("sending");
+    setError(null);
+    const outcome = await postFeedback({ kind: "review", rating, message: message.trim(), contact, page });
+    if (outcome === "ok") {
+      rememberReview();
+      setStatus("sent");
+    } else if (outcome === "slow-down") {
+      setError(SLOW_DOWN);
+      setStatus("ask");
+    } else {
+      setStatus("email");
+    }
+  }
+
+  return (
+    <form onSubmit={send} className="border-t border-slate-100 bg-slate-50/70 px-6 py-5" aria-labelledby="review-offer-title">
+      <h2 id="review-offer-title" className="text-base font-semibold text-slate-900">
+        Want to leave a review of AlgeBridge?
+      </h2>
+      <p className="mt-0.5 text-sm text-slate-600">Pick 1 to 5 stars and say why. Only the AlgeBridge team reads reviews.</p>
+
+      <div className="mt-3">
+        <StarRating value={rating} onChange={setRating} labelledBy="review-offer-title" />
+      </div>
+
+      {rating > 0 && (
+        <div className="mt-3 motion-safe:animate-[toast-in_0.2s_ease-out]">
+          <label htmlFor="review-offer-message" className="label">
+            What made you give that rating?
+          </label>
+          <textarea
+            id="review-offer-message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={3}
+            maxLength={MAX}
+            placeholder="What helps you most, and what would make it better?"
+            className="field mt-1.5 resize-y"
+          />
+          <p className="field-hint">
+            {message.length} of {MAX}
+          </p>
+        </div>
+      )}
+
+      {error && <p className="notice-warn mt-3">{error}</p>}
+      {status === "email" && (
+        <div className="mt-3">
+          <EmailFallback href={mailtoFor("review", message, page, contact, rating)} />
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button type="submit" disabled={!ready || status === "sending"} className="btn-primary btn-sm disabled:opacity-50">
+          {status === "sending" ? "Sending" : "Send review"}
+        </button>
+        <button type="button" onClick={() => setStatus("later")} className="btn-ghost btn-sm">
+          Maybe later
+        </button>
+      </div>
+    </form>
   );
 }
