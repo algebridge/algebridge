@@ -8,12 +8,15 @@ import { consoleFontClass } from "@/lib/console-fonts";
 import { fullDate, shortAgo } from "@/lib/console-format";
 import {
   fetchAdminOverview,
+  fetchAdminReviews,
   fetchAdminUserRows,
   grantAdmin,
   setUnlimitedBridgeysFor,
   type AdminOverview,
+  type AdminReviews,
   type AdminUserRow,
 } from "@/lib/admin";
+import { StarsDisplay } from "@/components/StarRating";
 import { adminDeleteUser, adminSetRole } from "@/lib/social";
 import type { UserRole } from "@/types";
 
@@ -63,6 +66,7 @@ export default function AdminPage() {
 
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [reviews, setReviews] = useState<AdminReviews | null>(null);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [msg, setMsg] = useState("");
@@ -79,9 +83,10 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setLoadingData(true);
-    const [o, r] = await Promise.all([fetchAdminOverview(), fetchAdminUserRows()]);
+    const [o, r, rv] = await Promise.all([fetchAdminOverview(), fetchAdminUserRows(), fetchAdminReviews()]);
     setOverview(o);
     setRows(r);
+    setReviews(rv);
     setSelected(new Set());
     setLoadingData(false);
   }, []);
@@ -334,6 +339,9 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Hidden until supabase/schema-2026-10-01-reviews.sql adds admin_reviews(). */}
+          {reviews && <ReviewsPanel data={reviews} />}
+
           <div className="sbc-panel">
             <div className="sbc-panel-head">
               <h2>What &ldquo;active&rdquo; counts</h2>
@@ -582,5 +590,99 @@ export default function AdminPage() {
         </>
       )}
     </div>
+  );
+}
+
+// Gold stars with ink outlines, on the console's paper.
+const CONSOLE_STARS = { fill: "#f5b301", stroke: "#151714", emptyFill: "#fbfaf5", emptyStroke: "#98978e" };
+const MONO: React.CSSProperties = {
+  fontFamily: 'var(--font-console-mono), "Courier New", monospace',
+  fontSize: 11,
+  color: "var(--muted)",
+};
+const REVIEWS_FIRST = 6;
+
+/**
+ * Star reviews from /feedback: the average (drawn and as a number), how many,
+ * and the latest ones. Reviews are for the team only; nothing here is public.
+ */
+function ReviewsPanel({ data }: { data: AdminReviews }) {
+  const [showAll, setShowAll] = useState(false);
+  const list = showAll ? data.reviews : data.reviews.slice(0, REVIEWS_FIRST);
+  return (
+    <section className="sbc-panel" aria-labelledby="sbc-reviews-title">
+      <div className="sbc-panel-head">
+        <h2 id="sbc-reviews-title">Reviews</h2>
+        <span className="sbc-meta">from /feedback · admins only</span>
+      </div>
+      <div className="sbc-panel-body" style={{ display: "grid", gap: 14 }}>
+        {data.count > 0 && data.average != null ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <strong
+              style={{
+                fontFamily: "var(--font-console-display), Georgia, serif",
+                fontSize: 44,
+                lineHeight: 1,
+                fontWeight: 600,
+              }}
+            >
+              {data.average.toFixed(1)}
+            </strong>
+            <div style={{ display: "grid", gap: 6 }}>
+              <StarsDisplay
+                value={data.average}
+                size={24}
+                {...CONSOLE_STARS}
+                label={`Average ${data.average.toFixed(1)} out of 5 stars`}
+              />
+              <span style={{ ...MONO, textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 10 }}>
+                {data.count} review{data.count === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: "var(--muted)" }}>
+            Reviews show up here once someone leaves one on /feedback.
+          </p>
+        )}
+
+        {list.length > 0 && (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, borderTop: "1px solid var(--line)" }}>
+            {list.map((r) => (
+              <li
+                key={r.id}
+                style={{ padding: "10px 0", borderBottom: "1px solid var(--line)", display: "grid", gap: 4 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {r.rating ? (
+                    <StarsDisplay value={r.rating} size={15} {...CONSOLE_STARS} />
+                  ) : (
+                    <span className="sbc-pill is-muted">unrated</span>
+                  )}
+                  <strong
+                    style={{ fontSize: 13 }}
+                    title={r.displayName ? undefined : "Left while signed out, or before reviews recorded who sent them"}
+                  >
+                    {r.displayName ?? "Signed out"}
+                  </strong>
+                  <span style={{ ...MONO, marginLeft: "auto" }} title={fullDate(r.createdAt)}>
+                    {shortAgo(r.createdAt)}
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{r.message}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {data.reviews.length > REVIEWS_FIRST && (
+          <div>
+            <button type="button" className="sbc-btn is-small" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "Show fewer" : `Show all ${data.reviews.length}`}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

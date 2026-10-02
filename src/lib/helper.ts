@@ -14,6 +14,18 @@
 
 export type HelperMode = "tutor" | "reminder" | "scheduler";
 
+/**
+ * The quick actions a student can press instead of typing. Each one shapes
+ * the system prompt; none of them gets past the answer gate, because the gate
+ * reads the student's words, not the button.
+ */
+export const HELPER_ACTIONS = ["hint", "first-step", "key-idea", "example", "another-way", "next-step"] as const;
+export type HelperAction = (typeof HELPER_ACTIONS)[number];
+
+export function isHelperAction(value: unknown): value is HelperAction {
+  return typeof value === "string" && (HELPER_ACTIONS as readonly string[]).includes(value);
+}
+
 export interface HelperContext {
   /** The skill being practised, when the helper is opened from a problem. */
   skillTitle?: string;
@@ -240,10 +252,10 @@ export function refuseAnswer(ctx: HelperContext): string {
 export function generalReply(text: string): string {
   const t = text.toLowerCase();
   if (/\b(hi|hey|hello|yo)\b/.test(t) || !t)
-    return "Hey. Tell me the step you are stuck on and I will take it from there, or switch to Reminder if you want a formula back.";
+    return "Hey. Tell me the step you are stuck on and I will take it from there, or switch to Formulas if you want a formula back.";
   if (/\b(how|what|why|explain)\b/.test(t))
     return "Open the skill you are working on and ask me there, and I can point at the exact step. From here I can still give you a formula, or put you with a tutor. Which would help more?";
-  return "Tell me what you tried and where it stopped making sense. If it is a formula you want, switch to Reminder. If you want a person, switch to Scheduler.";
+  return "Tell me what you tried and where it stopped making sense. If it is a formula you want, switch to Formulas. If you want a person, choose Book a tutor.";
 }
 
 export function arithmeticReply(a: Arithmetic): string {
@@ -252,23 +264,43 @@ export function arithmeticReply(a: Arithmetic): string {
 }
 
 export function reminderReply(ctx: HelperContext, text: string): string {
-  const t = text.toLowerCase();
-  for (const f of FORMULA_CARDS) {
-    if (f.match.some((m) => t.includes(m))) {
-      return `${f.name}\n\n${f.formula}\n\nHow to hold on to it: ${f.mnemonic}`;
-    }
-  }
+  const f = findFormulaCard(text);
+  if (f) return formulaCardText(f);
   if (ctx.keyIdea) {
     return `For ${ctx.skillTitle ?? "this skill"}, the one to keep: ${ctx.keyIdea}\n\nName the formula you are trying to remember and I will give you a way to hold on to it.`;
   }
   return "Name the formula you want to hold on to, slope, the quadratic formula, the Pythagorean theorem, and I will give you the statement plus a way to remember it.";
 }
 
-interface FormulaCard {
+export interface FormulaCard {
   name: string;
   match: string[];
   formula: string;
   mnemonic: string;
+}
+
+export function formulaCardText(f: FormulaCard): string {
+  return `${f.name}\n\n${f.formula}\n\nHow to hold on to it: ${f.mnemonic}`;
+}
+
+/**
+ * The card a request names. The card's own name wins, then the longest match
+ * phrase found: "slope-intercept form" contains "slope", and the first card
+ * used to win on that alone, so asking for y = mx + b gave back rise over run.
+ */
+export function findFormulaCard(text: string): FormulaCard | null {
+  const t = text.toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  const named = FORMULA_CARDS.find((f) => f.name.toLowerCase().replace(/-/g, " ") === t);
+  if (named) return named;
+  let best: { card: FormulaCard; len: number } | null = null;
+  for (const card of FORMULA_CARDS) {
+    for (const m of card.match) {
+      const phrase = m.replace(/-/g, " ");
+      if (t.includes(phrase) && (!best || phrase.length > best.len)) best = { card, len: phrase.length };
+    }
+  }
+  return best?.card ?? null;
 }
 
 /**
@@ -371,4 +403,98 @@ export function advanceScheduler(state: SchedulerState, text: string): Scheduler
     default:
       return state;
   }
+}
+
+/** What the panel says when a student picks Book a tutor themselves. */
+export const BOOKING_INTRO =
+  "I can set you up with one of our tutors, a real person who can work through it with you. Want me to find you a time?";
+
+// ---------------------------------------------------------------------------
+// Quick actions
+// ---------------------------------------------------------------------------
+
+/**
+ * How each quick action shapes the model's job. These sit on top of the tutor
+ * prompt and its absolute rule, and the reply is still filtered afterwards:
+ * an instruction is a request, the filter is the guarantee.
+ *
+ * `avoid` is the list of numbers the reply may not contain. A worked example
+ * is full of numbers, so it is told which ones are off limits up front rather
+ * than finding out from the filter.
+ */
+export function actionInstruction(action: HelperAction, avoid: string[] = []): string {
+  switch (action) {
+    case "hint":
+      return `The student pressed "Give me a hint". Give one hint that points at the next move without making the move for them. If a hint is listed above, build on it in your own words. End with a short question.`;
+    case "first-step":
+      return `The student asked for the first step. Name the very first move and say in one sentence why it is a good place to start. Do not carry it out and do not say what it produces. End by asking them to try it.`;
+    case "key-idea":
+      return `Explain the key idea of this skill in plain words a 13 year old would use, with one tiny example that is not their problem. Then say in one sentence how it applies to their problem, without solving any of it. Stay under 70 words.`;
+    case "example": {
+      const numbers = avoid.length ? ` Never write any of these numbers anywhere in your reply: ${avoid.join(", ")}.` : "";
+      return `The student asked for a similar example. Make up a NEW problem of the same kind with different numbers, and work it all the way through so they can copy the method on their own problem. The absolute rule above is about the student's problem; your made-up example has its own answer and you should show it.
+Format: one line that starts "Here is a similar one:" and states the new problem. Then the steps, one short sentence each, one per line, numbered like "1. ", at most 5 steps, and the last step states the example's own answer. Then one short line inviting them to use the same steps on their problem.
+Do not reuse the student's problem or its numbers, and never refer to a step by its number in a sentence. This reply may run to about 120 words.${numbers}`;
+    }
+    case "another-way":
+      return `The student asked you to explain your last message another way. Say the same idea differently: a picture in words, an everyday comparison, or the same move on smaller, easier numbers that are not from their problem. Do not repeat your earlier wording. End with a short question.`;
+    case "next-step":
+      return `The student wants the next step. Look at what has been done so far in this conversation and name the one next move, without doing it for them. End with a short question.`;
+  }
+}
+
+/**
+ * The deterministic engine reads the student's words, not the button, so a
+ * quick action is translated into the words that steer it.
+ */
+export function actionAsWords(action: HelperAction): string {
+  switch (action) {
+    case "hint":
+      return "give me a hint";
+    case "first-step":
+      return "how do i start";
+    case "key-idea":
+      return "explain the key idea";
+    case "example":
+      return "explain the key idea";
+    case "another-way":
+      return "explain why";
+    case "next-step":
+      return "what next";
+  }
+}
+
+/** When no clean example can be made, the method is the next best thing. */
+export function exampleFallback(ctx: HelperContext): string {
+  const idea = ctx.keyIdea ? ` The idea to copy: ${ctx.keyIdea}` : "";
+  return `I could not build a clean example this time, so here is the method instead.${idea}\n\nTry the first move on your problem and tell me what you get. I will check the move with you.`;
+}
+
+/**
+ * A worked example is a numbered list, and "2. Subtract..." must not trip the
+ * filter when the answer happens to be 2. Only markers that count up from 1 at
+ * the start of a line are removed, so a number that is part of the maths is
+ * still checked.
+ */
+export function withoutListMarkers(text: string): string {
+  let expect = 1;
+  return text
+    .split("\n")
+    .map((line) => {
+      const m = /^(\s*)(\d{1,2})[.)]\s+/.exec(line);
+      if (m && Number(m[2]) === expect) {
+        expect += 1;
+        return m[1] + line.slice(m[0].length);
+      }
+      return line;
+    })
+    .join("\n");
+}
+
+/** Emoji are not house style, and the older local engine still greets with one. */
+export function stripEmoji(text: string): string {
+  return text
+    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ +([.,!?])/g, "$1");
 }

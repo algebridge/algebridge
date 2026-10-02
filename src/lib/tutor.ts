@@ -35,6 +35,18 @@ export function stripMarkdownEmphasis(text: string): string {
 function firstStepFor(prompt: string): string | null {
   const p = prompt.replace(/\s+/g, " ").trim();
 
+  // Unit conversion. Checked first: these have no x to undo, and the generic
+  // "what's the first operation you'd undo?" left a student with nothing.
+  if (
+    /\bconver(t|ts|ting|sion)\b/i.test(p) ||
+    /\bhow many (feet|inches|yards|miles|meters|centimeters|millimeters|kilometers|seconds|minutes|hours|days|weeks|ounces|pounds|cups|pints|quarts|gallons|grams|kilograms|liters|milliliters)\b/i.test(p)
+  ) {
+    const rate = /\bper\b/i.test(p);
+    return `This is a unit conversion. Turn the fact you know into that fraction, with the unit you want to get rid of on the bottom so it cancels, then multiply.${
+      rate ? " With a rate, change one unit at a time: one fraction for the top unit, another for the bottom one." : ""
+    }`;
+  }
+
   // ax + b = c  or  ax - b = c   (two-step linear)
   let m = p.match(/(-?\d+)\s*x\s*([+\-−])\s*(\d+)\s*=/);
   if (m) {
@@ -96,7 +108,7 @@ export function buildLocalChatReply(ctx: TutorContext, messages: TutorChatMessag
   const wantsNext = /\b(next|then what|after that|now what|what now)\b/.test(text);
 
   if (isGreeting) {
-    return `Hey! I'm your Bridge Tutor for ${ctx.skillTitle}. 👋 Tell me where you're stuck on "${ctx.problemPrompt}", or just say "give me a hint" and we'll take it one step at a time. I won't hand you the answer, but I'll get you there.`;
+    return `Hey! I'm Archie, your AI study buddy for ${ctx.skillTitle}. Tell me where you're stuck on "${ctx.problemPrompt}", or just say "give me a hint" and we'll take it one step at a time. I won't hand you the answer, but I'll help you get there.`;
   }
 
   if (claimsAnswer) {

@@ -1,0 +1,364 @@
+/* Study helper sidebar and the Archie character. Owned by the helper work.
+   Everything that moves here stops under prefers-reduced-motion (bottom). */
+
+/* ─── Room for the sidebar ────────────────────────────────────────
+   StudyHelper sets --helper-w and data-helper-dock on <html>; a tiny
+   script in <head> does the same before first paint when the sidebar
+   was left open, so a reload does not slide the page across. */
+:root {
+  --helper-w: 400px;
+  --helper-top: 57px;
+  --helper-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.helper-shift {
+  transition: padding-right 300ms var(--helper-ease);
+}
+@media (min-width: 1024px) {
+  :root[data-helper-dock] .helper-shift {
+    padding-right: var(--helper-w);
+  }
+}
+:root[data-helper-still] .helper-shift,
+:root[data-helper-resizing] .helper-shift {
+  transition: none;
+}
+:root[data-helper-resizing],
+:root[data-helper-resizing] * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+/* ─── The panel, docked or as a sheet ───────────────────────────── */
+.helper-dock {
+  position: fixed;
+  top: var(--helper-top);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  border-left: 1px solid rgb(226 232 240);
+  box-shadow: -16px 0 40px -32px rgb(15 23 42 / 0.35);
+  animation: helper-dock-in 300ms var(--helper-ease);
+}
+.helper-dock[data-quiet] {
+  animation: none;
+}
+.helper-dock[data-leaving] {
+  animation: helper-dock-out 220ms ease-in forwards;
+}
+@keyframes helper-dock-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes helper-dock-out {
+  to { transform: translateX(100%); }
+}
+
+.helper-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  height: 85vh;
+  height: 85dvh;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -18px 50px -20px rgb(15 23 42 / 0.35);
+  animation: helper-sheet-in 340ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.helper-sheet[data-snap] {
+  transition: transform 220ms var(--helper-ease);
+}
+.helper-sheet[data-leaving] {
+  animation: helper-sheet-out 220ms ease-in forwards;
+}
+@keyframes helper-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes helper-sheet-out {
+  to { transform: translateY(100%); }
+}
+
+.helper-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+  background: rgb(15 23 42 / 0.42);
+  animation: helper-fade 220ms ease-out;
+  touch-action: none;
+}
+.helper-scrim[data-leaving] {
+  animation: helper-fade-out 220ms ease-in forwards;
+}
+@keyframes helper-fade {
+  from { opacity: 0; }
+}
+@keyframes helper-fade-out {
+  to { opacity: 0; }
+}
+
+/* The grab bar at the top of the sheet. */
+.helper-grab {
+  touch-action: none;
+  cursor: grab;
+}
+.helper-grab:active {
+  cursor: grabbing;
+}
+
+/* The left edge of the docked panel: drag it to resize. A wide, invisible
+   hit area with a thin bar that shows on hover, drag and keyboard focus. */
+.helper-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 9px;
+  z-index: 2;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+.helper-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: rgb(37 99 235);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.helper-resize:hover::after,
+.helper-resize:focus-visible::after,
+:root[data-helper-resizing] .helper-resize::after {
+  opacity: 1;
+}
+.helper-resize:focus-visible::after {
+  width: 3px;
+  box-shadow: 2px 0 0 3px rgb(191 219 254);
+}
+
+/* ─── The launcher: Archie's face on a round button ─────────────── */
+.helper-launch {
+  transition: transform 180ms var(--helper-ease), box-shadow 180ms ease, opacity 180ms ease;
+  box-shadow: 0 10px 24px -8px rgb(30 58 138 / 0.55), 0 0 0 3px #fff;
+}
+.helper-launch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -8px rgb(30 58 138 / 0.6), 0 0 0 3px #fff;
+}
+.helper-launch:hover .archie-pupils {
+  transform: translate(0.6px, -1.6px) !important;
+}
+.helper-launch:active {
+  transform: translateY(0) scale(0.94);
+}
+.helper-launch:focus-visible {
+  outline: none;
+  box-shadow: 0 10px 24px -8px rgb(30 58 138 / 0.55), 0 0 0 3px #fff, 0 0 0 6px rgb(59 130 246);
+}
+.helper-launch[data-away] {
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+}
+
+/* ─── Chips that feel like buttons ──────────────────────────────── */
+.helper-chip {
+  transition: transform 140ms var(--helper-ease), box-shadow 140ms ease, background-color 140ms ease,
+    border-color 140ms ease, color 140ms ease;
+}
+.helper-chip:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px rgb(37 99 235 / 0.35);
+}
+.helper-chip:not(:disabled):active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.08);
+  background-color: rgb(219 234 254);
+}
+/* A scrolling row fades out at the right edge, so it reads as "more this way". */
+.helper-chips {
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+/* ─── Sending ───────────────────────────────────────────────────── */
+.helper-send {
+  transition: transform 140ms var(--helper-ease), background-color 140ms ease, opacity 140ms ease;
+}
+.helper-send:not(:disabled):active {
+  transform: scale(0.9);
+}
+.helper-send-arrow {
+  display: block;
+}
+.helper-send[data-sent] .helper-send-arrow {
+  animation: helper-send-fly 460ms var(--helper-ease);
+}
+@keyframes helper-send-fly {
+  0% { transform: none; opacity: 1; }
+  45% { transform: translate(7px, -12px) scale(0.8); opacity: 0; }
+  46% { transform: translate(-7px, 12px) scale(0.8); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+/* A message the student just sent rises out of the box. */
+.helper-sent {
+  transform-origin: 100% 100%;
+  animation: helper-sent 340ms cubic-bezier(0.3, 1.35, 0.5, 1);
+}
+@keyframes helper-sent {
+  from { opacity: 0; transform: translateY(18px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Archie's one line, beside his name. */
+.helper-say {
+  transform-origin: 0 50%;
+  animation: helper-say 320ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+@keyframes helper-say {
+  from { opacity: 0; transform: translateX(-4px) scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ─── Archie ────────────────────────────────────────────────────── */
+.archie,
+.archie-face {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+.archie-pupils {
+  transition: transform 240ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+/* Idle: a slow, small bob, and his shadow breathing with it. */
+.archie-bob .archie-fig {
+  animation: archie-bob 3.8s ease-in-out infinite;
+}
+.archie-bob .archie-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: archie-shadow 3.8s ease-in-out infinite;
+}
+@keyframes archie-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.6px); }
+}
+@keyframes archie-shadow {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.9); }
+}
+
+/* Wave: two swings from the shoulder. */
+.archie-wave-arm {
+  transform-box: view-box;
+  transform-origin: 95px 66px;
+  animation: archie-wave 1.1s ease-in-out 2 both;
+}
+@keyframes archie-wave {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(-16deg); }
+  50% { transform: rotate(8deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+/* Encourage: a lean in and a small fist pump. */
+.archie-pose-encourage .archie-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: archie-lean 1.3s ease-in-out both;
+}
+.archie-pump-arm {
+  transform-box: view-box;
+  transform-origin: 95px 70px;
+  animation: archie-pump 0.52s ease-in-out 3 both;
+}
+@keyframes archie-lean {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(-3deg) translateY(-1.5px); }
+  65% { transform: rotate(2deg); }
+}
+@keyframes archie-pump {
+  0%, 100% { transform: none; }
+  50% { transform: rotate(-14deg) translateY(-2px); }
+}
+
+/* Party: a hop and a burst of confetti that settles, then fades. */
+.archie-pose-party .archie-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: archie-hop 900ms ease-out both;
+}
+@keyframes archie-hop {
+  0%, 100% { transform: none; }
+  25% { transform: translateY(-7%); }
+  50% { transform: none; }
+  70% { transform: translateY(-3%); }
+}
+.archie-bit {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: archie-bit 800ms cubic-bezier(0.2, 0.8, 0.3, 1) both, archie-bit-out 700ms ease-in 2300ms forwards;
+  animation-delay: var(--d, 0ms), calc(var(--d, 0ms) + 2300ms);
+}
+@keyframes archie-bit {
+  0% { opacity: 0; transform: translateY(8px) scale(0); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.25); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes archie-bit-out {
+  to { opacity: 0; transform: translateY(6px) scale(0.6); }
+}
+
+/* Thinking: the thought dots pulse one after another. */
+.archie-tdot {
+  animation: archie-think 1.2s ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes archie-think {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-1.5px); }
+}
+
+/* ─── Reduced motion: still, but everything still shows ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  .helper-shift,
+  .helper-chip,
+  .helper-send,
+  .helper-launch,
+  .helper-sheet[data-snap],
+  .archie-pupils {
+    transition: none !important;
+  }
+  .helper-dock,
+  .helper-dock[data-leaving],
+  .helper-sheet,
+  .helper-sheet[data-leaving],
+  .helper-scrim,
+  .helper-scrim[data-leaving],
+  .helper-sent,
+  .helper-say,
+  .helper-send[data-sent] .helper-send-arrow,
+  .archie-bob .archie-fig,
+  .archie-bob .archie-shadow,
+  .archie-wave-arm,
+  .archie-pose-encourage .archie-body,
+  .archie-pump-arm,
+  .archie-pose-party .archie-body,
+  .archie-bit,
+  .archie-tdot {
+    animation: none !important;
+  }
+  .helper-chip:not(:disabled):hover,
+  .helper-launch:hover {
+    transform: none;
+  }
+}

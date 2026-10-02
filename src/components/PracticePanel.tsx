@@ -33,6 +33,7 @@ import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
 import { setCalculatorAccess } from "@/lib/calculator-access";
 import { answerIsRight } from "@/lib/grading";
+import { announcePractice } from "@/lib/sidebar";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
@@ -524,6 +525,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       order: [...stepOrder],
     });
     const firstTry = attempts === 0;
+    announcePractice(correct ? "correct" : "wrong");
     setFeedback(correct ? "correct" : "wrong");
     setFeedbackSeed((s) => s + 1);
     setAttempts((a) => a + 1);

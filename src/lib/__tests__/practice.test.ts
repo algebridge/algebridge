@@ -698,7 +698,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a normal reply still reads", (P.parseModelJson('<think>hm</think>{"items":[{"id":"a"}]}')?.items as unknown[]).length === 1);
 }
 
-// --- The calculator: every bug the audit found in the maths ----------------
+// --- The calculator: every bug the audit found in the keypad's maths ---------
 {
   const C = await import("../calculator.ts");
   const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
@@ -706,9 +706,9 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("10^21 shows as 1×10^21", C.formatResult(C.evaluate("10^21")) === "1×10^21", C.formatResult(C.evaluate("10^21")));
   ok("and reads back as 10^21", C.evaluate(C.formatResult(1e21)) === 1e21);
   ok("(3×10^8)×(2×10^15) is 6×10^23", C.formatResult(C.evaluate("(3×10^8)×(2×10^15)")) === "6×10^23");
-  const tiny = C.formatResult(C.evaluate("1÷3000000"));
-  ok("1÷3000000 is 3.333333×10^−7", tiny === "3.333333×10^−7", tiny);
-  ok("which reads back right", near(C.evaluate(tiny), 3.333333e-7));
+  const tinyResult = C.formatResult(C.evaluate("1÷3000000"));
+  ok("1÷3000000 is 3.333333×10^−7", tinyResult === "3.333333×10^−7", tinyResult);
+  ok("which reads back right", near(C.evaluate(tinyResult), 3.333333e-7));
   ok("6.02×10^23 has no float fuzz", C.formatResult(6.02 * 10 ** 23) === "6.02×10^23", C.formatResult(6.02 * 10 ** 23));
   ok("2^64 fits the screen", C.formatResult(2 ** 64) === "1.844674×10^19", C.formatResult(2 ** 64));
   ok("negatives use the keypad's minus", C.formatResult(-12) === "−12" && C.evaluate("−12+2") === -10);
@@ -745,10 +745,109 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("−3^2 is −9", C.evaluate("−3^2") === -9);
   ok("2×−3 is −6", C.evaluate("2×−3") === -6);
   ok("0.1+0.2 shows 0.3", C.formatResult(C.evaluate("0.1+0.2")) === "0.3");
+  ok("3.5×12 is 42", C.formatResult(C.evaluate("3.5×12")) === "42");
   let byZero = "";
   try { C.evaluate("5÷0"); } catch (e) { byZero = (e as Error).message; }
   ok("dividing by zero is an error", byZero === "Can't divide by zero");
   ok("open brackets close themselves", C.evaluate(C.balanceParens("√(9")) === 3);
+  let injected = "";
+  try { C.evaluate("alert(1)"); } catch (e) { injected = (e as Error).message; }
+  ok("typed code is refused, never run", injected.startsWith("Unexpected character"), injected);
+}
+
+// --- The calculator panel: Desmos by API only, never framed ------------------
+{
+  const D = await import("../desmos.ts");
+  const F = await import("../floating-panel.ts");
+  // Desmos's terms (section 5): no framing. Linking out is fine.
+  const { readdirSync, statSync } = await import("node:fs");
+  const srcRoot = new URL("../../", import.meta.url);
+  const walk = (dir: URL): URL[] =>
+    readdirSync(dir).flatMap((name) => {
+      const u = new URL(name, dir);
+      if (statSync(u).isDirectory()) return name === "__tests__" ? [] : walk(new URL(`${name}/`, dir));
+      return /\.(tsx?|jsx?|css)$/.test(name) ? [u] : [];
+    });
+  const framesDesmos = walk(srcRoot).filter((u) => {
+    const text = readFileSync(u, "utf8");
+    return /desmos/i.test(text) && (/<iframe/i.test(text) || /createElement\(\s*["']iframe/i.test(text));
+  });
+  ok("no shipped file frames Desmos", framesDesmos.length === 0, framesDesmos.map((u) => u.pathname).join(", "));
+  const panelFiles = ["components/Calculator.tsx", "components/DesmosCalculator.tsx", "components/Keypad.tsx", "lib/desmos.ts"];
+  ok("the calculator files hold no iframe at all", panelFiles.every((f) => !/<iframe/i.test(readFileSync(new URL(f, srcRoot), "utf8"))));
+  ok("Open Desmos goes to the scientific calculator", D.desmosAppUrl("scientific") === "https://www.desmos.com/scientific");
+  ok("or the graphing one", D.desmosAppUrl("graphing") === "https://www.desmos.com/calculator");
+  ok("the API script carries the key", D.desmosScriptUrl("abc123def456") === `https://www.desmos.com/api/${D.DESMOS_API_VERSION}/calculator.js?apiKey=abc123def456`);
+  ok("a key is trimmed", D.cleanApiKey("  dcb31709b452b1cf9dc26972add0fda6 ") === "dcb31709b452b1cf9dc26972add0fda6");
+  ok("anything that is not a key never reaches the URL", [null, undefined, "", "abc", "abc123def&x=1", "key with spaces", "<script>"].every((k) => D.cleanApiKey(k) === null));
+  ok("no key in the test run means the keypad", D.desmosApiKey() === null || !!process.env.NEXT_PUBLIC_DESMOS_API_KEY);
+  ok("every fresh open is Scientific", D.DEFAULT_MODE === "scientific" && D.DESMOS_MODES[0].id === "scientific");
+  ok("Graphing is the other choice", D.DESMOS_MODES.length === 2 && D.DESMOS_MODES[1].id === "graphing");
+  ok("Desmos credit points at Desmos", D.DESMOS_CREDIT_URL === "https://www.desmos.com");
+  // Open Desmos: a small window of its own, or a normal tab when blocked.
+  {
+    const w = (globalThis as unknown as { window: Record<string, unknown> }).window;
+    const calls: unknown[][] = [];
+    const popup = { opener: {} as unknown, focus() {} };
+    w.open = (...args: unknown[]) => (calls.push(args), popup);
+    ok("Open Desmos opens a window", D.openDesmosWindow("scientific") === true);
+    ok("named and sized", JSON.stringify(calls[0]) === JSON.stringify(["https://www.desmos.com/scientific", "desmos", "width=440,height=680"]), JSON.stringify(calls[0]));
+    ok("and Desmos gets no handle back to the page", popup.opener === null);
+    w.open = () => null;
+    ok("a blocked popup says so, so the link opens a tab", D.openDesmosWindow("graphing") === false);
+    w.open = () => {
+      throw new Error("blocked");
+    };
+    ok("a popup that throws says so too", D.openDesmosWindow("graphing") === false);
+    delete w.open;
+    ok("no window.open, no crash", D.openDesmosWindow("graphing") === false);
+  }
+  // Sizes: bigger by default, each saved one checked.
+  const defaults = D.parseSizes(null);
+  ok("Scientific opens at 400 by 560", defaults.scientific.width === 400 && defaults.scientific.height === 560);
+  ok("Graphing opens at 720 by 600, so the graph is wider than the list", defaults.graphing.width === 720 && defaults.graphing.height === 600);
+  ok("a corrupt saved size is the default", D.parseSizes("{nope").graphing.width === 720 && D.parseSizes('"text"').scientific.height === 560);
+  const mixed = D.parseSizes(JSON.stringify({ graphing: { width: 700.4, height: 650 }, scientific: { width: "wide", height: 400 } }));
+  ok("a good size is kept, a bad one dropped", mixed.graphing.width === 700 && mixed.graphing.height === 650 && mixed.scientific.width === 400);
+  ok("no storage, no crash", D.readCalculatorSizes().scientific.width === 400 && D.readDesmosState("graphing") === null);
+  // Fitting the space: the window, less the AI sidebar when it is open.
+  const fits = D.fitSize(D.DEFAULT_SIZES.graphing, { width: 1280 - 400, height: 800 });
+  ok("Graphing fits beside a 400px sidebar on a laptop", fits.width === 720 && fits.height === 600);
+  const squeezed = D.fitSize(D.DEFAULT_SIZES.graphing, { width: 600, height: 500 });
+  ok("a small space shrinks it to fit, with a margin", squeezed.width === 600 - 2 * F.EDGE && squeezed.height === 500 - 2 * F.EDGE);
+  const big = D.expandedSize({ width: 1280, height: 800 });
+  ok("Expand is 80% by 82% of the space", big.width === 1024 && big.height === 656, JSON.stringify(big));
+  const besideSidebar = D.expandedSize({ width: 1440 - 400, height: 900 });
+  ok("Expand beside the sidebar uses the space left of it", besideSidebar.width === 832 && besideSidebar.height === 738, JSON.stringify(besideSidebar));
+  const usual = D.expandedSize({ width: 1280, height: 800 }, D.DEFAULT_SIZES.graphing);
+  ok("Expand with room to grow is still 80% by 82%", usual.width === 1024 && usual.height === 656, JSON.stringify(usual));
+  const cramped = D.expandedSize({ width: 1024 - 384, height: 700 }, D.DEFAULT_SIZES.graphing);
+  ok("Expand never shrinks the panel: beside the sidebar on a small laptop it takes all the room", cramped.width === 640 - 2 * F.EDGE && cramped.height === 700 - 2 * F.EDGE, JSON.stringify(cramped));
+  const small = D.expandedSize({ width: 360, height: 400 });
+  ok("Expand never goes under the smallest size when that fits", small.width === 320 && small.height === 380, JSON.stringify(small));
+  const tinyWindow = D.expandedSize({ width: 300, height: 360 });
+  ok("Expand on a tiny window still fits it", tinyWindow.width === 300 - 2 * F.EDGE && tinyWindow.height === 360 - 2 * F.EDGE, JSON.stringify(tinyWindow));
+  // Keeping out from under the sidebar: the area ends where it starts.
+  const pulled = F.keepOnScreen({ left: 900, top: 100, width: 400, height: 500 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { width: 880, height: 900 });
+  ok("a panel under the sidebar is pulled out from under it", pulled.x === 880 - F.EDGE - 1300 && pulled.y === 0, JSON.stringify(pulled));
+  const dragged = F.keepOnScreen({ left: 300, top: 100, width: 400, height: 500 }, { x: 0, y: 0 }, { x: 500, y: 0 }, { width: 880, height: 900 });
+  ok("and cannot be dragged under it", 300 + dragged.x + 400 === 880 - F.EDGE, JSON.stringify(dragged));
+  const room = F.keepOnScreen({ left: 300, top: 100, width: 400, height: 500 }, { x: 0, y: 0 }, { x: 20, y: 10 }, { width: 880, height: 900 });
+  ok("a drag with room goes where it is asked", room.x === 20 && room.y === 10);
+  // The corner resize: the right edge and the top edge stay where they are.
+  const start = { size: { width: 440, height: 520 }, offset: { x: 0, y: 0 }, rect: { left: 820, top: 284, right: 1260, bottom: 804 } };
+  const view = { width: 1280, height: 900 };
+  const grown = F.resizeFromBottomLeft(start, -100, 50, D.MIN_SIZE, view);
+  ok("dragging the corner out grows it", grown.size.width === 540 && grown.size.height === 570);
+  ok("and moves it down by what it grew, so the top stays put", grown.offset.y === 50 && grown.offset.x === 0);
+  const shrunk = F.resizeFromBottomLeft(start, 400, -400, D.MIN_SIZE, view);
+  ok("never under 320 by 380", shrunk.size.width === 320 && shrunk.size.height === 380 && shrunk.offset.y === -140);
+  const huge = F.resizeFromBottomLeft(start, -5000, 5000, D.MIN_SIZE, view);
+  ok("never past the left edge", huge.size.width === 1260 - F.EDGE);
+  ok("never past the bottom edge", huge.size.height === 900 - F.EDGE - 284 && huge.offset.y === huge.size.height - 520);
+  const tiny = F.resizeFromBottomLeft({ ...start, rect: { left: 8, top: 8, right: 300, bottom: 360 } }, 0, 0, D.MIN_SIZE, { width: 300, height: 360 });
+  ok("a window smaller than the minimum still fits the panel", tiny.size.width === 292 && tiny.size.height === 344);
+  ok("clampSize rounds", F.clampSize({ width: 400.6, height: 450.2 }, { minWidth: 0, minHeight: 0, maxWidth: 999, maxHeight: 999 }).width === 401);
 }
 
 // --- Names: one shape, "First Last" --------------------------------------------

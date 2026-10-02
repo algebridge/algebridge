@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Anton, Inter } from "next/font/google";
 import "./globals.css";
+import "./helper.css";
+import "./polish.css";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { SideNav } from "@/components/SideNav";
@@ -13,6 +15,7 @@ import { AuthProvider } from "@/lib/auth";
 import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
 import { StudyHelper } from "@/components/StudyHelper";
+import { sidebarBootScript } from "@/lib/sidebar";
 import { IncomingCall } from "@/components/IncomingCall";
 import { ScratchpadProvider } from "@/components/Scratchpad";
 
@@ -41,7 +44,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${anton.variable} ${inter.variable}`}>
+    // suppressHydrationWarning: the script below may set the sidebar's width
+    // and dock flag on <html> before React starts. One level deep only.
+    <html lang="en" className={`${anton.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Room for Archie's sidebar from the first frame when it was left open. */}
+        <script dangerouslySetInnerHTML={{ __html: sidebarBootScript() }} />
+      </head>
       <body className="min-h-screen bg-slate-50 font-body">
         <AuthProvider>
           <AppNavProvider>
@@ -63,6 +72,9 @@ export default function RootLayout({
 
             <div className="flex min-h-screen flex-col lg:pl-60">
               <Header />
+              {/* Everything under the header moves over for the docked AI
+                  sidebar (helper.css: .helper-shift). The header stays full width. */}
+              <div className="helper-shift flex flex-1 flex-col">
               <LoginBanner />
               <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7 sm:px-6 lg:px-8">
                 {children}
@@ -82,6 +94,7 @@ export default function RootLayout({
                 </p>
                 <MusicCredits />
               </footer>
+              </div>
             </div>
             <Calculator />
             <StudyHelper />
