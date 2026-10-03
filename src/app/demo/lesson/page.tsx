@@ -3,10 +3,14 @@ import { LessonDemo } from "@/components/demo/LessonDemo";
 
 export const metadata: Metadata = {
   title: "Lesson demo",
-  description: "The top of a real AlgeBridge lesson: the video, the key idea, and three practice problems. Nothing is saved.",
+  description: "A real AlgeBridge skill: the key idea, the standards it covers, and three practice problems. Nothing is saved.",
 };
 
-/** /demo/lesson: a bare route (lib/bare-route.ts) algebridge.org frames. */
-export default function LessonDemoPage() {
-  return <LessonDemo />;
+/**
+ * /demo/lesson: a bare route (lib/bare-route.ts) algebridge.org frames.
+ * ?watch=1 adds the lesson's Watch step with its video player.
+ */
+export default async function LessonDemoPage({ searchParams }: { searchParams: Promise<{ watch?: string }> }) {
+  const { watch } = await searchParams;
+  return <LessonDemo watch={watch === "1"} />;
 }
