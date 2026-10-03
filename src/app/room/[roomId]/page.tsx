@@ -23,6 +23,7 @@ import { getProgress, saveProgress } from "@/lib/progress";
 import { awardBridgeys } from "@/lib/bridgeys";
 import { showToast, fireConfetti } from "@/lib/notify";
 import { Icon } from "@/components/Icon";
+import { BlockButton, ReportButton, useIsBlocked } from "@/components/ReportButton";
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -60,6 +61,8 @@ export default function CallRoomPage() {
   const otherId =
     user && roomPair ? (roomPair[0] === user.id ? roomPair[1] : roomPair[0]) : withParam;
   const [other, setOther] = useState<PublicProfile | null>(null);
+  // Someone this student blocked on this device: the call does not connect.
+  const blocked = useIsBlocked(otherId);
   const [status, setStatus] = useState<Status>("init");
   const [tab, setTab] = useState<Tab>("whiteboard");
   const [micOn, setMicOn] = useState(true);
@@ -197,9 +200,16 @@ export default function CallRoomPage() {
     }
   }, [loading, user, roomPair, iAmParticipant]);
 
+  useEffect(() => {
+    if (blocked) {
+      setStatus("error");
+      setMediaError("You blocked this person on this device, so this call will not connect. Unblock them at the top to call again.");
+    }
+  }, [blocked]);
+
   // ---- main setup (once we know who we are) ----
   useEffect(() => {
-    if (loading || !user || !otherId || !other || !iAmParticipant) return;
+    if (loading || !user || !otherId || !other || !iAmParticipant || blocked) return;
     const supabase = createClient();
     if (!supabase) {
       setStatus("error");
@@ -347,7 +357,7 @@ export default function CallRoomPage() {
       cleanup(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, otherId, other]);
+  }, [loading, user, otherId, other, blocked]);
 
   // Best-effort finalize on a hard tab close (React cleanup may not run).
   useEffect(() => {
@@ -469,7 +479,13 @@ export default function CallRoomPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {otherId && iAmParticipant && (
+            <>
+              <ReportButton target={{ userId: otherId, name: other?.displayName ?? null, place: "call", placeId: roomId }} />
+              <BlockButton otherId={otherId} otherName={other?.displayName ?? null} />
+            </>
+          )}
           <Link href={`/messages/${otherId}`} className="btn-secondary text-sm">
             <Icon name="messages" size={16} />
             Chat

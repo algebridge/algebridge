@@ -26,6 +26,11 @@ export function SmoothScroll() {
       // Clear the sticky header so the heading is not hidden underneath it.
       const top = target.getBoundingClientRect().top + window.scrollY - 80;
       window.scrollTo({ top, behavior: reduce ? "auto" : "smooth" });
+      // The keyboard goes with the eyes (the skip link, the page's own anchors):
+      // the next Tab starts from the target, not from the link.
+      const el = target as HTMLElement;
+      if (!el.hasAttribute("tabindex") && !el.matches("a[href], button, input, select, textarea")) el.setAttribute("tabindex", "-1");
+      el.focus({ preventScroll: true });
     }
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);

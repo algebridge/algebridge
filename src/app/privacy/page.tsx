@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
 
 export const metadata = { title: "Privacy Policy, AlgeBridge" };
 
@@ -12,45 +13,102 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Who we are</h2>
           <p className="mt-2">
-            AlgeBridge is a free Algebra 1 learning platform for students in grades 7-10.
-            This policy explains what we collect, why, and the choices you have.
+            AlgeBridge is a free course in core Algebra 1 skills for students in grades 7 to 10,
+            at learn.algebridge.org. This policy explains what we collect, why, who processes it,
+            and the choices you have. It describes what the app does today, including what it
+            does not do yet.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-bold text-slate-900">What we collect</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li><strong>Account info</strong>, your email and a display name, if you create an account.</li>
-            <li><strong>Learning progress</strong>, skills completed, practice results, XP, and Bridgeys. Without an account this stays only in your browser.</li>
-            <li><strong>Profile</strong>, an optional photo and bio (tutors and students).</li>
-            <li><strong>Messages &amp; calls</strong>, direct messages, group messages, and call records (including any AI-generated recap) so the feature works.</li>
+            <li><strong>Account info</strong>: your email, your real first and last name, and your role (student, teacher or tutor). If you sign up with a password, it is stored hashed by our sign-in service, Supabase, and nobody at AlgeBridge can read it. If you sign in with Google, Google gives us your name and email.</li>
+            <li><strong>Learning progress</strong>: skills completed, practice results, XP, Bridgeys, streaks, the interests you pick or describe, and your notebook. It is saved to your account, and the teacher of any class you are in can read it.</li>
+            <li><strong>Profile</strong>: an optional photo and bio. Photos are stored at a public link, so anyone who has a photo&apos;s link can open it. (This changes with the database update below.) A bio with a phone number, email address or social media username is not saved.</li>
+            <li><strong>Messages and calls</strong>: direct messages, group messages, requests for help from a tutor, and call records, including the text recap written after a call.</li>
+            <li><strong>Leaderboard</strong>: off unless you turn it on. If you tick &quot;Show me on the board&quot; on the leaderboard page, your first name and last initial, Bridgeys, skills finished and best house piece are shown to every signed-in AlgeBridge user. Untick it to come off. A student who was shown under the old default and has not signed in since stays on the board until the database update below.</li>
+            <li><strong>Feedback</strong>: what you send through the feedback page, the page you sent it from, and a contact email (your account email unless you change it).</li>
+            <li><strong>Reports</strong>: if you report someone, the reason you pick, any details you add, where it happened (the conversation, group or call), the account you reported, and which message you reported, if any. Reports are saved for an AlgeBridge admin to read and are not shown to the person reported. There is no admin screen for reports and no alert yet, so a report is not read right away.</li>
+            <li><strong>Blocks</strong>: the people you block are kept in your browser on that device, so that browser can hide them.</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-slate-900">What we do NOT do</h2>
+          <h2 className="text-lg font-bold text-slate-900">What we do not do</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>We do not sell your data.</li>
-            <li>We do not show third-party ads.</li>
-            <li>We do not record your video calls; video and audio are peer-to-peer and not stored.</li>
+            <li>We do not show ads.</li>
+            <li>We do not record video calls. Video and audio go straight between the two browsers and are not stored.</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-slate-900">How your data is protected</h2>
+          <h2 className="text-lg font-bold text-slate-900">Who can see your data</h2>
           <p className="mt-2">
-            Accounts and data are stored with Supabase (Postgres) and protected by
-            row-level security, so you can only read your own data (and, for tutors and
-            teachers, the students they work with). Passwords are hashed and never visible to us.
+            Accounts and data are stored with Supabase (a Postgres database) and protected by
+            row-level security, which decides what each account can read:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>You can read your own records, tutor profiles (their email included), the leaderboard, and the members and messages of group chats you are in.</li>
+            <li>The owner of a class can read the name, email and progress of each student on its roster, and can add a student who already has an account to a class by email, without the student being asked. Today the database does not check that a class&apos;s owner is a teacher account. (Both change with the database update below.)</li>
+            <li>A tutor can read the name and email of every student, and every request for help. (This changes with the database update below.)</li>
+            <li>AlgeBridge admins can read every profile.</li>
+          </ul>
+          <p className="mt-2">
+            Teacher and tutor accounts need an access code from AlgeBridge. It is one shared code
+            per role, not a personal invite.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold text-slate-900">Services that process your data</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li><strong>Supabase</strong> stores accounts, progress, messages and photos, and carries messages and call signals live.</li>
+            <li><strong>Vercel</strong> hosts the website.</li>
+            <li><strong>Groq, with OpenAI as a backup</strong>, writes three kinds of text. Archie, the study helper, gets the problem on screen with its hint and worked solution, the conversation, and the student&apos;s first name and picked interests, never a last name or email. Interests get only the words a student types about them; tapping a listed interest uses no AI. Word problems set in an interest get a problem the app made and the chosen topic. The Hints extension is described below.</li>
+            <li><strong>Anthropic or OpenAI</strong>, when one is set up, writes the recap after a tutoring call. It gets both people&apos;s names, the call&apos;s captions as a transcript labeled by speaker (if captions were on), and the student&apos;s notebook. The recap is saved with the call record and sent to the other person as a message. Without either service, a template on our own server writes it.</li>
+            <li><strong>Google</strong>: if anyone turns on captions in a call, the browser&apos;s speech recognition turns the audio into text, and in Chrome that is a Google service. Google also handles &quot;Continue with Google&quot; sign-in if you choose it.</li>
+            <li><strong>YouTube</strong> plays the lesson videos, embedded from youtube-nocookie.com. Your browser contacts YouTube when a lesson&apos;s video player loads.</li>
+          </ul>
+          <p className="mt-2">
+            AlgeBridge checks each message to Archie, and each question to the Hints extension,
+            against a list of phrases that suggest self-harm, abuse or danger: English, the common
+            ways to say it in Spanish, Haitian Creole and Portuguese, and a few phrases in Chinese,
+            Arabic, Russian, Ukrainian, Korean and Hindi. Archie also reads a student&apos;s last two
+            messages together. A match goes to no AI service, and the student gets fixed text: talk
+            to a trusted adult or school counselor now, call or text 988 or text HOME to 741741
+            (Crisis Text Line) from any phone, chat with 988 online, or call 911. On the site this
+            shows as a card with those as buttons. Archie checks in the student&apos;s browser, so a
+            match is not sent to our server, not saved into a tutor booking, and not sent to a tutor.
+            The Hints extension&apos;s check runs on our server, so its words reach our server and
+            stop there. A message the list misses goes to the AI service like any other, and the AI
+            is told to send the student to a trusted adult. Nobody is alerted, and the message is
+            not stored.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-bold text-slate-900">Your choices</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>You can use AlgeBridge without an account (progress stays in your browser).</li>
-            <li>You can <strong>delete your account and all associated data</strong> at any time from your account settings.</li>
-            <li>You can edit or remove your profile photo and bio whenever you like.</li>
+            <li>Lessons and practice need a free account, so your work saves and your teacher can see it. Pages that work without an account, like the games, keep what you do only in your browser.</li>
+            <li>You can <strong>delete your account</strong> at any time from your account page. That deletes your profile, progress, notebook, class memberships, leaderboard entry, help requests, every direct message you sent or received, and the group chat messages you sent. It does not yet delete photos you uploaded (their links keep working), feedback or reports you sent (they keep the message and contact email, no longer linked to you), or call records (the time and recap stay, no longer linked to you). Email us to have those removed.</li>
+            <li>You can change your profile photo and bio whenever you like. There is no button to remove a photo yet; email us and we will.</li>
+            <li>The leaderboard is off for you until you turn it on, and one checkbox turns it off again.</li>
+            <li>You can <strong>report</strong> any message, person, group or call, and <strong>block</strong> anyone you talk to. Blocking hides their messages, calls and unread messages in the browser where you block them; it does not yet reach your other devices.</li>
+          </ul>
+        </section>
+
+        <section id="safety-update">
+          <h2 className="text-lg font-bold text-slate-900">Safety changes waiting on a database update</h2>
+          <p className="mt-2">
+            These are written and tested, but they take effect only when our database update of
+            October 2026 is applied. Until then, the rules above describe what happens.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {PENDING_SAFETY_UPDATE.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
           </ul>
         </section>
 
@@ -77,9 +135,11 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Children&apos;s privacy</h2>
           <p className="mt-2">
-            AlgeBridge is intended for students in grades 7-10. If you are under 13, please
-            use AlgeBridge with a parent, guardian, or teacher, and only create an account
-            with their permission.
+            AlgeBridge is meant for students in grades 7 to 10. It does not ask for a birth date
+            or age, and it does not record a parent&apos;s or school&apos;s consent. If you are under
+            13, please use AlgeBridge with a parent, guardian, or teacher, and only create an
+            account with their permission. A parent or guardian can email us to see or delete
+            their child&apos;s data.
           </p>
         </section>
 

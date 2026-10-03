@@ -119,10 +119,11 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
   return (
     <div className={`flex h-full flex-col ${className}`}>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className={`flex items-center gap-1.5 font-bold text-slate-900 ${compact ? "text-sm" : ""}`}>
+        {/* h2: it sits right under the page title (the notebook page, a call room). */}
+        <h2 id="notebook-title" className={`flex items-center gap-1.5 font-bold text-slate-900 ${compact ? "text-sm" : ""}`}>
           <Icon name="notebook" size={compact ? 15 : 17} className="text-bridge-600" />
           Notebook
-        </h3>
+        </h2>
         <span
           className={`text-xs ${saveState === "error" ? "text-red-500" : "text-slate-400"}`}
           aria-live="polite"
@@ -134,6 +135,7 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
         value={content}
         onChange={(e) => handleChange(e.target.value)}
         disabled={loading}
+        aria-labelledby="notebook-title"
         placeholder={
           loading
             ? "Loading your notes…"

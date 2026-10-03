@@ -303,13 +303,31 @@ export function Keypad({
 
   return (
     <div className="shrink-0 border-t border-slate-200 bg-[#eceef1] px-1.5 pb-1.5 pt-1" data-keypad="">
-      <div className="mb-1 flex items-center gap-1 px-0.5" role="tablist" aria-label="Keys">
+      <div className="mb-1 flex items-center gap-1 px-0.5">
+        {/* Only the tabs sit in the tablist (the switch and buttons beside it are not tabs).
+            One Tab stop for the set; the arrow keys, Home and End move between them. */}
+        <div
+          role="tablist"
+          aria-label="Key sets"
+          className="flex items-center gap-1"
+          onKeyDown={(e) => {
+            const order = ["main", "abc", "func"] as const;
+            const at = order.indexOf(tab);
+            const to =
+              e.key === "ArrowRight" ? (at + 1) % 3 : e.key === "ArrowLeft" ? (at + 2) % 3 : e.key === "Home" ? 0 : e.key === "End" ? 2 : -1;
+            if (to < 0) return;
+            e.preventDefault();
+            setTab(order[to]);
+            (e.currentTarget.children[to] as HTMLElement | undefined)?.focus();
+          }}
+        >
         {(["main", "abc", "func"] as const).map((t) => (
           <button
             key={t}
             type="button"
             role="tab"
             aria-selected={tab === t}
+            tabIndex={tab === t ? 0 : -1}
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => setTab(t)}
             className={`rounded-md px-2.5 py-[3px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${
@@ -319,6 +337,7 @@ export function Keypad({
             {t}
           </button>
         ))}
+        </div>
         <div className="ml-auto flex items-center gap-1">{extra}</div>
       </div>
       <div className="mx-auto flex max-w-[620px] gap-2">

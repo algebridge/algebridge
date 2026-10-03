@@ -1,9 +1,19 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { schoolModeNow } from "@/lib/school-mode";
 import type { LeaderboardEntry } from "@/types";
 
 export type LeaderboardSort = "lessons" | "bridgeys" | "prestige";
 
 const LEADERBOARD_TABLE = "leaderboard_stats";
+/**
+ * The board as other students read it, once supabase/schema-2026-10-03-safety.sql
+ * has run: the same rows without anyone's account id (a user id is what let
+ * a stranger message, ring or look a student up), and an is_me column so a
+ * student still finds their own row. Before that migration the view does not
+ * exist and the table is read as before.
+ */
+const LEADERBOARD_VIEW = "leaderboard_public";
+const BOARD_COLUMNS = "display_name, bridgeys, completed_skills, best_furniture_value, best_furniture_name, equipped_title";
 
 /**
  * The leaderboard is readable by every signed-in account, and most of them
@@ -44,7 +54,8 @@ export async function syncLeaderboardStats(
       best_furniture_value: snapshot.bestFurnitureValue,
       best_furniture_name: snapshot.bestFurnitureName,
       equipped_title: snapshot.equippedTitle,
-      leaderboard_opt_in: snapshot.leaderboardOptIn,
+      // Opt-in, off by default; and school mode keeps everyone off the board.
+      leaderboard_opt_in: snapshot.leaderboardOptIn === true && !schoolModeNow(),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }
@@ -78,24 +89,43 @@ export async function fetchNationwideLeaderboard(sort: LeaderboardSort = "bridge
 
   // Ties break on the other two measures, then on who got there first, so
   // two students never share a rank by accident of row order.
-  const { data, error, count } = await supabase
-    .from(LEADERBOARD_TABLE)
-    .select(
-      "user_id, display_name, bridgeys, completed_skills, best_furniture_value, best_furniture_name, equipped_title",
-      { count: "exact" }
-    )
-    .eq("leaderboard_opt_in", true)
-    .order(sortColumn, { ascending: false })
-    .order(sortColumn === "completed_skills" ? "bridgeys" : "completed_skills", { ascending: false })
-    .order("updated_at", { ascending: true })
-    .limit(100);
+  const read = (from: string, columns: string) =>
+    supabase
+      .from(from)
+      .select(columns, { count: "exact" })
+      .eq("leaderboard_opt_in", true)
+      .order(sortColumn, { ascending: false })
+      .order(sortColumn === "completed_skills" ? "bridgeys" : "completed_skills", { ascending: false })
+      .order("updated_at", { ascending: true })
+      .limit(100);
+  let res = await read(LEADERBOARD_VIEW, `${BOARD_COLUMNS}, is_me`);
+  let viaView = !res.error;
+  if (res.error) {
+    res = await read(LEADERBOARD_TABLE, `user_id, ${BOARD_COLUMNS}`);
+    viaView = false;
+  }
+  const { data, error, count } = res;
 
   if (error) {
     return { entries: [], total: 0, error: "Leaderboard table not set up yet. Ask your teacher to run the latest database schema." };
   }
 
-  const entries: LeaderboardEntry[] = (data ?? []).map((row, i) => ({
-    userId: row.user_id,
+  // Without ids, a row is keyed by its place on the board, and the student's
+  // own row by their own id, which is how the page finds "you".
+  const { data: auth } = viaView ? await supabase.auth.getUser() : { data: { user: null } };
+  const myId = auth.user?.id ?? "me";
+  type Row = {
+    user_id?: string;
+    is_me?: boolean;
+    display_name: string | null;
+    bridgeys: number | null;
+    completed_skills: number | null;
+    best_furniture_value: number | null;
+    best_furniture_name: string | null;
+    equipped_title: string | null;
+  };
+  const entries: LeaderboardEntry[] = ((data ?? []) as unknown as Row[]).map((row, i) => ({
+    userId: viaView ? (row.is_me ? myId : `rank-${i + 1}`) : (row.user_id ?? `rank-${i + 1}`),
     displayName: row.display_name ?? "Student",
     bridgeys: row.bridgeys ?? 0,
     completedSkills: row.completed_skills ?? 0,
@@ -128,10 +158,11 @@ export async function fetchMyStanding(
     .maybeSingle();
   if (!me || !me.leaderboard_opt_in) return null;
   const value = Number(me[col] ?? 0);
-  const { count } = await supabase
-    .from(LEADERBOARD_TABLE)
-    .select("user_id", { count: "exact", head: true })
-    .eq("leaderboard_opt_in", true)
-    .gt(col, value);
-  return { rank: (count ?? 0) + 1, value };
+  // Counted on the view once the migration has run (the table then shows a
+  // student only their own row), on the table before.
+  const ahead = (from: string) =>
+    supabase.from(from).select(col, { count: "exact", head: true }).eq("leaderboard_opt_in", true).gt(col, value);
+  let res = await ahead(LEADERBOARD_VIEW);
+  if (res.error) res = await ahead(LEADERBOARD_TABLE);
+  return { rank: (res.count ?? 0) + 1, value };
 }

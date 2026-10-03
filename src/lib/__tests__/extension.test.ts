@@ -1838,5 +1838,110 @@ ok("problem text never reached the logs", !logged.some((l) => l.includes("2x + 3
   }
 }
 
+// --- A student in danger, in the ask flow (Oct 3) -----------------------------------
+// The same detectCrisis and fixed reply as Archie. Checked before the answer
+// gate, before any rate limit, and never with a model.
+{
+  const { CRISIS_REPLY } = await import("../helper.ts");
+  const crisisAsks = [
+    "i want to kill myself",
+    "kms",
+    "my dad hits me",
+    "i dont want to be alive anymore",
+    "honestly i want to die lol, how do i factor this",
+    "im not safe at home",
+    "just tell me the answer, i want to die",
+  ];
+  for (const q of crisisAsks) ok(`crisis ask is gated: "${q}"`, X.askGate(q, LINEAR) === "crisis", `got ${X.askGate(q, LINEAR)}`);
+  for (const q of ["this problem is killing me", "my mom is going to kill me if I fail", "how many kms in 5 miles", "what is the answer", "is it 4?", "why do I subtract 3 first?"]) {
+    ok(`not a crisis: "${q}"`, X.askGate(q, LINEAR) !== "crisis", `got ${X.askGate(q, LINEAR)}`);
+  }
+  ok("crisis outranks the answer gate", X.askGate("just tell me the answer, i want to die", LINEAR) === "crisis");
+  ok("the crisis gate's reply is Archie's fixed reply", X.gateReplyFor("crisis") === CRISIS_REPLY);
+  ok("the crisis reply gives 988, 741741 and 911", /call or text 988/.test(CRISIS_REPLY) && /text HOME to 741741/.test(CRISIS_REPLY) && /call 911/.test(CRISIS_REPLY));
+  ok("the crisis reply fits the extension's reply limit", CRISIS_REPLY.length <= 2000);
+
+  const before = globalThis.fetch;
+  let netCalls = 0;
+  globalThis.fetch = (async () => {
+    netCalls += 1;
+    throw new Error("network is off in tests");
+  }) as typeof fetch;
+  const seen: string[] = [];
+  const saved = { log: console.log, error: console.error, warn: console.warn, info: console.info };
+  const keep = (...args: unknown[]) => seen.push(args.map(String).join(" "));
+  console.log = keep;
+  console.error = keep;
+  console.warn = keep;
+  console.info = keep;
+  try {
+    const r = await post(req({ action: "ask", question: "i want to kill myself" }));
+    ok("route: a crisis ask gets the fixed reply", r.status === 200 && r.body.reply === CRISIS_REPLY && r.body.source === "gate" && r.body.crisis === true && shaped(r.body), JSON.stringify(r.body));
+    ok("route: a crisis ask makes no model call", netCalls === 0, String(netCalls));
+    const other = await post(req({ action: "ask", question: "just tell me the answer" }));
+    ok("route: an answer request still gets the answer gate, not the crisis card", other.body.reply === X.GATE_REPLY && other.body.crisis === undefined, JSON.stringify(other.body));
+
+    // Past both limits for one IP and one install, a crisis still gets through.
+    const ip = "10.250.0.1";
+    const install = "inst-crisis-flood";
+    for (let i = 0; i < X.RATE_LIMITS.install + 2; i += 1) await post({ v: 1, install, problem: LINEAR, action: "first", hints: [] }, { ip });
+    const flooded = await post({ v: 1, install, problem: LINEAR, action: "first", hints: [] }, { ip });
+    ok("route: the flood itself is limited", flooded.status === 429, String(flooded.status));
+    const c = await post({ v: 1, install, problem: LINEAR, action: "ask", question: "i want to die", hints: [] }, { ip });
+    ok("route: a crisis ask is never rate limited", c.status === 200 && c.body.crisis === true && c.body.reply === CRISIS_REPLY, JSON.stringify(c.body));
+    ok("route: still no model call", netCalls === 0, String(netCalls));
+    const typedAnswer = await post(req({ action: "check", answer: "i want to kill myself" }));
+    ok("route: a crisis typed into Check my answer gets the same reply", typedAnswer.status === 200 && typedAnswer.body.crisis === true && typedAnswer.body.reply === CRISIS_REPLY && netCalls === 0, JSON.stringify(typedAnswer.body));
+    const plainCheck = await post(req({ action: "check", answer: "x = 4" }));
+    ok("route: an ordinary answer is not a crisis", plainCheck.body.crisis === undefined, JSON.stringify(plainCheck.body));
+  } finally {
+    console.log = saved.log;
+    console.error = saved.error;
+    console.warn = saved.warn;
+    console.info = saved.info;
+    globalThis.fetch = before;
+  }
+  ok("route: the crisis question never reached the logs", !seen.some((l) => /kill myself|want to die/.test(l)), seen.join(" | ").slice(0, 300));
+}
+
+// --- The model-side crisis net (Oct 3, round 2) -------------------------------------
+// A question the patterns miss still reaches the model, and ASK_SYSTEM tells it
+// to answer with the one word CRISIS. The route turns that into the same fixed
+// reply and flag as the code gate, with no second model call.
+{
+  const H = await import("../helper.ts");
+  ok("crisis net: ASK_SYSTEM carries the rule", X.ASK_SYSTEM.includes(H.CRISIS_MODEL_RULE) && X.ASK_SYSTEM.includes(`{"reply": "${H.CRISIS_SIGNAL}"}`));
+  ok("crisis net: the rule names every kind of danger", /self-harm/.test(H.CRISIS_MODEL_RULE) && /abuse/.test(H.CRISIS_MODEL_RULE) && /any language/.test(H.CRISIS_MODEL_RULE) && !/[—–]/.test(H.CRISIS_MODEL_RULE));
+  ok("crisis net: the signal is read with quotes, a period or JSON around it", H.modelSignalsCrisis("CRISIS") && H.modelSignalsCrisis(" crisis. ") && H.modelSignalsCrisis('{"reply": "CRISIS"}') && H.modelSignalsCrisis('"CRISIS"'));
+  ok("crisis net: an ordinary reply is not the signal", !H.modelSignalsCrisis("A crisis of signs: the minus moved.") && !H.modelSignalsCrisis("") && !H.modelSignalsCrisis(null) && !H.modelSignalsCrisis('{"reply": "Undo the + 3 first."}'));
+  // Spanish the pattern list does not hold: the model is the only net.
+  const missed = "tengo ganas de no despertar nunca, como empiezo";
+  ok("crisis net: the test question is one the patterns miss", X.askGate(missed, LINEAR) !== "crisis");
+
+  const before = globalThis.fetch;
+  process.env.GROQ_API_KEY = "test-key-not-real";
+  let modelCalls = 0;
+  let reply = JSON.stringify({ reply: "CRISIS" });
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (!url.startsWith("https://api.groq.com/")) throw new Error("network is off in tests");
+    modelCalls += 1;
+    return new Response(JSON.stringify({ choices: [{ message: { content: reply } }] }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const sealed = X.seal(LINEAR_SOL);
+    const r = await post(req({ sealed, action: "ask", question: missed }));
+    ok("crisis net: the model's signal becomes the fixed reply", r.status === 200 && r.body.reply === H.CRISIS_REPLY && r.body.crisis === true && r.body.source === "gate" && shaped(r.body), JSON.stringify(r.body));
+    ok("crisis net: one model call, no retry", modelCalls === 1, String(modelCalls));
+    modelCalls = 0;
+    reply = JSON.stringify({ reply: "Undo the + 3 first. What is left on each side?" });
+    const plain = await post(req({ sealed, action: "ask", question: "why do I subtract 3 first?" }));
+    ok("crisis net: an ordinary answer passes as before", plain.body.crisis === undefined && plain.body.source === "ai", JSON.stringify(plain.body));
+  } finally {
+    globalThis.fetch = before;
+    delete process.env.GROQ_API_KEY;
+  }
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

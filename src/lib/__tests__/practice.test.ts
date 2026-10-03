@@ -459,6 +459,36 @@ ok(
 );
 ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpans("Solve for x: 2.5x + 1 = 6")) === JSON.stringify(["2.5x + 1 = 6"]));
 
+// --- Gray text tokens: small text clears 4.5:1 on every light surface it sits on ---
+{
+  const H = await import("../hues.ts");
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+  const token = (shade: 400 | 500) => css.match(new RegExp(`\\.text-slate-${shade}\\s*\\{\\s*color:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
+  const channel = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => channel(parseInt(hex.slice(i, i + 2), 16) / 255));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  // White, the page (slate-50), chips and switches (slate-100), the calculator's row gutter, and every unit tint.
+  const surfaces = ["#ffffff", "#f8fafc", "#f1f5f9", "#f6f7f9", ...Object.values(H.HUES).map((h) => h.tint)];
+  const t400 = token(400);
+  const t500 = token(500);
+  ok("globals.css sets both gray text tokens", !!t400 && !!t500, `${t400} ${t500}`);
+  if (t400 && t500) {
+    // slate-500 also labels the keypad tabs on the calculator's gray tray.
+    const fails = [
+      ...surfaces.filter((s) => contrast(t400, s) < 4.5).map((s) => `slate-400 text on ${s}: ${contrast(t400, s).toFixed(2)}`),
+      ...[...surfaces, "#eceef1"].filter((s) => contrast(t500, s) < 4.5).map((s) => `slate-500 text on ${s}: ${contrast(t500, s).toFixed(2)}`),
+    ];
+    ok("gray text tokens clear 4.5:1 on white, slate-50, slate-100, the keypad tray and every unit tint", fails.length === 0, fails.join("; "));
+    ok("the 400 text token stays lighter than the 500 one", luminance(t400) > luminance(t500));
+  }
+}
+
 // --- Unit and interest hues: every text/surface pairing clears WCAG AA ---------
 {
   const H = await import("../hues.ts");
@@ -1260,9 +1290,13 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
 {
   const { normalizeProgress } = await import("../progress.ts");
   const L = await import("../leaderboard.ts");
-  ok("a new save is on the board", normalizeProgress({}).leaderboardOptIn === true);
-  ok("a save from the opt-in week goes back on, once", normalizeProgress({ leaderboardOptIn: false }).leaderboardOptIn === true);
-  ok("a student who hid themselves stays hidden", normalizeProgress({ leaderboardOptIn: false, leaderboardDefaultV2: true }).leaderboardOptIn === false);
+  // Opt-in since 3 Oct 2026: off by default, every older save off once, and a
+  // student who then shows themselves stays on.
+  ok("a new save is off the board", normalizeProgress({}).leaderboardOptIn === false);
+  ok("a save put on by the old default comes off, once", normalizeProgress({ leaderboardOptIn: true, leaderboardDefaultV2: true }).leaderboardOptIn === false);
+  const chose = { leaderboardOptIn: true, leaderboardDefaultV2: true, leaderboardOffByDefault: true } as Parameters<typeof normalizeProgress>[0];
+  ok("a student who chose to show themselves stays on", normalizeProgress(chose).leaderboardOptIn === true);
+  ok("the snapshot never reads a missing choice as yes", (await import("../bridgeys.ts")).getLeaderboardSnapshot(normalizeProgress({})).leaderboardOptIn === false);
   ok("the board only ever gets First L.", L.publicLeaderboardName("Jordyn Harwood") === "Jordyn H." && L.publicLeaderboardName("") === "Anonymous Student");
 }
 
@@ -1482,6 +1516,32 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("no em dashes in any quote card", Q.QUOTES.every((q) => !`${q.text}${q.who}${q.role}${q.source}`.includes("—")));
 }
 
+// --- Lesson videos (src/data/videos.ts) ---------------------------------------
+// A district reviewer found one review video standing in for three lessons and
+// relabeled titles. One video per skill now, with YouTube's own title; these
+// keep it that way. (The IDs themselves were checked live; see videos.ts.)
+{
+  const V = await import("../../data/videos.ts");
+  const skills = units.flatMap((u) => u.skills);
+  const missing = skills.filter((s) => !V.SKILL_VIDEOS[s.id]).map((s) => s.id);
+  ok("every skill has its own lesson video", missing.length === 0, missing.join(", "));
+  const byId = new Map<string, string[]>();
+  for (const [skill, v] of Object.entries(V.SKILL_VIDEOS)) byId.set(v.youtubeId, [...(byId.get(v.youtubeId) ?? []), skill]);
+  const shared = [...byId].filter(([, s]) => s.length > 1).map(([id, s]) => `${id}: ${s.join(", ")}`);
+  ok("no YouTube video serves two skills", shared.length === 0, shared.join("; "));
+  ok("a backup is a different video from every lesson's main one", Object.values(V.BACKUP_VIDEOS).every((b) => !byId.has(b.youtubeId)));
+  ok("backups belong to skills the course has", Object.keys(V.BACKUP_VIDEOS).every((id) => skills.some((s) => s.id === id)));
+  const all = [...Object.values(V.SKILL_VIDEOS), ...Object.values(V.BACKUP_VIDEOS)];
+  ok("every ID has YouTube's 11-character shape", all.every((v) => /^[A-Za-z0-9_-]{11}$/.test(v.youtubeId)));
+  ok("every player id is unique", new Set(all.map((v) => v.id)).size === all.length);
+  // The player counts a video watched at 85% of its length, so a long review
+  // video would lock a lesson for half an hour.
+  const long = all.filter((v) => !(V.parseDurationToSeconds(v.duration) > 60 && V.parseDurationToSeconds(v.duration) <= 15 * 60));
+  ok("every video has a real length between 1 and 15 minutes", long.length === 0, long.map((v) => `${v.youtubeId} ${v.duration}`).join(", "));
+  ok("the curriculum points at the same verified videos", skills.every((s) => s.video === V.SKILL_VIDEOS[s.id] && !s.backupVideo));
+  ok("titles carry no channel name and no em dash", all.every((v) => !v.title.includes(v.channel) && !/[—–]/.test(v.title)));
+}
+
 // --- Standards alignment (src/data/standards.ts) ---------------------------
 // Owned by the "For schools" page work. Every skill cites a real CCSS-M code
 // in the official shape, and nothing points at a skill that is not there.
@@ -1490,8 +1550,24 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const skillIds = units.flatMap((u) => u.skills.map((s) => s.id));
   const known = new Set(skillIds);
   const cited = Object.values(S.SKILL_STANDARDS).flat();
-  const unmapped = skillIds.filter((id) => !(S.SKILL_STANDARDS[id]?.length && S.standardsForSkill(id).length === S.SKILL_STANDARDS[id].length));
-  ok("every skill cites at least one defined standard", unmapped.length === 0, unmapped.join(", "));
+  // A skill may cite nothing only when NOT_CLAIMED says why (graphing, for now).
+  const unmapped = skillIds.filter(
+    (id) =>
+      !(id in S.SKILL_STANDARDS) ||
+      S.standardsForSkill(id).length !== S.SKILL_STANDARDS[id].length ||
+      (S.SKILL_STANDARDS[id].length === 0 && !S.NOT_CLAIMED.some((n) => n.skillId === id))
+  );
+  ok("every skill cites a defined standard, or NOT_CLAIMED says why it cites none", unmapped.length === 0, unmapped.join(", "));
+  ok("most skills cite a standard", skillIds.filter((id) => S.SKILL_STANDARDS[id]?.length).length >= skillIds.length - 4);
+  // Every item type the practice has today, none of which draws or reads a
+  // graph. A graph item type would make the graphing standards claimable.
+  const itemTypes = new Set(units.flatMap((u) => u.skills.flatMap((s) => [1, 2].flatMap((seed) => generateProblemBank(s.id, s.problems, seed).map((p) => p.type)))));
+  ok("practice items are numeric, multiple choice, error analysis or step order only", [...itemTypes].every((t) => ["numeric", "multiple-choice", "error-analysis", "step-order"].includes(t)), [...itemTypes].join(", "));
+  ok("no standard that needs a graph is claimed while no item shows one", S.GRAPHING_STANDARDS.every((c) => !cited.includes(c)));
+  ok("every graphing standard left off says so, skill by skill", S.GRAPHING_STANDARDS.every((c) => S.NOT_CLAIMED.some((n) => n.code === c)) && S.NOT_CLAIMED.filter((n) => S.GRAPHING_STANDARDS.includes(n.code)).every((n) => /graph|plot/i.test(n.reason)));
+  ok("a skill that cites nothing is left off for graphing", skillIds.filter((id) => !S.SKILL_STANDARDS[id]?.length).every((id) => S.NOT_CLAIMED.some((n) => n.skillId === id && S.GRAPHING_STANDARDS.includes(n.code))));
+  const graphWords = units.flatMap((u) => [u.description, ...u.skills.flatMap((s) => [s.description, s.learningGoal])]).filter((t) => /\b(graph|graphs|graphing|plot|plotting)\b/i.test(t));
+  ok("no description or learning goal promises graphing", graphWords.length === 0, graphWords.join(" | "));
   const strays = Object.keys(S.SKILL_STANDARDS).filter((id) => !known.has(id));
   ok("no standards for a skill id the course does not have", strays.length === 0, strays.join(", "));
   const badShape = cited.filter((c) => !S.STANDARD_CODE_PATTERN.test(c));

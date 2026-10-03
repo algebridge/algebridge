@@ -4,31 +4,42 @@ import "./schools.css";
 import { units } from "@/data/curriculum";
 import { skillOffersCalculator } from "@/data/problem-banks";
 import {
+  GRAPHING_STANDARDS,
   NOT_CLAIMED,
   SKILL_STANDARDS,
   citedStandards,
   levelLabel,
   type Standard,
 } from "@/data/standards";
+import { SKILL_VIDEOS } from "@/data/videos";
 import { StandardsChip } from "@/components/StandardsChip";
 import { Icon, type IconName } from "@/components/Icon";
 import { PrintButton } from "./PrintButton";
 import { SchoolIcon, type SchoolIconName } from "./icons";
+import { SCHOOL_MODE_OFF, SCHOOL_MODE_STAYS } from "@/lib/school-mode";
+import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
 
 /*
  * A page for a school or district audience. Every sentence here was checked
  * against the code (Oct 2026): src/app/teacher, src/lib/teacher.ts,
  * src/lib/assignments.ts, src/lib/path.ts, src/lib/spaced-repetition.ts,
- * src/lib/diagnose.ts, src/app/api/*, src/lib/social.ts, the room page and
- * supabase/schema-2026-09-22.sql. Counts are computed from the data, never
- * typed in. If a feature changes, change this page with it.
+ * src/lib/diagnose.ts, src/app/api/* (helper, interests, personalize,
+ * summary), src/lib/helper.ts (the crisis reply), src/lib/social.ts, the room
+ * and messages pages, src/data/standards.ts and every supabase/*.sql policy.
+ * Counts are computed from the data, never typed in. It says what AlgeBridge
+ * does not do yet as plainly as what it does. If a feature changes, change
+ * this page with it, and the version line at the bottom.
  */
 
 export const metadata: Metadata = {
   title: "For schools, AlgeBridge",
   description:
-    "AlgeBridge for schools and districts: a free Algebra 1 course for grades 7 to 10, teacher tools, Common Core standards alignment, and how student data is handled.",
+    "AlgeBridge for schools and districts: free practice in core Algebra 1 skills for grades 7 to 10, what it covers and does not cover yet, teacher tools, Common Core alignment, and how student data is handled.",
 };
+
+/** The version printed at the foot of the handout. Change it when the page changes. */
+const VERSION = "October 2026";
+const CONTACT = "support@algebridge.org";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 const CITED = citedStandards();
@@ -37,6 +48,37 @@ const MS_COUNT = CITED.length - HS_COUNT;
 const MAPPED = units.flatMap((u) => u.skills).filter((s) => (SKILL_STANDARDS[s.id] ?? []).length > 0).length;
 const CALC_SKILLS = units.flatMap((u) => u.skills).filter((s) => skillOffersCalculator(s.id, s.problems)).length;
 const SKILL_TITLES: Record<string, string> = Object.fromEntries(units.flatMap((u) => u.skills.map((s) => [s.id, s.title])));
+/** The YouTube channels the lesson videos come from, most used first. */
+const CHANNELS = Object.entries(
+  Object.values(SKILL_VIDEOS).reduce<Record<string, number>>((n, v) => ({ ...n, [v.channel]: (n[v.channel] ?? 0) + 1 }), {})
+)
+  .sort((a, b) => b[1] - a[1])
+  .map(([channel]) => channel);
+/** Standards left off because no item draws or reads a graph, each with the skills it would belong to. */
+const GRAPH_LEFT_OFF = GRAPHING_STANDARDS.map((code) => ({
+  code,
+  skills: NOT_CLAIMED.filter((n) => n.code === code).map((n) => SKILL_TITLES[n.skillId]),
+}));
+const OTHER_LEFT_OFF = NOT_CLAIMED.filter((n) => !GRAPHING_STANDARDS.includes(n.code));
+const UNMAPPED = TOTAL_SKILLS - MAPPED;
+
+/**
+ * Commonly taught Algebra 1 content the course does not have yet. Each code
+ * was checked absent from SKILL_STANDARDS; the last two are gaps inside
+ * skills the course does have.
+ */
+const NOT_COVERED: { what: string; codes?: string }[] = [
+  { what: "Statistics: data displays, center and spread, scatter plots, correlation", codes: "HSS-ID" },
+  { what: "Transforming functions, such as shifting or stretching a graph", codes: "HSF-BF.B.3" },
+  { what: "Reading key features from graphs and tables, and comparing functions shown in different ways", codes: "HSF-IF.B.4, B.5, C.9" },
+  { what: "Comparing linear and exponential models", codes: "HSF-LE.A.1.a, A.1.b, A.3, B.5" },
+  { what: "Writing equations and inequalities from a situation", codes: "HSA-CED.A.1, A.2" },
+  { what: "Interpreting the parts of an expression in context", codes: "HSA-SSE.A.1" },
+  { what: "Using a polynomial's zeros to sketch its graph", codes: "HSA-APR.B.3" },
+  { what: "Sums and products of rational and irrational numbers", codes: "HSN-RN.B.3" },
+  { what: "Any graphing: no practice item draws a graph or asks a student to read one" },
+  { what: "Quadratic equations with irrational roots: every quadratic a student solves in practice has whole-number roots" },
+];
 
 type Glyph = { icon: IconName } | { glyph: SchoolIconName };
 
@@ -107,7 +149,7 @@ const STEPS: { n: string; title: string; body: string }[] = [
   {
     n: "1",
     title: "Watch",
-    body: "A video lesson from a public YouTube math channel such as Math Antics or Khan Academy, neither of which is affiliated with AlgeBridge.",
+    body: `A video picked for the skill from a public YouTube math channel: ${CHANNELS.slice(0, 2).join(", ")} and ${CHANNELS.length - 2} others. None is affiliated with AlgeBridge.`,
   },
   {
     n: "2",
@@ -158,7 +200,7 @@ const TEACHER_ITEMS: Item[] = [
   {
     mark: { icon: "students" },
     title: "Rosters",
-    body: "Students join with the class's 6-character code. Or paste a column of school emails from a gradebook; each student needs an AlgeBridge account first.",
+    body: "Students join with the class's 6-character code. Or paste a column of school emails from a gradebook: each student needs an AlgeBridge account first, and is added without being asked.",
   },
   {
     mark: { icon: "course" },
@@ -179,36 +221,41 @@ const PRIVACY_ITEMS: Item[] = [
     body: "Accounts use a real first and last name so teachers can find students on a roster. A last initial alone is not accepted.",
   },
   {
+    mark: { icon: "lock" },
+    title: "Who can see what",
+    body: "The database uses row-level security. A student reads their own records, tutor profiles (email included), the leaderboard and the group chats they are in. The owner of a class sees the names, emails and progress of the students on its roster; today the database does not check that the owner is a teacher account, and a teacher can add a student by email without asking them. A tutor can see every student's name and email. All of these change with the database update below. Staff accounts need one shared access code per role.",
+  },
+  {
     mark: { icon: "messages" },
     title: "Students only message staff",
-    body: "A student cannot send a direct message to another student. Every direct message has a tutor, teacher or AlgeBridge admin on one end, and the database enforces this, not only the app. Group chats are started by a tutor, who picks the students and is in the group.",
+    body: "A student cannot send a direct message to another student: every direct message has a tutor, teacher or AlgeBridge admin on one end, and the database enforces it. Group chats are started by a tutor, who picks the students. Before any message is sent, the app reads it with the sender's last few messages and holds back a student's message with a phone number, email, home address, username, link, plan to talk somewhere else or request for secrecy, and says why; staff are warned and may send it, except a request for secrecy, which the app does not send. The same check covers Book a tutor answers and profile bios. These checks run in the app, so a program writing to the database directly skips them; after the update below the database itself refuses phone numbers and email addresses.",
+  },
+  {
+    mark: { icon: "flag" },
+    title: "Report and block",
+    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, for an AlgeBridge admin to read; the person reported is not told who sent it. There is no admin screen for reports and no alert yet, so a report is not read right away. Block hides that person's messages, calls and unread count in the browser where the student blocks them.",
   },
   {
     mark: { glyph: "video" },
-    title: "Private calls, not recorded",
-    body: "Video calls connect a student with a tutor or teacher, never two students, on a channel only those two can join. Video and audio go straight between the two browsers and are not recorded. Captions are off unless someone turns them on, and then come from the browser's speech recognition (a Google service in Chrome). After a call, a short text recap is sent as a message.",
-  },
-  {
-    mark: { icon: "lock" },
-    title: "Who can see what",
-    body: "The database uses row-level security. A student reads only their own records. A teacher sees the progress of students on their own class rosters. Tutors, whose accounts need an access code, can see student names and email addresses so they can answer requests for help.",
+    title: "Calls, not recorded",
+    body: "In the app only a tutor or an AlgeBridge admin can start a video call, and only with a student, on a channel only those two can join. A ring sounds only when the caller has a tutor, teacher or admin account, and shows the caller's name from their profile. Video and audio go straight between the two browsers and are not recorded. The database's ringing rule is looser: it also lets a student ring a tutor or teacher.",
   },
   {
     mark: { icon: "leaderboard" },
-    title: "Leaderboard",
-    body: "Shows a first name and last initial with practice totals, only to signed-in users. A student can take themselves off it with one checkbox.",
+    title: "Leaderboard, off by default",
+    body: "In the app no student is on it until they tick \"Show me on the board\". Then it shows their first name, last initial, Bridgeys, skills finished and best house piece to every signed-in AlgeBridge user, not only classmates. Students shown under the old default who have not signed in since stay on it until the database update below.",
   },
   {
     mark: { glyph: "no-ads" },
-    title: "No ads, nothing sold",
-    body: "AlgeBridge shows no ads and does not sell student data. A student can delete their account and all its data from their account page at any time.",
+    title: "No ads, and deleting an account",
+    body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages. Uploaded photos (stored at public links), feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
   },
 ];
 
 const AI_ROWS: { what: string; sends: string; who: string }[] = [
   {
     what: "Archie, the study helper",
-    sends: "The problem on screen and what the student types. Not their name or email.",
+    sends: "The problem on screen with its hint and worked solution, the conversation, and the student's first name and picked interests. Not their last name or email.",
     who: "Groq, with OpenAI as a backup. If neither answers, a built-in engine on AlgeBridge's own server replies.",
   },
   {
@@ -222,9 +269,14 @@ const AI_ROWS: { what: string; sends: string; who: string }[] = [
     who: "Groq, with OpenAI as a backup.",
   },
   {
+    what: "Live captions in a call",
+    sends: "The call's audio, only while someone has captions turned on.",
+    who: "The browser's own speech recognition: in Chrome, a Google service.",
+  },
+  {
     what: "Call recaps",
-    sends: "The call's captions, if they were on, and the student's notes.",
-    who: "Anthropic or OpenAI when one is configured; otherwise a template on AlgeBridge's own server.",
+    sends: "Both people's names, the captions (if they were on) as a transcript with each line labeled by speaker, and the student's notebook. The recap is saved with the call record and sent to the other person as a message.",
+    who: "Anthropic (Claude) or OpenAI when one is configured; otherwise a template on AlgeBridge's own server.",
   },
 ];
 
@@ -274,9 +326,10 @@ export default function SchoolsPage() {
           AlgeBridge for schools
         </h1>
         <p className="schools-lead mt-3 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-[17px]">
-          A free Algebra 1 course for grades 7 to 10 that runs in a web browser, with nothing to install. Below: what
-          students do, what teachers get, how the course lines up with the Common Core standards Delaware uses, and
-          how student data is handled. Everything here describes the course as it works today.
+          Free practice in core Algebra 1 skills for grades 7 to 10, in a web browser with nothing to install. Below:
+          what students do, what the course covers and does not cover yet, what teachers get, how it lines up with
+          the Common Core standards Delaware uses, and how student data is handled. Everything here describes
+          AlgeBridge as it works today, including what it does not do yet.
         </p>
         <div className="schools-actions mt-5 flex flex-wrap gap-3 print:hidden">
           <PrintButton />
@@ -348,6 +401,34 @@ export default function SchoolsPage() {
           <div className="mt-3">
             <ItemGrid items={STUDENT_EXTRAS} />
           </div>
+
+          {/* What is in the course, and what a district would expect that is not there yet. */}
+          <div className="schools-coverage mt-3 grid gap-3 md:grid-cols-[1fr_1.35fr]">
+            <div className="schools-card rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+              <h3 className="text-[15px] font-semibold text-slate-900">What the course covers</h3>
+              <ol className="mt-2 space-y-0.5 text-sm leading-relaxed text-slate-600">
+                {units.map((u) => (
+                  <li key={u.id}>
+                    <span className="tabular-nums text-slate-400">{u.number}.</span> {u.title}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="schools-card rounded-2xl border border-dashed border-slate-300 bg-white p-4">
+              <h3 className="text-[15px] font-semibold text-slate-900">Not covered yet</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Commonly taught in Algebra 1, and not in AlgeBridge today. A class using it needs another source for:
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-snug text-slate-600 marker:text-slate-300">
+                {NOT_COVERED.map((n) => (
+                  <li key={n.what}>
+                    {n.what}
+                    {n.codes && <span className="whitespace-nowrap font-mono text-[11px] text-slate-500"> ({n.codes})</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </Section>
 
         {/* ---- 2. Teachers ---------------------------------------------- */}
@@ -355,9 +436,16 @@ export default function SchoolsPage() {
           id="teachers"
           n={2}
           title="What teachers get"
-          intro="A teacher dashboard for running AlgeBridge with real classes. Teacher accounts need an access code from AlgeBridge, so a student cannot make themselves a teacher."
+          intro="A teacher dashboard for running AlgeBridge with real classes. Teacher accounts need an access code from AlgeBridge. It is one code shared by all teachers, so anyone who has it can make a teacher account."
         >
           <ItemGrid items={TEACHER_ITEMS} />
+          <p className="schools-fineprint mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
+            <span className="font-semibold text-slate-800">Not built yet:</span> a skill-by-skill grid for each
+            student, CSV export, co-teachers, and rostering or sign-in through Clever, ClassLink or Google Classroom.
+            Students create their own accounts. <span className="font-semibold text-slate-800">For IT:</span> Google
+            sign-in is a third-party app to Google Workspace, so a district that limits those apps for students under
+            18 needs to allow it first.
+          </p>
         </Section>
 
         {/* ---- 3. Standards --------------------------------------------- */}
@@ -370,7 +458,8 @@ export default function SchoolsPage() {
               Delaware adopted the Common Core State Standards for Mathematics (CCSS-M) in 2010. We matched each of
               the {TOTAL_SKILLS} skills to the standards it teaches and checked every code against the official text.
               A code means the skill teaches all or part of that standard. Where a skill reviews middle school
-              content, we list the grade 6 to 8 standard rather than stretch a high school one.
+              content, we list the grade 6 to 8 standard rather than stretch a high school one. No practice item draws
+              or reads a graph yet, so no graphing standard is claimed, and {UNMAPPED} graphing skills cite none.
             </>
           }
         >
@@ -416,7 +505,11 @@ export default function SchoolsPage() {
                           {skill.title}
                         </th>
                         <td className="py-2 pr-4 align-top">
-                          <StandardsChip skillId={skill.id} label={false} />
+                          {(SKILL_STANDARDS[skill.id] ?? []).length > 0 ? (
+                            <StandardsChip skillId={skill.id} label={false} />
+                          ) : (
+                            <span className="text-xs italic text-slate-500">None claimed: no graphing yet</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -433,7 +526,19 @@ export default function SchoolsPage() {
               not claim them.
             </p>
             <dl className="mt-3 space-y-2 text-sm">
-              {NOT_CLAIMED.map((n) => (
+              <div className="flex gap-3">
+                <dt className="w-[6.75rem] shrink-0 text-[12px] font-semibold leading-5 text-slate-500">Graphing</dt>
+                <dd className="leading-5 text-slate-600">
+                  No item draws a graph or asks a student to read one, so these are not claimed:{" "}
+                  {GRAPH_LEFT_OFF.map((g, i) => (
+                    <span key={g.code}>
+                      <span className="font-mono text-[12px] text-slate-700">{g.code}</span> ({g.skills.join(", ")})
+                      {i < GRAPH_LEFT_OFF.length - 1 ? "; " : "."}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+              {OTHER_LEFT_OFF.map((n) => (
                 <div key={`${n.skillId}-${n.code}`} className="flex gap-3">
                   <dt className="w-[6.75rem] shrink-0 font-mono text-[12px] font-medium leading-5 text-slate-500">{n.code}</dt>
                   <dd className="leading-5 text-slate-600">
@@ -494,15 +599,57 @@ export default function SchoolsPage() {
         >
           <ItemGrid items={PRIVACY_ITEMS} />
 
+          <div id="school-mode" className="schools-card mt-4 scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel sm:p-5">
+            <div className="flex items-center gap-3">
+              <Mark mark={{ icon: "school" }} />
+              <h3 className="text-[15px] font-semibold text-slate-900">What a district can turn off</h3>
+            </div>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+              School mode is one switch for a whole AlgeBridge deployment (the build setting{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 text-[13px] text-slate-800">NEXT_PUBLIC_SCHOOL_MODE=1</code>), not a
+              setting a student can change. When it is on, these leave the side menu and the phone menu, and their
+              pages say &quot;Turned off for school accounts&quot; instead. A few links to them still appear (a
+              lesson&apos;s &quot;Find a tutor&quot; card, the account menu, and the profile, sign-in and Bridgey House
+              pages); they lead to that notice. Turned off:
+            </p>
+            <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm leading-relaxed text-slate-700 sm:grid-cols-2">
+              {SCHOOL_MODE_OFF.map((f) => (
+                <li key={f.feature} className="flex gap-2">
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
+                  <span>
+                    <span className="font-semibold text-slate-900">{f.name}.</span> {f.detail}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
+              <span className="font-semibold text-slate-900">Still on:</span> {SCHOOL_MODE_STAYS} It is off unless a
+              deployment turns it on, and learn.algebridge.org runs with it off.
+            </p>
+          </div>
+
+          <div className="schools-card mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5">
+            <h3 className="text-[15px] font-semibold text-slate-900">Waiting on a database update</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate-700">
+              Written and tested, and in effect only once AlgeBridge&apos;s October 2026 database update is applied:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+              {PENDING_SAFETY_UPDATE.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+
           <div className="schools-ai mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
             <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
               <Mark mark={{ icon: "helper" }} />
               <div>
                 <h3 className="text-[15px] font-semibold text-slate-900">Where AI is used, and what it sees</h3>
-                <p className="text-xs text-slate-500">Each AI feature sends only what it needs, to the services named here.</p>
+                <p className="text-xs text-slate-500 print:hidden">Each AI feature sends only what it needs, to the services named here.</p>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            {/* Focusable, so a keyboard can scroll the table sideways on a phone. */}
+            <div tabIndex={0} role="region" aria-label="Where AI is used" className="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
               <table className="schools-ai-table w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-[0.08em] text-slate-500">
@@ -522,11 +669,27 @@ export default function SchoolsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="schools-crisis border-t border-slate-200 bg-amber-50/60 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              <span className="font-semibold text-slate-900">A student in danger.</span> Before anything else, Archie
+              and the Hints extension check each message against a list of phrases that suggest self-harm, abuse or
+              danger: English, the common ways to say it in Spanish, Haitian Creole and Portuguese, and a few phrases
+              in Chinese, Arabic, Russian, Ukrainian, Korean and Hindi. Archie also reads a student&apos;s last two
+              messages together. A match goes to no AI service and gets fixed words: talk to a trusted adult or the
+              school counselor now, call or text 988 or text HOME to 741741 from any phone, chat with 988 online from a
+              computer, 988&apos;s Spanish line, or call 911. On the site Archie shows them as a calm card, and nothing
+              playful under it. Archie&apos;s check runs in the student&apos;s browser, so a match is not sent to
+              AlgeBridge, not saved into a tutor booking and not sent to a tutor; the extension&apos;s check runs on
+              AlgeBridge&apos;s server, where its words stop. A message the list misses goes to the AI like any other,
+              and the AI is told to send the student to a trusted adult (the extension&apos;s AI is also told to answer
+              with a signal that shows the same card). Nobody is alerted, not a teacher or a counselor, and the message
+              is not stored. Alerting a school is not built yet; if your district wants it, tell us.
+            </div>
           </div>
 
           <p className="schools-fineprint mt-4 max-w-3xl text-sm leading-relaxed text-slate-600">
-            AlgeBridge does not ask for a birth date. The privacy policy asks students under 13 to use AlgeBridge with a
-            parent, guardian or teacher, and to create an account only with their permission. Full details:{" "}
+            AlgeBridge does not ask for a birth date or record parental or school consent. The privacy policy asks
+            students under 13 to use it with a parent, guardian or teacher, and to make an account only with their
+            permission. Details:{" "}
             <Link href="/privacy" className="font-medium text-bridge-700 underline decoration-bridge-200 underline-offset-2 hover:decoration-bridge-500">
               Privacy Policy
             </Link>
@@ -551,7 +714,7 @@ export default function SchoolsPage() {
           id="accessibility"
           n={5}
           title="Accessibility"
-          intro="What is built in today. AlgeBridge has not had a formal accessibility audit and does not claim WCAG conformance. If something gets in a student's way, tell us and we will look at it."
+          intro="What is built in today. AlgeBridge has not had a formal accessibility audit and does not claim WCAG conformance. Tell us if something gets in a student's way."
         >
           <ItemGrid items={ACCESS_ITEMS} />
         </Section>
@@ -581,11 +744,13 @@ export default function SchoolsPage() {
               </a>
             </div>
           </div>
-          <p className="schools-stamp mt-6 text-xs text-slate-400">
-            Checked against the course in October 2026. learn.algebridge.org/schools
-          </p>
         </Section>
       </div>
+
+      {/* Printed at the foot of the handout too: which version this is, and who to write to. */}
+      <p className="schools-stamp mt-6 text-xs text-slate-500">
+        Version: {VERSION}. Checked against the code as it runs today. Contact: {CONTACT}. learn.algebridge.org/schools
+      </p>
     </article>
   );
 }

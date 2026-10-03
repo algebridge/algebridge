@@ -27,6 +27,7 @@ import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";
 import { UnitMark } from "@/components/UnitMark";
 import { StandardsChip } from "@/components/StandardsChip";
+import { useAuth } from "@/lib/auth";
 
 /** A step of the lesson checklist: its number, or a check once it is done. */
 function StepMark({ n, done }: { n: number; done: boolean }) {
@@ -50,6 +51,8 @@ interface LearnContentProps {
 
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
   const { stats, mounted } = useProgress();
+  // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
+  const teacher = useAuth().profile?.role === "teacher";
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
   const [videoWatched, setVideoWatched] = useState(false);
   const [practiceStats, setPracticeStats] = useState({
@@ -145,14 +148,14 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
-      <nav className="text-sm text-slate-500">
+      <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
-        <span className="mx-2">/</span>
+        <span aria-hidden className="mx-2">/</span>
         <Link href={`/unit/${unitId}`} className="hover:text-bridge-600">
           Unit {unit.number}
         </Link>
-        <span className="mx-2">/</span>
-        <span className="text-slate-800">Skill {skillIndex}</span>
+        <span aria-hidden className="mx-2">/</span>
+        <span aria-current="page" className="text-slate-800">Skill {skillIndex}</span>
       </nav>
 
       {/* Title and description stay open so a shared lesson link still
@@ -177,7 +180,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
       <CourseGate>
         {!state ? (
-          <div className="space-y-6" aria-busy="true" aria-label="Loading the lesson">
+          <div className="space-y-6" aria-busy="true">
+            <p role="status" className="sr-only">Loading the lesson</p>
             <div className="h-14 animate-pulse rounded-xl bg-slate-200/60" />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="h-16 animate-pulse rounded-xl bg-slate-200/60" />
@@ -290,10 +294,14 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   {looking
                     ? "Practice only, for now"
                     : isSkillComplete
-                      ? `Skill complete · ${pay} Bridgeys earned`
+                      ? teacher
+                        ? "Skill complete"
+                        : `Skill complete · ${pay} Bridgeys earned`
                       : practiceStats.attempted === 0
-                        ? `Get 5 right · +${pay} Bridgeys`
-                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far · +${pay} Bridgeys`}
+                        ? teacher
+                          ? "Get 5 right"
+                          : `Get 5 right · +${pay} Bridgeys`
+                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far${teacher ? "" : ` · +${pay} Bridgeys`}`}
                 </p>
               </div>
             </div>
@@ -340,7 +348,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               </section>
             </div>
 
-            <aside className="min-w-0 lg:col-span-2">
+            <aside aria-label="About this skill" className="min-w-0 lg:col-span-2">
               <div className="card sticky top-24 space-y-4">
                 <div>
                   <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
@@ -369,17 +377,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                       <li>Get 5 practice problems right on the first try</li>
                       <li>Every one you get right stays banked, even after a miss</li>
                     </ol>
-                    <p className="mt-3 border-t border-black/5 pt-2 text-xs">
-                      Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
-                      {prize ? (
-                        <>
-                          . Finish every skill in Unit {unit.number} for the{" "}
-                          <span className="font-semibold text-slate-800">{prize.name}</span>.
-                        </>
-                      ) : (
-                        "."
-                      )}
-                    </p>
+                    {!teacher && (
+                      <p className="mt-3 border-t border-black/5 pt-2 text-xs">
+                        Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
+                        {prize ? (
+                          <>
+                            . Finish every skill in Unit {unit.number} for the{" "}
+                            <span className="font-semibold text-slate-800">{prize.name}</span>.
+                          </>
+                        ) : (
+                          "."
+                        )}
+                      </p>
+                    )}
                   </div>
                 )}
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">

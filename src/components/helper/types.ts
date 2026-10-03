@@ -16,8 +16,12 @@ export interface FormulaCardView {
  * greeting: Archie's hello at the top of a conversation (never sent to the server).
  * buddy: something Archie says on his own, with no model: a cheer after a
  * practice answer, a fun fact, a quiz question, a reply to "thanks".
+ * crisis: the fixed reply to a student who may be in danger, drawn as a card
+ * with the people to reach (CrisisCard), never as a bubble.
+ * held: a student's message the panel kept back (a booking answer with a
+ * phone number or a username). Shown to them, never sent to the server.
  */
-export type MessageKind = "reply" | "gate" | "formula" | "booking" | "error" | "greeting" | "buddy";
+export type MessageKind = "reply" | "gate" | "formula" | "booking" | "error" | "greeting" | "buddy" | "crisis" | "held";
 
 /** A quick follow-up offered under one of Archie's messages while it is the newest. */
 export type FollowUpId = "another-way" | "next-step" | "hint" | "fact" | "quiz" | "joke";

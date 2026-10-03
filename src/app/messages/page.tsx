@@ -7,11 +7,14 @@ import { Avatar } from "@/components/Avatar";
 import { getInbox, subscribeToIncomingMessages } from "@/lib/social";
 import type { ConversationSummary } from "@/types";
 import { Icon } from "@/components/Icon";
+import { useBlockedList } from "@/components/ReportButton";
+import { isBlocked } from "@/lib/safety";
 
 export default function MessagesPage() {
   const { user, profile, loading } = useAuth();
   const [convos, setConvos] = useState<ConversationSummary[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const blockedList = useBlockedList();
 
   async function refresh() {
     const list = await getInbox();
@@ -32,7 +35,7 @@ export default function MessagesPage() {
     return (
       <div className="mx-auto max-w-md space-y-4 text-center">
         <h1 className="page-title">Messages</h1>
-        <p className="text-slate-600">Sign in to message tutors and classmates.</p>
+        <p className="text-slate-600">Sign in to message your tutors and teachers.</p>
         <Link href="/login" className="btn-primary inline-block">Sign in</Link>
       </div>
     );
@@ -80,9 +83,11 @@ export default function MessagesPage() {
                       </span>
                     )}
                   </div>
-                  <p className="truncate text-sm text-slate-500">{c.lastMessage}</p>
+                  <p className="truncate text-sm text-slate-500">
+                    {isBlocked(blockedList, c.otherId) ? "Blocked on this device" : c.lastMessage}
+                  </p>
                 </div>
-                {c.unread > 0 && (
+                {c.unread > 0 && !isBlocked(blockedList, c.otherId) && (
                   <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-bridge-600 px-1.5 text-xs font-bold text-white">
                     {c.unread}
                   </span>

@@ -10,7 +10,7 @@ export function QuoteCard({ quote, variant = "card" }: { quote: MathQuote; varia
     return (
       <figure className="text-sm">
         <blockquote className="italic leading-relaxed">“{quote.text}”</blockquote>
-        <figcaption className="mt-1 text-xs opacity-90">
+        <figcaption className="mt-1 text-xs">
           <span className="font-semibold">{quote.who}</span>, {quote.source}
         </figcaption>
       </figure>

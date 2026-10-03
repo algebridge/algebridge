@@ -350,14 +350,23 @@ function nearestOnSegment(px: number, py: number, ax: number, ay: number, bx: nu
   return { x: ax + dx * t, y: ay + dy * t };
 }
 
+/** A bound of the view, short enough to hear: 10, -6.3, 0.25. */
+function said(n: number): string {
+  const r = Math.abs(n) >= 100 ? Math.round(n) : Math.round(n * 100) / 100;
+  return (Object.is(r, -0) ? 0 : r).toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
 export function GraphCanvas({
   items,
   selected,
   onSelect,
+  names = [],
 }: {
   items: GraphItem[];
   selected: number | null;
   onSelect: (row: number | null) => void;
+  /** What each drawn row says (y=2x+3), for the graph's name: a screen reader cannot see the curves. */
+  names?: string[];
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -694,6 +703,16 @@ export function GraphCanvas({
 
   const markPx = view && mark ? { x: toPx(view, mark.pt.x), y: toPy(view, mark.pt.y) } : null;
   const markText = mark ? formatPoint(mark.pt) : "";
+  // The graph's name says what is drawn and where the view is, then how to move it.
+  const shown = names.map((n) => n.trim()).filter(Boolean);
+  const bounds = view ? viewBounds(view) : null;
+  const graphName = [
+    shown.length ? `Graph of ${shown.join("; ")}` : "Graph, nothing drawn yet",
+    bounds ? `x from ${said(bounds.x0)} to ${said(bounds.x1)}, y from ${said(bounds.y0)} to ${said(bounds.y1)}` : "",
+    "Drag or use the arrow keys to move it, plus and minus to zoom, 0 to go back to the start",
+  ]
+    .filter(Boolean)
+    .join(". ");
   const tool =
     "flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 shadow-[0_1px_2px_rgb(15_23_42/0.08)] transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]";
 
@@ -703,7 +722,7 @@ export function GraphCanvas({
       tabIndex={0}
       role="group"
       aria-roledescription="graph"
-      aria-label={`Graph${items.length ? ` of ${items.length} ${items.length === 1 ? "expression" : "expressions"}` : ""}. Drag or use the arrow keys to move it, plus and minus to zoom.`}
+      aria-label={`${graphName}.`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

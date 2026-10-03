@@ -327,6 +327,8 @@ export function CourtGame({
       <div
         ref={stage}
         className="absolute inset-0 touch-none"
+        // A named group, so its name (the game and its keys) is read; a plain div's aria-label is not.
+        role="group"
         aria-label={`${game.sport} with ${game.player}. Arrow keys or WASD move ${game.player}.`}
         onPointerDown={(e) => {
           if (paused.current) return;

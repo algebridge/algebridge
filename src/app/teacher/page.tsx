@@ -123,7 +123,7 @@ export default function TeacherDashboardPage() {
     return (
       <EmptyState
         title="Sign in to manage your classes"
-        body="Teacher accounts create classes, invite students by email or join code, and track progress skill by skill."
+        body="Teacher accounts create classes, add students by join code or school email, assign skills, and see each student's progress through the course."
         action={
           <Link href="/login?mode=signin" className="btn-primary">
             Sign in
@@ -137,7 +137,7 @@ export default function TeacherDashboardPage() {
     return (
       <EmptyState
         title="This account isn't a teacher account"
-        body="Teacher accounts are verified with an access code so students stay safe. Enter your code on the account page to switch."
+        body="Teacher accounts need an access code from AlgeBridge. Enter your code on the account page to switch."
         action={
           <Link href="/login" className="btn-primary">
             Go to account settings
@@ -172,7 +172,7 @@ export default function TeacherDashboardPage() {
         </div>
       </header>
 
-      {error && <p className="notice-error">{error}</p>}
+      {error && <p role="alert" className="notice-error">{error}</p>}
 
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-4">
@@ -205,6 +205,7 @@ export default function TeacherDashboardPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedId(c.id)}
+                      aria-pressed={selectedId === c.id}
                       className={`flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition ${
                         selectedId === c.id ? "bg-bridge-50" : "hover:bg-slate-50"
                       }`}
@@ -407,7 +408,7 @@ function NewClassForm({ onCreated }: { onCreated: () => void }) {
           </div>
         </div>
         <ColorPicker value={color} onChange={setColor} />
-        {error && <p className="field-error">{error}</p>}
+        {error && <p role="alert" className="field-error">{error}</p>}
         <button type="submit" disabled={saving} className="btn-primary w-full">
           {saving ? "Creating…" : "Create class"}
         </button>
@@ -425,7 +426,7 @@ function ColorPicker({
 }) {
   return (
     <div>
-      <span className="label">Colour</span>
+      <span className="label">Color</span>
       <div className="mt-1.5 flex gap-2">
         {COLOR_OPTIONS.map((c) => (
           <button
@@ -542,6 +543,7 @@ function ClassDetail({
               key={t.id}
               type="button"
               onClick={() => onTabChange(t.id)}
+              aria-pressed={tab === t.id}
               className={`-mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition ${
                 tab === t.id
                   ? "border-bridge-600 text-bridge-700"
@@ -726,7 +728,8 @@ function RosterTab({
             No students yet. Share the join code above, or add them by email.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Class roster" className="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
+            {/* Focusable, so a keyboard can scroll the roster sideways on a phone. */}
             <table className="data-table min-w-[680px]">
               <thead>
                 <tr>
@@ -736,7 +739,9 @@ function RosterTab({
                   <th>Streak</th>
                   <th>Solved</th>
                   <th>Last active</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -778,7 +783,8 @@ function RosterTab({
                       <button
                         type="button"
                         onClick={() => handleRemove(student)}
-                        className="text-xs text-slate-400 transition hover:text-red-600"
+                        aria-label={`Remove ${student.displayName ?? "this student"} from the class`}
+                        className="py-1 text-xs text-slate-400 transition hover:text-red-600"
                       >
                         Remove
                       </button>
@@ -962,7 +968,7 @@ function AssignmentsTab({
           </div>
           {/* What the chosen scope covers, so it can be matched to a pacing guide. */}
           <StandardsChip codes={scopeStandardCodes(unitId, skillId)} label="Covers" />
-          {error && <p className="field-error">{error}</p>}
+          {error && <p role="alert" className="field-error">{error}</p>}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? "Adding…" : "Add assignment"}
           </button>

@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveInterests } from "@/lib/progress";
 import { InterestsPicker } from "@/components/InterestsPicker";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 const OPEN_EVENT = "algebridge-open-interests";
 
@@ -76,10 +77,15 @@ export function InterestsPrompt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Keyboard: focus moves into the picker and Tab stays there until it closes (Escape is handled above).
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, open);
+
   if (!open) return null;
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 p-4"
       role="dialog"
       aria-modal="true"

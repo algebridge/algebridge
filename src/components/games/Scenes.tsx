@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { GOAL, NET_Y, type CourtGameId } from "@/lib/games";
 import { BOARD, RINK } from "@/lib/rink";
 
@@ -11,6 +14,37 @@ import { BOARD, RINK } from "@/lib/rink";
 const W = 1200;
 const H = 800;
 const FONT = "ui-sans-serif, system-ui";
+
+/**
+ * The scenes' motion (crowds, twinkles, snow, smoke) costs a style recalc and
+ * a layout every frame: 128 layouts per 5 idle seconds on /games, against 2
+ * on home. So it runs only while a game is being played and the scene is on
+ * screen. The rest of the time the scene is a still picture, paused where it
+ * stands. Reduced motion turns it off entirely (globals.css).
+ */
+const STILL_CSS = "[data-scene-motion='still'] * { animation-play-state: paused !important; }";
+
+function SceneMotion({ live, children }: { live: boolean; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = useState(false);
+  useEffect(() => {
+    const el = box.current;
+    if (!live || !el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setOnScreen(true);
+      return;
+    }
+    const io = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [live]);
+  return (
+    <div ref={box} data-scene-motion={live && onScreen ? "live" : "still"} className="absolute inset-0">
+      <style>{STILL_CSS}</style>
+      {children}
+    </div>
+  );
+}
 
 function Svg({ children, label }: { children: React.ReactNode; label: string }) {
   return (
@@ -693,11 +727,21 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
   );
 }
 
-export function CourtScene({ game, netHit }: { game: CourtGameId; netHit?: boolean }) {
-  if (game === "wrestling") return <WrestlingScene />;
-  if (game === "cheer") return <CheerScene />;
-  if (game === "volleyball") return <VolleyballScene />;
-  return <SoccerScene netHit={netHit} />;
+/** A court. `live` says a game is being played on it; motion also waits until it is on screen. */
+export function CourtScene({ game, netHit, live = true }: { game: CourtGameId; netHit?: boolean; live?: boolean }) {
+  return (
+    <SceneMotion live={live}>
+      {game === "wrestling" ? (
+        <WrestlingScene />
+      ) : game === "cheer" ? (
+        <CheerScene />
+      ) : game === "volleyball" ? (
+        <VolleyballScene />
+      ) : (
+        <SoccerScene netHit={netHit} />
+      )}
+    </SceneMotion>
+  );
 }
 
 /* ── Veronica: an outdoor rink in winter ─────────────────────────── */
@@ -730,7 +774,15 @@ function Snow({ seed, fall, r }: { seed: number; fall: string; r: number }) {
  * the same ellipse the game has always used (`RINK` in lib/rink.ts), so her
  * skating and the seven decoration spots around the boards are unchanged.
  */
-export function RinkScene() {
+export function RinkScene({ live = true }: { live?: boolean }) {
+  return (
+    <SceneMotion live={live}>
+      <RinkPicture />
+    </SceneMotion>
+  );
+}
+
+function RinkPicture() {
   const R = RINK;
   const trees = [40, 130, 215, 300, 380, 470, 560, 650, 740, 830, 920, 1010, 1100, 1180];
   return (
@@ -742,15 +794,16 @@ export function RinkScene() {
         </linearGradient>
       </defs>
       <rect x="0" y="0" width={W} height="440" fill="url(#rink-sky)" />
-      <circle cx="960" cy="150" r="120" fill="#ffffff" opacity="0.4" />
-      <circle cx="960" cy="150" r="52" fill="#fff7e0" />
+      {/* The sun, upper left, where the figures are lit from. */}
+      <circle cx="250" cy="120" r="120" fill="#ffffff" opacity="0.4" />
+      <circle cx="250" cy="120" r="52" fill="#fff7e0" />
       {/* Mountains, then snowy hills. */}
       <path d="M0 300 L120 180 L220 250 L340 150 L460 260 L560 200 L660 290 L780 170 L900 260 L1010 190 L1120 280 L1200 230 L1200 340 L0 340Z" fill="#cbd5e1" />
       <path d="M340 150 L380 190 L300 200Z M780 170 L820 208 L740 214Z M1010 190 L1040 222 L980 226Z M120 180 L150 214 L96 218Z" fill="#f8fafc" />
       <path d="M0 330 Q200 250 420 300 Q600 340 800 280 Q1000 230 1200 300 L1200 460 L0 460Z" fill="#e2e8f0" />
       <path d="M0 360 Q260 300 520 340 Q760 370 1000 320 Q1120 300 1200 330 L1200 460 L0 460Z" fill="#f1f5f9" />
       {/* Birds, far off. */}
-      {[[260, 120], [300, 108], [340, 124]].map(([x, y]) => (
+      {[[860, 120], [900, 108], [940, 124]].map(([x, y]) => (
         <path key={x} d={`M${x - 8} ${y} q8 -6 16 0`} fill="none" stroke="#64748b" strokeWidth="1.5" />
       ))}
       {/* Evergreens in a row, snow on their tips, lights on the two at the ends. */}

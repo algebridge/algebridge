@@ -30,6 +30,8 @@ interface WhiteboardProps {
 }
 
 const COLORS = ["#0f172a", "#2563eb", "#dc2626", "#16a34a", "#d97706"];
+/** Said instead of the hex code. */
+const COLOR_NAMES: Record<string, string> = { "#0f172a": "black", "#2563eb": "blue", "#dc2626": "red", "#16a34a": "green", "#d97706": "orange" };
 
 export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
   function Whiteboard({ onSegment, onClear }, ref) {
@@ -143,7 +145,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              aria-label={`Pen color ${c}`}
+              aria-label={`Pen color ${COLOR_NAMES[c] ?? c}`}
+              aria-pressed={color === c}
               style={{ backgroundColor: c }}
               className={`h-6 w-6 rounded-full border-2 ${
                 color === c ? "border-slate-900 ring-2 ring-offset-1 ring-slate-300" : "border-white"
@@ -157,6 +160,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               type="button"
               onClick={() => setWidth(w)}
               aria-label={`Pen width ${w}`}
+              aria-pressed={width === w}
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs ${
                 width === w ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
               }`}

@@ -1,6 +1,8 @@
 "use client";
 
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { guardFreeText, isBlocked, readBlocked, sendErrorText } from "@/lib/safety";
+import { schoolModeNow } from "@/lib/school-mode";
 import type {
   ConversationSummary,
   DirectMessage,
@@ -40,11 +42,38 @@ export async function updateMyProfile(fields: {
   if (!uid) return { error: "You must be signed in." };
   const patch: Record<string, string> = {};
   if (fields.displayName !== undefined) patch.display_name = fields.displayName;
-  if (fields.bio !== undefined) patch.bio = fields.bio;
+  if (fields.bio !== undefined) {
+    // A bio is shown to students on a tutor's card, so it gets the same guard
+    // as a student's message. The database refuses one too, once
+    // supabase/schema-2026-10-03-safety.sql has run (guard_profile_bio).
+    const refused = guardFreeText(fields.bio, "bio");
+    if (refused) return { error: refused };
+    patch.bio = fields.bio;
+  }
   const { error } = await supabase
     .from("profiles")
     .upsert({ id: uid, ...patch }, { onConflict: "id" });
+  if (error && /contact details|22023/.test(`${error.message} ${error.code ?? ""}`)) {
+    return { error: "Not saved: your bio looks like it has contact details. Bios are shown to students, so keep phone numbers, emails and other apps out of it." };
+  }
   return { error: error?.message ?? null };
+}
+
+/**
+ * Is this account managed by a school (it joined a teacher's class)? Read
+ * from profiles.managed, which supabase/schema-2026-10-03-safety.sql adds.
+ * False before that migration runs, or when nothing can be read.
+ */
+export async function loadManagedFlag(userId: string): Promise<boolean> {
+  const supabase = createClient();
+  if (!supabase || !userId) return false;
+  try {
+    const { data, error } = await supabase.from("profiles").select("managed").eq("id", userId).maybeSingle();
+    if (error || !data) return false;
+    return (data as { managed?: unknown }).managed === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Uploads an avatar to the public `avatars` bucket and saves its URL. */
@@ -78,40 +107,103 @@ export async function uploadAvatar(
 }
 
 // ---------------------------------------------------------------------------
+// Profile photos
+// ---------------------------------------------------------------------------
+
+const PUBLIC_AVATAR = "/storage/v1/object/public/avatars/";
+
+/**
+ * Photos as short-lived signed links. supabase/schema-2026-10-03-safety.sql
+ * makes the avatars bucket private, after which a stored public link no
+ * longer opens; a signed link does, for someone the storage policy lets see
+ * that photo. Signing works the same on today's public bucket, so this is
+ * safe before and after the migration. A link that cannot be signed is
+ * dropped, and the Avatar shows initials instead of a broken image.
+ */
+export async function signAvatarUrls(urls: (string | null | undefined)[]): Promise<(string | null)[]> {
+  const supabase = createClient();
+  const paths = urls.map((u) => {
+    const at = u ? u.indexOf(PUBLIC_AVATAR) : -1;
+    return u && at >= 0 ? decodeURIComponent(u.slice(at + PUBLIC_AVATAR.length).split("?")[0]) : null;
+  });
+  const wanted = [...new Set(paths.filter((p): p is string => !!p))];
+  if (!supabase || wanted.length === 0) return urls.map((u, i) => (paths[i] ? null : (u ?? null)));
+  try {
+    const { data } = await supabase.storage.from("avatars").createSignedUrls(wanted, 60 * 60);
+    const signed = new Map((data ?? []).filter((d) => d.signedUrl && !d.error).map((d) => [d.path, d.signedUrl]));
+    return urls.map((u, i) => (paths[i] ? (signed.get(paths[i]!) ?? null) : (u ?? null)));
+  } catch {
+    return urls.map((u, i) => (paths[i] ? null : (u ?? null)));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Directories
 // ---------------------------------------------------------------------------
 
-/** Every tutor, visible to any signed-in user (students browse tutors). */
+/**
+ * Every tutor, visible to any signed-in user (students browse tutors). Once
+ * supabase/schema-2026-10-03-safety.sql has run, students read tutors through
+ * the tutor_directory view, which has no email column; before it runs the
+ * view does not exist and the tutors' profile rows are read as before.
+ */
 export async function listTutors(): Promise<TutorDirectoryEntry[]> {
   const supabase = createClient();
   if (!supabase) return [];
-  const { data } = await supabase
-    .from("profiles")
+  const viewed = await supabase
+    .from("tutor_directory")
     .select("id, display_name, avatar_url, bio")
     .eq("role", "tutor")
     .order("display_name", { ascending: true });
-  return (data ?? []).map((r) => ({
+  let rows: { id: string; display_name: string | null; avatar_url: string | null; bio: string | null }[];
+  if (!viewed.error) rows = viewed.data ?? [];
+  else {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url, bio")
+      .eq("role", "tutor")
+      .order("display_name", { ascending: true });
+    rows = data ?? [];
+  }
+  const photos = await signAvatarUrls(rows.map((r) => r.avatar_url));
+  return rows.map((r, i) => ({
     id: r.id,
     displayName: r.display_name,
-    avatarUrl: r.avatar_url ?? null,
+    avatarUrl: photos[i],
     bio: r.bio ?? null,
   }));
 }
 
-/** Every student, only readable by tutor accounts (RLS enforced). */
+/**
+ * The students a staff account may see. Once the safety migration has run
+ * this is the student_directory view: names and photos, never an email, and
+ * for a tutor only the students who asked them for help or wrote to them.
+ * Before it runs the view does not exist, and the old rule applies (tutors
+ * read every student's row, email included).
+ */
 export async function listAllStudents(): Promise<StudentDirectoryEntry[]> {
   const supabase = createClient();
   if (!supabase) return [];
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name, email, avatar_url")
-    .eq("role", "student")
+  const viewed = await supabase
+    .from("student_directory")
+    .select("id, display_name, avatar_url")
     .order("display_name", { ascending: true });
-  return (data ?? []).map((r) => ({
+  let rows: { id: string; display_name: string | null; email?: string | null; avatar_url: string | null }[];
+  if (!viewed.error) rows = viewed.data ?? [];
+  else {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, display_name, email, avatar_url")
+      .eq("role", "student")
+      .order("display_name", { ascending: true });
+    rows = data ?? [];
+  }
+  const photos = await signAvatarUrls(rows.map((r) => r.avatar_url));
+  return rows.map((r, i) => ({
     id: r.id,
     displayName: r.display_name,
-    email: r.email,
-    avatarUrl: r.avatar_url ?? null,
+    email: r.email ?? null,
+    avatarUrl: photos[i],
   }));
 }
 
@@ -125,16 +217,25 @@ export interface PublicProfile {
 export async function getPublicProfile(userId: string): Promise<PublicProfile | null> {
   const supabase = createClient();
   if (!supabase) return null;
-  const { data } = await supabase
+  let { data } = await supabase
     .from("profiles")
     .select("id, display_name, avatar_url, role")
     .eq("id", userId)
     .maybeSingle();
+  // A tutor cannot read a student's row once the safety migration has run,
+  // and a student cannot read a tutor's: the directory views give the name,
+  // photo and role (never the email).
+  for (const view of ["student_directory", "tutor_directory"] as const) {
+    if (data) break;
+    const viewed = await supabase.from(view).select("id, display_name, avatar_url, role").eq("id", userId).maybeSingle();
+    if (!viewed.error) data = viewed.data;
+  }
   if (!data) return null;
+  const [photo] = await signAvatarUrls([data.avatar_url]);
   return {
     id: data.id,
     displayName: data.display_name,
-    avatarUrl: data.avatar_url ?? null,
+    avatarUrl: photo,
     role: (data.role as UserRole) ?? "student",
   };
 }
@@ -179,7 +280,11 @@ export async function canMessage(recipientId: string): Promise<boolean> {
   ]);
   const staff = (role: unknown) => role === "tutor" || role === "teacher";
   if (admin === true || staff(me?.role)) return true;
-  return staff(other?.role);
+  if (other) return staff(other.role);
+  // After the safety migration a student reads tutors and their own teachers
+  // through tutor_directory, not their profile rows.
+  const viewed = await supabase.from("tutor_directory").select("role").eq("id", recipientId).maybeSingle();
+  return !viewed.error && staff(viewed.data?.role);
 }
 
 export async function sendMessage(
@@ -203,7 +308,8 @@ export async function sendMessage(
     .insert({ sender_id: uid, recipient_id: recipientId, body: trimmed.slice(0, 4000) })
     .select("id, sender_id, recipient_id, body, created_at, read_at")
     .single();
-  if (error || !data) return { message: null, error: error?.message ?? "Send failed." };
+  // The database's refusals are Postgres's words; the student gets plain ones.
+  if (error || !data) return { message: null, error: sendErrorText(error ? `${error.message} ${error.code ?? ""}` : null) };
   return { message: rowToMessage(data), error: null };
 }
 
@@ -264,10 +370,12 @@ export async function getInbox(): Promise<ConversationSummary[]> {
     string,
     { lastMessage: string; lastAt: string; unread: number }
   >();
+  // Someone blocked on this device adds nothing to the unread count.
+  const blocked = readBlocked(uid);
   for (const r of rows) {
     const otherId = r.sender_id === uid ? r.recipient_id : r.sender_id;
     const existing = byOther.get(otherId);
-    const isUnread = r.recipient_id === uid && !r.read_at;
+    const isUnread = r.recipient_id === uid && !r.read_at && !isBlocked(blocked, otherId);
     if (!existing) {
       byOther.set(otherId, {
         lastMessage: r.body,
@@ -285,7 +393,15 @@ export async function getInbox(): Promise<ConversationSummary[]> {
     .from("profiles")
     .select("id, display_name, avatar_url, role")
     .in("id", otherIds);
-  const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
+  const found = [...(profs ?? [])];
+  // Students a tutor can no longer read directly, from the directory view.
+  const missing = otherIds.filter((id) => !found.some((p) => p.id === id));
+  if (missing.length) {
+    const viewed = await supabase.from("student_directory").select("id, display_name, avatar_url, role").in("id", missing);
+    if (!viewed.error) found.push(...(viewed.data ?? []));
+  }
+  const photos = await signAvatarUrls(found.map((p) => p.avatar_url));
+  const profMap = new Map(found.map((p, i) => [p.id, { ...p, avatar_url: photos[i] }]));
 
   return otherIds
     .map((otherId) => {
@@ -304,18 +420,33 @@ export async function getInbox(): Promise<ConversationSummary[]> {
     .sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1));
 }
 
-/** Total unread messages addressed to me (for the nav badge). */
+/**
+ * Total unread messages addressed to me (for the nav badge). None in school
+ * mode, where there are no messages, and none from someone blocked on this
+ * device: the badge must not lead a student back to a person they blocked.
+ */
 export async function getUnreadCount(): Promise<number> {
+  if (schoolModeNow()) return 0;
   const supabase = createClient();
   if (!supabase) return 0;
   const uid = await currentUserId();
   if (!uid) return 0;
-  const { count } = await supabase
+  const blocked = readBlocked(uid);
+  if (blocked.length === 0) {
+    const { count } = await supabase
+      .from("direct_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", uid)
+      .is("read_at", null);
+    return count ?? 0;
+  }
+  const { data } = await supabase
     .from("direct_messages")
-    .select("id", { count: "exact", head: true })
+    .select("sender_id")
     .eq("recipient_id", uid)
-    .is("read_at", null);
-  return count ?? 0;
+    .is("read_at", null)
+    .limit(500);
+  return (data ?? []).filter((r) => !isBlocked(blocked, r.sender_id)).length;
 }
 
 /**
@@ -326,6 +457,8 @@ export function subscribeToIncomingMessages(
   myId: string,
   onMessage: (msg: DirectMessage) => void
 ): () => void {
+  // School mode has no messages, so nothing is listened for.
+  if (schoolModeNow()) return () => {};
   const supabase = createClient();
   if (!supabase) return () => {};
   const channel = supabase
@@ -338,12 +471,58 @@ export function subscribeToIncomingMessages(
         table: "direct_messages",
         filter: `recipient_id=eq.${myId}`,
       },
-      (payload) => onMessage(rowToMessage(payload.new as Parameters<typeof rowToMessage>[0]))
+      (payload) => {
+        const msg = rowToMessage(payload.new as Parameters<typeof rowToMessage>[0]);
+        // A message from someone blocked on this device does not ring the badge
+        // or open in a thread.
+        if (isBlocked(readBlocked(myId), msg.senderId)) return;
+        onMessage(msg);
+      }
     )
     .subscribe();
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ---------------------------------------------------------------------------
+// Blocks on the server (user_blocks)
+// ---------------------------------------------------------------------------
+
+/**
+ * Records a block in the database, where supabase/schema-2026-10-03-safety.sql
+ * makes the message and ring rules respect it: the blocked person can no
+ * longer message or ring this account, and their messages are hidden from it
+ * on every device. True only when the database kept it. Before that
+ * migration runs the table does not exist, this returns false, and the block
+ * lives on this device alone (src/lib/safety.ts), which is what the Block
+ * button then says.
+ */
+export async function blockOnServer(otherId: string): Promise<boolean> {
+  const supabase = createClient();
+  if (!supabase) return false;
+  const uid = await currentUserId();
+  if (!uid || uid === otherId) return false;
+  try {
+    const { error } = await supabase
+      .from("user_blocks")
+      .upsert({ blocker_id: uid, blocked_id: otherId }, { onConflict: "blocker_id,blocked_id", ignoreDuplicates: true });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function unblockOnServer(otherId: string): Promise<void> {
+  const supabase = createClient();
+  if (!supabase) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  try {
+    await supabase.from("user_blocks").delete().eq("blocker_id", uid).eq("blocked_id", otherId);
+  } catch {
+    /* no table yet: nothing to undo */
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +685,27 @@ async function removeStaleChannels(topic: string): Promise<void> {
   if (!supabase) return;
   for (const c of supabase.getChannels().filter((c) => c.topic === `realtime:${topic}`)) {
     await supabase.removeChannel(c);
+  }
+}
+
+/**
+ * May this caller ring me? A staff account: a tutor, a teacher or an
+ * AlgeBridge admin. (The app gives only tutors and admins a Call button, in
+ * src/app/messages/[otherId]/page.tsx; the database decides who may ring
+ * whom.) An admin's own profile row may say "student" and may be unreadable
+ * to the person called, so the database's profile_is_staff is asked. The
+ * name is the caller's profile name, never the name the ring carries.
+ */
+export async function verifyCaller(callerId: string): Promise<{ ok: boolean; name: string | null }> {
+  const caller = await getPublicProfile(callerId);
+  if (caller?.role === "tutor") return { ok: true, name: caller.displayName?.trim() || "Your tutor" };
+  const supabase = createClient();
+  if (!supabase) return { ok: false, name: null };
+  try {
+    const { data } = await supabase.rpc("profile_is_staff", { uid: callerId });
+    return data === true ? { ok: true, name: caller?.displayName?.trim() || "An AlgeBridge admin" } : { ok: false, name: null };
+  } catch {
+    return { ok: false, name: null };
   }
 }
 

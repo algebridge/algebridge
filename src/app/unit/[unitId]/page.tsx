@@ -24,10 +24,10 @@ export default async function UnitPage({
 
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
-      <nav className="text-sm text-slate-500">
+      <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
-        <span className="mx-2">/</span>
-        <span className="text-slate-800">Unit {unit.number}</span>
+        <span aria-hidden className="mx-2">/</span>
+        <span aria-current="page" className="text-slate-800">Unit {unit.number}</span>
       </nav>
 
       {/* The unit's banner stays open so a shared link still says what it

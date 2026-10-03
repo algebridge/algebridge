@@ -121,11 +121,11 @@ export default function AchievementsPage() {
                   <p className="text-xs text-slate-500">{badge.description}</p>
                 </div>
                 {earned ? (
-                  <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-label="Unlocked">
+                  <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" role="img" aria-label="Unlocked">
                     <Icon name="check" size={14} />
                   </span>
                 ) : (
-                  <span className="ml-auto shrink-0 text-slate-400" aria-label="Locked">
+                  <span className="ml-auto shrink-0 text-slate-400" role="img" aria-label="Locked">
                     <Icon name="lock" size={15} />
                   </span>
                 )}

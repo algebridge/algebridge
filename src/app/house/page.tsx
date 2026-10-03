@@ -148,6 +148,8 @@ export default function HousePage() {
 
   return (
     <div className="space-y-6">
+      {/* The page's name, for a screen reader's list of headings; the balance stays the largest thing on screen. */}
+      <h1 className="sr-only">Bridgey House</h1>
       {/* ── Balance header ───────────────────────────────────────────
           This is a currency screen, so the balance is the largest thing on
           it. The old header was a three-colour gradient that said nothing and
@@ -197,6 +199,16 @@ export default function HousePage() {
         role="tablist"
         aria-label="House sections"
         className="inline-flex w-full gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto"
+        onKeyDown={(e) => {
+          // Tabs: one Tab stop, the arrow keys (and Home, End) move between them.
+          const at = tabs.findIndex((t) => t.id === tab);
+          const to =
+            e.key === "ArrowRight" ? (at + 1) % tabs.length : e.key === "ArrowLeft" ? (at + tabs.length - 1) % tabs.length : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+          if (to < 0) return;
+          e.preventDefault();
+          setTab(tabs[to].id);
+          (e.currentTarget.children[to] as HTMLElement | undefined)?.focus();
+        }}
       >
         {tabs.map((t) => {
           const active = tab === t.id;
@@ -206,6 +218,7 @@ export default function HousePage() {
               type="button"
               role="tab"
               aria-selected={active}
+              tabIndex={active ? 0 : -1}
               onClick={() => setTab(t.id)}
               className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition sm:flex-none ${
                 active
@@ -750,7 +763,8 @@ function NextStepCard({
 }) {
   return (
     <div className="card flex flex-col">
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      {/* h2: these sit straight under the page's h1 on the My house tab. */}
+      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
       <p className="mt-1.5 flex-1 text-sm leading-relaxed text-slate-600">{body}</p>
       <div className="mt-4">{action}</div>
     </div>
