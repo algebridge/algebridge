@@ -523,6 +523,7 @@ export function Calculator() {
           // right edge, instead of a second circle beside it. z-[35] keeps both
           // under the phone menu's scrim (the header is z-40).
           style={{ right: isPhone ? 16 : REST_RIGHT + shift }}
+          data-calc-launch=""
           className="fixed bottom-5 z-[35] flex h-14 w-14 items-center max-sm:bottom-[4.5rem] max-sm:h-12 max-sm:w-12 justify-center rounded-full bg-bridge-600 text-white shadow-lg transition-[right,background-color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-bridge-700 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 motion-reduce:transition-none [html[data-helper-resizing]_&]:transition-none [html[data-helper-still]_&]:transition-none"
         >
           {open ? <Icon name="close" size={22} /> : <OperatorMark />}

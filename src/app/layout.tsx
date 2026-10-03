@@ -16,6 +16,7 @@ import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
 import { StudyHelper } from "@/components/StudyHelper";
 import { sidebarBootScript } from "@/lib/sidebar";
+import { bareRouteBootScript } from "@/lib/bare-route";
 import { IncomingCall } from "@/components/IncomingCall";
 import { ScratchpadProvider } from "@/components/Scratchpad";
 
@@ -55,6 +56,8 @@ export default function RootLayout({
       <head>
         {/* Room for Archie's sidebar from the first frame when it was left open. */}
         <script dangerouslySetInnerHTML={{ __html: sidebarBootScript() }} />
+        {/* /try and other bare routes: the shell is hidden from the first frame (lib/bare-route.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: bareRouteBootScript() }} />
       </head>
       <body className="min-h-screen bg-slate-50 font-body">
         {/* First in the Tab order: past the menus, straight to the page. */}

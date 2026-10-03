@@ -1486,3 +1486,32 @@ a:hover .figures-still * {
 .sc-smoke { animation-timing-function: steps(12, jump-none); }
 .sc-flame { animation-timing-function: steps(3, jump-none); }
 .dh-cloud { animation-timing-function: steps(240, jump-none); will-change: auto; }
+
+/* ── Bare routes ──────────────────────────────────────────────────
+   /try, which algebridge.org embeds in an iframe: the page alone. The
+   shell still mounts (the layout is shared), so its parts are hidden
+   here; lib/bare-route.ts sets the attribute before first paint. */
+html[data-bare] aside[aria-label="Site menu"],
+html[data-bare] body > svg,
+html[data-bare] header,
+html[data-bare] footer,
+html[data-bare] .helper-launch,
+html[data-bare] [data-calc-launch] {
+  display: none !important;
+}
+html[data-bare] body {
+  background: transparent;
+}
+html[data-bare] .lg\:pl-60 {
+  padding-left: 0 !important;
+}
+html[data-bare] main {
+  max-width: none;
+  padding: 0.75rem;
+}
+.try-card {
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 10px 28px -14px rgb(15 23 42 / 0.2);
+}
