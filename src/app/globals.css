@@ -295,16 +295,23 @@ html.lenis body {
 }
 
 /* ── Veronica ─────────────────────────────────────────────────
-   Her limbs are SVG groups rotated about their joints. The stride
-   length of time comes from her speed (--stride), set inline. */
+   Her limbs are SVG groups rotated about their joints: the thigh at the
+   hip (.v-leg), the shin at the knee (.v-shin), the skate at the ankle
+   (.v-foot), the upper arm at the shoulder (.v-arm), the forearm at the
+   elbow (.v-fore). A positive shin bends the knee the way a body bends;
+   a negative forearm bends the elbow. The stride length of time comes
+   from her speed (--stride), set inline. */
 .veronica {
   overflow: visible;
 }
 .veronica .v-leg,
+.veronica .v-shin,
+.veronica .v-foot,
 .veronica .v-arm,
+.veronica .v-fore,
 .veronica .v-body,
 .veronica .v-skirt {
-  transition: transform 0.25s ease-out;
+  transition: transform 0.25s ease-out, translate 0.35s ease-out;
 }
 .veronica-moving .v-leg-front {
   animation: v-stride var(--stride) ease-in-out infinite;
@@ -313,12 +320,37 @@ html.lenis body {
   animation: v-stride var(--stride) ease-in-out infinite;
   animation-delay: calc(var(--stride) / -2);
 }
-/* Gliding, the arms are held out, front one pointing the way, and sway a little. */
+/* The knee of the leg in front is bent under her weight and straightens
+   as the leg pushes back. */
+.veronica-moving .v-shin-front {
+  animation: v-stroke-knee var(--stride) ease-in-out infinite;
+}
+.veronica-moving .v-shin-back {
+  animation: v-stroke-knee var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+/* Mid-stride the hip and the knee together tip the skate toe-down; the
+   ankle lifts the toe back, so the blade stays flat on the ice. */
+.veronica-moving .v-foot-front {
+  animation: v-stroke-foot var(--stride) ease-in-out infinite;
+}
+.veronica-moving .v-foot-back {
+  animation: v-stroke-foot var(--stride) ease-in-out infinite;
+  animation-delay: calc(var(--stride) / -2);
+}
+/* Gliding, the arms are held out, front one pointing the way, soft at the
+   elbows, and sway a little. */
 .veronica-skate .v-arm-front {
   transform: rotate(-98deg);
 }
 .veronica-skate .v-arm-back {
   transform: rotate(74deg);
+}
+.veronica-skate .v-fore-front {
+  transform: rotate(-12deg);
+}
+.veronica-skate .v-fore-back {
+  transform: rotate(-8deg);
 }
 .veronica-moving .v-arm-front {
   animation: v-glide-front var(--stride) ease-in-out infinite;
@@ -331,13 +363,18 @@ html.lenis body {
   transform: rotate(7deg);
 }
 /* Standing still she breathes in a few steps a second, not sixty: a figure is
-   one picture, so every frame of a smooth bob repaints all of her. */
+   one picture, so every frame of a smooth bob repaints all of her. The wave
+   steps too, four frames to each part of it (steps apply per keyframe). */
 .veronica-idle .v-body,
 .veronica-idle .v-skirt {
   animation: v-bob 2.6s steps(6, jump-none) infinite;
 }
 .veronica-idle .v-arm-front {
-  animation: v-wave 2.6s ease-in-out infinite;
+  animation: v-wave 2.6s steps(4, jump-none) infinite;
+}
+/* The far arm eased out a little, so her hand shows past the skirt. */
+.veronica-idle .v-arm-back {
+  transform: rotate(10deg);
 }
 .veronica-spin {
   animation: v-spin 0.7s cubic-bezier(0.3, 0.7, 0.4, 1);
@@ -346,7 +383,7 @@ html.lenis body {
    lifted straight out behind, both arms out, a forward lean. */
 .veronica-spiral .v-leg-back {
   animation: none;
-  transform: rotate(78deg);
+  transform: rotate(94deg);
 }
 .veronica-spiral .v-leg-front {
   animation: none;
@@ -354,7 +391,7 @@ html.lenis body {
 }
 .veronica-spiral .v-body,
 .veronica-spiral .v-skirt {
-  transform: rotate(22deg);
+  transform: rotate(30deg);
 }
 .veronica-spiral .v-arm-front {
   animation: none;
@@ -364,19 +401,54 @@ html.lenis body {
   animation: none;
   transform: rotate(112deg);
 }
-/* Shoot the duck: down in a crouch on one skate, the other leg straight
-   out in front, one hand brushing the ice. */
+.veronica-spiral .v-shin {
+  animation: none;
+  transform: rotate(0deg);
+}
+/* The free foot pointed along the line of the leg, toe back, sole up. The
+   moves happen on the go, so they stop the stride's ankle. */
+.veronica-spiral .v-foot,
+.veronica-duck .v-foot,
+.veronica-kneel .v-foot {
+  animation: none;
+}
+.veronica-spiral .v-foot-back {
+  transform: rotate(90deg);
+}
+/* Shoot the duck: down in a crouch on one skate, the knee folded right
+   over the boot so the hips sit just above the heel, the other leg straight
+   out in front, one hand reaching for the ice. The angles are solved so the
+   skate under her stays flat on the ice: the hips drop 33 (the thigh's 34
+   and the shin's 33 at 60 degrees each), the knee folds 120, the ankle
+   turns back the 60 the shin leans. The drop is on `translate`, apart from
+   the turns in `transform`, so it eases in even when a leg's turn snaps out
+   of the running stride: the dress and the legs go down together. */
 .veronica-duck .v-body,
 .veronica-duck .v-skirt {
-  transform: translateY(24px) rotate(30deg);
+  animation: none;
+  translate: 0 33px;
+  transform: rotate(30deg);
 }
 .veronica-duck .v-leg-front {
   animation: none;
-  transform: translateY(24px) rotate(-84deg);
+  translate: 0 33px;
+  transform: rotate(-82deg);
+}
+.veronica-duck .v-shin-front {
+  animation: none;
+  transform: rotate(0deg);
 }
 .veronica-duck .v-leg-back {
   animation: none;
-  transform: translateY(24px) scaleY(0.45) rotate(10deg);
+  translate: 0 33px;
+  transform: rotate(-60deg);
+}
+.veronica-duck .v-shin-back {
+  animation: none;
+  transform: rotate(120deg);
+}
+.veronica-duck .v-foot-back {
+  transform: rotate(-60deg);
 }
 .veronica-duck .v-arm-front {
   animation: none;
@@ -386,20 +458,40 @@ html.lenis body {
   animation: none;
   transform: rotate(96deg);
 }
-/* The finish: a kneeling lunge, one knee on the ice, the other leg out to
-   the front, arms wide. */
+/* The finish: a kneeling lunge, the back knee on the ice with the toe pick
+   dug in behind, the front knee bent square over a flat skate, arms wide.
+   The hips drop 37, which puts the back knee on the ice; the front thigh
+   reaches forward just past level so the front shin stands straight. */
 .veronica-kneel .v-body,
 .veronica-kneel .v-skirt {
   animation: none;
-  transform: translateY(28px) rotate(-6deg);
+  translate: 0 37px;
+  transform: rotate(-4deg);
+}
+/* The hem swings forward over the lifted thigh; the waistband stays put. */
+.veronica .v-drape {
+  transition: transform 0.35s ease-out;
+}
+.veronica-kneel .v-drape {
+  transform: skewX(16deg);
 }
 .veronica-kneel .v-leg-back {
   animation: none;
-  transform: translateY(28px) rotate(96deg);
+  translate: 0 37px;
+  transform: rotate(8deg);
+}
+.veronica-kneel .v-shin-back {
+  animation: none;
+  transform: rotate(98deg);
 }
 .veronica-kneel .v-leg-front {
   animation: none;
-  transform: translateY(28px) rotate(-78deg);
+  translate: 0 37px;
+  transform: rotate(-95deg);
+}
+.veronica-kneel .v-shin-front {
+  animation: none;
+  transform: rotate(95deg);
 }
 .veronica-kneel .v-arm-front {
   animation: none;
@@ -410,16 +502,22 @@ html.lenis body {
   transform: rotate(100deg);
 }
 .veronica-spiral .v-leg,
+.veronica-spiral .v-shin,
+.veronica-spiral .v-foot,
 .veronica-spiral .v-arm,
 .veronica-duck .v-leg,
+.veronica-duck .v-shin,
+.veronica-duck .v-foot,
 .veronica-duck .v-arm,
 .veronica-duck .v-body,
 .veronica-duck .v-skirt,
 .veronica-kneel .v-leg,
+.veronica-kneel .v-shin,
+.veronica-kneel .v-foot,
 .veronica-kneel .v-arm,
 .veronica-kneel .v-body,
 .veronica-kneel .v-skirt {
-  transition: transform 0.35s ease-out;
+  transition: transform 0.35s ease-out, translate 0.35s ease-out;
 }
 /* An empty spot by the rink, shown while placing. */
 .dh-slot {
@@ -448,9 +546,20 @@ html.lenis body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
+/* The leg's cycle runs on `rotate`, not `transform`, so a move's pose (set
+   in `transform`) adds to it and eases in and out over it, instead of the
+   legs snapping between the stride and the move. */
 @keyframes v-stride {
-  0%, 100% { transform: rotate(-24deg); }
-  50% { transform: rotate(24deg); }
+  0%, 100% { rotate: -24deg; }
+  50% { rotate: 24deg; }
+}
+@keyframes v-stroke-knee {
+  0%, 100% { rotate: 20deg; }
+  50% { rotate: 2deg; }
+}
+@keyframes v-stroke-foot {
+  0%, 50%, 100% { rotate: 0deg; }
+  25%, 75% { rotate: -11deg; }
 }
 @keyframes v-glide-front {
   0%, 100% { transform: rotate(-98deg); }
@@ -470,9 +579,11 @@ html.lenis body {
   80% { transform: rotate(-120deg); }
   90% { transform: rotate(-150deg); }
 }
+/* On `rotate`, not `transform`, so the spin composes with the inline
+   scaleX(-1) that faces her left instead of replacing it. */
 @keyframes v-spin {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(720deg); }
+  from { rotate: y 0deg; }
+  to { rotate: y 720deg; }
 }
 
 /* ── The team: Shaurya, Jo, Jordyn, Rayla ─────────────────────

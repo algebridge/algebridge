@@ -209,10 +209,13 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
           const moving = s > 0.06;
           svg.classList.toggle("veronica-moving", moving);
           const r = routine.current;
+          // The finish reads how long she had been gliding before this frame:
+          // stopping resets the glide below, so reading it after would never kneel.
+          const glidedFor = r.glide;
           r.glide = s > 0.5 ? r.glide + dt : moving ? r.glide : 0;
           if (r.move && now >= r.until) r.move = "";
           if (!r.move) {
-            if (!moving && r.wasMoving && r.glide > 1.2) {
+            if (!moving && r.wasMoving && glidedFor > 1.2) {
               r.move = "kneel";
               r.until = now + 1700;
               r.glide = 0;
