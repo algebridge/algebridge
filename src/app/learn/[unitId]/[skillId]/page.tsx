@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSkill, getUnit, units } from "@/data/curriculum";
 import { LearnContent } from "@/components/LearnContent";
@@ -9,6 +10,18 @@ export function generateStaticParams() {
       skillId: skill.id,
     }))
   );
+}
+
+/** The tab names the skill and its unit, for a teacher with many open. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ unitId: string; skillId: string }>;
+}): Promise<Metadata> {
+  const { unitId, skillId } = await params;
+  const unit = getUnit(unitId);
+  const skill = getSkill(unitId, skillId);
+  return unit && skill ? { title: `${skill.title}, Unit ${unit.number}` } : {};
 }
 
 export default async function LearnPage({

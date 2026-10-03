@@ -15,6 +15,7 @@ import { SKILL_VIDEOS } from "@/data/videos";
 import { StandardsChip } from "@/components/StandardsChip";
 import { Icon, type IconName } from "@/components/Icon";
 import { PrintButton } from "./PrintButton";
+import { PhoneFold, UnitStandards } from "./UnitStandards";
 import { SchoolIcon, type SchoolIconName } from "./icons";
 import { SCHOOL_MODE_OFF, SCHOOL_MODE_STAYS } from "@/lib/school-mode";
 import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
@@ -32,7 +33,7 @@ import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
  */
 
 export const metadata: Metadata = {
-  title: "For schools, AlgeBridge",
+  title: "For schools",
   description:
     "AlgeBridge for schools and districts: free practice in core Algebra 1 skills for grades 7 to 10, what it covers and does not cover yet, teacher tools, Common Core alignment, and how student data is handled.",
 };
@@ -180,7 +181,7 @@ const STUDENT_EXTRAS: Item[] = [
     body: "Gives a hint, a first step, the key idea, a similar example, or a check of the student's work, and says it is an AI. It never gives the final answer: asking for it is refused before any AI model sees the request, and a reply that contains it is thrown away.",
   },
   {
-    mark: { icon: "spark" },
+    mark: { icon: "star" },
     title: "Word problems about their interests",
     body: "Students can pick interests, such as a sport or a hobby, and some practice problems are then set in them. The math and the answer key stay the same.",
   },
@@ -233,7 +234,7 @@ const PRIVACY_ITEMS: Item[] = [
   {
     mark: { icon: "flag" },
     title: "Report and block",
-    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, for an AlgeBridge admin to read; the person reported is not told who sent it. There is no admin screen for reports and no alert yet, so a report is not read right away. Block hides that person's messages, calls and unread count in the browser where the student blocks them.",
+    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, for an AlgeBridge admin to read; the person reported is not told who sent it. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away. Block hides that person's messages, calls and unread count in the browser where the student blocks them.",
   },
   {
     mark: { glyph: "video" },
@@ -480,14 +481,14 @@ export default function SchoolsPage() {
 
           <div className="schools-units mt-4 gap-3 lg:columns-2">
             {units.map((unit) => (
-              <div
+              // Folds to the unit's name on a phone; open everywhere else and in print.
+              <UnitStandards
                 key={unit.id}
+                number={unit.number}
+                title={unit.title}
+                skillCount={unit.skills.length}
                 className="schools-unit mb-3 break-inside-avoid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel"
               >
-                <h3 className="flex items-baseline gap-2 border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 text-sm font-semibold text-slate-900">
-                  <span className="shrink-0 text-xs font-semibold text-bridge-700">Unit {unit.number}</span>
-                  <span>{unit.title}</span>
-                </h3>
                 <table className="w-full text-sm">
                   <caption className="sr-only">
                     Unit {unit.number}, {unit.title}: skills and the standards each teaches
@@ -515,7 +516,7 @@ export default function SchoolsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </UnitStandards>
             ))}
           </div>
 
@@ -563,6 +564,7 @@ export default function SchoolsPage() {
               </a>
               .
             </p>
+            <PhoneFold summary="Show what each code asks">
             <div className="schools-key-groups mt-4 gap-6 md:columns-2">
               {keyGroups().map((g) => (
                 <div key={g.title} className="schools-key-group mb-5 break-inside-avoid">
@@ -587,6 +589,7 @@ export default function SchoolsPage() {
                 </div>
               ))}
             </div>
+            </PhoneFold>
           </div>
         </Section>
 
@@ -672,8 +675,9 @@ export default function SchoolsPage() {
             <div className="schools-crisis border-t border-slate-200 bg-amber-50/60 px-4 py-3 text-sm leading-relaxed text-slate-700">
               <span className="font-semibold text-slate-900">A student in danger.</span> Before anything else, Archie
               and the Hints extension check each message against a list of phrases that suggest self-harm, abuse or
-              danger: English, the common ways to say it in Spanish, Haitian Creole and Portuguese, and a few phrases
-              in Chinese, Arabic, Russian, Ukrainian, Korean and Hindi. Archie also reads a student&apos;s last two
+              danger: English, the common ways to say it in Spanish, Haitian Creole and Portuguese, the commonest
+              phrasings in French, German, Italian, Polish and Vietnamese, and a few phrases in Chinese, Arabic,
+              Russian, Ukrainian, Korean and Hindi. Archie also reads a student&apos;s last two
               messages together. A match goes to no AI service and gets fixed words: talk to a trusted adult or the
               school counselor now, call or text 988 or text HOME to 741741 from any phone, chat with 988 online from a
               computer, 988&apos;s Spanish line, or call 911. On the site Archie shows them as a calm card, and nothing

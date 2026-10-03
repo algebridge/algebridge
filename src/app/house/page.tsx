@@ -34,6 +34,7 @@ import {
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { showToast } from "@/lib/notify";
 import { TitleMark } from "@/components/RewardMark";
+import { useSchoolMode } from "@/components/SchoolModePanel";
 import type { FurnitureItem, UserProgress } from "@/types";
 
 type Tab = "house" | "shop" | "titles";
@@ -59,6 +60,9 @@ export default function HousePage() {
   const [unlimited, setUnlimited] = useState(false);
   /** Colours tried on pieces not yet bought; a piece is bought in the colour it was tried in. */
   const [preview, setPreview] = useState<Record<string, string | null>>({});
+  // School mode turns the leaderboard and the team games off (src/lib/school-mode.ts),
+  // so the house does not point to them or sell pieces for the rink.
+  const school = useSchoolMode();
 
   function refresh() {
     setProgress(getProgress());
@@ -234,35 +238,34 @@ export default function HousePage() {
 
       {tab === "house" && (
         <div className="space-y-4">
-          <HouseRoom progress={progress} onUpdate={refresh} />
+          {/* Open the shop is in the house's own decorating bar, beside what
+              the house holds, so the decorate step is said once. */}
+          <HouseRoom progress={progress} onUpdate={refresh} onShop={() => setTab("shop")} />
 
           {/* The yard art used to be followed by a screen of empty page. This
               turns that space into the next step in the loop. */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NextStepCard
-              title="Decorate it"
-              body={
-                stats.owned + stats.prizes === 0
-                  ? "Your first pieces are in the shop, bought with Bridgeys you earn from skills. Finishing a whole unit earns its prize."
-                  : `You own ${stats.owned + stats.prizes} ${stats.owned + stats.prizes === 1 ? "piece" : "pieces"}${
-                      stats.prizes ? ` (${stats.prizes} ${stats.prizes === 1 ? "unit prize" : "unit prizes"})` : ""
-                    } and have placed ${stats.placed}. Open the house to move things around.`
-              }
-              action={
-                <button type="button" onClick={() => setTab("shop")} className="btn-primary btn-sm">
-                  Open the shop
-                </button>
-              }
-            />
-            <NextStepCard
-              title="Show it off"
-              body={`Prestige from your furniture counts toward your rank, and an equipped title shows next to your name. You are carrying ${stats.prestige.toLocaleString()} prestige.`}
-              action={
-                <Link href="/leaderboard" className="btn-secondary btn-sm">
-                  See the leaderboard
-                </Link>
-              }
-            />
+          <div className="grid gap-4">
+            {school ? (
+              <NextStepCard
+                title="Earn more"
+                body="Every skill you finish pays Bridgeys, and finishing a whole unit earns its prize for the house."
+                action={
+                  <Link href="/" className="btn-secondary btn-sm">
+                    Back to the course
+                  </Link>
+                }
+              />
+            ) : (
+              <NextStepCard
+                title="Show it off"
+                body={`Prestige from your furniture counts toward your rank, and an equipped title shows next to your name. You are carrying ${stats.prestige.toLocaleString()} prestige.`}
+                action={
+                  <Link href="/leaderboard" className="btn-secondary btn-sm">
+                    See the leaderboard
+                  </Link>
+                }
+              />
+            )}
           </div>
         </div>
       )}
@@ -413,7 +416,9 @@ export default function HousePage() {
                         <span className={`h-2 w-2 rounded-full ${tier.dot}`} />
                         <span className="text-sm font-semibold text-slate-900">{tier.label}</span>
                       </span>
-                      <span className="text-sm text-slate-500">{tier.note}</span>
+                      <span className="text-sm text-slate-500">
+                        {school && tier.id === "legendary" ? "The rarest pieces in the shop." : tier.note}
+                      </span>
                     </div>
 
                     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -588,6 +593,7 @@ export default function HousePage() {
           </section>
 
           {/* ── The rink ──────────────────────────────────────────── */}
+          {!school && (
           <section>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
@@ -658,6 +664,7 @@ export default function HousePage() {
               })}
             </div>
           </section>
+          )}
         </div>
       )}
 
@@ -667,7 +674,7 @@ export default function HousePage() {
             <div>
               <h2 className="section-title">Display titles</h2>
               <p className="mt-1 text-sm text-slate-600">
-                One shows next to your name on your profile and the leaderboard.
+                {school ? "One shows next to your name on your profile." : "One shows next to your name on your profile and the leaderboard."}
               </p>
             </div>
             <p className="text-sm text-slate-500 tabular-nums">

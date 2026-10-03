@@ -19,11 +19,22 @@ import { CRISIS_CHAT, CRISIS_CONTACTS, CRISIS_EMERGENCY, CRISIS_SPANISH } from "
  * anything is sent, and the server answers the same way if a message gets
  * that far.
  *
- * voice "plain" is the same card outside Archie (the report dialog): no
- * Archie, and no "I'm an AI math helper", since he is not the one speaking.
- * Screen readers then read the card's own words instead of CRISIS_REPLY.
+ * voice "plain" is the same card outside Archie (the report dialog, the
+ * feedback page, the interests box): no Archie, and no "I'm an AI math
+ * helper", since he is not the one speaking, and `note` says why that page
+ * is not where help comes from. Screen readers then read the card's own
+ * words instead of CRISIS_REPLY.
  */
-export function CrisisCard({ reply, voice = "archie" }: { reply: string; voice?: "archie" | "plain" }) {
+export function CrisisCard({
+  reply,
+  voice = "archie",
+  note = "A report is not read right away, so please reach a real person who can help you now.",
+}: {
+  reply: string;
+  voice?: "archie" | "plain";
+  /** The plain voice's second line: why this page is not the place to get help. */
+  note?: string;
+}) {
   const archie = voice === "archie";
   return (
     <section
@@ -47,9 +58,7 @@ export function CrisisCard({ reply, voice = "archie" }: { reply: string; voice?:
         ) : (
           <div>
             <p className="text-[15px] font-semibold leading-snug text-slate-900">What you wrote sounds serious.</p>
-            <p className="mt-1 text-[13.5px] leading-relaxed text-slate-700">
-              A report is not read right away, so please reach a real person who can help you now.
-            </p>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-slate-700">{note}</p>
           </div>
         )}
 

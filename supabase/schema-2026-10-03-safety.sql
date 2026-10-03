@@ -84,29 +84,35 @@
 --      student only their own row.
 --
 -- The app must ship BEFORE (or with) this file:
---   * Already changed (3 Oct), and safe before and after this file:
---     src/lib/social.ts reads students from student_directory and tutors
---     from tutor_directory, signs photo links, and reads profiles.managed;
---     src/lib/leaderboard.ts reads leaderboard_public; the report dialog
---     sends a message id; each falls back cleanly while this file is not run.
---   * NOT YET CHANGED, and needed, or the people named see blanks or errors:
---       - src/lib/sessions.ts, src/lib/calendar.ts and src/lib/groups.ts read
---         names from public.profiles; they need the same student_directory
---         and tutor_directory fallback as social.ts (tutors would see
---         "Member" or a blank name; a student would see "Member" for a tutor
---         in a group chat until the thread fills names in itself).
---       - src/components/Avatar.tsx and src/lib/auth.tsx show a stored
---         public photo link; they need signAvatarUrls() from social.ts, or
---         every photo breaks when the bucket goes private (step 6), a
---         student's own included.
---       - src/lib/teacher.ts adds students by inserting into class_members,
---         which step 10 refuses (with words a teacher can act on). It should
---         call invite_student_to_class and say "Invited"; and a student page
---         should list my_class_invites with Join and No thanks buttons
---         (answer_class_invite). Until then, students join with the code.
---   * The admin console has no Reports section yet; admin_reports() is
---     ready for it. Until then, read reports in the Table Editor (feedback,
---     kind = 'report').
+--   * Changed on 3 Oct, and safe before and after this file (each reads
+--     the new views and functions, and falls back cleanly while this file
+--     is not run; checked in PGlite, before and after, with the app's own
+--     queries):
+--       - src/lib/social.ts reads students from student_directory and tutors
+--         from tutor_directory, signs photo links, and reads profiles.managed;
+--         lookupPeople() names any list of accounts: profiles first, then
+--         student_directory, then tutor_directory.
+--       - src/lib/sessions.ts, src/lib/calendar.ts and src/lib/groups.ts name
+--         people through lookupPeople(); the calendar's student picker reads
+--         student_directory first. An open request a tutor has not taken
+--         shows no name after this file (the workspace says "Unnamed
+--         student") until that tutor takes it.
+--       - src/components/Avatar.tsx signs every stored photo link itself and
+--         signs it again when it expires; src/lib/auth.tsx signs the
+--         signed-in account's own photo.
+--       - src/lib/teacher.ts invites by email (invite_student_to_class) and
+--         lists the result as `invited`; src/app/profile/page.tsx lists a
+--         student's invites with Join and No thanks (my_class_invites,
+--         answer_class_invite). Before this file it adds directly, as today.
+--       - src/lib/leaderboard.ts reads leaderboard_public; the report dialog
+--         sends a message id.
+--       - /admin has a Reports tab that reads admin_reports(); before this
+--         file it says reports need this update, and that until then they
+--         are in the Table Editor (feedback, kind = 'report').
+--   * STILL NEEDED: src/app/teacher/page.tsx shows result.added, alreadyIn,
+--     notFound and failed, but not result.invited. After this file a
+--     teacher who adds by email sees no line for the students invited. Show
+--     "Invited N: names. They join when they accept on their Profile page."
 --   * Nothing alerts anyone when a report arrives. Ivan picks the channel:
 --     for example a Supabase Database Webhook on INSERT into public.feedback
 --     (filter kind = 'report') that emails support@algebridge.org. That is

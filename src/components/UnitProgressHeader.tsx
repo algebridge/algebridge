@@ -32,7 +32,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
   return (
     <header style={hueVars(unitHue(unit.id))} className="hue-banner relative overflow-hidden rounded-2xl">
       {/* The unit's mark, large and faint, as the banner's texture. */}
-      <UnitMark unitId={unit.id} size={168} className="pointer-events-none absolute -right-4 -top-6 hidden opacity-[0.12] sm:block" />
+      <UnitMark unitId={unit.id} size={140} className="pointer-events-none absolute right-6 top-6 hidden opacity-[0.10] sm:block" />
       <div className="relative px-6 py-7 sm:px-8">
         <div className="flex items-start gap-4">
           <span className="hue-chip flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">

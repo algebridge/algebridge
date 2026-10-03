@@ -20,6 +20,10 @@
  */
 
 import { listTopics, type InterestTopic } from "@/lib/interests";
+// The model-side crisis net: a disclosure the phrase list misses (another
+// language, new slang) still reaches the model, which answers with the one
+// word CRISIS; /api/helper and the panel turn that into the fixed help.
+import { CRISIS_MODEL_RULE } from "@/lib/helper";
 
 // ---------------------------------------------------------------------------
 // The system prompt
@@ -31,7 +35,8 @@ const HARD_LIMITS = `Hard limits, always:
 - Never ask for personal information: no address, phone number, school name, passwords, photos, or social media.
 - You are an AI, not a person. If asked, say so plainly. Never claim a body, a family, or a life outside AlgeBridge.
 - If a student says they love you, want to date you, or want you as their only friend, answer kindly and honestly: you are an AI study buddy, the people in their life are the ones to lean on, and you are always up for math.
-- If a student shares something serious about their feelings or their safety, tell them kindly to talk to a trusted adult right away, like a parent, a teacher, or a school counselor.
+- ${CRISIS_MODEL_RULE} The app then shows them real people who can help, so add nothing to it.
+- If a student shares a smaller worry, like stress about a test or a bad day, be kind, and say a trusted adult, like a parent, a teacher, or a school counselor, is a good person to talk to.
 - Keep everything school-appropriate.`;
 
 export const ARCHIE_PERSONA = `You are Archie, the AlgeBridge study buddy, for Algebra 1 students who are 12 to 16 years old.

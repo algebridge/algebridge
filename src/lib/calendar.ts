@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { lookupPeople, plainDbError } from "@/lib/social";
 
 /**
  * The shared tutor calendar. Tutors and admins read every entry (so a clash is
@@ -46,30 +47,24 @@ interface EventRow {
 
 /**
  * tutor_id and student_id reference auth.users, not profiles, so PostgREST has
- * no relationship to embed. The names are resolved in a second query instead.
+ * no relationship to embed. The names are resolved in a second query instead:
+ * the profiles table, then (once supabase/schema-2026-10-03-safety.sql has run
+ * and tutors no longer read students' rows) the student and tutor directories.
  */
 async function attachNames(rows: EventRow[]): Promise<CalendarEvent[]> {
-  const supabase = createClient();
-  const ids = Array.from(
-    new Set(rows.flatMap((r) => [r.tutor_id, r.student_id]).filter((v): v is string => !!v))
-  );
-
-  const names = new Map<string, string | null>();
-  if (supabase && ids.length) {
-    const { data } = await supabase.from("profiles").select("id, display_name").in("id", ids);
-    for (const p of data ?? []) names.set(p.id as string, (p.display_name as string) ?? null);
-  }
+  const people = await lookupPeople(rows.flatMap((r) => [r.tutor_id, r.student_id]));
+  const nameOf = (id: string) => people.get(id)?.displayName ?? null;
 
   return rows.map((r) => ({
     id: r.id,
     tutorId: r.tutor_id,
-    tutorName: names.get(r.tutor_id) ?? null,
+    tutorName: nameOf(r.tutor_id),
     title: r.title,
     kind: r.kind,
     startsAt: r.starts_at,
     endsAt: r.ends_at,
     studentId: r.student_id,
-    studentName: r.student_id ? names.get(r.student_id) ?? null : null,
+    studentName: r.student_id ? nameOf(r.student_id) : null,
     location: r.location,
     notes: r.notes,
   }));
@@ -101,7 +96,7 @@ export async function createEvent(tutorId: string, draft: EventDraft): Promise<s
     location: draft.location?.trim() || null,
     notes: draft.notes?.trim() || null,
   });
-  return error?.message ?? null;
+  return plainDbError(error, "That calendar entry could not be saved. A tutor can only change their own entries.");
 }
 
 export async function updateEvent(id: string, draft: EventDraft): Promise<string | null> {
@@ -119,14 +114,14 @@ export async function updateEvent(id: string, draft: EventDraft): Promise<string
       notes: draft.notes?.trim() || null,
     })
     .eq("id", id);
-  return error?.message ?? null;
+  return plainDbError(error, "That calendar entry could not be saved. A tutor can only change their own entries.");
 }
 
 export async function deleteEvent(id: string): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return "Cloud accounts are not configured.";
   const { error } = await supabase.from("tutor_events").delete().eq("id", id);
-  return error?.message ?? null;
+  return plainDbError(error, "That calendar entry could not be deleted. A tutor can only change their own entries.");
 }
 
 export interface StudentOption {
@@ -134,17 +129,30 @@ export interface StudentOption {
   name: string;
 }
 
-/** Students a tutor can book a session with. RLS already limits this to them. */
+/**
+ * Students a tutor can book a session with. Once
+ * supabase/schema-2026-10-03-safety.sql has run, that is the student_directory
+ * view: only the students this tutor may reach, and no email. Before it runs
+ * the view does not exist, and RLS on profiles decides, as before.
+ */
 export async function listStudentOptions(): Promise<StudentOption[]> {
   const supabase = createClient();
   if (!supabase) return [];
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name, email")
-    .eq("role", "student")
+  const viewed = await supabase
+    .from("student_directory")
+    .select("id, display_name")
     .order("display_name", { ascending: true });
-  return (data ?? []).map((p) => ({
-    id: p.id as string,
-    name: (p.display_name as string) || (p.email as string) || "Unnamed student",
+  const rows: { id: string; display_name: string | null; email?: string | null }[] = !viewed.error
+    ? (viewed.data ?? [])
+    : ((
+        await supabase
+          .from("profiles")
+          .select("id, display_name, email")
+          .eq("role", "student")
+          .order("display_name", { ascending: true })
+      ).data ?? []);
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.display_name || p.email || "Unnamed student",
   }));
 }

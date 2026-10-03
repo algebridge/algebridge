@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { AlgebridgeCalculator } from "@/components/calc/AlgebridgeCalculator";
 import { DesmosCalculator } from "@/components/DesmosCalculator";
@@ -110,6 +111,9 @@ const PANEL_SHADOW = "shadow-[0_18px_50px_-12px_rgb(15_23_42/0.28)]";
 
 /** Below this width the panel is a bottom sheet: no dragging, no corner. */
 const PHONE_QUERY = "(max-width: 639.98px)";
+
+/** Pages with no math on them. The calculator stays off these, so its button never covers a form or a policy. */
+const NO_MATH_PATHS = new Set(["/login", "/privacy", "/terms", "/safety", "/guidelines"]);
 function subscribePhone(fn: () => void) {
   const mq = window.matchMedia(PHONE_QUERY);
   mq.addEventListener("change", fn);
@@ -180,7 +184,8 @@ export function Calculator() {
   // Practice tells the calculator whether the skill is one it belongs on.
   // Anywhere with no opinion (null) keeps it, so it stays a general tool.
   const access = useSyncExternalStore(subscribeCalculatorAccess, getCalculatorAccess, getServerCalculatorAccess);
-  const available = access !== false;
+  const pathname = usePathname();
+  const available = access !== false && !NO_MATH_PATHS.has(pathname ?? "");
   const shown = open && available;
 
   const size: Size = fitSize(expanded ? expandedSize(area, sizes[mode]) : sizes[mode], area);
@@ -514,8 +519,11 @@ export function Calculator() {
           aria-expanded={open}
           aria-controls={made ? PANEL_ID : undefined}
           title="Calculator"
-          style={{ right: REST_RIGHT + shift }}
-          className="fixed bottom-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-bridge-600 text-white shadow-lg transition-[right,background-color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-bridge-700 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 motion-reduce:transition-none [html[data-helper-resizing]_&]:transition-none [html[data-helper-still]_&]:transition-none"
+          // On a phone it stacks over Archie's button in one 48px column at the
+          // right edge, instead of a second circle beside it. z-[35] keeps both
+          // under the phone menu's scrim (the header is z-40).
+          style={{ right: isPhone ? 16 : REST_RIGHT + shift }}
+          className="fixed bottom-5 z-[35] flex h-14 w-14 items-center max-sm:bottom-[4.5rem] max-sm:h-12 max-sm:w-12 justify-center rounded-full bg-bridge-600 text-white shadow-lg transition-[right,background-color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:bg-bridge-700 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 motion-reduce:transition-none [html[data-helper-resizing]_&]:transition-none [html[data-helper-still]_&]:transition-none"
         >
           {open ? <Icon name="close" size={22} /> : <OperatorMark />}
         </button>

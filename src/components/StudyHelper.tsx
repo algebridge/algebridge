@@ -724,6 +724,13 @@ export function StudyHelper() {
   const scrollToEnd = useCallback((force = false) => {
     const log = logRef.current;
     if (!log || (!force && !pinnedToBottom.current)) return;
+    // The crisis card opens at its top on a short phone sheet: its first
+    // lines ("talk to a trusted adult now") are the ones that must be read.
+    const last = log.lastElementChild as HTMLElement | null;
+    if (last?.classList.contains("crisis-card") && last.offsetHeight > log.clientHeight - 24) {
+      log.scrollTop = last.offsetTop - 12;
+      return;
+    }
     log.scrollTop = log.scrollHeight;
   }, []);
 

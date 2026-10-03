@@ -28,15 +28,16 @@ import { showToast } from "@/lib/notify";
 import { UnitMark } from "@/components/UnitMark";
 import { StandardsChip } from "@/components/StandardsChip";
 import { useAuth } from "@/lib/auth";
+import { useSchoolMode } from "@/components/SchoolModePanel";
 
-/** A step of the lesson checklist: its number, or a check once it is done. */
+/** A step of the lesson, in its heading: its number, or a check once it is done. */
 function StepMark({ n, done }: { n: number; done: boolean }) {
   return done ? (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-      <Icon name="check" size={16} />
+    <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+      <Icon name="check" size={15} />
     </span>
   ) : (
-    <span className="hue-ink hue-line flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-white text-sm font-semibold">
+    <span aria-hidden className="hue-ink hue-line flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white text-sm font-semibold">
       {n}
     </span>
   );
@@ -52,7 +53,12 @@ interface LearnContentProps {
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
   const { stats, mounted } = useProgress();
   // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
-  const teacher = useAuth().profile?.role === "teacher";
+  const auth = useAuth();
+  const teacher = auth.profile?.role === "teacher";
+  // Whoever CourseGate keeps out sees the title, but no progress beside it.
+  const gated = auth.configured && (!auth.user || auth.needsRealName);
+  // School mode turns tutors off, so the help card points to the teacher.
+  const school = useSchoolMode();
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
   const [videoWatched, setVideoWatched] = useState(false);
   const [practiceStats, setPracticeStats] = useState({
@@ -170,10 +176,18 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           <UnitMark unitId={unit.id} size={24} />
         </Link>
         <div className="min-w-0">
+          {/* Where this is, and how far along the unit is: the strip of unit
+              progress that used to sit under the header said it again. */}
           <p className="hue-ink text-xs font-semibold uppercase tracking-[0.08em]">
             Unit {unit.number} · Skill {skillIndex} of {unit.skills.length}
+            {mounted && !gated && unitProgress.completed > 0 && ` · ${unitProgress.completed} of ${unitProgress.total} done`}
           </p>
-          <h1 className="page-title mt-0.5">{skill.title}</h1>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 className="page-title">{skill.title}</h1>
+            {/* This skill's own status, beside its own title, so a finished
+                skill never reads as a finished unit. */}
+            {!gated && state && (state.open || looking) && <ProgressStatus level={mastery} />}
+          </div>
           <p className="page-subtitle">{skill.description}</p>
         </div>
       </header>
@@ -182,11 +196,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
         {!state ? (
           <div className="space-y-6" aria-busy="true">
             <p role="status" className="sr-only">Loading the lesson</p>
-            <div className="h-14 animate-pulse rounded-xl bg-slate-200/60" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="h-16 animate-pulse rounded-xl bg-slate-200/60" />
-              <div className="h-16 animate-pulse rounded-xl bg-slate-200/60" />
-            </div>
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
               <div className="aspect-video animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-3" />
               <div className="hidden h-72 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2 lg:block" />
@@ -243,74 +252,18 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               Teacher view: students open this skill after finishing {studentState.after.title}, or when you assign it.
             </p>
           )}
-          <div className="hue-tint rounded-xl border px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-slate-700">
-                <span className="font-semibold">{unit.title}</span>
-                <span className="text-slate-500"> · {unitProgress.completed} of {unitProgress.total} skills done</span>
-              </p>
-              <ProgressStatus level={mastery} />
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
-              <div
-                className="hue-bar h-full min-w-[8px] rounded-full transition-all duration-500"
-                style={{ width: `${unitProgress.total ? (unitProgress.completed / unitProgress.total) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-
-          {/* The two steps: watch, then practice. The one to do now is ringed. */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div
-              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-                videoStepSatisfied ? "border-emerald-200 bg-emerald-50" : "hue-tint ring-2 ring-[var(--hue-line)]"
-              }`}
-            >
-              <StepMark n={1} done={videoStepSatisfied} />
-              <div>
-                <p className="font-medium text-slate-900">Watch the video</p>
-                <p className="text-xs text-slate-500">
-                  {videoWatched
-                    ? "Done"
-                    : isSkillComplete
-                      ? "Skipped, since you already know this"
-                      : "Start here, or skip it if you know this"}
-                </p>
-              </div>
-            </div>
-            <div
-              className={`flex flex-1 items-center gap-3 rounded-xl border px-4 py-3 ${
-                isSkillComplete
-                  ? "border-emerald-200 bg-emerald-50"
-                  : videoStepSatisfied
-                    ? "hue-line border bg-white ring-2 ring-[var(--hue-line)]"
-                    : "border-slate-200 bg-white"
-              }`}
-            >
-              <StepMark n={2} done={isSkillComplete} />
-              <div>
-                <p className="font-medium text-slate-900">Practice problems</p>
-                <p className="text-xs text-slate-500">
-                  {looking
-                    ? "Practice only, for now"
-                    : isSkillComplete
-                      ? teacher
-                        ? "Skill complete"
-                        : `Skill complete · ${pay} Bridgeys earned`
-                      : practiceStats.attempted === 0
-                        ? teacher
-                          ? "Get 5 right"
-                          : `Get 5 right · +${pay} Bridgeys`
-                        : `${practiceStats.correct}/${practiceStats.attempted} correct so far${teacher ? "" : ` · +${pay} Bridgeys`}`}
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
             <div className="min-w-0 space-y-6 lg:col-span-3">
+              {/* The two steps, watch then practice, each marked done in its own heading. */}
               <section>
-                <h2 className="section-title mb-3">Step 1: Watch</h2>
+                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h2 className="section-title flex items-center gap-2">
+                    <StepMark n={1} done={videoStepSatisfied} />
+                    Watch
+                    {videoStepSatisfied && <span className="sr-only">, done</span>}
+                  </h2>
+                  {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
+                </div>
                 <VideoPlayer
                   video={video}
                   backupVideo={backupVideo}
@@ -320,7 +273,11 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               </section>
 
               <section>
-                <h2 className="section-title mb-3">Step 2: Practice</h2>
+                <h2 className="section-title mb-3 flex items-center gap-2">
+                  <StepMark n={2} done={isSkillComplete} />
+                  Practice
+                  {isSkillComplete && <span className="sr-only">, done</span>}
+                </h2>
                 <PracticePanel
                   skill={skill}
                   onMasteryChange={handleMasteryChange}
@@ -333,16 +290,26 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               <section>
                 <h2 className="section-title mb-3">Need a hand?</h2>
                 <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Message any tutor. They can start a video call with a shared whiteboard,
-                      your notebook, and a calculator, right here on AlgeBridge.
-                    </p>
-                  </div>
+                  {school ? (
+                    <div>
+                      <p className="font-semibold text-slate-900">Stuck? Ask your teacher.</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Show them this problem. Archie can give you a hint on the first step, and your
+                        notebook keeps your work in one place.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Message any tutor. They can start a video call with a shared whiteboard,
+                        your notebook, and a calculator, right here on AlgeBridge.
+                      </p>
+                    </div>
+                  )}
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>
-                    <Link href="/notebook" className="btn-secondary text-sm">My notebook</Link>
+                    {!school && <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>}
+                    <Link href="/notebook" className={`${school ? "btn-primary" : "btn-secondary"} text-sm`}>My notebook</Link>
                   </div>
                 </div>
               </section>
@@ -369,32 +336,21 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                       5 right on the first try completes it.
                     </p>
                   </div>
-                ) : (
-                  <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
-                    <p className="font-medium text-slate-800">How to complete this skill:</p>
-                    <ol className="mt-2 list-inside list-decimal space-y-1 text-xs">
-                      <li>Watch the video above</li>
-                      <li>Get 5 practice problems right on the first try</li>
-                      <li>Every one you get right stays banked, even after a miss</li>
-                    </ol>
-                    {!teacher && (
-                      <p className="mt-3 border-t border-black/5 pt-2 text-xs">
-                        Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
-                        {prize ? (
-                          <>
-                            . Finish every skill in Unit {unit.number} for the{" "}
-                            <span className="font-semibold text-slate-800">{prize.name}</span>.
-                          </>
-                        ) : (
-                          "."
-                        )}
-                      </p>
+                ) : !teacher ? (
+                  // How to complete the skill is in the two step headings and
+                  // the practice card; what it pays is said only here.
+                  <p className="border-t border-slate-100 pt-3 text-xs text-slate-600">
+                    Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
+                    {prize ? (
+                      <>
+                        . Finish every skill in Unit {unit.number} for the{" "}
+                        <span className="font-semibold text-slate-800">{prize.name}</span>.
+                      </>
+                    ) : (
+                      "."
                     )}
-                  </div>
-                )}
-                <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-                  Overall: {stats.completedSkills}/{stats.totalSkills} skills complete
-                </div>
+                  </p>
+                ) : null}
               </div>
             </aside>
           </div>

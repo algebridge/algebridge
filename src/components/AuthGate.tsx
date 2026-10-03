@@ -8,7 +8,7 @@ import { Icon } from "@/components/Icon";
 
 interface AuthGateProps {
   children: React.ReactNode;
-  /** Panel heading, e.g. "Sign up to open the course". */
+  /** Panel heading, e.g. "Create a free account to open the lessons": it says what the primary button does. */
   title: string;
   /** One short paragraph on why the account exists. */
   blurb: string;
@@ -23,6 +23,11 @@ interface AuthGateProps {
   freeNote?: string;
   /** Body copy for the "this account still has no real name" state. */
   nameBlurb?: string;
+  /**
+   * Nothing at all, instead of the panel, for whoever the gate keeps out.
+   * For a second gated block on a page that already shows the panel once.
+   */
+  quiet?: boolean;
 }
 
 const DEFAULT_NAME_BLURB =
@@ -41,6 +46,7 @@ export function AuthGate({
   badge = "Free account",
   freeNote,
   nameBlurb = DEFAULT_NAME_BLURB,
+  quiet = false,
 }: AuthGateProps) {
   const { user, configured, loading, needsRealName } = useAuth();
   const pathname = usePathname();
@@ -48,6 +54,8 @@ export function AuthGate({
   // With no cloud backend there are no accounts to require, a local-only
   // deployment stays fully usable.
   if (!configured) return <>{children}</>;
+
+  if (quiet && (loading || !user || needsRealName)) return null;
 
   if (loading) {
     return (
@@ -67,7 +75,7 @@ export function AuthGate({
           <span className="badge-brand">{badge}</span>
         </div>
         <div className="panel-body space-y-4">
-          <p className="text-sm leading-relaxed text-slate-600">{blurb}</p>
+          <p className="max-w-prose text-sm leading-relaxed text-slate-600">{blurb}</p>
           <ul className="space-y-1.5 text-sm text-slate-600">
             {bullets.map((line) => (
               <li key={line} className="flex gap-2">

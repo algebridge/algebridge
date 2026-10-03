@@ -113,7 +113,18 @@ export function GroupThread({ groupId }: { groupId: string }) {
 
   return (
     <div className="flex h-[68vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div data-lenis-prevent className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      {/* Once loaded, the list is a log: a screen reader reads each new
+          message as it arrives, politely, and not the whole history when the
+          chat opens (it is mounted after the load). */}
+      <div
+        key={loading ? "waiting" : "log"}
+        data-lenis-prevent
+        tabIndex={0}
+        {...(loading
+          ? { role: "group", "aria-label": "Group messages" }
+          : { role: "log", "aria-live": "polite" as const, "aria-relevant": "additions" as const, "aria-label": "Group messages" })}
+        className="flex-1 space-y-3 overflow-y-auto px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500"
+      >
         {loading ? (
           <p className="text-center text-sm text-slate-500">Loading…</p>
         ) : messages.length === 0 ? (

@@ -36,16 +36,16 @@ export function UnitCard({ unit }: UnitCardProps) {
       style={hueVars(hue)}
       className="card-link group relative block overflow-hidden"
     >
-      {/* The unit's color, as a band down the side; a locked unit keeps it,
-          muted. The card itself stays solid white either way. */}
-      <span aria-hidden className={`hue-bar absolute inset-y-0 left-0 w-1.5 ${locked ? "opacity-40" : ""}`} />
-      <div className="flex items-start gap-4 pl-2">
+      {/* The unit's color is on its icon tile, a locked unit's too (muted),
+          so the outline still reads as thirteen colored places. A band down
+          the side, clipped by the card's corner, drew a crescent. */}
+      <div className="flex items-start gap-4">
         <span
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105 ${
-            locked ? "bg-slate-100 text-slate-500" : "hue-wash"
+          className={`hue-wash flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105 ${
+            locked ? "opacity-70" : ""
           }`}
         >
-          {locked ? <Icon name="lock" size={18} /> : <UnitMark unitId={unit.id} size={24} />}
+          {locked ? <Icon name="lock" size={18} className="hue-ink" /> : <UnitMark unitId={unit.id} size={24} />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
@@ -61,7 +61,7 @@ export function UnitCard({ unit }: UnitCardProps) {
           <p className={`mt-1 line-clamp-2 text-sm leading-relaxed ${locked ? "text-slate-500" : "text-slate-600"}`}>{unit.description}</p>
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-3 pl-2">
+      <div className="mt-4 flex items-center gap-3">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
           <div
             className={`h-full rounded-full transition-all ${isComplete ? "bg-emerald-500" : "hue-bar"}`}

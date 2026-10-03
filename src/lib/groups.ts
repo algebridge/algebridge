@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { lookupPeople, plainDbError } from "@/lib/social";
 import type { GroupInfo, GroupMessage } from "@/types";
 
 let groupChannelSeq = 0;
@@ -73,21 +74,14 @@ export async function getGroupMessages(groupId: string): Promise<GroupMessage[]>
     .order("created_at", { ascending: true })
     .limit(500);
   const rows = data ?? [];
-  // Resolve sender names.
-  const senderIds = [...new Set(rows.map((r) => r.sender_id))];
-  const names = new Map<string, string | null>();
-  if (senderIds.length) {
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", senderIds);
-    for (const p of profs ?? []) names.set(p.id, p.display_name);
-  }
+  // Sender names: the profiles a member may read, then (once the safety
+  // migration has run) the student and tutor directories, never an email.
+  const people = await lookupPeople(rows.map((r) => r.sender_id));
   return rows.map((r) => ({
     id: r.id,
     groupId: r.group_id,
     senderId: r.sender_id,
-    senderName: names.get(r.sender_id) ?? "Member",
+    senderName: people.get(r.sender_id)?.displayName ?? "Member",
     body: r.body,
     createdAt: r.created_at,
   }));
@@ -106,7 +100,8 @@ export async function sendGroupMessage(
   const { error } = await supabase
     .from("group_messages")
     .insert({ group_id: groupId, sender_id: uid, body: trimmed.slice(0, 4000) });
-  return { error: error?.message ?? null };
+  // The thread maps this to plain words (sendErrorText), so the code goes with it.
+  return { error: error ? `${error.message} ${error.code ?? ""}`.trim() : null };
 }
 
 /** Realtime: new messages in a group. Unique topic per subscription. */
@@ -155,6 +150,6 @@ export async function createAlgeGroup(
     group_name: name,
     student_ids: studentIds,
   });
-  if (error) return { id: null, error: error.message };
+  if (error) return { id: null, error: plainDbError(error, "That group could not be made. Only tutors can start an AlgeGroup.") };
   return { id: (data as string) ?? null, error: null };
 }

@@ -686,6 +686,12 @@ function RosterTab({
                   Added {result.added.length}: {result.added.join(", ")}
                 </p>
               )}
+              {result.invited.length > 0 && (
+                <p className="text-sky-700">
+                  Invited {result.invited.length}: {result.invited.join(", ")}. They join once
+                  they accept the invite on their account page.
+                </p>
+              )}
               {result.alreadyIn.length > 0 && (
                 <p className="text-slate-500">Already in this class: {result.alreadyIn.join(", ")}</p>
               )}

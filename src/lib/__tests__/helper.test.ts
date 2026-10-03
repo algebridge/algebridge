@@ -1571,5 +1571,213 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ] as const) ok(`migration: ${what}`, re.test(sql));
 }
 
+// ============================================================================
+// Safety, round 3 (Oct 3 2026): the fix agent's handoff list. Shared devices,
+// crisis checks wherever a student types, reports reaching a person, the
+// migration's prerequisites in the app, school mode leftovers, and the
+// accessibility items in these files.
+// ============================================================================
+{
+  const H = await import("../helper.ts");
+  const P = await import("../archie-persona.ts");
+  const { readFileSync: readRepo } = await import("node:fs");
+  const repo = (f: string) => readRepo(new URL(`../../../${f}`, import.meta.url), "utf8");
+
+  // --- 1. shared devices: signing out leaves nothing personal --------------------------
+  const auth = repo("src/lib/auth.tsx");
+  const signOutBody = auth.slice(auth.indexOf("async function signOut()"), auth.indexOf("async function switchRole"));
+  ok("sign-out: ends with a full load of the home page", /window\.location\.assign\("\/"\)/.test(signOutBody));
+  ok("sign-out: clears the device's personal data", /clearPersonalDeviceData\(\)/.test(signOutBody) && /clearLocalProgress\(\)/.test(auth));
+  ok("sign-out: the calculators' rows go too", ["algebridge-calc-graphing", "algebridge-calc-scientific", "algebridge-desmos-state-graphing", "algebridge-desmos-state-scientific"].every((k) => auth.includes(`"${k}"`)));
+  ok("sign-out: each account's block list stays (the only copy before the migration)", !/removeItem\([^)]*blocked/.test(auth) && /algebridge:blocked:<id>/.test(auth));
+  ok("sign-out: an offline sign-out still ends the session here", /signOut\(\{ scope: "local" \}\)/.test(signOutBody) && /within\(syncProgress\(\), 5000\)/.test(signOutBody));
+  ok("sign-out: the stored session is wiped by hand, since auth-js keeps it when /logout fails", /forgetSessionOnDevice\(\)/.test(signOutBody) && signOutBody.indexOf("forgetSessionOnDevice()") < signOutBody.indexOf("window.location.assign") && /startsWith\("sb-"\)/.test(auth) && /Max-Age=0/.test(auth) && /sessionStorage/.test(auth));
+  ok("sign-out: other tabs and the back button reload", /SIGNED_OUT_KEY/.test(auth) && /e\.persisted && signedOutSinceLoad\(\)/.test(auth) && /e\.key === SIGNED_OUT_KEY/.test(auth));
+  ok("sign-out: Archie still drops every thread on a change of account", /sessionGen\.current \+= 1;\s*\n\s*window\.clearTimeout\(localTimer\.current\)/.test(repo("src/components/StudyHelper.tsx")) && /setThreads\(\{\}\)/.test(repo("src/components/StudyHelper.tsx")));
+
+  // --- 2. crisis checks wherever a student types ---------------------------------------
+  for (const q of ["je veux mourir", "je vais me tuer", "ich will sterben", "ich möchte mich umbringen", "voglio morire", "vorrei uccidermi", "chcę umrzeć", "chcę się zabić"]) {
+    ok(`crisis, more languages: "${q}"`, H.detectCrisis(q) === "self-harm", String(H.detectCrisis(q)));
+  }
+  for (const q of ["je veux mourir de rire", "voglio morire dal ridere", "ich will Mathe lernen", "je veux manger"]) {
+    ok(`not a crisis, more languages: "${q}"`, H.detectCrisis(q) === null, String(H.detectCrisis(q)));
+  }
+  ok("persona: the model is told to answer CRISIS", P.ARCHIE_PERSONA.includes(H.CRISIS_MODEL_RULE) && P.ARCHIE_PERSONA_LITE.includes(H.CRISIS_MODEL_RULE));
+  ok("persona: still sends smaller worries to a trusted adult", /trusted adult/.test(P.ARCHIE_PERSONA) && !/[—–]/.test(P.ARCHIE_PERSONA));
+  const split = H.withoutCrisisTurns([
+    { role: "user", content: "i want to" },
+    { role: "assistant", content: "Tell me more?" },
+    { role: "user", content: "die" },
+    { role: "assistant", content: H.CRISIS_REPLY },
+    { role: "user", content: "ok can we do the problem" },
+  ]);
+  ok("model history: both halves of a split disclosure are dropped", split.length === 2 && split.every((m) => !/want to|^die$/.test(m.content)) && split[1].content === "ok can we do the problem", JSON.stringify(split));
+  ok("model history: ordinary turns stay", H.withoutCrisisTurns([{ role: "user", content: "i want to" }, { role: "user", content: "dye my hair blue" }]).length === 2);
+  {
+    const Route = await import("../../app/api/helper/route.ts");
+    const post = async (body: Record<string, unknown>, ip: string) => {
+      const res = await Route.POST(new Request("http://x/api/helper", { method: "POST", headers: { "x-forwarded-for": ip }, body: JSON.stringify(body) }));
+      return (await res.json()) as Record<string, unknown>;
+    };
+    const before = globalThis.fetch;
+    const savedKey = process.env.GROQ_API_KEY;
+    process.env.GROQ_API_KEY = "test-key";
+    let calls = 0;
+    let modelSays = "Try subtracting 6 from both sides first. What do you get?";
+    let sentToModel = "";
+    globalThis.fetch = (async (_i: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      sentToModel = String(init?.body ?? "");
+      return new Response(JSON.stringify({ choices: [{ message: { content: modelSays } }] }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      const ctx = { skillTitle: "Two-step equations", problemPrompt: "Solve 3x + 6 = 27", answer: "7" };
+      calls = 0;
+      const halves = await post({ mode: "tutor", context: ctx, messages: [{ role: "user", content: "i want to" }, { role: "assistant", content: "Tell me more?" }, { role: "user", content: "die" }] }, "10.31.0.1");
+      ok("helper route: a disclosure split in two gets the fixed reply, no model", halves.crisis === true && halves.message === H.CRISIS_REPLY && calls === 0, JSON.stringify(halves));
+      calls = 0;
+      const spanish = await post({ mode: "tutor", context: ctx, messages: [{ role: "user", content: "me quiero morir" }] }, "10.31.0.2");
+      ok("helper route: Spanish is caught before the model", spanish.crisis === true && calls === 0);
+      modelSays = "CRISIS";
+      calls = 0;
+      ok("helper route: the model net's test line is one the list misses", H.detectCrisis("i feel like disappearing for good") === null);
+      const net = await post({ mode: "tutor", context: ctx, messages: [{ role: "user", content: "i feel like disappearing for good" }] }, "10.31.0.3");
+      ok("helper route: the model's CRISIS signal becomes the fixed reply", net.crisis === true && net.message === H.CRISIS_REPLY && calls === 1, JSON.stringify(net));
+      modelSays = "\"CRISIS.\"";
+      const booking = await post({ mode: "scheduler", context: {}, messages: [{ role: "user", content: "after school is bad at home" }] }, "10.31.0.4");
+      ok("helper route: the signal works in booking too", booking.crisis === true && booking.message === H.CRISIS_REPLY, JSON.stringify(booking));
+      modelSays = "Try subtracting 6 from both sides first. What do you get?";
+      calls = 0;
+      await post({ mode: "tutor", context: ctx, messages: [{ role: "user", content: "i want to" }, { role: "user", content: "die" }, { role: "assistant", content: H.CRISIS_REPLY }, { role: "user", content: "can i get a hint" }] }, "10.31.0.5");
+      ok("helper route: a later turn does not send the disclosure on", calls === 1 && !/i want to|\"die\"/.test(sentToModel) && /can i get a hint/.test(sentToModel), sentToModel.slice(0, 300));
+      const Interests = await import("../../app/api/interests/route.ts");
+      const ask = async (note: string, ip: string) => {
+        const res = await Interests.POST(new Request("http://x/api/interests", { method: "POST", headers: { "x-forwarded-for": ip }, body: JSON.stringify({ picks: ["basketball"], note }) }));
+        return (await res.json()) as Record<string, unknown>;
+      };
+      modelSays = JSON.stringify({ topics: [{ label: "Baking", details: "cups of flour, oven minutes, batches" }] });
+      calls = 0;
+      const fine = await ask("i bake on weekends", "10.31.1.1");
+      ok("interests: an ordinary note still goes to the model", calls === 1 && fine.crisis === undefined, JSON.stringify(fine));
+      calls = 0;
+      const worried = await ask("i like art but my stepdad hits me", "10.31.1.2");
+      ok("interests: a disclosure gets crisis: true and no model call", worried.crisis === true && calls === 0 && worried.source === "picks", JSON.stringify(worried));
+      calls = 0;
+      const other = await ask("我想死", "10.31.1.3");
+      ok("interests: other scripts too", other.crisis === true && calls === 0);
+    } finally {
+      globalThis.fetch = before;
+      if (savedKey === undefined) delete process.env.GROQ_API_KEY;
+      else process.env.GROQ_API_KEY = savedKey;
+    }
+  }
+  const feedbackPage = repo("src/app/feedback/page.tsx");
+  ok("feedback page: reads what was written for danger and shows the card", /detectCrisis\(message\)/.test(feedbackPage) && /<CrisisCard reply=\{CRISIS_REPLY\} voice="plain" note=\{CRISIS_NOTE\}/.test(feedbackPage) && /not right away/.test(feedbackPage));
+  const picker = repo("src/components/InterestsPicker.tsx");
+  ok("interests box: a disclosure is not sent or kept", /if \(detectCrisis\(trimmed\)\)/.test(picker) && /note: ""/.test(picker) && picker.indexOf("detectCrisis(trimmed)") < picker.indexOf('fetch("/api/interests"'));
+  ok("report details: still read for danger", /if \(detectCrisis\(details\)\) setCrisis\(true\)/.test(repo("src/components/ReportButton.tsx")));
+
+  // --- 3. reports reach a person -------------------------------------------------------
+  const admin = repo("src/app/admin/page.tsx");
+  const adminLib = repo("src/lib/admin.ts");
+  ok("admin: a Reports tab reads admin_reports()", /rpc\("admin_reports"/.test(adminLib) && /tab === "reports" && <ReportsPanel/.test(admin));
+  ok("admin: before the migration it says so plainly", /Reports need the October 3 database update\./.test(admin) && /status: "missing"/.test(adminLib));
+  ok("admin: reason labels are the report form's own", /REPORT_REASONS\.map/.test(adminLib));
+  {
+    const FB = await import("../../app/api/feedback/route.ts");
+    const saved = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY };
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-test";
+    const realFetch = globalThis.fetch;
+    const R1 = "31313131-3131-4131-8131-313131313131";
+    const R2 = "32323232-3232-4232-8232-323232323232";
+    const sessions: Record<string, string> = { "Bearer r1-jwt": R1, "Bearer r2-jwt": R2 };
+    let answer: () => Response = () => new Response(null, { status: 201 });
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const authz = String((init?.headers as Record<string, string>)?.Authorization ?? "");
+      if (String(input).endsWith("/auth/v1/user")) {
+        return sessions[authz] ? new Response(JSON.stringify({ id: sessions[authz] }), { status: 200 }) : new Response("{}", { status: 401 });
+      }
+      return answer();
+    }) as typeof fetch;
+    const send = (body: unknown, ip: string) =>
+      FB.POST(new Request("http://x/api/feedback", { method: "POST", headers: { "x-forwarded-for": ip }, body: JSON.stringify(body) })).then(async (r) => ({ status: r.status, body: (await r.json()) as Record<string, unknown> }));
+    const report = { reason: "uncomfortable", reportedUserId: "34343434-3434-4434-8434-343434343434", place: "dm", placeId: "t-1", excerpt: "hey" };
+    try {
+      const ip = "10.32.0.1";
+      const first10 = [];
+      for (let i = 0; i < 10; i++) first10.push(await send({ kind: "report", token: "r1-jwt", report }, ip));
+      ok("reports: ten in a few minutes from one reporter go through", first10.every((r) => r.body.ok === true), JSON.stringify(first10.map((r) => r.status)));
+      const eleventh = await send({ kind: "report", token: "r1-jwt", report }, ip);
+      ok("reports: the eleventh from that reporter is slowed down", eleventh.status === 429 && eleventh.body.reason === "slow-down", JSON.stringify(eleventh));
+      const classmate = await send({ kind: "report", token: "r2-jwt", report }, ip);
+      ok("reports: a classmate on the same school network still gets through", classmate.body.ok === true, JSON.stringify(classmate));
+      const fb = await send({ kind: "idea", message: "more practice on slopes please" }, ip);
+      ok("reports: feedback from that network is not used up by reports", fb.body.ok === true, JSON.stringify(fb));
+      answer = () => new Response(JSON.stringify({ code: "54000", message: "Too many reports in one hour. If you are in danger, call 911." }), { status: 400 });
+      const dbLimit = await send({ kind: "report", token: "r2-jwt", report }, "10.32.0.2");
+      ok("reports: the database's own hourly limit reads as slow down", dbLimit.status === 429 && dbLimit.body.reason === "slow-down", JSON.stringify(dbLimit));
+    } finally {
+      globalThis.fetch = realFetch;
+      if (saved.url === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = saved.url;
+      if (saved.anon === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = saved.anon;
+    }
+  }
+  const reportUi = repo("src/components/ReportButton.tsx");
+  ok("report dialog: says when reports are read, and handles slow down", /reads reports in the admin\s+console/.test(reportUi) && /not read right\s+away/.test(reportUi) && /state === "slow-down"/.test(reportUi));
+
+  // --- 4. the migration's prerequisites in the app -----------------------------------
+  for (const f of ["src/lib/sessions.ts", "src/lib/calendar.ts", "src/lib/groups.ts"]) {
+    ok(`directory names: ${f} reads through lookupPeople`, /lookupPeople\(/.test(repo(f)) && !/from\("profiles"\)\s*\.select\("id, display_name"\)/.test(repo(f)));
+  }
+  const social = repo("src/lib/social.ts");
+  ok("directory names: profiles, then student_directory, then tutor_directory", /for \(const view of \["student_directory", "tutor_directory"\] as const\)/.test(social.slice(social.indexOf("export async function lookupPeople"))));
+  ok("calendar: students to book come from student_directory first", /from\("student_directory"\)/.test(repo("src/lib/calendar.ts")));
+  ok("photos: Avatar signs every stored link, and retries an expired one", /signAvatarUrls/.test(repo("src/components/Avatar.tsx")) && /onError=\{onError\}/.test(repo("src/components/Avatar.tsx")));
+  ok("photos: the signed-in account's own photo is signed", /signAvatarUrls\(\[p\.avatarUrl\]\)/.test(auth));
+  ok("photos: a failed signing call keeps the stored link (public bucket)", /if \(error \|\| !data\) return unchanged\(\);/.test(social));
+  const teacher = repo("src/lib/teacher.ts");
+  ok("rosters: teachers invite through invite_student_to_class, with the old add as fallback", /rpc\("invite_student_to_class"/.test(teacher) && /status: "no-invites"/.test(teacher) && /invited: string\[\]/.test(teacher));
+  ok("rosters: a student answers invites on their profile", /rpc\("my_class_invites"\)/.test(teacher) && /rpc\("answer_class_invite"/.test(teacher) && /<ClassInvites userId=/.test(repo("src/app/profile/page.tsx")));
+  const Social = await import("../social.ts");
+  ok("plain words: a row-level security refusal", Social.plainDbError({ code: "42501", message: 'new row violates row-level security policy for table "direct_messages"' }) === "AlgeBridge's safety rules do not allow that.");
+  ok("plain words: a refusal the database words itself is kept", Social.plainDbError({ code: "42501", message: "Students now join a class themselves, so nobody is added without knowing. Share your class code with them." })!.startsWith("Students now join"));
+  ok("plain words: nothing wrong is null", Social.plainDbError(null) === null);
+  ok("plain words: a dropped connection", /Check your connection/.test(Social.plainDbError({ message: "TypeError: Failed to fetch" }) ?? ""));
+  ok("photos: the bucket path of public and signed links", Social.avatarPathOf("https://x.supabase.co/storage/v1/object/public/avatars/abc/avatar-1.png") === "abc/avatar-1.png" && Social.avatarPathOf("https://x.supabase.co/storage/v1/object/sign/avatars/abc/a%20b.png?token=t") === "abc/a b.png" && Social.avatarPathOf("https://lh3.googleusercontent.com/a/x") === null);
+
+  // --- 5. school mode leftovers ----------------------------------------------------------
+  ok("school mode: the lesson's help card points to the teacher", /school \? \(/.test(repo("src/components/LearnContent.tsx")) && /Stuck\? Ask your teacher\./.test(repo("src/components/LearnContent.tsx")) && /\{!school && <Link href="\/tutors"/.test(repo("src/components/LearnContent.tsx")));
+  ok("school mode: the account menu has no Messages link", /\{!school && <MenuLink href="\/messages"/.test(repo("src/components/Header.tsx")));
+  const login = repo("src/app/login/page.tsx");
+  ok("school mode: login hides Messages, Group chats, tutors and Switch to tutor", /\{!school && <Link href="\/messages"/.test(login) && /\{!school && <Link href="\/groups"/.test(login) && /!isTutor && !school/.test(login) && /school && value === "tutor"/.test(login));
+  ok("login: staff accounts need a shared access code from AlgeBridge", /need a shared access code from AlgeBridge/.test(login) && !/verified with an access code|verified with a\s+code/.test(login));
+  const profilePage = repo("src/app/profile/page.tsx");
+  ok("school mode: profile hides Messages and Find a tutor", /\{!school && \(\s*<Link href="\/messages"/.test(profilePage) && /\{!school &&\s*\(isTutor/.test(profilePage));
+  const house = repo("src/app/house/page.tsx");
+  ok("school mode: the house page has no leaderboard link or rink items", /school \? \(\s*<NextStepCard\s+title="Earn more"/.test(house) && /\{!school && \(\s*<section>/.test(house));
+
+  // --- 6. small items ---------------------------------------------------------------------
+  const card = repo("src/components/helper/CrisisCard.tsx");
+  ok("crisis card: the 988 web chat (checked on 988lifeline.org, 3 Oct) and 'from any phone'", H.CRISIS_CHAT.href === "https://chat.988lifeline.org/" && /href=\{CRISIS_CHAT\.href\}/.test(card) && /from any phone/.test(card) && /from any phone/.test(H.CRISIS_REPLY));
+  ok("crisis card: the plain voice says why this page is not where help comes from", /note = "A report is not read right away/.test(card) && /\{note\}/.test(card));
+  const banner = repo("src/components/GamesBanner.tsx");
+  ok("games banner: text at white/90 or white", !/text-white\/(?:[1-8]\d)\b/.test(banner));
+  const groupsPage = repo("src/app/groups/page.tsx");
+  ok("groups: New AlgeGroup is a real dialog with a focus trap and Escape", /role="dialog"/.test(groupsPage) && /aria-modal="true"/.test(groupsPage) && /useDialogFocus\(dialogRef, creating, \(\) => setCreating\(false\)\)/.test(groupsPage) && /htmlFor="new-group-name"/.test(groupsPage) && /aria-pressed=\{picked\.has\(s\.id\)\}/.test(groupsPage));
+  const board = repo("src/app/leaderboard/page.tsx");
+  ok("leaderboard: rank words a screen reader reads", /<span className="sr-only">Rank <\/span>/.test(board) && !/aria-label=\{`Rank \$\{rank\}`\}/.test(board));
+  ok("leaderboard: tabs with arrow keys, a roving tab stop and a panel", /onTabKey/.test(board) && /tabIndex=\{active \? 0 : -1\}/.test(board) && /aria-controls="board-panel"/.test(board) && /role="tabpanel"/.test(board));
+  const call = repo("src/components/IncomingCall.tsx");
+  ok("incoming call: an alert dialog, focus on Answer", /role="alertdialog"/.test(call) && /data-autofocus\s+onClick=\{\(e\) => accept\(e\)\}/.test(call) && />\s*Answer\s*</.test(call) && /useDialogFocus\(dialogRef, !!incoming/.test(call));
+  ok("incoming call: a key press already on its way cannot answer", /lastKeyAt\.current - shownAt\.current < 1000/.test(call) && /e\.detail !== 0 \|\| !keyNow\.current\) return false/.test(call));
+  for (const f of ["src/components/MessageThread.tsx", "src/components/GroupThread.tsx"]) {
+    const src = repo(f);
+    ok(`messages: ${f} is a polite log, mounted after the load`, /role: "log", "aria-live": "polite"/.test(src) && /key=\{loading/.test(src));
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

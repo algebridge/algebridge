@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { aiConfigured, callJson, clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { cleanText, mergeTopics, NOTE_MAX, sanitizeTopics, topicsFromPicks, validPicks } from "@/lib/interests";
 import { parseModelJson } from "@/lib/personalize";
+import { detectCrisis } from "@/lib/helper";
 
 /**
  * Reads what a student said they are into and turns it into topics that
@@ -12,6 +13,11 @@ import { parseModelJson } from "@/lib/personalize";
  * that text and the chip labels are sent, never a name, email or id. Whatever
  * comes back goes through sanitizeTopics, which is what keeps an unsafe or
  * personal "interest" out of every problem written later.
+ *
+ * Words that sound like the student is in danger (detectCrisis, the list
+ * Archie uses) are never sent to a model: the reply carries crisis: true and
+ * the topics from the taps alone, and the picker shows the crisis card. The
+ * picker makes the same check first, so this is for any other client.
  */
 
 export const maxDuration = 30;
@@ -44,6 +50,7 @@ export async function POST(request: Request) {
   const fromPicks = topicsFromPicks(picks);
 
   if (!note) return NextResponse.json({ topics: fromPicks, source: "picks" });
+  if (detectCrisis(note)) return NextResponse.json({ topics: fromPicks, source: "picks", crisis: true });
   if (!aiConfigured() || !allow(clientKey(request))) {
     return NextResponse.json({ topics: fromPicks, source: "picks" });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   INTEREST_OPTIONS,
   NOTE_MAX,
@@ -10,6 +10,8 @@ import {
   type InterestTopic,
 } from "@/lib/interests";
 import { saveInterests } from "@/lib/progress";
+import { CRISIS_REPLY, detectCrisis } from "@/lib/helper";
+import { CrisisCard } from "@/components/helper/CrisisCard";
 
 /** Enough to rotate through, few enough that each one comes up. */
 const MAX_PICKS = 4;
@@ -28,6 +30,11 @@ interface InterestsPickerProps {
  * "What are you into?" Tap a few, and optionally say it in your own words.
  * The words go to a model that turns them into topics (see /api/interests);
  * the taps alone never leave the page as anything but a list of ids.
+ *
+ * Words that sound like the student is in danger (detectCrisis, the same
+ * list Archie uses) never leave the page and are not kept: the crisis card
+ * is shown instead, and only the taps are saved. /api/interests makes the
+ * same check, so no model reads them even from another client.
  */
 export function InterestsPicker({
   initial,
@@ -41,6 +48,14 @@ export function InterestsPicker({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<InterestTopic[] | null>(null);
+  /** The words sounded like the student is in danger: they were not sent or kept. */
+  const [crisis, setCrisis] = useState(false);
+  // The card takes the place of the Save button, so focus goes to it and a
+  // screen reader reads it out.
+  const crisisRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (crisis) crisisRef.current?.focus();
+  }, [crisis]);
 
   function toggle(id: string) {
     // Functional update: two quick taps in one frame each see the latest
@@ -61,9 +76,26 @@ export function InterestsPicker({
       setError("Tap at least one, or write a few words.");
       return;
     }
-    setSaving(true);
     setError("");
 
+    if (detectCrisis(trimmed)) {
+      // Nothing written goes to the server or into saved progress. The taps
+      // are kept, or the ask is marked as answered so it does not come back.
+      setCrisis(true);
+      setNote("");
+      const fromTaps = topicsFromPicks(picks);
+      saveInterests({
+        picks,
+        note: "",
+        topics: fromTaps,
+        source: "picks",
+        updatedAt: new Date().toISOString(),
+        ...(fromTaps.length ? {} : { skipped: true }),
+      });
+      return;
+    }
+
+    setSaving(true);
     let topics = topicsFromPicks(picks);
     let source: InterestProfile["source"] = "picks";
     try {
@@ -72,7 +104,13 @@ export function InterestsPicker({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ picks, note: trimmed }),
       });
-      const data = (await res.json()) as { topics?: unknown; source?: unknown };
+      const data = (await res.json()) as { topics?: unknown; source?: unknown; crisis?: unknown };
+      if (data.crisis === true) {
+        setSaving(false);
+        setCrisis(true);
+        setNote("");
+        return;
+      }
       const read = sanitizeTopics(data.topics);
       if (read.length) {
         topics = read;
@@ -89,6 +127,37 @@ export function InterestsPicker({
     }
     saveInterests({ picks, note: trimmed, topics, source, updatedAt: new Date().toISOString() });
     setSaved(topics);
+  }
+
+  if (crisis) {
+    return (
+      <div className="space-y-4">
+        {showHeading && (
+          <h2 id="interests-title" className="text-xl font-bold tracking-tight text-slate-900">
+            Before the math
+          </h2>
+        )}
+        <div ref={crisisRef} tabIndex={-1} className="focus-visible:outline-none">
+          <CrisisCard
+            reply={CRISIS_REPLY}
+            voice="plain"
+            note="This box only picks topics for math problems, and no person reads it. Please reach a real person who can help you now."
+          />
+        </div>
+        <p className="text-xs text-slate-500">What you wrote was not sent anywhere or saved.</p>
+        <div className="flex flex-wrap gap-2">
+          {onDone ? (
+            <button type="button" onClick={onDone} className="btn-primary flex-1">
+              Back to AlgeBridge
+            </button>
+          ) : (
+            <button type="button" onClick={() => setCrisis(false)} className="btn-secondary">
+              Back to my interests
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (saved) {

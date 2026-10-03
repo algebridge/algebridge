@@ -7,7 +7,7 @@ import {
   arithmeticStepReply,
   classifyIntent,
   CRISIS_REPLY,
-  detectCrisis,
+  detectCrisisInTurns,
   ESCALATION_OFFER,
   exampleFallback,
   findFormulaCard,
@@ -15,6 +15,7 @@ import {
   formulaCardText,
   isHelperAction,
   isOffTopicRequest,
+  modelSignalsCrisis,
   OFF_TOPIC_REPLY,
   parseArithmetic,
   generalReply,
@@ -393,7 +394,9 @@ export async function POST(request: Request) {
   const ctx = cleanContext(body.context);
   // Quick actions shape a tutor's reply. Anything else is ignored, not trusted.
   const action: HelperAction | undefined = mode === "tutor" && isHelperAction(body.action) ? body.action : undefined;
-  const last = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const userTurns = messages.filter((m) => m.role === "user");
+  const last = userTurns[userTurns.length - 1]?.content ?? "";
+  const previousUserTurn = userTurns.length > 1 ? userTurns[userTurns.length - 2].content : null;
 
   const reply = (message: string, source: Source, extra: Record<string, unknown> = {}) =>
     NextResponse.json({ message: stripEmoji(stripEmDashes(stripMarkdownEmphasis(message))).trim(), source, ...extra });
@@ -402,8 +405,10 @@ export async function POST(request: Request) {
   //
   // Checked first, in every mode, and before any limit: this reply must never
   // be a 429. Fixed text, so it cannot be wrong the way a model was, and the
-  // flag lets the panel show it as more than a chat bubble.
-  const crisis = detectCrisis(last);
+  // flag lets the panel show it as more than a chat bubble. The last message
+  // is read on its own and joined to the one before it, so a disclosure
+  // split in two ("i want to", then "die") is caught too.
+  const crisis = detectCrisisInTurns(previousUserTurn, last);
   if (crisis) {
     return reply(CRISIS_REPLY, "gate", { intent: "crisis", crisis: true, kind: crisis });
   }
@@ -496,6 +501,13 @@ export async function POST(request: Request) {
   }
   const raw = answered?.text ?? null;
   const limited = withinBudget ? {} : { limited: true };
+
+  // The model-side crisis net (CRISIS_MODEL_RULE in the persona's hard
+  // limits): a disclosure the phrase list missed, in another language say,
+  // comes back as the one word CRISIS, and gets the same fixed help.
+  if (raw && modelSignalsCrisis(raw)) {
+    return reply(CRISIS_REPLY, "gate", { intent: "crisis", crisis: true, kind: "model", provider: answered!.provider });
+  }
 
   // Without a key the mode-specific engines are the best answer available.
   if (!raw) {

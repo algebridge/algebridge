@@ -3,9 +3,11 @@ import { Icon } from "@/components/Icon";
 // Short and steady, the way a good tutor sounds. The old lines ("Boom,
 // exactly right!", "You're on fire!") with a cartoon emoji read as a game.
 const RIGHT = ["Correct.", "That's right.", "Right answer.", "Exactly right.", "Correct. Nicely worked."];
+// The line is picked by a running count, never by how far off the answer
+// was, so none of them may tell a student they are close.
 const RETRY = [
   "Take another look and try again.",
-  "Close. Check your steps and try again.",
+  "Check your steps and try again.",
   "Try it once more.",
   "Check the math and give it another go.",
   "Look back at the key idea, then try again.",

@@ -10,6 +10,7 @@ import { exportProgressForSync, importProgressFromSync } from "@/lib/progress";
 import { checkFullName, checkNameParts, formatName, isRealName } from "@/lib/name";
 import { Icon } from "@/components/Icon";
 import { RealNameForm } from "@/components/RealNameForm";
+import { useSchoolMode } from "@/components/SchoolModePanel";
 import type { UserRole } from "@/types";
 
 export default function LoginPage() {
@@ -28,6 +29,9 @@ function LoginPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next");
+  // School mode turns messages, group chats and tutors off (src/lib/school-mode.ts),
+  // so their links and the tutor role are not offered.
+  const school = useSchoolMode();
 
   // Only offer a provider the project has actually enabled.
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -246,18 +250,19 @@ function LoginPageInner() {
           </div>
           <div className="grid gap-2 p-4 sm:grid-cols-2">
             <Link href="/profile" className="btn-secondary justify-start">Edit profile</Link>
-            <Link href="/messages" className="btn-secondary justify-start">Messages</Link>
-            <Link href="/groups" className="btn-secondary justify-start">Group chats</Link>
+            {!school && <Link href="/messages" className="btn-secondary justify-start">Messages</Link>}
+            {!school && <Link href="/groups" className="btn-secondary justify-start">Group chats</Link>}
             {isTeacher ? (
               <Link href="/teacher" className="btn-secondary justify-start">Teacher dashboard</Link>
             ) : (
               <Link href="/classes" className="btn-secondary justify-start">My classes</Link>
             )}
-            {isTutor ? (
-              <Link href="/tutor-hub" className="btn-secondary justify-start">Tutor hub</Link>
-            ) : (
-              <Link href="/tutors" className="btn-secondary justify-start">Find a tutor</Link>
-            )}
+            {!school &&
+              (isTutor ? (
+                <Link href="/tutor-hub" className="btn-secondary justify-start">Tutor hub</Link>
+              ) : (
+                <Link href="/tutors" className="btn-secondary justify-start">Find a tutor</Link>
+              ))}
             {isAdmin && (
               <Link href="/admin" className="btn-secondary justify-start">Admin panel</Link>
             )}
@@ -270,8 +275,9 @@ function LoginPageInner() {
           </div>
           <div className="panel-body space-y-3">
             <p className="text-sm text-slate-600">
-              Teacher and tutor accounts are verified with an access code so students
-              stay safe.
+              {school
+                ? "Teacher accounts need a shared access code from AlgeBridge."
+                : "Teacher and tutor accounts need a shared access code from AlgeBridge."}
             </p>
             {!isAdmin && (
               <input
@@ -293,13 +299,13 @@ function LoginPageInner() {
                   Switch to teacher
                 </button>
               )}
-              {!isTutor && (
+              {!isTutor && !school && (
                 <button type="button" disabled={switching} onClick={() => handleSwitch("tutor")} className="btn-secondary btn-sm">
                   Switch to tutor
                 </button>
               )}
             </div>
-            {switching && <p className="text-xs text-slate-400">Switching…</p>}
+            {switching && <p className="text-xs text-slate-500">Switching…</p>}
             {switchFeedback && (
               <p className={`text-sm ${switchFeedback.ok ? "text-emerald-700" : "text-red-600"}`}>
                 {switchFeedback.text}
@@ -318,7 +324,7 @@ function LoginPageInner() {
           <button
             type="button"
             onClick={handleDeleteAccount}
-            className="text-xs text-slate-400 transition hover:text-red-600"
+            className="text-xs text-slate-500 transition hover:text-red-700"
           >
             Delete my account
           </button>
@@ -379,12 +385,12 @@ function LoginPageInner() {
               <>
                 <div>
                   <span id="role-label" className="label">I am a…</span>
-                  <div role="group" aria-labelledby="role-label" className="mt-1.5 grid grid-cols-3 gap-2">
+                  <div role="group" aria-labelledby="role-label" className={`mt-1.5 grid gap-2 ${school ? "grid-cols-2" : "grid-cols-3"}`}>
                     {([
                       ["student", "Student"],
                       ["teacher", "Teacher"],
                       ["tutor", "Tutor"],
-                    ] as const).map(([value, label]) => (
+                    ] as const).filter(([value]) => !(school && value === "tutor")).map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
@@ -413,8 +419,8 @@ function LoginPageInner() {
                         placeholder="Enter the code you were given"
                       />
                       <p className="field-hint">
-                        {role === "tutor" ? "Tutor" : "Teacher"} accounts are verified with a
-                        code to keep students safe.
+                        {role === "tutor" ? "Tutor" : "Teacher"} accounts need a shared access
+                        code from AlgeBridge.
                       </p>
                     </div>
                   )}
@@ -547,8 +553,8 @@ function LoginPageInner() {
       <div className="card">
         <h2 className="text-sm font-semibold text-slate-900">Just looking around?</h2>
         <p className="mt-1.5 text-sm text-slate-600">
-          Every lesson video is free to watch without an account. Practice, progress
-          tracking and classes need one.
+          The course outline and the For schools page are open to everyone. Lessons,
+          practice, progress and classes come with a free account.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/" className="btn-secondary btn-sm">

@@ -50,6 +50,8 @@ import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } fro
 interface DollhouseProps {
   progress: UserProgress;
   onUpdate: () => void;
+  /** Switches the page to the Shop, from the decorating tray. */
+  onShop?: () => void;
 }
 
 type Mode = "off" | "yard" | "room";
@@ -88,7 +90,7 @@ function placementFor(itemId: string, sx: number, sy: number): { x: number; y: n
  * to pick it up; and at night the ones that are on are the ones giving
  * light.
  */
-export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
+export function Dollhouse({ progress, onUpdate, onShop }: DollhouseProps) {
   const house = getHouseStyle(progress.houseStyleId) ?? getHouseStyle("cottage")!;
 
   // Open from the start: arriving at your house should mean being in it.
@@ -347,7 +349,7 @@ export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
         : open
           ? furniture.length
             ? "Drag a piece to move it. Tap it for more."
-            : "The house is open"
+            : "Empty for now. Pieces from the Shop go here."
           : "Click the house to open it";
 
   return (
@@ -602,11 +604,28 @@ export function Dollhouse({ progress, onUpdate }: DollhouseProps) {
         </div>
 
         {mode === "off" && view === "front" && (
-          <p className="mt-2 text-sm text-slate-600">
-            {ornaments.length + furniture.length === 0
-              ? `Furniture and ${ORNAMENTS.length} garden ornaments are in the Shop. Two floors to fill.`
-              : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs, ${furniture.filter((f) => surfaceOf(f) === "wall").length} on the walls), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, hang it, send it up the stairs, or pick it up.`}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="min-w-0 flex-1 basis-64 text-sm text-slate-600">
+              {ornaments.length + furniture.length === 0
+                ? `Furniture and ${ORNAMENTS.length} garden ornaments are in the Shop. Two floors to fill.`
+                : `${furniture.length} inside (${furniture.filter((f) => floorOf(f) === "up").length} upstairs, ${furniture.filter((f) => surfaceOf(f) === "wall").length} on the walls), ${ornaments.length} out in the garden. Drag a piece to move it; tap it to paint it, switch it, hang it, send it up the stairs, or pick it up.`}
+            </p>
+            {/* The way to more pieces, where the tray says what is there. */}
+            {onShop && (
+              <button
+                type="button"
+                onClick={() => {
+                  onShop();
+                  // The Shop opens at the tabs, up the page.
+                  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                  window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+                }}
+                className="btn-primary btn-sm shrink-0"
+              >
+                Open the shop
+              </button>
+            )}
+          </div>
         )}
         {view === "back" && (
           <p className="mt-2 text-sm text-slate-600">

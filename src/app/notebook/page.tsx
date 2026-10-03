@@ -1,22 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { Notebook } from "@/components/Notebook";
 
 export default function NotebookPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">My Notebook</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Your private space for notes, worked-out steps, and questions for your tutor.
-          </p>
-        </div>
-        <Link href="/" className="btn-secondary text-sm">Back to the course</Link>
-      </div>
+      {/* No Back button: the sidebar, and the menu on a phone, lead back to the course. */}
+      <header>
+        <p className="eyebrow">Learn</p>
+        <h1 className="page-title">My notebook</h1>
+        <p className="page-subtitle">
+          Your private space for notes, worked-out steps, and questions for your tutor.
+        </p>
+      </header>
       <div className="card">
-        <Notebook />
+        <Notebook hideTitle />
       </div>
     </div>
   );
