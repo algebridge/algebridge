@@ -33,7 +33,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AlgeBridge - Learn Algebra 1",
+  // Every page names itself in the tab ("Achievements, AlgeBridge"); a page
+  // with no title of its own gets the default.
+  title: {
+    default: "AlgeBridge, free Algebra 1 for grades 7 to 10",
+    template: "%s, AlgeBridge",
+  },
   description:
     "Bridge the gap from arithmetic to algebra. Free Algebra 1 learning with videos, practice, live tutors, and mastery tracking.",
 };
@@ -86,9 +91,10 @@ export default function RootLayout({
               <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 scroll-mt-14 px-4 py-7 focus:outline-none sm:px-6 lg:px-8">
                 {children}
               </main>
-              {/* pb-24 on phones: the calculator and Archie buttons float over the
-                  bottom corners, so the last line can scroll up clear of them. */}
-              <footer className="border-t border-slate-200 bg-white px-4 pb-24 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
+              {/* pb-32 on phones: the calculator and Archie buttons stack in the
+                  bottom right corner (about 120px tall), so the last line can
+                  scroll up clear of them. */}
+              <footer className="border-t border-slate-200 bg-white px-4 pb-32 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
                 <p>Free forever. Videos, practice, and real tutors. Algebra&nbsp;1, grades 7-10.</p>
                 {/* py-1 makes each link a 24 px tall target (WCAG 2.5.8) where the links wrap on a phone. */}
                 <nav aria-label="Footer" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs [&>a]:py-1">

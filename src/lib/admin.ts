@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { REPORT_REASONS } from "@/lib/safety";
 import type { UserRole } from "@/types";
 
 /**
@@ -134,6 +135,77 @@ export async function fetchAdminReviews(): Promise<AdminReviews | null> {
           displayName: (r.display_name as string) ?? null,
         }))
       : [],
+  };
+}
+
+// --- Reports ------------------------------------------------------------------
+
+/** One report about a person, from the Report button on a message, chat, call or profile. */
+export interface AdminReport {
+  id: string;
+  createdAt: string;
+  /** bullying, personal-info, inappropriate, uncomfortable or other. */
+  reason: string | null;
+  /** "dm:<thread>", "group:<id>", "call:<room>" or "profile:<id>". */
+  where: string | null;
+  /** The reported message, quoted from the database's own copy when it had an id. */
+  excerpt: string | null;
+  /** Everything the report says, the reporter's own words included. */
+  message: string;
+  page: string | null;
+  reporterId: string | null;
+  reporterName: string | null;
+  reportedUserId: string | null;
+  reportedName: string | null;
+  reportedRole: string | null;
+  messageId: string | null;
+  messageSentAt: string | null;
+}
+
+export type AdminReportsResult =
+  | { status: "ok"; reports: AdminReport[] }
+  /** admin_reports() is not in the database: supabase/schema-2026-10-03-safety.sql has not run. */
+  | { status: "missing" }
+  | { status: "error"; message: string };
+
+/** The plain words for each report reason, exactly as the Report form shows them. */
+export const REPORT_REASON_LABELS: Record<string, string> = Object.fromEntries(REPORT_REASONS.map((r) => [r.id, r.label]));
+
+/**
+ * Reports, newest first, through admin_reports() (admins only, checked in
+ * the database). The function arrives with supabase/schema-2026-10-03-
+ * safety.sql; before that it is missing and the console says so. Until then
+ * the reports are only in the Supabase Table Editor (feedback, kind =
+ * 'report'), because the feedback table has no read policy at all.
+ */
+export async function fetchAdminReports(limit = 200): Promise<AdminReportsResult> {
+  const supabase = createClient();
+  if (!supabase) return { status: "error", message: "Cloud accounts are not configured on this deployment." };
+  const { data, error } = await supabase.rpc("admin_reports", { p_limit: limit });
+  if (error) {
+    const text = `${error.code ?? ""} ${error.message ?? ""}`;
+    if (/PGRST202|42883|could not find the function|does not exist/i.test(text)) return { status: "missing" };
+    return { status: "error", message: error.message || "The reports could not be read." };
+  }
+  const str = (v: unknown) => (v == null ? null : String(v));
+  return {
+    status: "ok",
+    reports: (Array.isArray(data) ? (data as Record<string, unknown>[]) : []).map((r) => ({
+      id: String(r.id),
+      createdAt: String(r.created_at),
+      reason: str(r.reason),
+      where: str(r.report_where),
+      excerpt: str(r.excerpt),
+      message: String(r.message ?? ""),
+      page: str(r.page),
+      reporterId: str(r.reporter_id),
+      reporterName: str(r.reporter_name),
+      reportedUserId: str(r.reported_user_id),
+      reportedName: str(r.reported_name),
+      reportedRole: str(r.reported_role),
+      messageId: str(r.message_id),
+      messageSentAt: str(r.message_sent_at),
+    })),
   };
 }
 

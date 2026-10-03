@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { lookupPeople, plainDbError } from "@/lib/social";
 
 /** Session requests: the handoff from the study helper to a real tutor. */
 
@@ -46,12 +47,14 @@ export async function createSessionRequest(
     preferred_tutor: preferredTutor?.trim().slice(0, 120) || null,
     topic: topic?.trim().slice(0, 200) || null,
   });
-  return error?.message ?? null;
+  return plainDbError(error, "AlgeBridge's safety rules do not allow this request. Ask your teacher for help instead.");
 }
 
 /**
  * student_id references auth.users, not profiles, so there is no PostgREST
- * relationship to embed. Names come from a second query, same as the calendar.
+ * relationship to embed. Names come from a second query, same as the calendar:
+ * the profiles table, then (once supabase/schema-2026-10-03-safety.sql has
+ * run and tutors no longer read students' rows) the student directory.
  */
 export async function listSessionRequests(): Promise<SessionRequest[]> {
   const supabase = createClient();
@@ -63,20 +66,12 @@ export async function listSessionRequests(): Promise<SessionRequest[]> {
     .limit(100);
   const rows = (data ?? []) as RequestRow[];
 
-  const names = new Map<string, string | null>();
-  const ids = Array.from(new Set(rows.map((r) => r.student_id)));
-  if (ids.length) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", ids);
-    for (const p of profiles ?? []) names.set(p.id as string, (p.display_name as string) ?? null);
-  }
+  const people = await lookupPeople(rows.map((r) => r.student_id));
 
   return rows.map((r) => ({
     id: r.id,
     studentId: r.student_id,
-    studentName: names.get(r.student_id) ?? null,
+    studentName: people.get(r.student_id)?.displayName ?? null,
     availability: r.availability,
     preferredTutor: r.preferred_tutor,
     topic: r.topic,
@@ -93,14 +88,14 @@ export async function claimSessionRequest(id: string, tutorId: string): Promise<
     .from("session_requests")
     .update({ status: "claimed", claimed_by: tutorId })
     .eq("id", id);
-  return error?.message ?? null;
+  return plainDbError(error, "That request could not be taken. Another tutor may have taken it first.");
 }
 
 export async function closeSessionRequest(id: string): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return "Cloud accounts are not configured.";
   const { error } = await supabase.from("session_requests").update({ status: "closed" }).eq("id", id);
-  return error?.message ?? null;
+  return plainDbError(error, "That request could not be closed. Only the tutor who took it can close it.");
 }
 
 export async function fetchWorkspaceCounts(): Promise<WorkspaceCounts | null> {

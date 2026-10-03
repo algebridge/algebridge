@@ -33,14 +33,22 @@ export default function GamesPage() {
 
   const refresh = useCallback(() => setProgress(getProgress()), []);
 
-  /** Bring the whole court on screen, under the sticky header, before play starts. */
+  /**
+   * Bring the whole court on screen, under the sticky header, before play
+   * starts. On a phone it goes to the top, just under the header (the
+   * stage's scroll-mt-16): the question comes up as a sheet from the
+   * bottom, and a court in the middle of the screen sat under it.
+   */
   const showCourt = useCallback(() => {
     const el = stage.current;
     if (!el) return;
     const box = el.getBoundingClientRect();
     const header = 96;
     const room = window.innerHeight - header;
-    const top = window.scrollY + box.top - header - Math.max(0, (room - box.height) / 2);
+    const phone = window.innerWidth < 640;
+    const top = phone
+      ? window.scrollY + box.top - (parseFloat(getComputedStyle(el).scrollMarginTop) || 64)
+      : window.scrollY + box.top - header - Math.max(0, (room - box.height) / 2);
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (Math.abs(top - window.scrollY) > 4) window.scrollTo({ top: Math.max(0, top), behavior: still ? "auto" : "smooth" });
   }, []);
@@ -102,7 +110,7 @@ export default function GamesPage() {
     <div className="space-y-5">
       <header>
         <h1 className="page-title">Games</h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="page-subtitle">
           Play with the team. Every game stops for a quick head-math question from the unit you are on, and every right answer pays
           Bridgeys, up to {RINK_DAILY_CAP} a day across all five games.
         </p>
@@ -117,7 +125,7 @@ export default function GamesPage() {
 
       <div
         ref={stage}
-        className={`relative aspect-[3/2] w-full touch-none select-none overflow-hidden rounded-2xl shadow-raised ring-1 ring-slate-900/5 ${placing ? "cursor-crosshair" : ""} ${
+        className={`relative aspect-[3/2] w-full scroll-mt-16 touch-none select-none overflow-hidden rounded-2xl shadow-raised ring-1 ring-slate-900/5 ${placing ? "cursor-crosshair" : ""} ${
           // Before play, keep the scene's high z-index controls (Play,
           // Decorate) inside it, so they never paint over the sticky header.
           // During play the question dialog is a fixed overlay inside the
@@ -204,10 +212,11 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
       title={best > 0 ? `${card.title}. Best run ${best}.` : card.title}
     >
       <span
-        className="figures-still flex h-16 w-full items-end justify-center overflow-hidden rounded-lg sm:h-24"
+        className="figures-still flex h-20 w-full items-end justify-center overflow-hidden rounded-lg sm:h-28"
         style={{ background: `${card.accent}2e` }}
       >
-        <span className="block translate-y-1" style={{ width: `${(card.height / 182) * 58}%`, maxWidth: "3.5rem" }}>
+        {/* Cropped below the knees, like a team card, so the player fills the tile. */}
+        <span className="block translate-y-[12%]" style={{ width: `${(card.height / 182) * 58}%`, maxWidth: "5rem" }}>
           {card.id === "rink" ? <Veronica pose="idle" className="w-full" /> : <Player game={card.id} pose="idle" className="w-full" />}
         </span>
       </span>

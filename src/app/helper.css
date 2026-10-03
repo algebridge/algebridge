@@ -19,6 +19,24 @@
     padding-right: var(--helper-w);
   }
 }
+/* With Archie docked the page is the window less the sidebar and the
+   dock, about 740px at 1440, but the lg: grids still read the window.
+   Below 1600px they reflow to the column they really have: the lesson's
+   video and its aside stack, and three or four cards become two. */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  :root[data-helper-dock] .helper-shift .lg\:grid-cols-5:not(.sm\:grid-cols-2) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-helper-dock] .helper-shift .lg\:col-span-3,
+  :root[data-helper-dock] .helper-shift .lg\:col-span-2 {
+    grid-column: auto;
+  }
+  :root[data-helper-dock] .helper-shift .lg\:grid-cols-3,
+  :root[data-helper-dock] .helper-shift .lg\:grid-cols-4,
+  :root[data-helper-dock] .helper-shift .sm\:grid-cols-2.lg\:grid-cols-5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 :root[data-helper-still] .helper-shift,
 :root[data-helper-resizing] .helper-shift {
   transition: none;
@@ -165,6 +183,29 @@
   opacity: 0;
   transform: scale(0.6);
   pointer-events: none;
+}
+/* Under the phone menu's scrim: the header (and the menu inside it) is
+   z-40, and a corner button that floats over an open menu covers it. The
+   calculator's button uses the same z-[35]. Equal specificity to the
+   z-40 utility, and this file loads after globals.css, so this wins. */
+.helper-launch {
+  z-index: 35;
+}
+/* On a phone the two corner buttons are one 48px column at the right
+   edge, Archie at the bottom and the calculator over him
+   (Calculator.tsx), instead of two 56px circles side by side that
+   covered submit buttons and footer links. */
+@media (max-width: 639.98px) {
+  .helper-launch {
+    right: 1rem;
+    bottom: 1rem;
+    width: 3rem;
+    height: 3rem;
+  }
+  .helper-launch > svg {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 /* ─── Chips that feel like buttons ──────────────────────────────── */

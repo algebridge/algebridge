@@ -160,7 +160,7 @@ export interface ReportTarget {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type SendState = "idle" | "sending" | "sent" | "failed" | "sign-in";
+type SendState = "idle" | "sending" | "sent" | "failed" | "sign-in" | "slow-down";
 
 /**
  * The report form, then its thank-you. A thread that lists many messages
@@ -212,7 +212,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget; onClos
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; reason?: string };
-      setState(data.ok ? "sent" : data.reason === "sign-in" ? "sign-in" : "failed");
+      setState(data.ok ? "sent" : data.reason === "sign-in" ? "sign-in" : data.reason === "slow-down" ? "slow-down" : "failed");
     } catch {
       setState("failed");
     }
@@ -225,19 +225,22 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget; onClos
   }
 
   if (state === "sent") {
+    // Its own dialog (key), so focus moves into the thank-you: to the crisis
+    // card when there is one, which a screen reader then reads, else Done.
     return (
-      <Modal title="Report sent" onClose={onClose}>
+      <Modal key="sent" title="Report sent" onClose={onClose}>
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" aria-hidden>
             <Icon name="check" size={20} />
           </span>
           <p className="text-sm leading-relaxed text-slate-700">
-            Thank you for telling us. Your report is saved for an AlgeBridge admin to read, and {who} is not told who
-            sent it. It is not read right away, so if you feel unsafe now, tell a trusted adult.
+            Thank you for telling us. Your report is saved for an AlgeBridge admin, who reads reports in the admin
+            console, and {who} is not told who sent it. Nobody is alerted when a report arrives, so it is not read right
+            away. If you feel unsafe now, tell a trusted adult.
           </p>
         </div>
         {crisis && (
-          <div className="mt-4">
+          <div className="mt-4 focus-visible:outline-none" tabIndex={-1} data-autofocus>
             <CrisisCard reply={CRISIS_REPLY} voice="plain" />
           </div>
         )}
@@ -266,7 +269,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget; onClos
           </p>
         )}
         <div className="mt-5 flex justify-end">
-          <button type="button" data-autofocus onClick={onClose} className="btn-primary">
+          <button type="button" data-autofocus={crisis ? undefined : ""} onClick={onClose} className="btn-primary">
             Done
           </button>
         </div>
@@ -334,6 +337,15 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget; onClos
               {SUPPORT}
             </a>{" "}
             and tell us what happened.
+          </p>
+        )}
+        {state === "slow-down" && (
+          <p role="alert" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            That is a lot of reports in a few minutes. Wait a little and send it again, or email{" "}
+            <a className="font-semibold underline" href={`mailto:${SUPPORT}?subject=Report`}>
+              {SUPPORT}
+            </a>
+            .
           </p>
         )}
         {state === "sign-in" && (

@@ -8,11 +8,15 @@ import { consoleFontClass } from "@/lib/console-fonts";
 import { fullDate, shortAgo } from "@/lib/console-format";
 import {
   fetchAdminOverview,
+  fetchAdminReports,
   fetchAdminReviews,
   fetchAdminUserRows,
   grantAdmin,
+  REPORT_REASON_LABELS,
   setUnlimitedBridgeysFor,
   type AdminOverview,
+  type AdminReport,
+  type AdminReportsResult,
   type AdminReviews,
   type AdminUserRow,
 } from "@/lib/admin";
@@ -20,7 +24,7 @@ import { StarsDisplay } from "@/components/StarRating";
 import { adminDeleteUser, adminSetRole } from "@/lib/social";
 import type { UserRole } from "@/types";
 
-type Tab = "overview" | "people";
+type Tab = "overview" | "people" | "reports";
 type RoleFilter = "all" | "student" | "tutor" | "teacher" | "nontutor";
 type SeenFilter = "all" | "1d" | "7d" | "30d" | "dormant";
 
@@ -67,6 +71,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [reviews, setReviews] = useState<AdminReviews | null>(null);
+  const [reports, setReports] = useState<AdminReportsResult | null>(null);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [msg, setMsg] = useState("");
@@ -83,10 +88,11 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setLoadingData(true);
-    const [o, r, rv] = await Promise.all([fetchAdminOverview(), fetchAdminUserRows(), fetchAdminReviews()]);
+    const [o, r, rv, rp] = await Promise.all([fetchAdminOverview(), fetchAdminUserRows(), fetchAdminReviews(), fetchAdminReports()]);
     setOverview(o);
     setRows(r);
     setReviews(rv);
+    setReports(rp);
     setSelected(new Set());
     setLoadingData(false);
   }, []);
@@ -255,10 +261,15 @@ export default function AdminPage() {
         <button type="button" className={tab === "people" ? "is-active" : ""} onClick={() => setTab("people")}>
           People{rows.length ? ` (${rows.length})` : ""}
         </button>
+        <button type="button" className={tab === "reports" ? "is-active" : ""} onClick={() => setTab("reports")}>
+          Reports{reports?.status === "ok" && reports.reports.length ? ` (${reports.reports.length})` : ""}
+        </button>
       </div>
 
       {err && <div className="sbc-notice">{err}</div>}
       {msg && <div className="sbc-notice is-ok">{msg}</div>}
+
+      {tab === "reports" && <ReportsPanel data={reports} loading={loadingData} />}
 
       {tab === "overview" && (
         <>
@@ -684,5 +695,124 @@ function ReviewsPanel({ data }: { data: AdminReviews }) {
         )}
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+const REPORT_PLACES: Record<string, string> = {
+  dm: "Direct message",
+  group: "Group chat",
+  call: "Video call",
+  profile: "Profile",
+};
+
+/** "group:3f2a..." as "Group chat", with the id kept for the record. */
+function reportPlace(where: string | null): { label: string; id: string | null } {
+  if (!where) return { label: "Unknown place", id: null };
+  const at = where.indexOf(":");
+  const kind = at >= 0 ? where.slice(0, at) : where;
+  return { label: REPORT_PLACES[kind] ?? kind, id: at >= 0 ? where.slice(at + 1) || null : null };
+}
+
+/**
+ * Reports about people, newest first, from admin_reports(). This is where a
+ * report reaches a person: nobody is alerted when one arrives (Ivan picks the
+ * channel, see the header of supabase/schema-2026-10-03-safety.sql), so the
+ * panel says how recent each one is and what to do with one that is serious.
+ */
+function ReportsPanel({ data, loading }: { data: AdminReportsResult | null; loading: boolean }) {
+  return (
+    <section className="sbc-panel" aria-labelledby="sbc-reports-title">
+      <div className="sbc-panel-head">
+        <h2 id="sbc-reports-title">Reports</h2>
+        <span className="sbc-meta">from the Report button · admins only</span>
+      </div>
+      <div className="sbc-panel-body" style={{ display: "grid", gap: 14 }}>
+        <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
+          Students and staff send these from messages, group chats, calls and profiles. Nobody is alerted when one
+          arrives, so this list is the only place they show up: check it often. If a report says someone may be in
+          danger right now, call 911.
+        </p>
+
+        {!data && loading && <p style={{ fontSize: 13 }}>Loading reports…</p>}
+
+        {data?.status === "missing" && (
+          <div className="sbc-notice is-info" role="status">
+            <strong>Reports need the October 3 database update.</strong> Run{" "}
+            <code>supabase/schema-2026-10-03-safety.sql</code> in the Supabase SQL editor to list them here. Until then,
+            reports are kept, but only the Supabase Table Editor shows them: table <code>feedback</code>, where{" "}
+            <code>kind</code> is <code>report</code>.
+          </div>
+        )}
+
+        {data?.status === "error" && (
+          <div className="sbc-notice" role="alert">
+            The reports could not be read: {data.message}
+          </div>
+        )}
+
+        {data?.status === "ok" && data.reports.length === 0 && (
+          <p style={{ fontSize: 13 }}>No reports yet.</p>
+        )}
+
+        {data?.status === "ok" && data.reports.length > 0 && (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, borderTop: "1px solid var(--line)" }}>
+            {data.reports.map((r) => (
+              <ReportRow key={r.id} report={r} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ReportRow({ report: r }: { report: AdminReport }) {
+  const place = reportPlace(r.where);
+  return (
+    <li style={{ padding: "12px 0", borderBottom: "1px solid var(--line)", display: "grid", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span className="sbc-pill is-warn">{(r.reason && REPORT_REASON_LABELS[r.reason]) || r.reason || "No reason"}</span>
+        <span className="sbc-pill is-muted">{place.label}</span>
+        <span style={{ ...MONO, marginLeft: "auto" }} title={fullDate(r.createdAt)}>
+          {shortAgo(r.createdAt)}
+        </span>
+      </div>
+      <p style={{ fontSize: 13 }}>
+        <strong>{r.reporterName ?? "Unknown account"}</strong> reported{" "}
+        <strong>{r.reportedName ?? (r.reportedUserId ? "an account" : "no one in particular")}</strong>
+        {r.reportedRole ? ` (${r.reportedRole})` : ""}
+      </p>
+      {r.excerpt && (
+        <blockquote
+          style={{
+            margin: 0,
+            padding: "6px 10px",
+            borderLeft: "3px solid var(--line)",
+            fontSize: 13,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {r.excerpt}
+          {r.messageSentAt && (
+            <span style={{ ...MONO, display: "block", marginTop: 4 }}>sent {fullDate(r.messageSentAt)}</span>
+          )}
+        </blockquote>
+      )}
+      <details>
+        <summary style={{ fontSize: 12, cursor: "pointer" }}>The whole report and its ids</summary>
+        <p style={{ fontSize: 13, whiteSpace: "pre-wrap", overflowWrap: "anywhere", marginTop: 6 }}>{r.message}</p>
+        <p style={{ ...MONO, marginTop: 6, overflowWrap: "anywhere" }}>
+          reporter {r.reporterId ?? "-"} · reported {r.reportedUserId ?? "-"}
+          {place.id ? ` · ${place.label.toLowerCase()} ${place.id}` : ""}
+          {r.messageId ? ` · message ${r.messageId}` : ""}
+          {r.page ? ` · page ${r.page}` : ""}
+        </p>
+      </details>
+    </li>
   );
 }

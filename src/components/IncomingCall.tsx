@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { loadManagedFlag, sendCallDecline, subscribeToRing, verifyCaller, type RingPayload } from "@/lib/social";
 import { showToast } from "@/lib/notify";
@@ -9,6 +9,7 @@ import { Icon } from "@/components/Icon";
 import { isBlocked, readBlocked } from "@/lib/safety";
 import { useSchoolMode } from "@/components/SchoolModePanel";
 import { setManagedAccount } from "@/lib/school-mode";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 /**
  * App-wide listener that "rings" the current user when someone calls them.
@@ -24,6 +25,12 @@ import { setManagedAccount } from "@/lib/school-mode";
  * Mounted on every page, it also reads whether the signed-in account is
  * managed by a school (profiles.managed) and turns school mode on for it, so
  * a class member gets the school menus at learn.algebridge.org too.
+ *
+ * The ring is an alert dialog: a screen reader announces who is calling,
+ * focus moves to Answer, Tab stays on Answer and Decline, and Escape
+ * declines. A key press already on its way (a student typing an answer when
+ * the ring lands) cannot answer by accident: for the first second a key does
+ * not press Answer or Decline. A pointer click, or a screen reader's, counts.
  */
 export function IncomingCall() {
   const { user, profile } = useAuth();
@@ -32,6 +39,13 @@ export function IncomingCall() {
   const [incoming, setIncoming] = useState<RingPayload | null>(null);
   const audioRef = useRef<{ ctx: AudioContext; timer: ReturnType<typeof setInterval> } | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  /** performance.now() when focus moved to Answer, and when a key was last pressed. */
+  const shownAt = useRef(0);
+  const lastKeyAt = useRef(0);
+  /** A key event is being handled right now (a click it causes comes in the same task). */
+  const keyNow = useRef(false);
 
   const myName = profile?.displayName || user?.email?.split("@")[0] || "Me";
 
@@ -52,20 +66,25 @@ export function IncomingCall() {
     };
   }, [user]);
 
-  function stopRing() {
+  function stopSound() {
     if (audioRef.current) {
       clearInterval(audioRef.current.timer);
       audioRef.current.ctx.close().catch(() => {});
       audioRef.current = null;
     }
+  }
+
+  function stopRing() {
+    stopSound();
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
   }
 
+  /** The sound only; the 30 second give-up timer is set by the ring itself. */
   function startRing() {
-    stopRing();
+    stopSound();
     try {
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new Ctx();
@@ -104,7 +123,11 @@ export function IncomingCall() {
         verifyCaller(payload.callerId).then((caller) => {
           if (!caller.ok) return;
           setIncoming({ ...payload, callerName: caller.name || "Your tutor" });
-          startRing();
+          // After the ring is on screen: starting audio can hold the page up.
+          // Not if it was answered or declined in between (stopRing clears timeoutRef).
+          window.setTimeout(() => {
+            if (timeoutRef.current) startRing();
+          }, 0);
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
           timeoutRef.current = setTimeout(() => {
             stopRing();
@@ -124,16 +147,50 @@ export function IncomingCall() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, school]);
 
+  useDialogFocus(dialogRef, !!incoming, () => decline());
+  // Runs right after the focus moves to Answer. Key presses are timed by when
+  // they happened (the event's timeStamp), so keys a student typed while the
+  // page was busy still count as early.
+  useEffect(() => {
+    if (!incoming) return;
+    shownAt.current = performance.now();
+    const onKey = (e: KeyboardEvent) => {
+      lastKeyAt.current = e.timeStamp;
+      keyNow.current = true;
+      window.setTimeout(() => {
+        keyNow.current = false;
+      }, 0);
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("keyup", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("keyup", onKey, true);
+    };
+  }, [incoming]);
+
   if (!incoming) return null;
 
-  function accept() {
+  /**
+   * A click that came from a key pressed in the ring's first second is the
+   * student still typing, not an answer. A pointer click (detail above 0),
+   * or a screen reader's click (no key press reached the page), always counts.
+   */
+  function tooSoon(e?: React.MouseEvent) {
+    if (!e || e.detail !== 0 || !keyNow.current) return false;
+    return lastKeyAt.current - shownAt.current < 1000;
+  }
+
+  function accept(e?: React.MouseEvent) {
+    if (tooSoon(e)) return;
     const call = incoming!;
     stopRing();
     setIncoming(null);
     router.push(`/room/${call.roomId}?with=${call.callerId}`);
   }
-  function decline() {
-    const call = incoming!;
+  function decline(e?: React.MouseEvent) {
+    if (tooSoon(e) || !incoming) return;
+    const call = incoming;
     stopRing();
     sendCallDecline(call.callerId, myName);
     setIncoming(null);
@@ -141,28 +198,38 @@ export function IncomingCall() {
 
   return (
     <div className="fixed inset-x-0 top-4 z-[60] flex justify-center px-4">
-      <div className="animate-pop-in flex w-full max-w-sm items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="animate-pop-in flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+      >
         <div className="flex h-11 w-11 shrink-0 animate-pulse items-center justify-center rounded-full bg-bridge-100 text-bridge-700" aria-hidden>
           <Icon name="phone" size={20} />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-slate-900">{incoming.callerName}</p>
-          <p className="text-xs text-slate-500">is calling you…</p>
+        {/* On a phone the buttons go to their own row, so the name is not cut short. */}
+        <p id={titleId} className="min-w-0 flex-1 basis-28">
+          <span className="block truncate font-semibold text-slate-900">{incoming.callerName}</span>{" "}
+          <span className="block text-xs text-slate-600">is calling you</span>
+        </p>
+        <div className="ml-auto flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={(e) => decline(e)}
+            className="rounded-full bg-red-100 px-4 py-2 text-sm font-semibold text-red-800 hover:bg-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+          >
+            Decline
+          </button>
+          <button
+            type="button"
+            data-autofocus
+            onClick={(e) => accept(e)}
+            className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+          >
+            Answer
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={decline}
-          className="rounded-full bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200"
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          onClick={accept}
-          className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          Join
-        </button>
       </div>
     </div>
   );

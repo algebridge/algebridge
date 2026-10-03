@@ -56,7 +56,7 @@ export async function updateMyProfile(fields: {
   if (error && /contact details|22023/.test(`${error.message} ${error.code ?? ""}`)) {
     return { error: "Not saved: your bio looks like it has contact details. Bios are shown to students, so keep phone numbers, emails and other apps out of it." };
   }
-  return { error: error?.message ?? null };
+  return { error: plainDbError(error, "Your profile could not be saved. Sign out and back in, then try again.") };
 }
 
 /**
@@ -96,14 +96,18 @@ export async function uploadAvatar(
   const { error: upErr } = await supabase.storage
     .from("avatars")
     .upload(path, file, { upsert: true, cacheControl: "3600" });
-  if (upErr) return { url: null, error: upErr.message };
+  if (upErr) return { url: null, error: plainDbError(upErr, "That photo could not be saved. Try another image.") };
+  // The stored link is the photo's public address, which is what the
+  // database keeps. What the page shows is a signed link, which still opens
+  // once the bucket is private.
   const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
   const url = pub.publicUrl;
   const { error: profErr } = await supabase
     .from("profiles")
     .upsert({ id: uid, avatar_url: url }, { onConflict: "id" });
-  if (profErr) return { url: null, error: profErr.message };
-  return { url, error: null };
+  if (profErr) return { url: null, error: plainDbError(profErr, "That photo could not be saved. Try again in a moment.") };
+  const [shown] = await signAvatarUrls([url]);
+  return { url: shown ?? url, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -111,30 +115,120 @@ export async function uploadAvatar(
 // ---------------------------------------------------------------------------
 
 const PUBLIC_AVATAR = "/storage/v1/object/public/avatars/";
+const SIGNED_AVATAR = "/storage/v1/object/sign/avatars/";
+
+/**
+ * The file path inside the avatars bucket of a stored photo link, public or
+ * signed, or null for anything else (no link, or a photo from somewhere else).
+ */
+export function avatarPathOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  for (const marker of [PUBLIC_AVATAR, SIGNED_AVATAR]) {
+    const at = url.indexOf(marker);
+    if (at >= 0) {
+      try {
+        return decodeURIComponent(url.slice(at + marker.length).split("?")[0]) || null;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Photos as short-lived signed links. supabase/schema-2026-10-03-safety.sql
  * makes the avatars bucket private, after which a stored public link no
  * longer opens; a signed link does, for someone the storage policy lets see
  * that photo. Signing works the same on today's public bucket, so this is
- * safe before and after the migration. A link that cannot be signed is
- * dropped, and the Avatar shows initials instead of a broken image.
+ * safe before and after the migration.
+ *
+ * A photo the storage policy refuses to sign (or that is gone) comes back
+ * null, and the Avatar shows initials. When signing fails as a whole (no
+ * network, storage down), the stored link is handed back unchanged: it
+ * still opens while the bucket is public, and once it is private the
+ * Avatar falls back to initials when the image does not load.
  */
 export async function signAvatarUrls(urls: (string | null | undefined)[]): Promise<(string | null)[]> {
   const supabase = createClient();
-  const paths = urls.map((u) => {
-    const at = u ? u.indexOf(PUBLIC_AVATAR) : -1;
-    return u && at >= 0 ? decodeURIComponent(u.slice(at + PUBLIC_AVATAR.length).split("?")[0]) : null;
-  });
+  const paths = urls.map((u) => avatarPathOf(u));
   const wanted = [...new Set(paths.filter((p): p is string => !!p))];
-  if (!supabase || wanted.length === 0) return urls.map((u, i) => (paths[i] ? null : (u ?? null)));
+  const unchanged = () => urls.map((u) => u ?? null);
+  if (!supabase || wanted.length === 0) return unchanged();
   try {
-    const { data } = await supabase.storage.from("avatars").createSignedUrls(wanted, 60 * 60);
-    const signed = new Map((data ?? []).filter((d) => d.signedUrl && !d.error).map((d) => [d.path, d.signedUrl]));
+    const { data, error } = await supabase.storage.from("avatars").createSignedUrls(wanted, 60 * 60);
+    if (error || !data) return unchanged();
+    const signed = new Map(data.filter((d) => d.signedUrl && !d.error && d.path).map((d) => [d.path as string, d.signedUrl]));
     return urls.map((u, i) => (paths[i] ? (signed.get(paths[i]!) ?? null) : (u ?? null)));
   } catch {
-    return urls.map((u, i) => (paths[i] ? null : (u ?? null)));
+    return unchanged();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Names, through whichever door the database opens
+// ---------------------------------------------------------------------------
+
+export interface PersonName {
+  displayName: string | null;
+  /** The stored photo link, unsigned. The Avatar signs it. */
+  avatarUrl: string | null;
+  role: UserRole | null;
+}
+
+/**
+ * Names (and photos) for a list of account ids. The profiles table first;
+ * once supabase/schema-2026-10-03-safety.sql has run, a tutor can no longer
+ * read a student's row and a student can no longer read a tutor's, so any id
+ * still missing is looked up in student_directory, then tutor_directory
+ * (names, photos and roles, never an email). Before the migration the views
+ * do not exist, their errors are ignored, and the profiles read is the
+ * whole answer, as it always was.
+ */
+export async function lookupPeople(ids: (string | null | undefined)[]): Promise<Map<string, PersonName>> {
+  const found = new Map<string, PersonName>();
+  const supabase = createClient();
+  const wanted = [...new Set(ids.filter((id): id is string => !!id))];
+  if (!supabase || wanted.length === 0) return found;
+  type Row = { id: string; display_name: string | null; avatar_url: string | null; role: string | null };
+  const take = (rows: Row[] | null | undefined) => {
+    for (const r of rows ?? []) {
+      if (!r?.id || found.has(r.id)) continue;
+      const role = r.role === "student" || r.role === "tutor" || r.role === "teacher" ? r.role : null;
+      found.set(r.id, { displayName: r.display_name ?? null, avatarUrl: r.avatar_url ?? null, role });
+    }
+  };
+  const { data } = await supabase.from("profiles").select("id, display_name, avatar_url, role").in("id", wanted);
+  take(data as Row[] | null);
+  for (const view of ["student_directory", "tutor_directory"] as const) {
+    const missing = wanted.filter((id) => !found.has(id));
+    if (missing.length === 0) break;
+    const viewed = await supabase.from(view).select("id, display_name, avatar_url, role").in("id", missing);
+    if (!viewed.error) take(viewed.data as Row[] | null);
+  }
+  return found;
+}
+
+/**
+ * A database refusal in plain words. A row-level security refusal (42501)
+ * reads like "new row violates row-level security policy for table ...",
+ * which means nothing to a student; it becomes `refused`. A refusal the
+ * database already words for people (a raised exception, such as "Students
+ * now join a class themselves...") is kept as it is.
+ */
+export function plainDbError(
+  error: { message?: string | null; code?: string | null } | null | undefined,
+  refused = "AlgeBridge's safety rules do not allow that."
+): string | null {
+  if (!error) return null;
+  const message = error.message ?? "";
+  const text = `${message} ${error.code ?? ""}`;
+  if (/row-level security|violates .*policy|permission denied|\bJWT\b/i.test(text)) return refused;
+  if (/failed to fetch|networkerror|network request|timed? ?out|load failed/i.test(text)) {
+    return "That did not go through. Check your connection and try again.";
+  }
+  if (/\b42501\b/.test(text) && !message.trim()) return refused;
+  return message.trim() || "That did not go through. Try again in a moment.";
 }
 
 // ---------------------------------------------------------------------------
@@ -553,7 +647,7 @@ export async function saveNotebook(content: string): Promise<{ error: string | n
       { user_id: uid, content, updated_at: new Date().toISOString() },
       { onConflict: "user_id" }
     );
-  return { error: error?.message ?? null };
+  return { error: plainDbError(error, "Your notebook could not be saved. Sign out and back in, then try again.") };
 }
 
 // ---------------------------------------------------------------------------
@@ -614,7 +708,7 @@ export async function claimRole(role: UserRole, code?: string): Promise<string |
     target_role: role,
     code: code ?? null,
   });
-  return error?.message ?? null;
+  return plainDbError(error, "That role could not be set. Check the access code and try again.");
 }
 
 /** Joins the caller to the All-Tutors group (server checks they're a tutor/admin). */

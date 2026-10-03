@@ -333,6 +333,13 @@ const SELF_HARM: RegExp[] = [
   /\bmarna chah(?:ta|ti|te|ti hu|ta hu)\b/,
   /\b(?:khudkushi|aatmahatya|atmahatya)\b/,
   /\btoi muon chet\b/,
+  // French, German, Italian and Polish, the commonest phrasings (accents are
+  // gone by now: "möchte" reads "mochte", "umrzeć" "umrzec"). Anything else in
+  // these languages is left to the model's CRISIS rule.
+  /\bje (?:veux|voudrais|vais) (?:mourir|me tuer|me suicider)\b(?! de (?:rire|faim|honte|froid|chaud|sommeil|ennui)\b)/,
+  /\bich (?:will|mochte|moechte|werde) (?:sterben|mich umbringen|mich toten|nicht mehr leben)\b/,
+  /\b(?:voglio|vorrei) (?:morire|uccidermi|suicidarmi)\b(?! d(?:al|alle|i) (?:ridere|risate|fame|sonno|noia|caldo|freddo)\b)/,
+  /\bchce (?:umrzec|sie zabic)\b/,
 ];
 
 const ABUSE: RegExp[] = [
@@ -450,11 +457,25 @@ export function detectCrisisInTurns(previous: string | null | undefined, latest:
  * The conversation without its crisis turns, for the model. A disclosure
  * stays between the student and the fixed reply: it is not sent on to a
  * third party, and a model cannot improvise on it later in the thread.
+ * A disclosure split across two messages ("i want to", then "die") loses
+ * both halves, read the same way as detectCrisisInTurns.
  */
 export function withoutCrisisTurns(messages: HelperMessage[]): HelperMessage[] {
-  return messages.filter((m) =>
-    m.role === "user" ? !detectCrisis(m.content) : m.content.trim() !== CRISIS_REPLY
-  );
+  const drop = new Set<number>();
+  let previousUser = -1;
+  messages.forEach((m, i) => {
+    if (m.role !== "user") {
+      if (m.content.trim() === CRISIS_REPLY) drop.add(i);
+      return;
+    }
+    if (detectCrisis(m.content)) drop.add(i);
+    else if (previousUser >= 0 && detectCrisisInTurns(messages[previousUser].content, m.content)) {
+      drop.add(previousUser);
+      drop.add(i);
+    }
+    previousUser = i;
+  });
+  return messages.filter((_, i) => !drop.has(i));
 }
 
 // ---------------------------------------------------------------------------

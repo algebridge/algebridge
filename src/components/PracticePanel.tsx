@@ -666,7 +666,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     playLevelUp,
   ]);
 
-  /** What had the focus when the student moved on (Next Problem, Skip): the new problem takes it over. */
+  /** What had the focus when the student moved on (Next problem, Skip this one): the new problem takes it over. */
   const leavingFrom = useRef<Element | null>(null);
   function nextProblem() {
     leavingFrom.current = document.activeElement;
@@ -753,7 +753,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   // Keyboard focus follows the work, for someone working by keyboard only
   // (a tap never moves it, so a phone's keyboard does not pop up). When an
   // answer is done, the focus the answer box or Check button just lost goes
-  // to Next Problem; after Next or Skip it goes to the new answer box, or
+  // to Next problem; after Next or Skip it goes to the new answer box, or
   // the first choice. Focus that is somewhere else (Archie, the calculator)
   // is left alone.
   const byKeyboard = useRef(false);
@@ -788,7 +788,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   useEffect(() => {
     if (!focusNewProblem.current || pending || feedback) return;
     focusNewProblem.current = false;
-    // The button pressed may still hold the focus: Check Answer reuses Next Problem's place.
+    // The button pressed may still hold the focus: Check answer reuses Next problem's place.
     if (!focusIsLost() && document.activeElement !== leavingFrom.current) return;
     (answerRef.current ?? document.querySelector<HTMLElement>("[data-choice]:not(:disabled)"))?.focus();
   });
@@ -818,6 +818,33 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const mistake = lastTry && (feedback === "wrong" || revealed) ? diagnoseMistake(problem, lastTry) : null;
   const typed = lastTry?.given && problem.type !== "error-analysis" && problem.type !== "step-order" ? lastTry.given : undefined;
 
+  /** The hint, after two misses: a row of the wrong-answer note, or its own box. */
+  const hintRow = (inNote: boolean) => (
+    <div
+      className={`flex items-start justify-between gap-3 px-4 py-3 text-sm text-amber-900 ${
+        inNote ? "border-t border-amber-200/70" : "animate-pop-in mt-4 rounded-xl border border-amber-200 bg-amber-50"
+      }`}
+    >
+      <p className="flex items-start gap-2">
+        <Icon name="hint" size={16} className="mt-0.5 shrink-0 text-amber-600" />
+        <span>
+          <span className="font-semibold">Hint:</span> <MathText text={problem.hint} />
+        </span>
+      </p>
+      {speechSupported && (
+        <button
+          type="button"
+          onClick={() => (speaking ? stopSpeech() : speak(problem.hint))}
+          title={speaking ? "Stop reading aloud" : "Read the hint aloud"}
+          aria-label={speaking ? "Stop reading the hint aloud" : "Read the hint aloud"}
+          className={`-my-2.5 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-amber-100 ${speaking ? "animate-pulse" : ""}`}
+        >
+          <Icon name="speaker" size={18} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       {celebration && (
@@ -829,8 +856,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
               <Icon name={celebration.unitNumber ? "trophy" : "check"} size={26} />
             </span>
-            {/* Read out by the practice's status line below, which is on the page before this arrives. */}
-            <div className="min-w-0 flex-1">
+            {/* Read out by the practice's status line below, which is on the page before this arrives.
+                min-w-[14rem]: in the 640px lesson column the text used to get 130px beside the buttons. */}
+            <div className="min-w-[14rem] flex-1">
               <p className="text-lg font-bold leading-tight">
                 {celebration.unitNumber ? `Unit ${celebration.unitNumber} complete` : "Skill complete"}
               </p>
@@ -842,22 +870,22 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 {celebration.prizeName && <span>and the {celebration.prizeName} for your house.</span>}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               {celebration.prizeName && (
-                <Link href="/house" className="rounded-lg border border-white/35 px-4 py-2 text-sm font-semibold transition hover:bg-white/10">
+                <Link href="/house" className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10">
                   Place it
                 </Link>
               )}
               {next ? (
                 <Link
                   href={next.href}
-                  className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:scale-[1.03]"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px"
                 >
                   Next: {next.title}
-                  <Icon name="arrow-right" size={15} className="ml-1.5 inline-block align-[-2px]" />
+                  <Icon name="arrow-right" size={15} className="ml-1.5 shrink-0" />
                 </Link>
               ) : (
-                <Link href="/" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm">
+                <Link href="/" className="inline-flex min-h-11 items-center rounded-xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px">
                   Back to the course
                 </Link>
               )}
@@ -868,7 +896,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   // The banner, and this button with it, goes away: the focus goes on to the practice.
                   requestAnimationFrame(() => (nextRef.current ?? answerRef.current)?.focus());
                 }}
-                className="rounded-lg border border-white/35 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+                className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10"
               >
                 Keep practicing
               </button>
@@ -893,6 +921,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </span>
           </div>
         ) : ps.isComplete ? (
+          // While the banner above is up it already says so.
+          celebration ? null : (
           <div className="text-sm font-medium text-emerald-800">
             <span className="inline-flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
@@ -901,6 +931,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               Skill complete. You got {ps.required} right.
             </span>
           </div>
+          )
         ) : (
           <div className="flex min-w-0 items-center gap-3 text-sm text-slate-600">
             {/* Progress, drawn. A student should see how close they are
@@ -1116,7 +1147,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 </button>
               );
             })}
-            <p className="text-xs text-slate-400">Tip: press 1-{problem.choices.length} to pick an answer.</p>
+            {/* Keyboard tips only where there is a keyboard: not on phones or touch screens. */}
+            <p className="hidden text-xs text-slate-400 sm:block [@media(hover:none)]:hidden">Tip: press 1-{problem.choices.length} to pick an answer.</p>
           </div>
         )}
 
@@ -1222,10 +1254,13 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         {/* Feedback */}
         {feedback && !revealed && (
           <div className="mt-4">
-            {feedback === "wrong" && mistake?.note ? (
-              <div className="animate-pop-in overflow-hidden rounded-xl border border-amber-200 bg-amber-50">
+            {feedback === "wrong" && (mistake?.note || showHint) ? (
+              // One coach note, not a stack of warnings: the verdict, what went
+              // wrong, and from the second miss the hint, in one box.
+              <div key={`wrong-${feedbackSeed}`} className="animate-pop-in overflow-hidden rounded-xl border border-amber-200 bg-amber-50">
                 <AnswerFeedback state="wrong" seed={feedbackSeed} flush />
-                <MistakeNote diagnosis={mistake} flush />
+                {mistake?.note && <MistakeNote diagnosis={mistake} flush />}
+                {showHint && hintRow(true)}
               </div>
             ) : (
               <AnswerFeedback state={feedback} seed={feedbackSeed} />
@@ -1279,27 +1314,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </div>
         )}
 
-        {showHint && !revealed && (
-          <div className="mt-4 flex items-start justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-900">
-            <p className="flex items-start gap-2">
-              <Icon name="hint" size={17} className="mt-0.5 shrink-0 text-amber-600" />
-              <span>
-                <span className="font-semibold">Hint:</span> <MathText text={problem.hint} />
-              </span>
-            </p>
-            {speechSupported && (
-              <button
-                type="button"
-                onClick={() => (speaking ? stopSpeech() : speak(problem.hint))}
-                title={speaking ? "Stop reading aloud" : "Read the hint aloud"}
-                aria-label={speaking ? "Stop reading the hint aloud" : "Read the hint aloud"}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-amber-100 ${speaking ? "animate-pulse" : ""}`}
-              >
-                <Icon name="speaker" size={18} />
-              </button>
-            )}
-          </div>
-        )}
+        {/* Under a wrong answer the hint is part of the note above; it stands
+            alone only once a later answer has replaced that note. */}
+        {showHint && !revealed && feedback !== "wrong" && hintRow(false)}
 
         {/* A few misses in, the AI helper is offered, opened on this problem. */}
         {showNudge && !over && (
@@ -1344,7 +1361,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               disabled={pending}
               className="btn-primary"
             >
-              Check Answer
+              Check answer
             </button>
           ) : (
             <button
@@ -1354,7 +1371,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               onKeyDown={ignoreSpaceKey}
               className="btn-primary"
             >
-              Next Problem
+              Next problem
               <Icon name="arrow-right" size={16} />
             </button>
           )}
@@ -1369,12 +1386,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           )}
 
           {attempts > 0 && !over && (
-            <button type="button" onClick={nextProblem} onKeyDown={ignoreSpaceKey} className="btn-secondary">
-              Skip
+            <button type="button" onClick={nextProblem} onKeyDown={ignoreSpaceKey} className="btn-ghost">
+              Skip this one
             </button>
           )}
 
-          {sessionProblems.length > 1 && (
+          {/* A fresh bank, once the skill is done. Before that, Skip and Next
+              problem already move on, and three look-alike buttons in a row
+              could not be told apart. The finish banner has its own. */}
+          {ps.isComplete && !celebration && sessionProblems.length > 1 && (
             <button type="button" onClick={loadMoreProblems} className="btn-secondary">
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="review" size={15} />
@@ -1382,7 +1402,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </span>
             </button>
           )}
-          <p className="ml-auto hidden self-center text-xs text-slate-400 sm:block">
+          <p className="ml-auto hidden self-center text-xs text-slate-400 sm:block [@media(hover:none)]:hidden">
             Press <kbd className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5">Enter</kbd> to
             {over ? " continue" : " check"}
           </p>

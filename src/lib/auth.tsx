@@ -14,7 +14,7 @@ import {
 import { getLeaderboardSnapshot, setUnlimitedBridgeys } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
 import { getMyProfile, setMyRole } from "@/lib/teacher";
-import { claimRole, ensureAllTutorsMembership } from "@/lib/social";
+import { claimRole, ensureAllTutorsMembership, signAvatarUrls } from "@/lib/social";
 import { setDisplayName } from "@/lib/profile";
 import { checkFullName, isRealName } from "@/lib/name";
 import type { Profile, UserRole } from "@/types";
@@ -70,6 +70,98 @@ const PROGRESS_TABLE = "user_progress";
  */
 export const OAUTH_PENDING_KEY = "algebridge-oauth-pending";
 
+/**
+ * Shared computers. When a student signs out, everything of theirs on this
+ * device goes with them, so the next student at the same Chromebook finds
+ * nothing of it:
+ *   - their progress copy (clearLocalProgress);
+ *   - what they typed into the calculators (kept in this browser between
+ *     visits, whoever is signed in);
+ *   - this tab's sign-in leftovers in sessionStorage;
+ *   - everything held in memory (Archie's conversations and a crisis card
+ *     among them, messages, the inbox, a managed-account flag), because
+ *     signing out ends with a full page load of the home page.
+ * Kept, because they are not anyone's work: device settings (sound, the
+ * sidebar's width, the calculator's size, the school mode preview), the
+ * signed-out notebook, and each account's own block list
+ * ("algebridge:blocked:<id>"), which until the October 3 database update is
+ * the only copy of a block and must still be there when that student signs
+ * back in.
+ */
+const PERSONAL_KEYS = [
+  "algebridge-calc-graphing",
+  "algebridge-calc-scientific",
+  "algebridge-desmos-state-graphing",
+  "algebridge-desmos-state-scientific",
+];
+
+/**
+ * Written when someone signs out on this device. Another open tab, or a page
+ * the browser brings back from its back-forward cache, sees it and reloads,
+ * so the signed-out student's screens do not come back with the Back button.
+ */
+export const SIGNED_OUT_KEY = "algebridge:signed-out-at";
+
+/** When this page was loaded, to compare with SIGNED_OUT_KEY. */
+const PAGE_LOADED_AT = Date.now();
+
+function clearPersonalDeviceData(): void {
+  clearLocalProgress();
+  try {
+    for (const key of PERSONAL_KEYS) window.localStorage.removeItem(key);
+  } catch {
+    /* storage blocked: nothing was kept there either */
+  }
+  try {
+    for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.sessionStorage.key(i);
+      if (key && key.startsWith("algebridge")) window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* no session storage */
+  }
+  try {
+    window.localStorage.setItem(SIGNED_OUT_KEY, String(Date.now()));
+  } catch {
+    /* the other tabs will catch up on their next sign-in check */
+  }
+}
+
+/** Gives up waiting after `ms`, so a dead network never traps a student signed in. */
+function within<T>(work: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([work, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms))]);
+}
+
+/**
+ * Removes the Supabase session from this device without asking the server:
+ * cookies and storage entries whose names start with "sb-". Used on sign-out
+ * so a failed network call can never leave a student signed in on a shared
+ * computer.
+ */
+export function forgetSessionOnDevice(): void {
+  if (typeof document === "undefined") return;
+  try {
+    for (const part of document.cookie.split(";")) {
+      const name = part.split("=")[0]?.trim();
+      if (!name || !name.startsWith("sb-")) continue;
+      const expire = `${name}=; Max-Age=0; path=/`;
+      document.cookie = expire;
+      document.cookie = `${expire}; domain=${location.hostname}`;
+      const parent = location.hostname.split(".").slice(-2).join(".");
+      if (parent && parent !== location.hostname) document.cookie = `${expire}; domain=.${parent}`;
+    }
+  } catch {
+    /* cookies unavailable */
+  }
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    try {
+      for (const key of Object.keys(store)) if (key.startsWith("sb-")) store.removeItem(key);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -96,8 +188,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshProfile(userId: string) {
     const p = await getMyProfile(userId);
+    // The photo as a signed link, which still opens once the avatars bucket
+    // is private (supabase/schema-2026-10-03-safety.sql). A photo that cannot
+    // be signed is dropped and initials show; a failed signing call keeps the
+    // stored link, which works while the bucket is public.
+    if (p?.avatarUrl) {
+      const [shown] = await signAvatarUrls([p.avatarUrl]);
+      p.avatarUrl = shown;
+    }
     setProfile(p);
   }
+
+  // A sign-out in another tab, or this page coming back from the browser's
+  // back-forward cache after a sign-out: load the home page fresh rather than
+  // show the signed-out student's screens.
+  useEffect(() => {
+    const signedOutSinceLoad = () => {
+      try {
+        return Number(window.localStorage.getItem(SIGNED_OUT_KEY)) > PAGE_LOADED_AT;
+      } catch {
+        return false;
+      }
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && signedOutSinceLoad()) window.location.reload();
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SIGNED_OUT_KEY && e.newValue && tokenRef.current) window.location.assign("/");
+    };
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (!configured) {
@@ -407,10 +532,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return "Cloud accounts are not configured.";
     const { error } = await supabase.rpc("delete_user");
     if (error) return error.message;
+    tokenRef.current = null;
+    loadedFor.current = null;
     setUser(null);
     setProfile(null);
-    clearLocalProgress();
-    await supabase.auth.signOut();
+    clearPersonalDeviceData();
+    await supabase.auth.signOut({ scope: "local" });
     return null;
   }
 
@@ -440,15 +567,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     if (!configured) return;
-    await syncProgress();
+    // Their work goes to the cloud first, then nothing of theirs stays here
+    // (clearPersonalDeviceData). A slow network gets a few seconds, never a
+    // student stuck signed in on a shared computer.
+    try {
+      await within(syncProgress(), 5000);
+    } catch {
+      /* not saved now; the autosave already sent everything but the last moments */
+    }
     const supabase = createClient();
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    if (supabase) {
+      try {
+        // The server-side sign-out can fail offline, and then supabase-js keeps
+        // the session; the local sign-out always ends it on this device.
+        const result = await within(supabase.auth.signOut(), 5000);
+        if (!result || result.error) await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      }
+    }
+    // Even the "local" sign-out in supabase-js calls the server and keeps the
+    // session when that call fails (auth-js 2.110), so the session itself is
+    // removed from this device by hand: every sb-* cookie (the SSR client keeps
+    // the token there, sometimes in chunks) and every sb-* storage key.
+    forgetSessionOnDevice();
+    tokenRef.current = null;
+    loadedFor.current = null;
     setUser(null);
     setProfile(null);
-    // Clear this device so the next person doesn't see the signed-out
-    // student's progress. Their work is already safe in the cloud (synced above).
-    clearLocalProgress();
+    clearPersonalDeviceData();
+    // A full load of the home page: no screen, cache or conversation of the
+    // signed-out student survives in memory for the next person.
+    window.location.assign("/");
   }
 
   async function switchRole(role: UserRole, code?: string): Promise<string | null> {

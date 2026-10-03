@@ -189,14 +189,18 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
     <Ctx.Provider value={api}>
       {children}
 
-      {/* The corner pen, on any page with a problem on it. */}
+      {/* The corner pen, on any page with a problem on it. From lg up it
+          sits clear of the sidebar (w-60) and its Continue card. Phones go
+          without it: the problem card and the game question each carry their
+          own Draw button, and a third circle would cover the lesson. Under
+          the phone menu's scrim (z-40), like the other corner buttons. */}
       {surfaces > 0 && !drawing && (
         <button
           type="button"
           onClick={toggle}
           aria-label="Draw on the screen"
           title="Draw on the screen"
-          className={`fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2 ${
+          className={`fixed bottom-5 left-5 z-[35] hidden h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:-translate-y-px focus:outline-none sm:flex lg:left-[calc(15rem+1.25rem)] focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2 ${
             hasMarks ? "bg-bridge-600 text-white" : "bg-white text-slate-700 ring-1 ring-inset ring-slate-200"
           }`}
         >

@@ -12,6 +12,7 @@ import { Icon } from "@/components/Icon";
 import { useAppNavState } from "@/components/AppNavProvider";
 import { isActivePath } from "@/lib/nav";
 import { withSchoolsLink } from "@/components/SideNav";
+import { useSchoolMode } from "@/components/SchoolModePanel";
 import { initialsOf } from "@/lib/name";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -24,6 +25,7 @@ export function Header() {
   const pathname = usePathname();
   const { sections, continueTarget, stats, mounted, unread } = useAppNavState();
   const { user, profile, loading, signOut, needsRealName } = useAuth();
+  const school = useSchoolMode();
   // Level, streak and Bridgeys are the student's own game layer. A signed-out
   // visitor has earned none of it, and a teacher is not playing it.
   const gameLayer = !!user && !!profile && profile.role !== "teacher";
@@ -150,7 +152,8 @@ export function Header() {
             />
           </div>
 
-          {continueTarget && (
+          {/* Not on the very lesson it leads to. */}
+          {continueTarget && pathname !== `/learn/${continueTarget.unitId}/${continueTarget.skillId}` && (
             <Link
               href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
               className="inline-flex h-9 items-center rounded-xl bg-bridge-600 px-3.5 text-xs font-semibold text-white transition hover:bg-bridge-700 lg:hidden"
@@ -216,7 +219,8 @@ export function Header() {
                   <div className="p-1.5">
                     <MenuLink href="/login" label="Account settings" />
                     <MenuLink href="/profile" label="Edit profile" />
-                    <MenuLink href="/messages" label="Messages" badge={unread} />
+                    {/* School mode turns messages off (src/lib/school-mode.ts). */}
+                    {!school && <MenuLink href="/messages" label="Messages" badge={unread} />}
                     <button
                       type="button"
                       onClick={() => signOut()}

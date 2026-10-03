@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
-import { GameChip, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
+import { GameChip, GameHowTo, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { Player } from "@/components/games/Players";
 import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
@@ -423,12 +423,12 @@ export function CourtGame({
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto">
+        <GameHowTo id={`court-${gameId}`}>
           <span className="sm:hidden">Drag to move. Get to {game.target}.</span>
           <span className="hidden sm:inline">
             Arrows or WASD to move, drag on a phone. Get to {game.target}. Space for a move. Unit {source.unitNumber} problems, in your head.
           </span>
-        </p>
+        </GameHowTo>
       </div>
 
       {open && (

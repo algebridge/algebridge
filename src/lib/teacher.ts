@@ -308,21 +308,68 @@ export async function addStudentToClass(classId: string, studentId: string): Pro
 
 export interface BulkAddResult {
   added: string[];
+  /**
+   * Invited, not yet on the roster: once supabase/schema-2026-10-03-safety.sql
+   * has run, a student joins only by accepting (on their Profile page) or
+   * with the class code, so nobody is put in a class without knowing.
+   */
+  invited: string[];
   alreadyIn: string[];
   notFound: string[];
   failed: { email: string; reason: string }[];
+}
+
+type InviteOutcome =
+  | { status: "invited"; studentId: string; name: string | null }
+  | { status: "not-found" }
+  /** invite_student_to_class is not in the database yet: the old direct add applies. */
+  | { status: "no-invites" }
+  | { status: "error"; message: string };
+
+/** Invite one student account, by email, to a class this teacher owns. */
+async function inviteStudentByEmail(classId: string, email: string): Promise<InviteOutcome> {
+  const supabase = createClient();
+  if (!supabase) return { status: "error", message: "Cloud login is not configured yet." };
+  const { data, error } = await supabase.rpc("invite_student_to_class", { p_class: classId, p_email: email });
+  if (error) {
+    const text = `${error.code ?? ""} ${error.message ?? ""}`;
+    if (/PGRST202|42883|could not find the function/i.test(text)) return { status: "no-invites" };
+    if (/P0002|no student account/i.test(text)) return { status: "not-found" };
+    return { status: "error", message: error.message || "That invite did not go through." };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as { student_id?: unknown; display_name?: unknown } | null;
+  if (!row || typeof row.student_id !== "string") return { status: "not-found" };
+  return { status: "invited", studentId: row.student_id, name: typeof row.display_name === "string" ? row.display_name : null };
+}
+
+/** Is this student already on this class's roster? The teacher can read their own roster. */
+async function onRoster(classId: string, studentId: string): Promise<boolean> {
+  const supabase = createClient();
+  if (!supabase) return false;
+  const { data } = await supabase
+    .from("class_members")
+    .select("student_id")
+    .eq("class_id", classId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+  return !!data;
 }
 
 /**
  * Add a whole roster at once. Teachers paste a column of emails out of their
  * SIS or a spreadsheet; anything separated by commas, semicolons, spaces or
  * newlines is accepted.
+ *
+ * Once supabase/schema-2026-10-03-safety.sql has run, each student gets an
+ * invite (invite_student_to_class) and joins when they accept it, so the
+ * result lists them under `invited`. Before it runs, that function does not
+ * exist and students are added straight to the roster, as before.
  */
 export async function addStudentsByEmail(
   classId: string,
   rawEmails: string
 ): Promise<BulkAddResult> {
-  const result: BulkAddResult = { added: [], alreadyIn: [], notFound: [], failed: [] };
+  const result: BulkAddResult = { added: [], invited: [], alreadyIn: [], notFound: [], failed: [] };
   const emails = Array.from(
     new Set(
       rawEmails
@@ -332,7 +379,25 @@ export async function addStudentsByEmail(
     )
   );
 
+  let invites = true;
   for (const email of emails) {
+    if (invites) {
+      const outcome = await inviteStudentByEmail(classId, email);
+      if (outcome.status === "invited") {
+        if (await onRoster(classId, outcome.studentId)) result.alreadyIn.push(outcome.name ?? email);
+        else result.invited.push(outcome.name ?? email);
+        continue;
+      }
+      if (outcome.status === "not-found") {
+        result.notFound.push(email);
+        continue;
+      }
+      if (outcome.status === "error") {
+        result.failed.push({ email, reason: outcome.message });
+        continue;
+      }
+      invites = false; // no invites in this database yet: add directly, as before
+    }
     const student = await findStudentByEmail(email);
     if (!student) {
       result.notFound.push(email);
@@ -400,6 +465,41 @@ function toAssignment(row: AssignmentRow, fallbackPosition: number): ClassAssign
     position: row.sort_order ?? fallbackPosition,
     createdAt: row.created_at,
   };
+}
+
+export interface ClassInvite {
+  classId: string;
+  className: string;
+  teacherName: string | null;
+  invitedAt: string;
+}
+
+/**
+ * The classes a teacher has invited this student to (my_class_invites, added
+ * by supabase/schema-2026-10-03-safety.sql). Null when the database does not
+ * have invites yet, so the page shows nothing rather than an empty list.
+ */
+export async function getMyClassInvites(): Promise<ClassInvite[] | null> {
+  const supabase = createClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("my_class_invites");
+  if (error || !Array.isArray(data)) return null;
+  return (data as Record<string, unknown>[]).map((r) => ({
+    classId: String(r.class_id),
+    className: String(r.class_name ?? "A class"),
+    teacherName: typeof r.teacher_name === "string" ? r.teacher_name : null,
+    invitedAt: String(r.invited_at ?? ""),
+  }));
+}
+
+/** Join a class this student was invited to, or say no thanks. */
+export async function answerClassInvite(classId: string, accept: boolean): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud login is not configured yet.";
+  const { error } = await supabase.rpc("answer_class_invite", { p_class: classId, p_accept: accept });
+  if (!error) return null;
+  if (/P0002|no invite/i.test(`${error.code ?? ""} ${error.message ?? ""}`)) return "That invite is no longer open.";
+  return error.message || "That did not go through. Try again in a moment.";
 }
 
 export interface AssignmentsResult {

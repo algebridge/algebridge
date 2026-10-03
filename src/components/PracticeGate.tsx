@@ -28,7 +28,8 @@ const BULLETS = [
 export function PracticeGate({ children, activity = "practice", freeNote }: PracticeGateProps) {
   return (
     <AuthGate
-      title={`Sign in to ${activity}`}
+      // The title says what the primary button does: "Create free account".
+      title={`Create a free account to ${activity}`}
       blurb="Practice is saved to your account so your work counts toward your skills, your teacher can see how you're doing, and nothing is lost when you switch devices. Creating an account takes about 20 seconds and it's free."
       bullets={BULLETS}
       freeNote={freeNote}

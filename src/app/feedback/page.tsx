@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { CrisisCard } from "@/components/helper/CrisisCard";
+import { CRISIS_REPLY, detectCrisis } from "@/lib/helper";
 import { StarGlyph, StarRating, StarsDisplay, starCountLabel } from "@/components/StarRating";
 import { useAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +18,11 @@ import { createClient } from "@/lib/supabase/client";
  * offer to leave one right after any other feedback is sent. A review is 1 to
  * 5 stars plus a few words on why. Only the AlgeBridge team reads them (the
  * admin console); they are never posted anywhere.
+ *
+ * Whatever a student writes here is also read for signs they are in danger
+ * (detectCrisis, the same list Archie uses). Feedback is not read right away,
+ * so the crisis card is shown with it: a trusted adult, 988 and the Crisis
+ * Text Line. The feedback itself is still sent, as the student asked.
  */
 
 const KINDS: { id: string; label: string; hint: string }[] = [
@@ -33,6 +40,22 @@ type Outcome = "ok" | "slow-down" | "email";
 
 const MAX = 2000;
 const SLOW_DOWN = "That is a lot of feedback in a short time. Give it a few minutes.";
+const CRISIS_NOTE =
+  "Feedback is read by the AlgeBridge team, but not right away, so please reach a real person who can help you now.";
+
+/** The crisis card, focused when it appears so a screen reader reads it out. */
+function FeedbackCrisis() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, []);
+  return (
+    <div ref={ref} tabIndex={-1} className="scroll-mt-28 focus-visible:outline-none">
+      <CrisisCard reply={CRISIS_REPLY} voice="plain" note={CRISIS_NOTE} />
+    </div>
+  );
+}
 
 // After a review, this device stops offering another one for a while.
 const REVIEWED_KEY = "algebridge-reviewed-at";
@@ -121,6 +144,8 @@ export default function FeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<{ kind: string; rating: number } | null>(null);
   const [offerReview, setOfferReview] = useState(false);
+  /** What the student wrote sounded like they are in danger. */
+  const [crisis, setCrisis] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -142,6 +167,9 @@ export default function FeedbackPage() {
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!ready || state === "sending") return;
+    // Read before anything else, so the help shows whatever happens to the send.
+    const worried = !!detectCrisis(message);
+    setCrisis(worried);
     setState("sending");
     setError(null);
     const outcome = await postFeedback({
@@ -154,7 +182,7 @@ export default function FeedbackPage() {
     if (outcome === "ok") {
       if (isReview) rememberReview();
       setSent({ kind, rating: isReview ? rating : 0 });
-      setOfferReview(!isReview && !reviewedRecently());
+      setOfferReview(!isReview && !worried && !reviewedRecently());
       setState("sent");
       return;
     }
@@ -171,6 +199,7 @@ export default function FeedbackPage() {
     setRating(0);
     setKind(nextKind);
     setSent(null);
+    setCrisis(false);
     setState("idle");
   }
 
@@ -187,6 +216,11 @@ export default function FeedbackPage() {
 
       {state === "sent" && sent ? (
         <section className="panel">
+          {crisis && (
+            <div className="border-b border-slate-100 p-4 sm:p-5">
+              <FeedbackCrisis />
+            </div>
+          )}
           {sent.kind === "review" ? (
             <div className="flex items-start gap-3 p-6">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50">
@@ -318,6 +352,8 @@ export default function FeedbackPage() {
 
             {error && <p className="notice-warn">{error}</p>}
 
+            {crisis && state !== "sending" && <FeedbackCrisis />}
+
             {state === "email" && <EmailFallback href={mailtoFor(kind, message, page, contact, rating)} />}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
@@ -350,6 +386,7 @@ function ReviewOffer({ page, contact }: { page: string; contact: string }) {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"ask" | "sending" | "sent" | "email" | "later">("ask");
   const [error, setError] = useState<string | null>(null);
+  const [crisis, setCrisis] = useState(false);
   const ready = rating > 0 && message.trim().length >= 3;
 
   if (status === "later") return null;
@@ -362,6 +399,11 @@ function ReviewOffer({ page, contact }: { page: string; contact: string }) {
           <span className="font-semibold text-slate-900">Thanks for the review.</span>
           <span className="text-slate-600">It goes straight to the people who build AlgeBridge.</span>
         </div>
+        {crisis && (
+          <div className="mt-4">
+            <FeedbackCrisis />
+          </div>
+        )}
       </div>
     );
   }
@@ -369,6 +411,7 @@ function ReviewOffer({ page, contact }: { page: string; contact: string }) {
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!ready || status === "sending") return;
+    setCrisis(!!detectCrisis(message));
     setStatus("sending");
     setError(null);
     const outcome = await postFeedback({ kind: "review", rating, message: message.trim(), contact, page });
@@ -415,6 +458,11 @@ function ReviewOffer({ page, contact }: { page: string; contact: string }) {
       )}
 
       {error && <p className="notice-warn mt-3">{error}</p>}
+      {crisis && status !== "sending" && (
+        <div className="mt-3">
+          <FeedbackCrisis />
+        </div>
+      )}
       {status === "email" && (
         <div className="mt-3">
           <EmailFallback href={mailtoFor("review", message, page, contact, rating)} />

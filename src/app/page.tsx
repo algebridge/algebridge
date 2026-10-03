@@ -23,32 +23,34 @@ export default function HomePage() {
     <div className="space-y-6">
       <CourseHeader />
 
-      <GamesBanner />
-
-      {/* The course outline itself is behind a free account. The header above
-          and the steps below stay open, so a visitor can still see how
-          AlgeBridge works before signing up. */}
-      <CourseGate>
-        <div className="space-y-6">
-          <AssignedWork />
-
-          <section id="units">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <h2 className="section-title">Course outline</h2>
-              <p className="text-sm text-slate-500">
-                {units.length} units · {TOTAL_SKILLS} skills
-              </p>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {units.map((unit) => (
-                <UnitCard key={unit.id} unit={unit} />
-              ))}
-            </div>
-          </section>
-
-          <ProgressOverview />
-        </div>
+      {/* A student's class assignments, first. Nothing shows for a visitor. */}
+      <CourseGate quiet>
+        <AssignedWork />
       </CourseGate>
+
+      {/* The outline is open to everyone, the same list the For schools
+          page shows, so a visitor sees what the course is. Each unit's path
+          and its lessons are behind a free account (the unit pages gate). */}
+      <section id="units">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 className="section-title">Course outline</h2>
+          <p className="text-sm text-slate-500">
+            {units.length} units · {TOTAL_SKILLS} skills
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {units.map((unit) => (
+            <UnitCard key={unit.id} unit={unit} />
+          ))}
+        </div>
+      </section>
+
+      {/* A visitor gets the sign-up panel here, right under the outline. */}
+      <CourseGate>
+        <ProgressOverview />
+      </CourseGate>
+
+      <GamesBanner />
 
       {/* Why the course is worth the work, in the words of people who built
           the subject. Every quote is real and carries its source. */}

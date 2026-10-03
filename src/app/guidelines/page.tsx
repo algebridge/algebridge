@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Community Guidelines, AlgeBridge" };
+export const metadata = { title: "Community Guidelines" };
 
 export default function GuidelinesPage() {
   return (

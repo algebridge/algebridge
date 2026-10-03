@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { MathText, PromptText } from "@/components/PromptText";
 import { SignKeys } from "@/components/SignKeys";
@@ -24,8 +24,8 @@ export interface GameVerdict {
 
 /**
  * The problem a game stops for, over everything: the same card on the rink
- * and on every court. Head math, so the calculator stays away; the pen in
- * the corner is there for working it out.
+ * and on every court. Head math, so the calculator stays away; the Draw
+ * button on the card is there for working it out.
  */
 export function GameProblemDialog({
   open,
@@ -85,7 +85,8 @@ export function GameProblemDialog({
                     className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
                   >
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
-                      {String.fromCharCode(65 + i)}
+                      {/* Numbered like practice, where the 1-4 keys pick a choice. */}
+                      {i + 1}
                     </span>
                     <MathText text={choice} />
                   </button>
@@ -160,5 +161,49 @@ export function GameChip({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center gap-1 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-slate-800 sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
       {children}
     </span>
+  );
+}
+
+const HOW_TO_SEEN = "algebridge:game-howto:";
+const HOW_TO_MS = 4000;
+
+/**
+ * How to play, over the court. For the first 4 seconds of someone's first
+ * game of each kind it sits large in the middle, where it gets read; then
+ * it goes back to its small place at the bottom. Marked as seen only once
+ * it has shown in full, so leaving at once shows it again next time.
+ */
+export function GameHowTo({ id, children }: { id: string; children: React.ReactNode }) {
+  const [intro, setIntro] = useState(false);
+  useEffect(() => {
+    const key = HOW_TO_SEEN + id;
+    try {
+      if (window.localStorage.getItem(key)) return;
+    } catch {
+      // No storage (a private window): the line stays in its usual place.
+      return;
+    }
+    setIntro(true);
+    const timer = window.setTimeout(() => {
+      setIntro(false);
+      try {
+        window.localStorage.setItem(key, "1");
+      } catch {
+        /* Remembering it is a nicety. */
+      }
+    }, HOW_TO_MS);
+    return () => window.clearTimeout(timer);
+  }, [id]);
+  return (
+    <p
+      className={
+        intro
+          ? "animate-pop-in pointer-events-none absolute left-1/2 top-1/2 w-max max-w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white/95 px-4 py-3 text-center text-sm font-semibold text-slate-800 shadow-lg"
+          : "pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto"
+      }
+      style={intro ? { zIndex: 900 } : undefined}
+    >
+      {children}
+    </p>
   );
 }

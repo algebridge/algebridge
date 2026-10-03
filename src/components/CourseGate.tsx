@@ -14,14 +14,17 @@ const BULLETS = [
 ];
 
 /**
- * The course itself is behind a free account: the outline, the units, and the
- * lessons. Signed-out visitors still get the pitch above this gate on each
- * page, so they can see what they're signing up for before they do.
+ * The course itself is behind a free account: each unit's path and the
+ * lessons. Signed-out visitors still see the course outline on the home page
+ * (the same list the For schools page shows) and the pitch above this gate
+ * on each page, so they can see what they're signing up for before they do.
  */
-export function CourseGate({ children }: { children: React.ReactNode }) {
+export function CourseGate({ children, quiet = false }: { children: React.ReactNode; quiet?: boolean }) {
   return (
     <AuthGate
-      title="Sign up to open the course"
+      quiet={quiet}
+      // The title says what the primary button does.
+      title="Create a free account to open the lessons"
       blurb="The whole Algebra 1 course is free. The account is what makes it yours: lessons unlock, your work saves as you go, and your teacher or tutor can see where you are. It takes about 20 seconds."
       bullets={BULLETS}
       badge="Free forever"

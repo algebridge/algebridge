@@ -13,6 +13,11 @@ interface NotebookProps {
   /** Compact styling for embedding inside the call room. */
   compact?: boolean;
   className?: string;
+  /**
+   * The page already says "My notebook" in its h1: the card's own title is
+   * then read by screen readers only, and still names the text box.
+   */
+  hideTitle?: boolean;
 }
 
 /**
@@ -20,7 +25,7 @@ interface NotebookProps {
  * in (so it follows them across devices) and falls back to localStorage
  * otherwise. Debounced so we don't hammer the network on every keystroke.
  */
-export function Notebook({ compact = false, className = "" }: NotebookProps) {
+export function Notebook({ compact = false, className = "", hideTitle = false }: NotebookProps) {
   const { user, configured } = useAuth();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -116,21 +121,37 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
           ? "Couldn't save"
           : "";
 
+  const title = (
+    // h2: it sits right under the page title (the notebook page, a call room).
+    <h2
+      id="notebook-title"
+      className={hideTitle ? "sr-only" : `flex items-center gap-1.5 font-bold text-slate-900 ${compact ? "text-sm" : ""}`}
+    >
+      <Icon name="notebook" size={compact ? 15 : 17} className="text-bridge-600" />
+      Notebook
+    </h2>
+  );
+  const status = (
+    <span
+      className={`ml-auto shrink-0 text-xs ${saveState === "error" ? "text-red-500" : "text-slate-400"}`}
+      aria-live="polite"
+    >
+      {statusText}
+    </span>
+  );
+
   return (
     <div className={`flex h-full flex-col ${className}`}>
-      <div className="mb-2 flex items-center justify-between">
-        {/* h2: it sits right under the page title (the notebook page, a call room). */}
-        <h2 id="notebook-title" className={`flex items-center gap-1.5 font-bold text-slate-900 ${compact ? "text-sm" : ""}`}>
-          <Icon name="notebook" size={compact ? 15 : 17} className="text-bridge-600" />
-          Notebook
-        </h2>
-        <span
-          className={`text-xs ${saveState === "error" ? "text-red-500" : "text-slate-400"}`}
-          aria-live="polite"
-        >
-          {statusText}
-        </span>
-      </div>
+      {/* With the title hidden, the save status goes under the text box, so
+          it never pushes the box down mid-sentence or leaves an empty band. */}
+      {hideTitle ? (
+        title
+      ) : (
+        <div className="mb-2 flex items-center justify-between">
+          {title}
+          {status}
+        </div>
+      )}
       <textarea
         value={content}
         onChange={(e) => handleChange(e.target.value)}
@@ -145,10 +166,15 @@ export function Notebook({ compact = false, className = "" }: NotebookProps) {
           compact ? "text-sm" : "min-h-[60vh] text-base"
         }`}
       />
-      {!cloud && !loading && (
-        <p className="mt-2 text-xs text-slate-400">
-          Sign in to save your notebook to your account and open it on any device.
-        </p>
+      {(hideTitle || (!cloud && !loading)) && (
+        <div className="mt-2 flex min-h-4 items-start gap-3">
+          {!cloud && !loading && (
+            <p className="text-xs text-slate-400">
+              Sign in to save your notebook to your account and open it on any device.
+            </p>
+          )}
+          {hideTitle && status}
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Icon } from "@/components/Icon";
 import { withoutEmoji } from "@/components/RewardMark";
@@ -40,6 +40,22 @@ export default function LeaderboardPage() {
   const [optIn, setOptIn] = useState(false);
   const [joining, setJoining] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  /** Arrow keys, Home and End move between the tabs and pick one (the ARIA tabs pattern). */
+  function onTabKey(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    const last = SORT_OPTIONS.length - 1;
+    const next =
+      e.key === "ArrowRight" ? (index === last ? 0 : index + 1)
+      : e.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
+      : e.key === "Home" ? 0
+      : e.key === "End" ? last
+      : null;
+    if (next === null) return;
+    e.preventDefault();
+    setSort(SORT_OPTIONS[next].id);
+    tabRefs.current[next]?.focus();
+  }
 
   const loadBoard = useCallback(
     async (currentSort: LeaderboardSort) => {
@@ -149,14 +165,21 @@ export default function LeaderboardPage() {
       {user && (
       <>
       <div role="tablist" aria-label="Rank by" className="inline-flex w-full gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto">
-        {SORT_OPTIONS.map((option) => {
+        {SORT_OPTIONS.map((option, index) => {
           const active = sort === option.id;
           return (
             <button
               key={option.id}
+              ref={(el) => {
+                tabRefs.current[index] = el;
+              }}
+              id={`board-tab-${option.id}`}
               type="button"
               role="tab"
               aria-selected={active}
+              aria-controls="board-panel"
+              tabIndex={active ? 0 : -1}
+              onKeyDown={(e) => onTabKey(e, index)}
               onClick={() => setSort(option.id)}
               className={`flex-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-semibold transition sm:flex-none sm:px-4 sm:text-sm ${
                 active ? "bg-white text-bridge-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
@@ -168,6 +191,7 @@ export default function LeaderboardPage() {
         })}
       </div>
 
+      <div id="board-panel" role="tabpanel" aria-labelledby={`board-tab-${sort}`} aria-busy={loading} className="space-y-6">
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -266,6 +290,7 @@ export default function LeaderboardPage() {
           )}
         </>
       )}
+      </div>
 
       </>
       )}
@@ -310,7 +335,7 @@ export default function LeaderboardPage() {
       )}
 
       {profile && (
-        <p className="text-center text-xs text-slate-400">Signed in as {profile.displayName ?? profile.email}</p>
+        <p className="text-center text-xs text-slate-500">Signed in as {profile.displayName ?? profile.email}</p>
       )}
 
       <p className="text-center text-sm text-slate-500">
@@ -333,7 +358,9 @@ function RankBadge({ rank }: { rank: number }) {
           ? "bg-orange-300 text-orange-950"
           : "bg-slate-100 text-slate-600";
   return (
-    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold tabular-nums ${tone}`} aria-label={`Rank ${rank}`}>
+    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold tabular-nums ${tone}`}>
+      {/* aria-label on a plain span is not read out; the words are. */}
+      <span className="sr-only">Rank </span>
       {rank}
     </span>
   );

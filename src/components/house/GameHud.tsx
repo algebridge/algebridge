@@ -69,7 +69,8 @@ export function GameHud({ houseStyleId, onExit, mode, hint, view, onView, night 
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* ml-auto: on a phone it stays in the Front and Backyard row, as an icon. */}
+      <div className="ml-auto flex items-center gap-3">
         {hint && <p className="hidden text-xs text-slate-500 sm:block">{hint}</p>}
         {onNight && (
           <button
@@ -91,7 +92,8 @@ export function GameHud({ houseStyleId, onExit, mode, hint, view, onView, night 
                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
               )}
             </svg>
-            {night ? "Morning" : "Night"}
+            {/* The word stays the button's name on a phone, where only the icon shows. */}
+            <span className="sr-only sm:not-sr-only">{night ? "Morning" : "Night"}</span>
           </button>
         )}
       </div>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getUnit, units } from "@/data/curriculum";
@@ -11,6 +12,13 @@ import { Icon } from "@/components/Icon";
 
 export function generateStaticParams() {
   return units.map((unit) => ({ unitId: unit.id }));
+}
+
+/** The tab says which unit, for a teacher with many open. */
+export async function generateMetadata({ params }: { params: Promise<{ unitId: string }> }): Promise<Metadata> {
+  const { unitId } = await params;
+  const unit = getUnit(unitId);
+  return unit ? { title: `Unit ${unit.number}: ${unit.title}` } : {};
 }
 
 export default async function UnitPage({
@@ -33,9 +41,6 @@ export default async function UnitPage({
       {/* The unit's banner stays open so a shared link still says what it
           leads to. The skills behind it need an account. */}
       <UnitProgressHeader unit={unit} />
-
-      {/* A mathematician on this unit's ground, source and all. */}
-      <QuoteCard quote={quoteForUnit(unit.id)} variant="banner" />
 
       <CourseGate>
         <div className="space-y-6">
@@ -65,6 +70,10 @@ export default async function UnitPage({
           </div>
         </div>
       </CourseGate>
+
+      {/* A mathematician on this unit's ground, source and all. Below the
+          path, so the path is the first thing under the unit's banner. */}
+      <QuoteCard quote={quoteForUnit(unit.id)} variant="banner" />
     </div>
   );
 }

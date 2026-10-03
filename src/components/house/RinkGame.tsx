@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
-import { GameChip, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
+import { GameChip, GameHowTo, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
 import { useSound } from "@/hooks/useSound";
@@ -359,14 +359,14 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto">
+        <GameHowTo id="rink">
           <span className="sm:hidden">Drag to skate. Go through the ring.</span>
           <span className="hidden sm:inline">
             {source.borrowed
               ? `Arrows or WASD to skate, drag on a phone. Unit ${source.unitNumber} problems, since your unit has none that work in the head.`
               : `Arrows or WASD to skate, drag on a phone. Space spins. Unit ${source.unitNumber} problems, in your head.`}
           </span>
-        </p>
+        </GameHowTo>
       </div>
 
       {/* The problem, over everything. Head math: nothing here needs paper. */}

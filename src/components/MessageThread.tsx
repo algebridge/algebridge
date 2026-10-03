@@ -134,8 +134,19 @@ export function MessageThread({
         )}
       </div>
 
-      {/* Messages */}
-      <div data-lenis-prevent className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+      {/* Messages. Once loaded, the list is a log: a screen reader reads each
+          new message as it arrives, politely, and not the whole history when
+          the thread opens (a live region announces changes, not what it was
+          mounted with, so it is mounted after the load). */}
+      <div
+        key={loading || blocked ? "waiting" : "log"}
+        data-lenis-prevent
+        tabIndex={0}
+        {...(loading || blocked
+          ? { role: "group", "aria-label": "Messages" }
+          : { role: "log", "aria-live": "polite" as const, "aria-relevant": "additions" as const, "aria-label": `Messages with ${otherName ?? "this person"}` })}
+        className="flex-1 space-y-2 overflow-y-auto px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500"
+      >
         {blocked ? (
           <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 text-center">
             <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 ring-1 ring-slate-200" aria-hidden>

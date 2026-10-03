@@ -25,7 +25,16 @@ import { cleanReport, reportColumns, reportMessage } from "@/lib/safety";
 
 const KINDS = new Set(["review", "broken", "confusing", "idea", "problem", "love", "other", "report"]);
 const MAX_MESSAGE = 2000;
-const allow = makeRateLimiter(20, 10 * 60 * 1000);
+const WINDOW_MS = 10 * 60 * 1000;
+const allow = makeRateLimiter(20, WINDOW_MS);
+// Reports have their own limits, so feedback never uses them up. A whole
+// school sits behind one address, so the real limit is per reporter, keyed on
+// the account id Supabase vouched for (never on anything the client says).
+// The per-address cap is only there to stop a script, far past any class.
+// The database adds its own: 30 reports an hour per account, once
+// supabase/schema-2026-10-03-safety.sql has run.
+const reportsByAddress = makeRateLimiter(300, WINDOW_MS);
+const reportsByReporter = makeRateLimiter(10, WINDOW_MS);
 
 /** PostgREST's answer when the rating column has not been added yet. */
 function missingRatingColumn(status: number, text: string): boolean {
@@ -38,6 +47,11 @@ function missingRatingColumn(status: number, text: string): boolean {
 function missingReportColumns(status: number, text: string): boolean {
   if (!/report_|reported_user_id/i.test(text)) return false;
   return (status === 400 && /PGRST204/.test(text)) || /42703/.test(text);
+}
+
+/** check_report's own limit, from supabase/schema-2026-10-03-safety.sql. */
+function tooManyReports(text: string): boolean {
+  return /\b54000\b|Too many reports/i.test(text);
 }
 
 /** 404 with PGRST205 means the table has not been created yet. */
@@ -125,7 +139,7 @@ async function storeReport(request: Request, body: { report?: unknown; page?: un
   if (!report) return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
   const token = typeof body.token === "string" ? body.token : "";
   if (!token) return NextResponse.json({ ok: false, reason: "sign-in" }, { status: 401 });
-  if (!allow(clientKey(request))) return NextResponse.json({ ok: false, reason: "slow-down" }, { status: 429 });
+  if (!reportsByAddress(clientKey(request))) return NextResponse.json({ ok: false, reason: "slow-down" }, { status: 429 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -138,6 +152,7 @@ async function storeReport(request: Request, body: { report?: unknown; page?: un
   if (!who) return NextResponse.json({ ok: false, reason: "unreachable" });
   const reporter = who.ok ? ((await who.json().catch(() => null)) as { id?: unknown } | null)?.id : null;
   if (typeof reporter !== "string" || !reporter) return NextResponse.json({ ok: false, reason: "sign-in" }, { status: 401 });
+  if (!reportsByReporter(reporter)) return NextResponse.json({ ok: false, reason: "slow-down" }, { status: 429 });
 
   const page = typeof body.page === "string" ? body.page.trim().slice(0, 300) : "";
   const insert = (row: Record<string, unknown>) =>
@@ -158,6 +173,8 @@ async function storeReport(request: Request, body: { report?: unknown; page?: un
   let stored: "columns" | "message" = "columns";
   if (res && !res.ok) {
     const text = await res.text().catch(() => "");
+    // The database's own limit (check_report: 30 an hour per account).
+    if (tooManyReports(text)) return NextResponse.json({ ok: false, reason: "slow-down" }, { status: 429 });
     if (!missingReportColumns(res.status, text)) {
       return NextResponse.json({ ok: false, reason: noTable(res.status, text) ? "no-table" : "rejected" });
     }

@@ -33,7 +33,7 @@ export function GamesBanner() {
             <h2 id="games-banner-title" className="mt-1.5 font-display text-[28px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[34px]">
               Play with the team
             </h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/85">
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-white/90">
               Skate with Veronica, wrestle with Shaurya, cheer with Jo, spike with Jordyn, or score with Rayla. Each game
               stops for a quick head-math question from the unit you are on, and every right answer pays.
             </p>
@@ -47,7 +47,7 @@ export function GamesBanner() {
                 </svg>
                 Play now
               </Link>
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white">
                 <BridgeysLogo size={14} />
                 Up to {RINK_DAILY_CAP} Bridgeys a day
               </span>

@@ -45,47 +45,56 @@ export default function AchievementsPage() {
         </p>
       </header>
 
+      {/* Three stats, one shape: an icon tile, a label, the number in the
+          display face, and a line under it. */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-bridge-600">
-                Level {mounted ? level.level : 1}
-              </p>
-              <h2 className="mt-1 text-xl font-bold text-slate-900">{level.title}</h2>
-            </div>
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-bridge-50 text-bridge-600 ring-1 ring-inset ring-bridge-100" aria-hidden>
-              <Icon name="star" size={26} />
-            </span>
+        <div className="card flex flex-col gap-3">
+          <StatTile tone="bg-bridge-50 text-bridge-600 ring-bridge-100">
+            <Icon name="star" size={20} />
+          </StatTile>
+          <div>
+            <p className="eyebrow">Level</p>
+            <p className="mt-1.5 font-display text-4xl leading-none text-slate-900 tabular-nums">{mounted ? level.level : 1}</p>
+            <p className="mt-1.5 text-sm text-slate-600">{level.title}</p>
           </div>
-          <div className="mt-4">
+          <div className="mt-auto">
             <ProgressBar
               value={level.xpIntoLevel}
               max={level.xpForNextLevel}
               label="XP to next level"
               unit="XP"
             />
+            <p className="mt-2 text-xs text-slate-500">{mounted ? xp : 0} total XP earned</p>
           </div>
-          <p className="mt-2 text-xs text-slate-500">{mounted ? xp : 0} total XP earned</p>
         </div>
 
-        <div className="card flex items-center gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-inset ring-orange-100" aria-hidden>
-            <Icon name="flame" size={26} />
-          </span>
+        <div className="card flex flex-col gap-3">
+          <StatTile tone="bg-orange-50 text-orange-600 ring-orange-100">
+            <Icon name="flame" size={20} />
+          </StatTile>
           <div>
-            <p className="text-2xl font-bold text-orange-600">{mounted ? streak : 0}-day streak</p>
-            <p className="mt-1 text-sm text-slate-600">
-              Practice at least once a day to keep your streak alive.
+            <p className="eyebrow">Streak</p>
+            <p className="mt-1.5 font-display text-4xl leading-none text-slate-900 tabular-nums">
+              {mounted ? streak : 0} {(mounted ? streak : 0) === 1 ? "day" : "days"}
+            </p>
+            <p className="mt-1.5 text-sm text-slate-600">
+              {mounted && streak > 0
+                ? "Practice at least once a day to keep your streak alive."
+                : "Practice today to start a streak."}
             </p>
           </div>
         </div>
 
-        <Link href="/house" className="card flex items-center gap-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-raised">
-          <BridgeysLogo size={48} />
+        <Link href="/house" className="card flex flex-col gap-3 transition duration-200 ease-out hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-raised">
+          <StatTile tone="bg-amber-50 ring-amber-100">
+            <BridgeysLogo size={24} />
+          </StatTile>
           <div>
-            <p className="text-2xl font-bold text-amber-700">{mounted ? bridgeys.toLocaleString() : 0} Bridgeys</p>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="eyebrow">Bridgeys</p>
+            <p className="mt-1.5 font-display text-4xl leading-none text-slate-900 tabular-nums">
+              {mounted ? bridgeys.toLocaleString() : 0}
+            </p>
+            <p className="mt-1.5 text-sm text-slate-600">
               {equippedTitle ? (
                 `Title: ${equippedTitle}`
               ) : (
@@ -103,7 +112,8 @@ export default function AchievementsPage() {
         <h2 className="section-title">
           Badges {mounted && <span className="text-sm font-normal text-slate-500">({earnedBadges.length} of {BADGES.length} unlocked)</span>}
         </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Two columns: ten badges make five even rows, and each description fits on a line or two. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {BADGES.map((badge) => {
             const earned = earnedBadges.includes(badge.id);
             return (
@@ -142,5 +152,14 @@ export default function AchievementsPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** The 40px icon tile at the top of each stat card. */
+function StatTile({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return (
+    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ring-1 ring-inset ${tone}`} aria-hidden>
+      {children}
+    </span>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { createAlgeGroup, listMyGroups } from "@/lib/groups";
 import { listAllStudents } from "@/lib/social";
 import type { GroupInfo, StudentDirectoryEntry } from "@/types";
 import { Icon } from "@/components/Icon";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 export default function GroupsPage() {
   const { user, profile, loading } = useAuth();
@@ -19,6 +20,10 @@ export default function GroupsPage() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // The New AlgeGroup dialog: focus moves in, Tab stays inside, Escape closes,
+  // and focus goes back to the button that opened it.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, creating, () => setCreating(false));
 
   const isTutor = profile?.role === "tutor" || (profile?.isAdmin ?? false);
 
@@ -76,7 +81,7 @@ export default function GroupsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Group Chats</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">
             {isTutor
               ? "The All-Tutors room, plus AlgeGroups you run with your students."
               : "AlgeGroups your tutor added you to."}
@@ -90,7 +95,7 @@ export default function GroupsPage() {
       </div>
 
       {loadingList ? (
-        <p className="text-center text-slate-400">Loading groups…</p>
+        <p className="text-center text-slate-500">Loading groups…</p>
       ) : groups.length === 0 ? (
         <div className="card text-center text-slate-600">
           You&apos;re not in any groups yet.
@@ -113,9 +118,9 @@ export default function GroupsPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400">{g.memberCount ?? 1} members</p>
+                  <p className="text-xs text-slate-500">{g.memberCount ?? 1} members</p>
                 </div>
-                <span className="text-slate-300">›</span>
+                <Icon name="arrow-right" size={16} className="text-slate-400" />
               </Link>
             </li>
           ))}
@@ -125,27 +130,51 @@ export default function GroupsPage() {
       {/* Create AlgeGroup modal */}
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCreating(false)}>
-          <div className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="border-b border-slate-100 p-4">
-              <h2 className="font-bold text-slate-900">New AlgeGroup</h2>
-              <p className="text-xs text-slate-500">A group of students you tutor together.</p>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Group name (e.g. Period 3 Algebra)"
-                className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
-              />
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-group-title"
+            aria-describedby="new-group-help"
+            className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">
+              <div className="min-w-0 flex-1">
+                <h2 id="new-group-title" className="font-bold text-slate-900">New AlgeGroup</h2>
+                <p id="new-group-help" className="text-xs text-slate-600">A group of students you tutor together.</p>
+                <label htmlFor="new-group-name" className="mt-3 block text-xs font-semibold text-slate-700">
+                  Group name
+                </label>
+                <input
+                  id="new-group-name"
+                  data-autofocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Period 3 Algebra"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreating(false)}
+                aria-label="Close"
+                className="-mr-1 -mt-1 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+              >
+                <Icon name="close" size={18} />
+              </button>
             </div>
-            <div data-lenis-prevent className="max-h-64 overflow-y-auto p-2">
+            <div data-lenis-prevent className="max-h-64 overflow-y-auto p-2" role="group" aria-label="Students to add">
               {students.length === 0 ? (
-                <p className="p-4 text-center text-sm text-slate-400">No students found.</p>
+                <p className="p-4 text-center text-sm text-slate-500">No students found.</p>
               ) : (
                 students.map((s) => (
                   <button
                     key={s.id}
                     type="button"
+                    aria-pressed={picked.has(s.id)}
                     onClick={() => toggle(s.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
                       picked.has(s.id) ? "bg-bridge-50" : "hover:bg-slate-50"
                     }`}
                   >
@@ -153,14 +182,14 @@ export default function GroupsPage() {
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
                       {s.displayName ?? s.email}
                     </span>
-                    <span className={picked.has(s.id) ? "text-bridge-600" : "text-slate-300"} aria-hidden>
+                    <span className={picked.has(s.id) ? "text-bridge-600" : "text-slate-500"} aria-hidden>
                       <Icon name={picked.has(s.id) ? "check" : "plus"} size={16} />
                     </span>
                   </button>
                 ))
               )}
             </div>
-            {err && <p className="px-4 text-sm text-red-600">{err}</p>}
+            {err && <p role="alert" className="px-4 text-sm text-red-700">{err}</p>}
             <div className="flex gap-2 border-t border-slate-100 p-4">
               <button type="button" onClick={() => setCreating(false)} className="btn-secondary flex-1">
                 Cancel

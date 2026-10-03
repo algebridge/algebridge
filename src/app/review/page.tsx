@@ -7,6 +7,7 @@ import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { getSkillsDueForReview, type ReviewItem } from "@/lib/spaced-repetition";
 import { PracticeGate } from "@/components/PracticeGate";
 import { Icon } from "@/components/Icon";
+import { useProgress } from "@/hooks/useProgress";
 
 export default function ReviewPage() {
   return (
@@ -30,6 +31,7 @@ export default function ReviewPage() {
 
 function ReviewQueue() {
   const [dueItems, setDueItems] = useState<ReviewItem[]>([]);
+  const { stats, continueTarget } = useProgress();
 
   useEffect(() => {
     const skillMeta = units.flatMap((u) =>
@@ -49,15 +51,30 @@ function ReviewQueue() {
   }, []);
 
   if (dueItems.length === 0) {
+    // What the queue does (src/lib/spaced-repetition.ts): a finished skill
+    // is due once a day has passed since it was last practiced.
+    const none = stats.completedSkills === 0;
     return (
-      <div className="card text-center">
-        <h2 className="text-base font-semibold text-slate-900">Nothing due right now</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-          Complete a few more skills and they&apos;ll show up here for review.
+      <div className="card flex flex-col items-center px-6 py-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600" aria-hidden>
+          <Icon name="review" size={24} />
+        </span>
+        <h2 className="mt-3 text-base font-semibold text-slate-900">{none ? "Nothing to review yet" : "Nothing due right now"}</h2>
+        <p className="mt-1.5 max-w-md text-sm leading-relaxed text-slate-600">
+          {none
+            ? "Finish a skill and it comes back here a day later for a quick check."
+            : "Skills you have finished come back here a day after you last practiced them."}
         </p>
-        <Link href="/" className="btn-primary mt-5 inline-flex">
-          Continue the course
-        </Link>
+        {continueTarget ? (
+          <Link href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`} className="btn-primary mt-5 inline-flex">
+            Continue: {continueTarget.skillTitle}
+            <Icon name="arrow-right" size={16} />
+          </Link>
+        ) : (
+          <Link href="/" className="btn-primary mt-5 inline-flex">
+            Continue the course
+          </Link>
+        )}
       </div>
     );
   }
