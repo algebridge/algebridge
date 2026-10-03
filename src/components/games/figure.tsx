@@ -441,8 +441,15 @@ export function Face({ id, look, smile = 0.6, blush, young = false, spec = {} }:
     <g>
       {blush && (
         <g>
-          <ellipse cx="44.4" cy="30.6" rx="2.9" ry="1.7" fill={blush} opacity="0.3" />
-          <ellipse cx="57.6" cy="30.6" rx="2.2" ry="1.6" fill={blush} opacity="0.26" />
+          {/* A soft warmth that fades out at the edges, not a flat disc. */}
+          <defs>
+            <radialGradient id={`${id}-blush`}>
+              <stop offset="0" stopColor={blush} stopOpacity="0.5" />
+              <stop offset="1" stopColor={blush} stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <ellipse cx="44.4" cy="30.6" rx="3.9" ry="2.3" fill={`url(#${id}-blush)`} opacity="0.9" />
+          <ellipse cx="57.6" cy="30.6" rx="3" ry="2.2" fill={`url(#${id}-blush)`} opacity="0.9" />
         </g>
       )}
       <Brow cx={46.4} hw={2.15} dir={-1} kind={brow} color={look.hair} />
@@ -693,7 +700,7 @@ export function Leg({
       <g className={cls.replace(/leg/g, "shin")} style={{ transformOrigin: `${n(lx)}px ${JOINT.kneeY}px` }}>
         <path d={`M${p(-4.6)} 112 C${p(-4.4)} 109.6 ${p(4.5)} 109.6 ${p(4.6)} 112 C${p(4.7)} 121 ${p(3.6)} 134 ${p(2.9)} 146 L${p(-3)} 146 C${p(-3.6)} 138 ${p(-5.9)} 127 ${p(-5.2)} 119 C${p(-5.1)} 116 ${p(-4.8)} 114 ${p(-4.6)} 112Z`} fill={fill} />
         {/* The kneecap catches the light softly; a faint crease under it; the shin bone runs light down the front. */}
-        <ellipse cx={p(0.2)} cy="112.4" rx={n(2.2 * w)} ry="2.8" fill={tights ? lightTone : glowFill(id)} opacity={back ? 0.15 : 0.35} />
+        <ellipse cx={p(0.2)} cy="112.4" rx={n(2.2 * w)} ry="2.8" fill={glowFill(id)} opacity={back ? 0.15 : 0.35} />
         <path d={`M${p(-2.4)} 117 Q${p(0.4)} 118.6 ${p(2.8)} 116.8`} stroke={shadeTone} strokeWidth="0.5" fill="none" opacity="0.22" strokeLinecap="round" />
         {back && <path d={`M${p(4.2)} 116 C${p(4.1)} 124 ${p(3.3)} 135 ${p(2.6)} 145`} stroke={rim} strokeWidth="0.5" fill="none" opacity="0.35" strokeLinecap="round" />}
         <path d={`M${p(1.6)} 120 C${p(1.6)} 128 ${p(1.2)} 136 ${p(0.8)} 143`} stroke={lightTone} strokeWidth="1.3" fill="none" opacity={back ? 0.06 : 0.16} strokeLinecap="round" />
