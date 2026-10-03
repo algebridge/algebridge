@@ -17,7 +17,10 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
  * stars are left out on the site, where that shape reads as the "AI" icon.
  */
 
-export type ArchiePose = "idle" | "wave" | "thinking" | "party" | "encourage";
+export type ArchiePose = "idle" | "wave" | "thinking" | "party" | "encourage" | "happy";
+
+/** A small drawn mark that floats up beside him in the happy pose. */
+export type ArchieMark = "heart" | "star";
 
 /** Where the eyes look, each axis from -1 to 1. Down and to the right is positive. */
 export interface Look {
@@ -125,8 +128,33 @@ function Confetti() {
   );
 }
 
+/** A heart or a star that pops up beside him and floats away (helper.css). */
+function Mark({ mark }: { mark: ArchieMark }) {
+  return (
+    <g className="archie-mark">
+      {mark === "heart" ? (
+        <path
+          d="M104 25.5 C97 20.5 94.5 16.6 94.5 13.4 C94.5 10.6 96.6 8.6 99.1 8.6 C101.3 8.6 102.9 9.9 104 11.6 C105.1 9.9 106.7 8.6 108.9 8.6 C111.4 8.6 113.5 10.6 113.5 13.4 C113.5 16.6 111 20.5 104 25.5 Z"
+          fill={C.pink}
+          stroke={C.line}
+          strokeWidth={1.8}
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M104 6.5 L106.6 12.2 L112.8 12.9 L108.2 17.1 L109.5 23.2 L104 20.1 L98.5 23.2 L99.8 17.1 L95.2 12.9 L101.4 12.2 Z"
+          fill={C.amber}
+          stroke={C.line}
+          strokeWidth={1.8}
+          strokeLinejoin="round"
+        />
+      )}
+    </g>
+  );
+}
+
 function Eyes({ pose, look, closed }: { pose: ArchiePose; look?: Look | null; closed: boolean }) {
-  if (pose === "party") {
+  if (pose === "party" || pose === "happy") {
     // Happy, squeezed shut.
     return (
       <g>
@@ -179,6 +207,9 @@ function Mouth({ pose }: { pose: ArchiePose }) {
   if (pose === "encourage") {
     return <path d="M52.5 60 Q60 67.5 67.5 60" fill="none" stroke={C.ink} strokeWidth={3.2} strokeLinecap="round" />;
   }
+  if (pose === "happy") {
+    return <path d="M51 59.5 Q60 70 69 59.5" fill="none" stroke={C.ink} strokeWidth={3.4} strokeLinecap="round" />;
+  }
   return <path d="M53.5 60.5 Q60 66.5 66.5 60.5" fill="none" stroke={C.ink} strokeWidth={3.2} strokeLinecap="round" />;
 }
 
@@ -214,6 +245,14 @@ function BackArms({ pose }: { pose: ArchiePose }): ReactNode {
       );
     case "thinking":
       return leftDown;
+    case "happy":
+      // Both hands up a little: "aw, thanks".
+      return (
+        <>
+          <Limb d="M26 67 Q16 67 13 58" hand={[12.5, 56]} />
+          <Limb d="M94 67 Q104 67 107 58" hand={[107.5, 56]} />
+        </>
+      );
     default:
       return (
         <>
@@ -237,6 +276,7 @@ export function Archie({
   bob = false,
   shadow = true,
   burst = 0,
+  mark = null,
   className = "",
 }: {
   pose?: ArchiePose;
@@ -246,9 +286,11 @@ export function Archie({
   bob?: boolean;
   shadow?: boolean;
   burst?: number;
+  /** In the happy pose, a heart or a star floats up beside him. */
+  mark?: ArchieMark | null;
   className?: string;
 }) {
-  const closed = useBlink(blink && pose !== "party");
+  const closed = useBlink(blink && pose !== "party" && pose !== "happy");
   return (
     <svg
       viewBox="0 0 120 120"
@@ -260,6 +302,7 @@ export function Archie({
     >
       {shadow && <ellipse className="archie-shadow" cx={60} cy={110} rx={31} ry={4.2} fill={C.ink} opacity={0.08} />}
       {pose === "party" && <Confetti key={`c${burst}`} />}
+      {pose === "happy" && mark && <Mark key={`m${burst}`} mark={mark} />}
       {pose === "thinking" && (
         <g className="archie-think">
           <circle className="archie-tdot" cx={99} cy={24} r={2.6} fill={C.thought} style={bitStyle(0)} />

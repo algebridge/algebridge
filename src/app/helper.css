@@ -239,14 +239,16 @@
   transition: transform 240ms cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
-/* Idle: a slow, small bob, and his shadow breathing with it. */
+/* Idle: a slow, small bob, and his shadow breathing with it. Two breaths
+   and he settles, so an open sidebar does no work every frame while the
+   student reads (he comes alive again on the next thing that happens). */
 .archie-bob .archie-fig {
-  animation: archie-bob 3.8s ease-in-out infinite;
+  animation: archie-bob 3.8s ease-in-out 2;
 }
 .archie-bob .archie-shadow {
   transform-box: fill-box;
   transform-origin: center;
-  animation: archie-shadow 3.8s ease-in-out infinite;
+  animation: archie-shadow 3.8s ease-in-out 2;
 }
 @keyframes archie-bob {
   0%, 100% { transform: translateY(0); }
@@ -318,6 +320,33 @@
   to { opacity: 0; transform: translateY(6px) scale(0.6); }
 }
 
+/* Happy: a squish and a bounce, for a heart or a star on his message. */
+.archie-pose-happy .archie-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: archie-squish 760ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes archie-squish {
+  0% { transform: none; }
+  25% { transform: scale(1.05, 0.93); }
+  55% { transform: translateY(-5%) scale(0.98, 1.03); }
+  100% { transform: none; }
+}
+/* The heart or star that pops up beside him, then floats away. */
+.archie-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: archie-mark 1500ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@keyframes archie-mark {
+  0% { opacity: 0; transform: translateY(6px) scale(0.3); }
+  22% { opacity: 1; transform: none; }
+  32% { transform: scale(1.18); }
+  42% { transform: none; }
+  75% { opacity: 1; transform: translateY(-6px); }
+  100% { opacity: 0; transform: translateY(-12px) scale(0.9); }
+}
+
 /* Thinking: the thought dots pulse one after another. */
 .archie-tdot {
   animation: archie-think 1.2s ease-in-out infinite;
@@ -328,6 +357,271 @@
   50% { opacity: 1; transform: translateY(-1.5px); }
 }
 
+/* ─── Archie's speech bubble ───────────────────────────────────────
+   A solid soft-blue tile with a thicker bottom edge, like the deck of a
+   bridge on its ledge, and a tail like an arch reaching over to his face,
+   drawn in the same fill and edge so the two read as one shape. The
+   student's bubble stays plain brand blue. Text on both passes WCAG AA by a
+   mile: slate-800 on the tint is about 13:1, white on brand blue about 5:1. */
+.archie-bubble {
+  --archie-edge: #bfdbfe;
+  --archie-fill: #f0f6ff;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  border-radius: 5px 18px 18px 18px;
+  border: 1.5px solid var(--archie-edge);
+  border-bottom-width: 3px;
+  background: var(--archie-fill);
+  color: #1e293b;
+  padding: 6.5px 12.5px 6px 13.5px;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.archie-bubble[data-tone="error"] {
+  --archie-edge: #fcd34d;
+  --archie-fill: #fffbeb;
+  color: #78350f;
+}
+/* Its right edge sits over the bubble's left border, hiding that stretch of
+   it, so the inside of the bubble runs straight into the arch. */
+.archie-tail {
+  position: absolute;
+  left: -14px;
+  top: 5px;
+  display: block;
+  overflow: visible;
+}
+.archie-tail-fill {
+  fill: var(--archie-fill);
+}
+.archie-tail-edge {
+  fill: none;
+  stroke: var(--archie-edge);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.archie-typing {
+  padding-top: 10.5px;
+  padding-bottom: 9px;
+}
+.archie-tdots {
+  display: flex;
+  gap: 4px;
+  color: #60a5fa;
+}
+.you-bubble {
+  border-radius: 18px 18px 5px 18px;
+  background: #2563eb;
+  color: #fff;
+  padding: 8px 14px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgb(30 58 138 / 0.18);
+}
+/* A little bigger on the phone sheet, where it is read at arm's length. */
+.helper-sheet .archie-bubble,
+.helper-sheet .you-bubble {
+  font-size: 15px;
+}
+/* On touch, a long press opens the reaction bar instead of the copy menu. */
+@media (hover: none) {
+  .archie-bubble {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* A new message of his lands with a small rise and settle. */
+.archie-pop {
+  transform-origin: 0 0;
+  animation: archie-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.15);
+}
+@keyframes archie-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+}
+
+/* ─── Writing a reply out ─────────────────────────────────────────
+   Each word fades in and rises a few pixels as its turn comes, and a soft
+   caret rides the end. Only opacity and transform, and only on the words
+   arriving right now: the rest just wait, hidden, with nothing running.
+   The bubble grows with the writing: one line tall at first, then its cap
+   (set by MessageBubble's reveal) eases down a line as each line starts.
+   Clipped, so the hidden words below the cap do not make the conversation
+   scroll; the clip margin leaves room for a word still rising into place. */
+.rv-live {
+  max-height: 1.6em;
+  overflow: clip;
+  overflow-clip-margin: 6px;
+  transition: max-height 160ms ease-out;
+}
+.rv-w {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.rv-live .rv-w:not(.rv-on),
+.rv-live .rv-b:not(.rv-on) {
+  opacity: 0;
+}
+.rv-on {
+  animation: rv-in 340ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+@keyframes rv-in {
+  from { opacity: 0; transform: translateY(0.32em); }
+}
+.rv-live .rv-tip {
+  position: relative;
+}
+.rv-live .rv-tip::after {
+  content: "";
+  position: absolute;
+  left: calc(100% + 2px);
+  top: 0.2em;
+  bottom: 0.12em;
+  width: 2px;
+  border-radius: 2px;
+  background: #3b82f6;
+  opacity: 0.55;
+}
+
+/* ─── Reactions ───────────────────────────────────────────────────
+   The bar shows on hover, on keyboard focus, or after a long press. It sits
+   just above the bubble so it never covers the words. */
+.rx-bar {
+  position: absolute;
+  left: 0;
+  top: -30px;
+  z-index: 3;
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(226 232 240), 0 8px 18px -8px rgb(15 23 42 / 0.3);
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transform-origin: 24px 100%;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 180ms var(--helper-ease);
+}
+/* His first message always has room for the bar above it: every thread
+   starts with his hello, and that is the bar seen most. */
+.archie-row:first-child {
+  margin-top: 26px;
+}
+/* Only a message scrolled up against the top edge has no room above. Then
+   the bar sits on the bubble's bottom right corner, never on its words. */
+.rx-bar[data-inside] {
+  top: auto;
+  bottom: -16px;
+  left: auto;
+  right: 8px;
+  transform-origin: 100% 0;
+}
+/* Only the bubble itself, its reaction pill, or the bar opens it: not the
+   follow-up chips or the hello's chips below, which sit in the same row. */
+@media (hover: hover) {
+  .archie-bubble:hover ~ .rx-bar,
+  .rx-under:hover ~ .rx-bar,
+  .rx-bar:hover {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+.rx-bar:focus-within,
+.archie-row[data-rx-open] .rx-bar {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.rx-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  color: rgb(71 85 105);
+  transition: transform 140ms var(--helper-ease), background-color 140ms ease, color 140ms ease;
+}
+.rx-btn:hover {
+  background: rgb(239 246 255);
+  color: rgb(29 78 216);
+  transform: translateY(-2px) scale(1.12);
+}
+.rx-btn:active {
+  transform: scale(0.9);
+}
+.rx-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(59 130 246);
+}
+.rx-btn[aria-pressed="true"] {
+  background: rgb(219 234 254);
+}
+/* On touch the bar comes from a long press: bigger targets, and it sits
+   higher to clear the words (the first message keeps room for it). */
+@media (hover: none) {
+  .rx-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .rx-bar {
+    top: -44px;
+  }
+  .archie-row:first-child {
+    margin-top: 34px;
+  }
+}
+
+/* The pill under a bubble: tucked against its bottom edge. */
+.rx-under {
+  position: relative;
+  z-index: 1;
+  margin-top: -7px;
+  padding-left: 10px;
+}
+.rx-under-you {
+  padding-left: 0;
+  padding-right: 10px;
+}
+.rx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(219 228 240), 0 1px 2px rgb(15 23 42 / 0.08);
+}
+.rx-pill-btn {
+  cursor: pointer;
+  transition: transform 140ms var(--helper-ease);
+}
+.rx-pill-btn:hover {
+  transform: scale(1.08);
+}
+.rx-pill-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(59 130 246);
+}
+.rx-pop {
+  animation: rx-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+}
+/* Archie's reaction lands a beat after the student's message does. */
+.rx-late {
+  animation-delay: 420ms;
+}
+@keyframes rx-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { opacity: 1; transform: scale(1.15); }
+  100% { transform: none; }
+}
+
 /* ─── Reduced motion: still, but everything still shows ─────────── */
 @media (prefers-reduced-motion: reduce) {
   .helper-shift,
@@ -335,7 +629,11 @@
   .helper-send,
   .helper-launch,
   .helper-sheet[data-snap],
-  .archie-pupils {
+  .archie-pupils,
+  .rx-bar,
+  .rx-btn,
+  .rx-pill-btn,
+  .rv-live {
     transition: none !important;
   }
   .helper-dock,
@@ -354,11 +652,18 @@
   .archie-pump-arm,
   .archie-pose-party .archie-body,
   .archie-bit,
-  .archie-tdot {
+  .archie-tdot,
+  .archie-pose-happy .archie-body,
+  .archie-mark,
+  .archie-pop,
+  .rv-on,
+  .rx-pop {
     animation: none !important;
   }
   .helper-chip:not(:disabled):hover,
-  .helper-launch:hover {
+  .helper-launch:hover,
+  .rx-btn:hover,
+  .rx-pill-btn:hover {
     transform: none;
   }
 }

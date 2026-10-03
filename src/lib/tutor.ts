@@ -32,15 +32,21 @@ export function stripMarkdownEmphasis(text: string): string {
 // problem (which operation to undo first, whether to flip an inequality, …)
 // rather than only restating the generic hint. Never reveals the final answer.
 // ---------------------------------------------------------------------------
+/** A unit conversion: no x to undo, and the check is converting back. */
+function isUnitConversion(prompt: string): boolean {
+  const p = prompt.replace(/\s+/g, " ").trim();
+  return (
+    /\bconver(t|ts|ting|sion)\b/i.test(p) ||
+    /\bhow many (feet|inches|yards|miles|meters|centimeters|millimeters|kilometers|seconds|minutes|hours|days|weeks|ounces|pounds|cups|pints|quarts|gallons|grams|kilograms|liters|milliliters)\b/i.test(p)
+  );
+}
+
 function firstStepFor(prompt: string): string | null {
   const p = prompt.replace(/\s+/g, " ").trim();
 
   // Unit conversion. Checked first: these have no x to undo, and the generic
   // "what's the first operation you'd undo?" left a student with nothing.
-  if (
-    /\bconver(t|ts|ting|sion)\b/i.test(p) ||
-    /\bhow many (feet|inches|yards|miles|meters|centimeters|millimeters|kilometers|seconds|minutes|hours|days|weeks|ounces|pounds|cups|pints|quarts|gallons|grams|kilograms|liters|milliliters)\b/i.test(p)
-  ) {
+  if (isUnitConversion(p)) {
     const rate = /\bper\b/i.test(p);
     return `This is a unit conversion. Turn the fact you know into that fraction, with the unit you want to get rid of on the bottom so it cancels, then multiply.${
       rate ? " With a rate, change one unit at a time: one fraction for the top unit, another for the bottom one." : ""
@@ -112,6 +118,10 @@ export function buildLocalChatReply(ctx: TutorContext, messages: TutorChatMessag
   }
 
   if (claimsAnswer) {
+    // A conversion has no equation to substitute into; the check is the trip back.
+    if (isUnitConversion(ctx.problemPrompt)) {
+      return `Nice, let's check it yourself instead of me telling you: convert your answer back to the unit you started with. If you land on the amount in the problem, you have it. What do you get on the way back?`;
+    }
     return `Nice, instead of me telling you if that's right, let's PROVE it: take your value and substitute it back into "${ctx.problemPrompt}". If both sides come out equal, you nailed it. Does it check out? Show me what you get when you plug it in.`;
   }
 
