@@ -275,6 +275,7 @@ img{display:block;max-width:100%;}
 .try-frame iframe{position:relative;z-index:1;display:block;width:100%;height:300px;border:0;border-radius:10px;background:transparent;transition:height .25s ease;}
 .try-wait{position:absolute;inset:12px;display:flex;align-items:center;justify-content:center;color:var(--muted);}
 .try-frame.live .try-wait,.try-frame.failed .try-wait{display:none;}
+.try-frame.live{min-height:0;}
 .try-fallback{display:none;padding:2rem 1.5rem;text-align:center;}
 .try-fallback p{color:var(--muted);margin-bottom:1.25rem;max-width:40ch;margin-left:auto;margin-right:auto;}
 .try-frame.failed iframe{display:none;}
@@ -1160,7 +1161,8 @@ img{display:block;max-width:100%;}
       heard = true;
       tryFrame.classList.add('live');
       tryFrame.classList.remove('failed');
-      frame.style.height = Math.max(200, Math.min(1400, Math.ceil(e.data.height) + 2)) + 'px';
+      /* the card's own height, plus the 12px the embed page keeps around it */
+      frame.style.height = Math.max(200, Math.min(1400, Math.ceil(e.data.height) + 26)) + 'px';
     });
     function armTry(){
       if (frame.getAttribute('src')) return;
