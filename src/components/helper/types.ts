@@ -1,4 +1,5 @@
 import type { HelperAction, SchedulerState } from "@/lib/helper";
+import type { ReactionId } from "@/lib/archie-reactions";
 
 /** A formula card as the server sends it with a Formulas reply. */
 export interface FormulaCardView {
@@ -12,8 +13,14 @@ export interface FormulaCardView {
  * gate: a fixed answer from the server's rules (a refusal, an offer of a tutor).
  * formula: a formula card. booking: a line of the booking script.
  * error: the request did not come back; it offers a retry.
+ * greeting: Archie's hello at the top of a conversation (never sent to the server).
+ * buddy: something Archie says on his own, with no model: a cheer after a
+ * practice answer, a fun fact, a quiz question, a reply to "thanks".
  */
-export type MessageKind = "reply" | "gate" | "formula" | "booking" | "error";
+export type MessageKind = "reply" | "gate" | "formula" | "booking" | "error" | "greeting" | "buddy";
+
+/** A quick follow-up offered under one of Archie's messages while it is the newest. */
+export type FollowUpId = "another-way" | "next-step" | "hint" | "fact" | "quiz" | "joke";
 
 export interface ChatMessage {
   id: number;
@@ -25,8 +32,27 @@ export interface ChatMessage {
   animate?: boolean;
   /** On an error, the quick action the failed request carried, if any. */
   retryAction?: HelperAction;
-  /** When the student sent it (Date.now()), so a just-sent message can rise out of the box. */
+  /** When it was sent or written (Date.now()), so only a fresh message animates in or is announced. */
   sentAt?: number;
+  /** The student's reaction on one of Archie's messages. One per message. */
+  reaction?: ReactionId | null;
+  /** When the student last reacted, so only a fresh reaction pops. */
+  reactedAt?: number;
+  /** Archie's own reaction on one of the student's messages. */
+  archieReaction?: ReactionId | null;
+  /** Follow-ups to offer while this is the newest message. */
+  followUps?: FollowUpId[];
+  /** A line about a practice answer: the next one replaces it rather than stacking up. */
+  practice?: boolean;
+  /** Archie asked how the student is doing, so a plain "good" can be answered here. */
+  asksMood?: boolean;
+}
+
+/** Archie's own quiz question, waiting for an answer. */
+export interface QuizState {
+  /** Index into EASY_QUIZ. */
+  item: number;
+  tries: number;
 }
 
 /** One line of the work pad. `entered` is the text as last committed, which is what gets checked. */
@@ -42,6 +68,7 @@ export interface Thread {
   scheduler: SchedulerState | null;
   pad?: PadLine[];
   padOpen?: boolean;
+  quiz?: QuizState | null;
 }
 
 export const EMPTY_THREAD: Thread = { messages: [], scheduler: null };

@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useAuth } from "@/lib/auth";
 import { createSessionRequest } from "@/lib/sessions";
 import { isRealName, splitName } from "@/lib/name";
+import { getInterests } from "@/lib/progress";
 import {
   getHelperContext,
   getHelperOpenRequests,
@@ -16,8 +17,10 @@ import {
   advanceScheduler,
   BOOKING_INTRO,
   FORMULA_CARDS,
+  forbiddenValues,
   isNo,
   isYes,
+  leaksAnswer,
   schedulerPrompt,
   type HelperAction,
   type HelperContext,
@@ -39,14 +42,52 @@ import {
   subscribeSidebar,
   type PracticeResult,
 } from "@/lib/sidebar";
-import { Archie, ArchieFace, reducedMotion, type ArchiePose } from "@/components/archie/Archie";
-import { greeting, reactionLine } from "@/components/archie/lines";
+import { Archie, ArchieFace, reducedMotion, type ArchieMark, type ArchiePose } from "@/components/archie/Archie";
+import { HEART_QUIPS, reactionLine, STAR_QUIPS } from "@/components/archie/lines";
+import {
+  AFFECTION_LINES,
+  AHA_LINES,
+  BYE_LINES,
+  chatRequestKind,
+  checkQuizReply,
+  CONFUSED_LINES,
+  CONFUSED_PLAIN_LINES,
+  DAY_REPLIES,
+  EASY_QUIZ,
+  FACT_OUTROS,
+  fillName,
+  GOOD_MOOD_REPLIES,
+  GOT_IT_LINES,
+  greetingFor,
+  HELLO_REPLIES,
+  IDLE_NUDGES,
+  MATH_FUN_FACTS,
+  MATH_JOKES,
+  MOTIVATE_LINES,
+  pickFresh,
+  practiceTemplate,
+  QUIZ_INTROS,
+  QUIZ_REVEAL,
+  QUIZ_RIGHT,
+  QUIZ_TRY_AGAIN,
+  quizLine,
+  smallTalkKind,
+  THANKS_REPLIES,
+  type AgainKind,
+} from "@/lib/archie-persona";
+import { autoReactionFor, responseToReaction, toggleReaction, type ReactionId } from "@/lib/archie-reactions";
 import { Chip, ChipGrid, ChipRow, type ChipSpec } from "@/components/helper/Chips";
 import { ContextCard } from "@/components/helper/ContextCard";
-import { HelperAvatar } from "@/components/helper/HelperAvatar";
 import { AssistantBubble, UserBubble, prefersReducedMotion } from "@/components/helper/MessageBubble";
 import { TypingDots } from "@/components/helper/TypingDots";
-import { EMPTY_THREAD, type ChatMessage, type MessageKind, type PadLine, type Thread } from "@/components/helper/types";
+import {
+  EMPTY_THREAD,
+  type ChatMessage,
+  type FollowUpId,
+  type MessageKind,
+  type PadLine,
+  type Thread,
+} from "@/components/helper/types";
 
 /**
  * Archie, the AI study buddy, in a sidebar.
@@ -71,8 +112,22 @@ import { EMPTY_THREAD, type ChatMessage, type MessageKind, type PadLine, type Th
  * Deterministic on purpose: a booking is a transaction, not a chat.
  *
  * Archie himself reacts to practice (PRACTICE_EVENT): a hop and confetti for a
- * right answer, a fist pump for a miss, with one short line. Only while the
- * sidebar is open, and never while a reply is loading or being revealed.
+ * right answer, a fist pump for a miss, and in Tutor mode a short buddy line
+ * in the conversation (the next one replaces it, so misses do not pile up).
+ * Only while the sidebar is open, and never while a reply is loading or being
+ * revealed.
+ *
+ * He is a buddy, not a help desk: a hello by name and time of day, small talk
+ * chips (how is your day, a fun fact, a pep talk, an easy quiz), and replies
+ * to "thanks" or "oh, I get it" that he writes himself from the persona's
+ * lines (lib/archie-persona.ts), with no model. Those match whole messages
+ * only, so anything with more in it, and anything about feelings, still goes
+ * to the server, where the safety rules live. Facts and quiz questions that
+ * hold a number from the student's own solution are skipped.
+ *
+ * Reactions (lib/archie-reactions.ts): the student can react to any of his
+ * messages, he answers some of them, and he reacts to theirs when a simple
+ * rule says it fits. They live on the messages, so per problem, per session.
  */
 
 // The pad pulls in the math parser, which only matters once it is opened.
@@ -102,13 +157,58 @@ const ERROR_TEXT = "I couldn't reach the helper just now. Check your connection,
 const NAME = "Archie, your AI study buddy";
 /** How long the closing slide takes, matched to helper.css. */
 const LEAVE_MS = 220;
+/** Set once Archie has introduced himself on this device; after that he says hello like a friend. */
+const MET_KEY = "algebridge-archie-met";
+/** How long a quiet student waits on a problem before Archie offers a nudge, once. */
+const NUDGE_MS = 45000;
+
+/** A beat of "typing" before a line he writes himself, longer for a longer line. */
+function thinkMs(text: string): number {
+  return Math.round(Math.min(1100, Math.max(450, 380 + text.length * 4)));
+}
+
+const FOLLOW_UP_LABELS: Record<FollowUpId, { label: string; icon: ChipSpec["icon"] }> = {
+  "another-way": { label: "Explain it another way", icon: "review" },
+  "next-step": { label: "Next step", icon: "play" },
+  hint: { label: "Give me a hint", icon: "hint" },
+  fact: { label: "Another fun fact", icon: "star" },
+  quiz: { label: "Another question", icon: "trophy" },
+  joke: { label: "Another joke", icon: "spark" },
+};
 
 let nextMessageId = 1;
 const makeMessage = (m: Omit<ChatMessage, "id">): ChatMessage => ({ id: nextMessageId++, ...m });
 
-/** What goes over the wire: roles and words, never the panel's own errors. */
+/** The small-talk chips, and the words each one puts in the student's bubble. */
+type ChatKind = "day" | "fact" | "motivate" | "quiz" | "joke";
+const CHAT_ASK: Record<ChatKind, string> = {
+  day: "How's your day going?",
+  fact: "Tell me a math fun fact",
+  motivate: "Motivate me",
+  quiz: "Quiz me on something easy",
+  joke: "Tell me a math joke",
+};
+
+/**
+ * What Archie may know about the student when a model writes his reply:
+ * their first name and the labels of the interests they picked, nothing
+ * more. The server cleans both again before they reach a prompt.
+ */
+function studentForPrompt(firstName: string | null): { firstName?: string; interests?: string[] } {
+  let interests: string[] = [];
+  try {
+    interests = (getInterests()?.topics ?? []).map((t) => t.label).filter((l) => typeof l === "string").slice(0, 6);
+  } catch {
+    /* no saved progress: no interests */
+  }
+  return { ...(firstName ? { firstName } : {}), ...(interests.length ? { interests } : {}) };
+}
+
+/** What goes over the wire: roles and words, never the panel's own errors or his hello. */
 function toWire(messages: ChatMessage[]): HelperMessage[] {
-  return messages.filter((m) => m.kind !== "error").map((m) => ({ role: m.role, content: m.content }));
+  return messages
+    .filter((m) => m.kind !== "error" && m.kind !== "greeting")
+    .map((m) => ({ role: m.role, content: m.content }));
 }
 
 function threadKeyFor(mode: HelperMode, ctx: HelperContext | null): string {
@@ -158,10 +258,11 @@ interface Reaction {
   pose: ArchiePose;
   line: string | null;
   burst: number;
+  mark?: ArchieMark | null;
 }
 
 export function StudyHelper() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   /** Opened from memory on page load: no slide in, no focus grab. */
@@ -208,12 +309,23 @@ export function StudyHelper() {
   const busy = pending !== null;
   const revealing = thread.messages.some((m) => m.animate);
   const typing = inputFocused && input.trim().length > 0;
+  /** The student has said something in this conversation. */
+  const hasUser = thread.messages.some((m) => m.role === "user");
 
   const firstName = profile && isRealName(profile.displayName) ? splitName(profile.displayName).first : null;
 
   const update = useCallback((key: string, fn: (t: Thread) => Thread) => {
     setThreads((all) => ({ ...all, [key]: fn(all[key] ?? EMPTY_THREAD) }));
   }, []);
+
+  /** What Archie said lately, so he never says the same line twice running. */
+  const recentSaid = useRef<string[]>([]);
+  const say = useCallback((line: string) => {
+    recentSaid.current = [line, ...recentSaid.current].slice(0, 12);
+    return line;
+  }, []);
+  /** He has said hello this session; later problems get a shorter hi. */
+  const greeted = useRef(false);
 
   // --- Opening, closing, remembering -------------------------------------
 
@@ -370,9 +482,9 @@ export function StudyHelper() {
 
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const reactionTimer = useRef(0);
-  const showReaction = useCallback((pose: ArchiePose, line: string | null, ms: number) => {
+  const showReaction = useCallback((pose: ArchiePose, line: string | null, ms: number, mark: ArchieMark | null = null) => {
     window.clearTimeout(reactionTimer.current);
-    setReaction((r) => ({ pose, line, burst: (r?.burst ?? 0) + 1 }));
+    setReaction((r) => ({ pose, line, mark, burst: (r?.burst ?? 0) + 1 }));
     reactionTimer.current = window.setTimeout(() => setReaction(null), ms);
   }, []);
   useEffect(() => () => window.clearTimeout(reactionTimer.current), []);
@@ -383,8 +495,8 @@ export function StudyHelper() {
   }, [shown, showReaction]);
 
   // What the practice listener needs to know, without re-subscribing each render.
-  const live = useRef({ shown, busy, revealing, typing });
-  live.current = { shown, busy, revealing, typing };
+  const live = useRef({ shown, busy, revealing, typing, mode, firstName, problem });
+  live.current = { shown, busy, revealing, typing, mode, firstName, problem };
   const streak = useRef(0);
   const recentLines = useRef<string[]>([]);
 
@@ -397,16 +509,90 @@ export function StudyHelper() {
       // Only while he is on screen, and never over a reply being written or
       // read: a hint mid-reveal is not the moment for confetti.
       if (!now.shown || now.busy || now.revealing) return;
+      const pose: ArchiePose = result === "correct" ? "party" : "encourage";
+      const ms = result === "correct" ? 3200 : 3400;
       // Mid-sentence, he reacts without a word.
-      const line = now.typing ? null : reactionLine(result, streak.current, recentLines.current);
-      if (line) recentLines.current = [line, ...recentLines.current].slice(0, 3);
-      showReaction(result === "correct" ? "party" : "encourage", line, result === "correct" ? 3200 : 3400);
+      if (now.typing) return showReaction(pose, null, ms);
+      if (now.mode !== "tutor") {
+        const line = reactionLine(result, streak.current, recentLines.current);
+        recentLines.current = [line, ...recentLines.current].slice(0, 3);
+        return showReaction(pose, line, ms);
+      }
+      // In Tutor mode he says it in the conversation, where it stays, and the
+      // next practice line takes its place instead of stacking up.
+      const line = fillName(say(practiceTemplate(result, streak.current, recentSaid.current)), now.firstName);
+      const message = makeMessage({
+        role: "assistant",
+        kind: "buddy",
+        practice: true,
+        content: line,
+        sentAt: Date.now(),
+        animate: !prefersReducedMotion(),
+        followUps: result === "wrong" && now.problem ? ["hint"] : undefined,
+      });
+      pinnedToBottom.current = true;
+      update(keyRef.current, (t) => {
+        const lastMsg = t.messages[t.messages.length - 1];
+        return { ...t, messages: [...(lastMsg?.practice ? t.messages.slice(0, -1) : t.messages), message] };
+      });
+      showReaction(pose, null, ms);
     };
     window.addEventListener(PRACTICE_EVENT, onPractice);
     return () => window.removeEventListener(PRACTICE_EVENT, onPractice);
-  }, [showReaction]);
+  }, [showReaction, say, update]);
+
+  // His hello at the top of each conversation, once it is on screen: by name
+  // and time of day the first time this session, shorter after that. Waits
+  // for sign-in, and briefly for the profile, so the name is there when it
+  // can be.
+  const [profileWaitOver, setProfileWaitOver] = useState(false);
+  useEffect(() => {
+    if (!user || profile) return;
+    const id = window.setTimeout(() => setProfileWaitOver(true), 1500);
+    return () => window.clearTimeout(id);
+  }, [user, profile]);
+  const nameReady = !authLoading && (!user || !!profile || profileWaitOver);
+  useEffect(() => {
+    if (!shown || mode === "scheduler" || !nameReady) return;
+    const key = threadKey;
+    if ((threadsRef.current[key]?.messages.length ?? 0) > 0) return;
+    const text = say(
+      greetingFor({
+        name: firstName,
+        hour: new Date().getHours(),
+        met: readStore(MET_KEY) === "1",
+        spoken: spoken || greeted.current,
+        mode: mode === "reminder" ? "reminder" : "tutor",
+        problem: !!problem,
+        recent: recentSaid.current,
+      })
+    );
+    if (mode === "tutor") greeted.current = true;
+    writeStore(MET_KEY, "1");
+    const hello = makeMessage({
+      role: "assistant",
+      kind: "greeting",
+      content: text,
+      sentAt: Date.now(),
+      animate: !prefersReducedMotion(),
+    });
+    update(key, (t) => (t.messages.length ? t : { ...t, messages: [hello] }));
+  }, [shown, mode, threadKey, nameReady, firstName, spoken, problem, say, update]);
+
+  // A quiet student on a problem gets one soft nudge beside his name.
+  // Not while the work pad is open: the nudges point at the chips, which it hides.
+  const padShown = !!thread.padOpen;
+  useEffect(() => {
+    if (!shown || mode !== "tutor" || !problem || hasUser || busy || padShown) return;
+    const id = window.setTimeout(() => {
+      if (live.current.typing || live.current.busy || live.current.revealing) return;
+      showReaction("wave", say(pickFresh(IDLE_NUDGES, recentSaid.current)), 4200);
+    }, NUDGE_MS);
+    return () => window.clearTimeout(id);
+  }, [shown, mode, problem, hasUser, busy, padShown, threadKey, showReaction, say]);
 
   const archiePose: ArchiePose = busy ? "thinking" : (reaction?.pose ?? "idle");
+  const archieMark = !busy && reaction?.pose === "happy" ? (reaction.mark ?? null) : null;
   const archieLine = !busy && reaction?.line ? reaction.line : null;
 
   // --- Resizing the docked panel ------------------------------------------
@@ -507,13 +693,190 @@ export function StudyHelper() {
 
   useEffect(() => {
     pinnedToBottom.current = true;
-    // An empty conversation starts at the top, where the greeting is.
-    if (thread.messages.length === 0) logRef.current?.scrollTo({ top: 0 });
+    const log = logRef.current;
+    if (!log) return;
+    // A reply being written that is taller than the view starts at its top,
+    // so its first words are not out of sight; the reveal then follows down.
+    const writing = log.querySelector<HTMLElement>(".rv-live")?.closest<HTMLElement>(".archie-row");
+    if (writing && writing.offsetHeight > log.clientHeight - 24) log.scrollTop = writing.offsetTop - 12;
     else scrollToEnd(true);
   }, [thread.messages.length, pending, thread.scheduler?.step, threadKey, open, scrollToEnd]);
 
+  // Once a reply is in full, its follow-ups appear under it: keep them in
+  // view. A conversation that is only his hello stays at its top, where the
+  // hello starts, with the chips under it.
+  const onlyHello = thread.messages.length === 1 && thread.messages[0].kind === "greeting";
+  useEffect(() => {
+    if (revealing) return;
+    if (onlyHello) logRef.current?.scrollTo({ top: 0 });
+    else scrollToEnd();
+  }, [revealing, onlyHello, scrollToEnd]);
+
+  /** Keeps the word being written in view while the student reads along at the bottom. */
+  const followReveal = useCallback((word: HTMLElement) => {
+    const log = logRef.current;
+    if (!log) return;
+    const r = word.getBoundingClientRect();
+    const box = log.getBoundingClientRect();
+    if (r.bottom > box.bottom - 10 && r.top - box.bottom < 80) log.scrollTop += r.bottom - box.bottom + 14;
+  }, []);
+
   function push(key: string, message: Omit<ChatMessage, "id">) {
-    update(key, (t) => ({ ...t, messages: [...t.messages, makeMessage(message)] }));
+    update(key, (t) => ({ ...t, messages: [...t.messages, makeMessage({ sentAt: Date.now(), ...message })] }));
+  }
+
+  // Each new message of his is read out once, in full, by screen readers.
+  const [announcement, setAnnouncement] = useState("");
+  const announced = useRef(0);
+  useEffect(() => {
+    const newest = [...thread.messages].reverse().find((m) => m.role === "assistant");
+    if (!newest || newest.id <= announced.current) return;
+    announced.current = newest.id;
+    if (!newest.sentAt || Date.now() - newest.sentAt > 4000) return;
+    setAnnouncement(newest.card ? `${newest.card.name}. ${newest.card.formula}. ${newest.card.mnemonic}` : newest.content);
+  }, [thread.messages]);
+
+  // --- Archie's own replies, with no model ---------------------------------
+
+  const localTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(localTimer.current), []);
+
+  /**
+   * A line Archie writes himself: a beat of typing dots and his thinking
+   * pose first, so it lands like a reply, then it is written out.
+   */
+  function replyLocally(key: string, message: Omit<ChatMessage, "id" | "role">, extra?: (t: Thread) => Partial<Thread>) {
+    setPending(key);
+    window.clearTimeout(localTimer.current);
+    localTimer.current = window.setTimeout(() => {
+      const reply = makeMessage({
+        role: "assistant",
+        sentAt: Date.now(),
+        animate: key === keyRef.current && !prefersReducedMotion(),
+        ...message,
+      });
+      update(key, (t) => ({ ...t, ...(extra?.(t) ?? {}), messages: [...t.messages, reply] }));
+      setPending(null);
+    }, thinkMs(message.content));
+  }
+
+  /**
+   * Numbers he must not say right now: the values in the student's own
+   * solution, the same list the server's filter uses. A fun fact or a quiz
+   * question holding one of them is skipped.
+   */
+  function forbiddenNow(): string[] {
+    const ctx = getHelperContext();
+    if (!ctx?.problemPrompt) return [];
+    const out = forbiddenValues(ctx);
+    const answer = ctx.answer?.trim();
+    if (answer && /^-?\d+(?:\.\d+)?$/.test(answer) && !out.includes(answer)) out.push(answer);
+    return out;
+  }
+
+  function funFact(): string {
+    const forbidden = forbiddenNow();
+    const clean = (l: string) => !leaksAnswer(l, forbidden);
+    if (!MATH_FUN_FACTS.some(clean)) return "I'll save my fun facts for after this problem. Want a hint instead?";
+    const fact = say(pickFresh(MATH_FUN_FACTS, recentSaid.current, Math.random, clean));
+    return `${fact} ${say(pickFresh(FACT_OUTROS, recentSaid.current))}`;
+  }
+
+  const recentQuiz = useRef(-1);
+  /** An easy quiz question, never one whose numbers are in the student's solution, and not the last one again. */
+  function quizItem(): number | null {
+    const forbidden = forbiddenNow();
+    const last = recentQuiz.current;
+    const ok = EASY_QUIZ.map((q, i) => ({ q, i })).filter(
+      ({ q, i }) => i !== last && !leaksAnswer(`${q.q} ${q.answer} ${q.why}`, forbidden)
+    );
+    if (!ok.length) return null;
+    const pick = ok[Math.floor(Math.random() * ok.length)].i;
+    recentQuiz.current = pick;
+    return pick;
+  }
+
+  /** A math joke, never one holding a number from the student's solution. */
+  function mathJoke(): string {
+    const forbidden = forbiddenNow();
+    const clean = (l: string) => !leaksAnswer(l, forbidden);
+    if (!MATH_JOKES.some(clean)) return "I'll save my jokes for after this problem. Want a hint instead?";
+    return say(pickFresh(MATH_JOKES, recentSaid.current, Math.random, clean));
+  }
+
+  /** The small-talk chips: the student's words go in, and Archie answers himself. */
+  function chat(kind: ChatKind, asWords?: string, typed?: ChatMessage) {
+    if (busy) return;
+    const key = threadKey;
+    setSpoken(true);
+    pinnedToBottom.current = true;
+    const userMsg = typed ?? makeMessage({ role: "user", content: asWords ?? CHAT_ASK[kind], sentAt: Date.now() });
+    update(key, (t) => ({ ...t, quiz: null, messages: [...t.messages, userMsg] }));
+    const name = firstName;
+    if (kind === "day") {
+      replyLocally(key, { kind: "buddy", asksMood: true, content: fillName(say(pickFresh(DAY_REPLIES, recentSaid.current)), name) });
+    } else if (kind === "fact") {
+      replyLocally(key, { kind: "buddy", content: funFact(), followUps: ["fact"] });
+    } else if (kind === "motivate") {
+      replyLocally(key, { kind: "buddy", content: fillName(say(pickFresh(MOTIVATE_LINES, recentSaid.current)), name) });
+    } else if (kind === "joke") {
+      replyLocally(key, { kind: "buddy", content: mathJoke(), followUps: ["joke"] });
+    } else {
+      const item = quizItem();
+      if (item === null) {
+        replyLocally(key, { kind: "buddy", content: "Let's finish this problem first, then I'll quiz you. Want a hint?" });
+        return;
+      }
+      const intro = say(pickFresh(QUIZ_INTROS, recentSaid.current));
+      replyLocally(key, { kind: "buddy", content: `${intro} ${EASY_QUIZ[item].q}` }, () => ({ quiz: { item, tries: 0 } }));
+    }
+  }
+
+  /**
+   * The student reacts to one of Archie's messages. One reaction per message;
+   * the same again takes it off. He answers some reactions, once per message.
+   */
+  const answeredReactions = useRef(new Set<string>());
+  function react(messageId: number, picked: ReactionId) {
+    const key = threadKey;
+    const t = threadsRef.current[key] ?? EMPTY_THREAD;
+    const m = t.messages.find((x) => x.id === messageId);
+    if (!m || m.role !== "assistant") return;
+    const next = toggleReaction(m.reaction, picked);
+    update(key, (th) => ({
+      ...th,
+      messages: th.messages.map((x) => (x.id === messageId ? { ...x, reaction: next, reactedAt: Date.now() } : x)),
+    }));
+    const newest = [...t.messages].reverse().find((x) => x.role === "assistant");
+    const tag = `${messageId}:${picked}`;
+    const res = responseToReaction(picked, {
+      added: next === picked,
+      latest: newest?.id === messageId,
+      answeredBefore: answeredReactions.current.has(tag),
+      explanation: m.kind === "reply",
+      busy,
+    });
+    if (next === picked) answeredReactions.current.add(tag);
+    if (res.pose) {
+      const quip =
+        res.quip === "heart"
+          ? say(pickFresh(HEART_QUIPS, recentSaid.current))
+          : res.quip === "star"
+            ? say(pickFresh(STAR_QUIPS, recentSaid.current))
+            : null;
+      showReaction(res.pose, quip, res.pose === "party" ? 3000 : 2600, res.mark);
+    }
+    if (res.say) {
+      const anotherWay = res.anotherWay && mode === "tutor" && !!problem;
+      // A confused line points at the "Explain it another way" chip, so it is
+      // only said when that chip will be under it.
+      const pool = res.say === "aha" ? AHA_LINES : res.say === "confused" && anotherWay ? CONFUSED_LINES : CONFUSED_PLAIN_LINES;
+      replyLocally(key, {
+        kind: "buddy",
+        content: fillName(say(pickFresh(pool, recentSaid.current)), firstName),
+        followUps: anotherWay ? ["another-way"] : undefined,
+      });
+    }
   }
 
   async function finishBooking(key: string, state: SchedulerState) {
@@ -544,6 +907,7 @@ export function StudyHelper() {
           action,
           context: getHelperContext() ?? {},
           messages: toWire(history),
+          ...studentForPrompt(firstName),
         }),
       });
       if (!res.ok) throw new Error(`helper ${res.status}`);
@@ -560,6 +924,7 @@ export function StudyHelper() {
         content: data.message,
         kind,
         card: data.card,
+        sentAt: Date.now(),
         // Only a reply the student is looking at is worth animating.
         animate: key === keyRef.current && !prefersReducedMotion(),
       });
@@ -584,7 +949,14 @@ export function StudyHelper() {
     const key = threadKey;
     const modeAt = mode;
     const current = threadsRef.current[key] ?? EMPTY_THREAD;
-    const userMsg = makeMessage({ role: "user", content: text, sentAt: Date.now() });
+    // Archie reacts to a few kinds of message on his own: a heart on thanks,
+    // a star on "I got it right", a lightbulb on "oh, I get it".
+    const userMsg = makeMessage({
+      role: "user",
+      content: text,
+      sentAt: Date.now(),
+      archieReaction: modeAt === "scheduler" ? null : autoReactionFor(text),
+    });
     pinnedToBottom.current = true;
 
     // Once a booking is under way the panel owns the conversation. A model
@@ -601,14 +973,74 @@ export function StudyHelper() {
         ...t,
         scheduler: next,
         messages: replyText
-          ? [...t.messages, userMsg, makeMessage({ role: "assistant", kind: "booking", content: replyText })]
+          ? [...t.messages, userMsg, makeMessage({ role: "assistant", kind: "booking", content: replyText, sentAt: Date.now() })]
           : [...t.messages, userMsg],
       }));
       if (next.step === "done") await finishBooking(key, next);
       return;
     }
 
-    update(key, (t) => ({ ...t, messages: [...t.messages, userMsg] }));
+    const name = firstName;
+    const lastSaid = [...current.messages].reverse().find((m) => m.role === "assistant");
+
+    // An answer to his own quiz question is checked here. Anything that is
+    // not a bare number or a plain "idk" ends the quiz and goes on as usual.
+    const quiz = current.quiz;
+    if (quiz && !action) {
+      const item = EASY_QUIZ[quiz.item];
+      const verdict = item ? checkQuizReply(item, text) : null;
+      if (verdict) {
+        const right = verdict === "right";
+        update(key, (t) => ({ ...t, messages: [...t.messages, { ...userMsg, archieReaction: right ? "star" : null }] }));
+        if (right) {
+          replyLocally(key, { kind: "buddy", content: quizLine(say(pickFresh(QUIZ_RIGHT, recentSaid.current)), item, name), followUps: ["quiz"] }, () => ({ quiz: null }));
+          showReaction("party", null, 3000);
+        } else if (verdict === "wrong" && quiz.tries === 0) {
+          replyLocally(key, { kind: "buddy", content: say(pickFresh(QUIZ_TRY_AGAIN, recentSaid.current)) }, () => ({
+            quiz: { ...quiz, tries: 1 },
+          }));
+        } else {
+          replyLocally(key, { kind: "buddy", content: quizLine(say(pickFresh(QUIZ_REVEAL, recentSaid.current)), item, name), followUps: ["quiz"] }, () => ({ quiz: null }));
+        }
+        return;
+      }
+    }
+
+    // The small-talk chips, typed out, get the same answers. "another one"
+    // means more of what he just gave them: a fact, a quiz question, a joke.
+    const again: AgainKind | null = quiz
+      ? "quiz"
+      : (["fact", "quiz", "joke"] as const).find((k) => lastSaid?.followUps?.includes(k)) ?? null;
+    const asked = action || modeAt === "scheduler" ? null : chatRequestKind(text, again);
+    if (asked) return chat(asked, text, userMsg);
+
+    // A few short messages he answers himself, matched on the whole message.
+    // Everything else, feelings included, goes to the server.
+    const talk = action ? null : smallTalkKind(text);
+    const pool =
+      talk === "thanks"
+        ? THANKS_REPLIES
+        : talk === "aha"
+          ? AHA_LINES
+          : talk === "got-it"
+            ? GOT_IT_LINES
+            : talk === "hello"
+              ? HELLO_REPLIES
+              : talk === "bye"
+                ? BYE_LINES
+                : talk === "affection"
+                  ? AFFECTION_LINES
+                  : talk === "good-mood" && lastSaid?.asksMood
+                    ? GOOD_MOOD_REPLIES
+                    : null;
+    if (pool && modeAt !== "scheduler") {
+      update(key, (t) => ({ ...t, quiz: null, messages: [...t.messages, userMsg] }));
+      replyLocally(key, { kind: "buddy", asksMood: talk === "hello", content: fillName(say(pickFresh(pool, recentSaid.current)), name) });
+      if (talk === "got-it") showReaction("party", null, 3000);
+      return;
+    }
+
+    update(key, (t) => ({ ...t, quiz: null, messages: [...t.messages, userMsg] }));
     await ask(key, modeAt, [...current.messages, userMsg], action);
   }
 
@@ -629,7 +1061,7 @@ export function StudyHelper() {
     // A booking is a fresh transaction each time it is picked.
     if (next === "scheduler") {
       update("scheduler", () => ({
-        messages: [makeMessage({ role: "assistant", kind: "booking", content: BOOKING_INTRO })],
+        messages: [makeMessage({ role: "assistant", kind: "booking", content: BOOKING_INTRO, sentAt: Date.now() })],
         scheduler: { step: "offered" },
       }));
     }
@@ -657,7 +1089,17 @@ export function StudyHelper() {
   const padOpen = mode === "tutor" && !!problem && !!thread.padOpen;
   const thinking = pending === threadKey;
   const last = messages[messages.length - 1];
+  /** His newest message: the only one whose reaction bar is a Tab stop. */
+  const newestArchieId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
 
+  // Small talk, answered by Archie himself.
+  const chatChips: ChipSpec[] = [
+    { id: "day", label: CHAT_ASK.day, icon: "messages", onPick: () => chat("day") },
+    { id: "fact", label: CHAT_ASK.fact, icon: "star", onPick: () => chat("fact") },
+    { id: "motivate", label: CHAT_ASK.motivate, icon: "flame", onPick: () => chat("motivate") },
+    { id: "quiz", label: CHAT_ASK.quiz, icon: "trophy", onPick: () => chat("quiz") },
+    { id: "joke", label: CHAT_ASK.joke, icon: "spark", onPick: () => chat("joke") },
+  ];
   const tutorChips: ChipSpec[] = problem
     ? [
         { id: "hint", label: "Give me a hint", icon: "hint", onPick: () => void send("Give me a hint", "hint") },
@@ -677,6 +1119,7 @@ export function StudyHelper() {
         { id: "check", label: "Check my work", icon: "pen", onPick: () => setPadOpen(true) },
       ]
     : [
+        ...chatChips,
         { id: "start", label: "How do I start a problem?", icon: "play", onPick: () => void send("How do I start a problem?") },
         { id: "topic", label: "Explain a topic", icon: "teach", onPick: () => void send("Can you explain a topic?") },
         { id: "book", label: "Book a tutor", icon: "tutors", onPick: () => switchMode("scheduler") },
@@ -691,22 +1134,35 @@ export function StudyHelper() {
 
   const chips = mode === "reminder" ? formulaChips : mode === "tutor" ? tutorChips : [];
   const chipsLabel = mode === "reminder" ? "Formulas" : "Quick actions";
+  // Once the conversation is going, the row over the box also offers a fun fact.
+  const rowChips =
+    mode === "tutor" && problem
+      ? [
+          ...tutorChips,
+          { id: "fact", label: "Fun fact", icon: "star" as const, onPick: () => chat("fact") },
+          { id: "quiz", label: "Quiz me", icon: "trophy" as const, onPick: () => chat("quiz") },
+          { id: "joke", label: "Math joke", icon: "spark" as const, onPick: () => chat("joke") },
+        ]
+      : chips;
+  // The chips under his hello, until the student says something here.
+  const greetingChips = !hasUser && bookingStep === 0 && mode !== "scheduler";
 
-  // Two follow-ups hang off the newest tutor reply, once it is fully shown.
-  const followUpsFor =
-    mode === "tutor" && !busy && bookingStep === 0 && last?.role === "assistant" && last.kind === "reply" ? last.id : null;
-
-  // The first hello is by name; after the student has said something, a new
-  // problem gets a shorter one.
-  const hello = mode === "tutor" && !spoken ? greeting(firstName) : null;
-  const emptyIntro =
-    mode === "reminder"
-      ? "Pick a formula. You get the exact statement and a way to remember it."
-      : problem
-        ? spoken
-          ? "New problem, fresh start. Pick one below, or tell me where you're stuck."
-          : "I can see the problem you're on. Pick one below, or tell me where you're stuck. I won't give you the answer, but I'll help you find it."
-        : "Ask me about any Algebra 1 step. Open a practice problem and I can see it too.";
+  // Follow-ups hang off his newest message once it is fully shown: two under
+  // a tutor reply, or whatever his own line offers.
+  const followUps: FollowUpId[] =
+    !busy && bookingStep === 0 && last?.role === "assistant" && !last.animate
+      ? mode === "tutor" && last.kind === "reply"
+        ? ["another-way", "next-step"]
+        : (last.followUps ?? [])
+      : [];
+  const pickFollowUp = (id: FollowUpId) => {
+    if (id === "another-way") void send("Explain it another way", "another-way");
+    else if (id === "next-step") void send("Next step", "next-step");
+    else if (id === "hint") void send("Give me a hint", "hint");
+    else if (id === "fact") chat("fact", "Another fun fact");
+    else if (id === "joke") chat("joke", "Another joke");
+    else chat("quiz", "Another question");
+  };
 
   const placeholder =
     step === "awaiting_time"
@@ -715,7 +1171,7 @@ export function StudyHelper() {
         ? "A tutor's name, or anyone"
         : mode === "reminder"
           ? "Which formula?"
-          : "Ask Archie about a step...";
+          : "Ask Archie anything, or just say hi...";
 
   const panelBody = (
     <>
@@ -741,6 +1197,7 @@ export function StudyHelper() {
               blink
               bob={archiePose === "idle" || archiePose === "thinking"}
               burst={reaction?.burst ?? 0}
+              mark={archieMark}
             />
           </div>
           <div className="min-w-0 flex-1">
@@ -810,35 +1267,20 @@ export function StudyHelper() {
         </div>
       ) : (
         <>
-          {/* The conversation. */}
+          {/* The conversation. Its own live region is off: the announcer
+              below reads each new message once, in full, instead of the
+              words and reaction buttons as they land. */}
           <div
             ref={logRef}
             role="log"
-            aria-live="polite"
+            aria-live="off"
             aria-label="Conversation with Archie"
             onScroll={(e) => {
               const el = e.currentTarget;
               pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
             }}
-            className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain border-t border-slate-100 bg-slate-50 px-3 py-3 text-sm leading-relaxed"
+            className="relative min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-t border-slate-100 bg-white px-3 pb-4 pt-3.5 text-sm leading-relaxed"
           >
-            {messages.length === 0 && (
-              <div className="space-y-2.5">
-                <div className="helper-in flex items-start gap-2 pr-6">
-                  <HelperAvatar size={26} className="mt-0.5" />
-                  <p className="rounded-2xl rounded-tl-md border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 shadow-sm">
-                    {hello && <span className="font-semibold text-slate-900">{hello} </span>}
-                    {emptyIntro}
-                  </p>
-                </div>
-                {chips.length > 0 && (
-                  <div className="pl-[34px]">
-                    <ChipGrid chips={chips} disabled={busy} label={chipsLabel} />
-                  </div>
-                )}
-              </div>
-            )}
-
             {messages.map((m) =>
               m.role === "user" ? (
                 <UserBubble key={m.id} message={m} />
@@ -846,25 +1288,37 @@ export function StudyHelper() {
                 <AssistantBubble
                   key={m.id}
                   message={m}
+                  latest={m.id === newestArchieId}
                   onRevealed={onRevealed}
-                  onTick={scrollToEnd}
+                  onTick={followReveal}
+                  onReact={react}
                   onRetry={m.kind === "error" && m.id === last?.id && !busy ? () => retry(m.id) : undefined}
                 >
-                  {followUpsFor === m.id && (
-                    <div role="group" aria-label="Follow-ups" className="mt-2 flex flex-wrap gap-1.5">
-                      <Chip
-                        compact
-                        chip={{
-                          id: "another",
-                          label: "Explain it another way",
-                          icon: "review",
-                          onPick: () => void send("Explain it another way", "another-way"),
-                        }}
-                      />
-                      <Chip
-                        compact
-                        chip={{ id: "next", label: "Next step", icon: "play", onPick: () => void send("Next step", "next-step") }}
-                      />
+                  {/* Under his hello: the ways in, until the student says something. */}
+                  {m.kind === "greeting" && greetingChips && (chips.length > 0 || mode === "tutor") && (
+                    <div className="helper-in mt-2.5 space-y-2.5">
+                      {chips.length > 0 && <ChipGrid chips={chips} disabled={busy} label={chipsLabel} />}
+                      {mode === "tutor" && problem && (
+                        <div>
+                          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Or just chat</p>
+                          <div role="group" aria-label="Chat with Archie" className="flex flex-wrap gap-1.5">
+                            {chatChips.map((c) => (
+                              <Chip key={c.id} chip={c} disabled={busy} compact />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {m.id === last?.id && followUps.length > 0 && (
+                    <div role="group" aria-label="Follow-ups" className="helper-in mt-2 flex flex-wrap gap-1.5">
+                      {followUps.map((id) => (
+                        <Chip
+                          key={id}
+                          compact
+                          chip={{ id, label: FOLLOW_UP_LABELS[id].label, icon: FOLLOW_UP_LABELS[id].icon, onPick: () => pickFollowUp(id) }}
+                        />
+                      ))}
                     </div>
                   )}
                 </AssistantBubble>
@@ -873,6 +1327,9 @@ export function StudyHelper() {
 
             {thinking && <TypingDots />}
           </div>
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {announcement}
+          </p>
 
           {/* Under the conversation: the booking buttons, or chips and the box. */}
           {step === "offered" ? (
@@ -897,7 +1354,7 @@ export function StudyHelper() {
               {bookingChips.length > 0 ? (
                 <ChipRow chips={bookingChips} disabled={busy} label="Quick answers" />
               ) : (
-                messages.length > 0 && chips.length > 0 && <ChipRow chips={chips} disabled={busy} label={chipsLabel} />
+                hasUser && rowChips.length > 0 && <ChipRow chips={rowChips} disabled={busy} label={chipsLabel} />
               )}
               <form
                 onSubmit={(e) => {

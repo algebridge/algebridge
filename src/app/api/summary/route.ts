@@ -1,4 +1,23 @@
 import { NextResponse } from "next/server";
+import { clientKey, makeRateLimiter } from "@/lib/ai-provider";
+import { stripEmoji } from "@/lib/helper";
+
+/**
+ * The recap of a tutoring call, sent to the other person as a message.
+ *
+ * Cost: when ANTHROPIC_API_KEY is set this calls claude-opus-4-8 ($5 in, $25
+ * out per million tokens), else gpt-4o-mini on OPENAI_API_KEY, else it writes
+ * a local extractive recap. With the caps below one AI recap is at most about
+ * 5,500 tokens in and 600 out, roughly 4 cents on Opus 4.8. A call ends with
+ * one recap, so each network gets 10 AI recaps per 10 minutes; past that the
+ * local recap answers instead, with no error. Groq is deliberately not used:
+ * call transcripts were never sent to it, and that is a decision for a person.
+ */
+const aiRecapsByIp = makeRateLimiter(10, 10 * 60 * 1000);
+
+const MAX_TRANSCRIPT = 12000;
+const MAX_NOTES = 4000;
+const MAX_NAME = 80;
 
 interface SummaryRequest {
   transcript: string;
@@ -16,7 +35,8 @@ Structure it as:
 2. "What we worked on:", 2-4 short bullet-style lines (use "- ").
 3. "Remember:", 1-3 key takeaways or tips.
 4. "Next steps:", 1-3 concrete things to practice.
-Keep it under ~200 words. Be specific to what was actually discussed. If the transcript is sparse, keep it short and honest.`;
+Keep it under ~200 words. Be specific to what was actually discussed. If the transcript is sparse, keep it short and honest.
+No emoji. Never use an em dash; use a comma, a period, or a hyphen.`;
 }
 
 function userPrompt(req: SummaryRequest): string {
@@ -44,6 +64,7 @@ async function callAnthropic(apiKey: string, req: SummaryRequest): Promise<strin
       system: systemPrompt(),
       messages: [{ role: "user", content: userPrompt(req) }],
     }),
+    signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) throw new Error("Anthropic request failed");
   const data = await res.json();
@@ -65,6 +86,7 @@ async function callOpenAI(apiKey: string, req: SummaryRequest): Promise<string> 
       max_tokens: 500,
       temperature: 0.5,
     }),
+    signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) throw new Error("OpenAI request failed");
   const data = await res.json();
@@ -115,35 +137,57 @@ function localSummary(req: SummaryRequest): string {
   out.push("- Re-do a couple of practice problems on today's topic.");
   out.push("- Message your tutor if anything still feels fuzzy.");
   out.push("");
-  out.push(`Great work showing up and putting in the effort, ${student}! 💪`);
+  out.push(`Great work showing up and putting in the effort, ${student}!`);
   return out.join("\n");
 }
 
+/** House style for text that is sent on to another person. */
+function tidy(text: string): string {
+  return stripEmoji(text.replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/,\s*,/g, ",")).trim();
+}
+
+/** Only the fields this route reads, each with the type it expects and a size cap. */
+function cleanRequest(raw: unknown): SummaryRequest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.transcript !== "string") return null;
+  const name = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, MAX_NAME) : undefined);
+  const minutes = typeof r.durationMinutes === "number" && Number.isFinite(r.durationMinutes) ? r.durationMinutes : undefined;
+  return {
+    transcript: r.transcript.slice(0, MAX_TRANSCRIPT),
+    notes: typeof r.notes === "string" ? r.notes.slice(0, MAX_NOTES) : undefined,
+    studentName: name(r.studentName),
+    tutorName: name(r.tutorName),
+    durationMinutes: minutes !== undefined && minutes > 0 && minutes <= 600 ? Math.round(minutes) : undefined,
+  };
+}
+
 export async function POST(request: Request) {
-  let body: SummaryRequest;
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  if (typeof body?.transcript !== "string") {
+  const body = cleanRequest(raw);
+  if (!body) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  // Cap sizes so a client can't send an unbounded prompt.
-  body.transcript = body.transcript.slice(0, 12000);
-  if (body.notes) body.notes = body.notes.slice(0, 4000);
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  try {
-    let raw: string | null = null;
-    if (anthropicKey) raw = await callAnthropic(anthropicKey, body);
-    else if (openaiKey) raw = await callOpenAI(openaiKey, body);
-    if (raw) return NextResponse.json({ summary: raw, source: "ai" as const });
-  } catch {
-    // fall through to local extractive summary
+  // Past the budget the local recap answers, so the call still ends with one.
+  if ((anthropicKey || openaiKey) && aiRecapsByIp(clientKey(request))) {
+    try {
+      let text: string | null = null;
+      if (anthropicKey) text = await callAnthropic(anthropicKey, body);
+      else if (openaiKey) text = await callOpenAI(openaiKey, body);
+      if (text) return NextResponse.json({ summary: tidy(text), source: "ai" as const });
+    } catch {
+      // fall through to local extractive summary
+    }
   }
 
-  return NextResponse.json({ summary: localSummary(body), source: "local" as const });
+  return NextResponse.json({ summary: tidy(localSummary(body)), source: "local" as const });
 }

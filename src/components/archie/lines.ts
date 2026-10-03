@@ -3,7 +3,7 @@
  * short line when practice checks an answer. Pure data and pure functions, so
  * the helper tests can hold every line to house style.
  *
- * Voice: warm, brief, a friend who is good at maths. Never babyish, never
+ * Voice: warm, brief, a friend who is good at math. Never babyish, never
  * more than one line, and never a claim about the answer itself: a wrong line
  * cannot say "close", because Archie does not know how close it was.
  */
@@ -60,5 +60,17 @@ export function greeting(firstName: string | null | undefined): string {
   return name ? `Hi ${name}, I'm Archie.` : "Hi, I'm Archie.";
 }
 
+/** Beside his name when the student puts a heart on one of his messages. */
+export const HEART_QUIPS = ["Aw, glad that helped!", "Ooh, a heart! Glad it clicked.", "Thanks! That one was fun."] as const;
+
+/** Beside his name when the student gives one of his messages a star. */
+export const STAR_QUIPS = ["A star? I'm honored.", "Ooh, a gold star!", "Starred! Thank you."] as const;
+
 /** Every line Archie can say on his own, for the style tests. */
-export const ALL_LINES: readonly string[] = [...CORRECT_LINES, ...WRONG_LINES, ...Object.values(STREAK_LINES)];
+export const ALL_LINES: readonly string[] = [
+  ...CORRECT_LINES,
+  ...WRONG_LINES,
+  ...Object.values(STREAK_LINES),
+  ...HEART_QUIPS,
+  ...STAR_QUIPS,
+];

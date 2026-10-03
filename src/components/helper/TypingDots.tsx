@@ -1,18 +1,22 @@
 import { HelperAvatar } from "./HelperAvatar";
+import { BubbleTail } from "./MessageBubble";
 
-/** Three dots in a bubble while a reply is on its way, with Archie looking up, thinking. */
+/**
+ * Three dots in Archie's own bubble while a reply is on its way, with him
+ * looking up, thinking. They only move while they are on screen, which is
+ * only while a reply is coming.
+ */
 export function TypingDots() {
   return (
-    <div className="helper-in flex items-end gap-2">
-      <HelperAvatar size={26} mood="thinking" />
-      <div
-        role="status"
-        aria-label="Archie is writing a reply"
-        className="flex h-9 items-center gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-3.5 text-bridge-400 shadow-sm"
-      >
-        <span className="helper-dot" />
-        <span className="helper-dot" />
-        <span className="helper-dot" />
+    <div className="archie-pop flex items-start gap-2.5">
+      <HelperAvatar size={28} mood="thinking" className="mt-0.5" />
+      <div role="status" aria-label="Archie is writing a reply" className="archie-bubble archie-typing">
+        <BubbleTail />
+        <span className="archie-tdots" aria-hidden="true">
+          <span className="helper-dot" />
+          <span className="helper-dot" />
+          <span className="helper-dot" />
+        </span>
       </div>
     </div>
   );

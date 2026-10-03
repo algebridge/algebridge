@@ -39,6 +39,31 @@ export interface JsonCallResult {
   provider: string;
 }
 
+/**
+ * The Groq models the study helper tries, in order, shared with its status
+ * probe so the probe checks what the helper will really call.
+ *
+ * Model ids here are retired often, and fast. Every Llama id this list
+ * originally held was already gone by the time a key was issued, which made a
+ * perfectly valid key look rejected. These four were verified against a live
+ * account; the order is largest first for answer quality.
+ *
+ * qwen3.6-27b is deliberately absent: it emits its chain of thought inside
+ * <think> tags, which is not something to show a student.
+ */
+export const HELPER_GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.8-27b",
+  "groq/compound-mini",
+];
+
+/** HELPER_GROQ_MODELS with GROQ_MODEL, when it is set, tried first. */
+export function helperGroqModels(): string[] {
+  const preferred = process.env.GROQ_MODEL;
+  return preferred ? [preferred, ...HELPER_GROQ_MODELS.filter((m) => m !== preferred)] : HELPER_GROQ_MODELS;
+}
+
 export function aiConfigured(): boolean {
   return Boolean(process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY);
 }
@@ -156,6 +181,16 @@ export function makeRateLimiter(limit: number, windowMs: number) {
     if (hits.size > 5000) hits.clear();
     return true;
   };
+}
+
+/**
+ * A per-tab key a client may send so one student cannot spend a whole
+ * classroom's budget. Client-chosen, so it only ever tightens: the per-IP
+ * limit is the real backstop.
+ */
+export function sessionKey(request: Request, fromBody?: unknown): string | null {
+  const v = typeof fromBody === "string" ? fromBody : request.headers.get("x-helper-session");
+  return v && /^[\w-]{8,64}$/.test(v) ? v : null;
 }
 
 export function clientKey(request: Request): string {
