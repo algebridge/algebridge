@@ -48,6 +48,9 @@
     font-size: 9.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    /* Set a little smaller on paper so the handout is three pages, not six;
+       card text still prints at about 7.5pt. */
+    zoom: 0.82;
   }
   .schools-page * {
     box-shadow: none !important;
@@ -114,20 +117,57 @@
   .schools-intro {
     break-after: avoid;
   }
-  /* Three pages: the course and teachers, the standards, then privacy,
-     accessibility and contact. */
-  #standards,
-  #privacy {
-    break-before: page;
+  /* No forced page breaks: sections flow, and only cards keep together.
+     Forcing a break before Standards and Privacy left page 2 holding two
+     teacher cards and made the handout six pages. */
+
+  /* What the course covers, and what it does not yet: stacked, the units as
+     one running line and the gaps in two columns. */
+  .schools-coverage {
+    grid-template-columns: 1fr !important;
+    gap: 6pt !important;
+    margin-top: 6pt !important;
+  }
+  .schools-coverage ol {
+    display: flex !important;
+    flex-wrap: wrap;
+    column-gap: 9pt;
+    margin-top: 2pt !important;
+  }
+  .schools-coverage ul {
+    columns: 2;
+    column-gap: 16pt;
+    margin-top: 3pt !important;
+  }
+  .schools-coverage li {
+    font-size: 8.2pt !important;
+    line-height: 1.32 !important;
+    margin-top: 0 !important;
+    break-inside: avoid;
+  }
+  .schools-coverage ul > li + li {
+    margin-top: 1.5pt !important;
+  }
+  .schools-coverage li span {
+    font-size: 7pt !important;
+  }
+  .schools-coverage p {
+    margin-top: 2pt !important;
+  }
+  .schools-crisis {
+    padding: 5pt 9pt !important;
+    font-size: 8.4pt !important;
+    line-height: 1.4 !important;
   }
 
   /* Cards: tighter, never split across pages. */
   .schools-card,
   .schools-unit,
   .schools-key-group,
-  .schools-notclaimed,
-  .schools-ai,
-  .schools-ai-table tr {
+  .schools-coverage,
+  .schools-notclaimed dl > div,
+  .schools-ai-table tr,
+  .schools-crisis {
     break-inside: avoid;
   }
   /* Cards flow down two columns, so short and long ones pack together
@@ -186,17 +226,17 @@
     margin-top: 8pt !important;
   }
   .schools-unit {
-    margin-bottom: 6pt !important;
+    margin-bottom: 5pt !important;
     border-radius: 7pt !important;
   }
   .schools-unit h3 {
-    padding: 3.5pt 8pt !important;
+    padding: 2.5pt 8pt !important;
     font-size: 8.75pt !important;
   }
   .schools-unit th,
   .schools-unit td {
-    padding-top: 2pt !important;
-    padding-bottom: 2pt !important;
+    padding-top: 1.5pt !important;
+    padding-bottom: 1.5pt !important;
     font-size: 8.25pt !important;
     line-height: 1.25 !important;
   }
@@ -302,5 +342,93 @@
   .schools-stamp {
     margin-top: 10pt !important;
     font-size: 7.5pt !important;
+  }
+
+  /* ---- Paper density: three pages ---------------------------------- */
+  /* The icons help on screen; on paper the text gets their width. */
+  .schools-grid .schools-mark {
+    display: none !important;
+  }
+  /* The standards as ruled lists rather than boxed cards. */
+  .schools-unit {
+    border-width: 0 !important;
+    border-top: 0.75pt solid #cbd5e1 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    margin-bottom: 3pt !important;
+  }
+  .schools-unit h3 {
+    background: none !important;
+    border-bottom: 0 !important;
+    padding: 2pt 0 1pt !important;
+  }
+  .schools-unit tr {
+    border-top-width: 0 !important;
+  }
+  .schools-unit th {
+    padding-left: 0 !important;
+  }
+  .schools-unit th,
+  .schools-unit td {
+    padding-top: 0.75pt !important;
+    padding-bottom: 0.75pt !important;
+  }
+  .schools-units {
+    column-gap: 16pt;
+  }
+  .schools-notclaimed {
+    padding: 6pt 9pt !important;
+  }
+  .schools-notclaimed dl {
+    margin-top: 4pt !important;
+  }
+  .schools-notclaimed dl > div + div {
+    margin-top: 2.5pt !important;
+  }
+  .schools-notclaimed dt,
+  .schools-notclaimed dd {
+    line-height: 1.35 !important;
+  }
+  /* Four short accessibility cards in one row. */
+  #accessibility .schools-grid {
+    columns: 4;
+  }
+  .schools-ai-table th,
+  .schools-ai-table td {
+    padding-top: 3pt !important;
+    padding-bottom: 3pt !important;
+  }
+  /* What is sent gets the room; the feature names are short. */
+  .schools-ai-table thead th:first-child {
+    width: 16% !important;
+  }
+  .schools-ai-table thead th:nth-child(2) {
+    width: 50% !important;
+  }
+  /* Section 06 repeats the hero (Free, no ads, no paid version) and the
+     email; on paper the version line at the foot carries the contact. */
+  #contact {
+    display: none !important;
+  }
+  .schools-stamp {
+    margin-top: 8pt !important;
+    font-size: 8pt !important;
+    color: #334155 !important;
+  }
+  /* Tighter rhythm between sections, and an intro never split over a page. */
+  .schools-body > * + * {
+    margin-top: 9pt !important;
+  }
+  .schools-section h2 {
+    font-size: 13pt !important;
+  }
+  .schools-intro {
+    font-size: 9pt !important;
+    break-inside: avoid;
+  }
+  .schools-page p,
+  .schools-page li {
+    orphans: 3;
+    widows: 3;
   }
 }

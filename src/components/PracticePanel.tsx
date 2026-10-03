@@ -23,7 +23,7 @@ import { getFurnitureItem } from "@/data/house-catalog";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { useSound } from "@/hooks/useSound";
 import { useSpeech } from "@/hooks/useSpeech";
-import { AnswerFeedback } from "@/components/AnswerFeedback";
+import { AnswerFeedback, feedbackLine } from "@/components/AnswerFeedback";
 import { MistakeNote } from "@/components/MistakeNote";
 import { QuoteCard } from "@/components/QuoteCard";
 import { WorkedSteps } from "@/components/WorkedSteps";
@@ -184,6 +184,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
   const [stepOrder, setStepOrder] = useState<number[]>([]);
+  /** Where the last moved step landed, read out to a screen reader. */
+  const [stepNote, setStepNote] = useState("");
+  const stepArrows = useRef<Record<string, HTMLButtonElement | null>>({});
+  useEffect(() => setStepNote(""), [problemIndex]);
   /** Choices and steps already tried and wrong on this problem: crossed out, so the next try is a real one. */
   const [eliminated, setEliminated] = useState<string[]>([]);
   const [eliminatedSteps, setEliminatedSteps] = useState<number[]>([]);
@@ -662,7 +666,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     playLevelUp,
   ]);
 
+  /** What had the focus when the student moved on (Next Problem, Skip): the new problem takes it over. */
+  const leavingFrom = useRef<Element | null>(null);
   function nextProblem() {
+    leavingFrom.current = document.activeElement;
     if (problemIndex + 1 >= allProblems.length) {
       startSession();
       return;
@@ -686,15 +693,35 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     const next = [...stepOrder];
     [next[from], next[to]] = [next[to], next[from]];
     setStepOrder(next);
+    // The row moves in the page, which drops the keyboard focus, and at the
+    // top or bottom its arrow turns off. Put the focus back on the step that
+    // moved (the other arrow at an end), and say where it landed.
+    const moved = stepOrder[from];
+    const atEnd = to === 0 || to === next.length - 1;
+    const arrow = atEnd ? (direction === -1 ? "down" : "up") : direction === -1 ? "up" : "down";
+    setStepNote(`Moved to place ${to + 1} of ${next.length}.`);
+    requestAnimationFrame(() => stepArrows.current[`${moved}-${arrow}`]?.focus());
   }
 
   // Keyboard shortcuts: Enter submits/advances, 1-9 picks a multiple-choice answer.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement | null;
-      const isTypingInInput = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+      const isTypingInInput =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.tagName === "SELECT" || !!target?.isContentEditable;
+      // Enter on a link, a button or any other control does what that control
+      // does (open the calculator, follow a menu link, press Skip). The shortcut
+      // is for when nothing in particular has the keyboard, and for an answer
+      // choice that is already picked: Enter picks a choice, Enter again checks it.
+      const control = target?.closest?.(
+        "a[href], button, summary, select, [role=button], [role=tab], [role=link], [role=menuitem], [role=slider], [tabindex]:not([tabindex='-1'])"
+      );
+      const pickedChoice = !!control?.hasAttribute("data-choice") && control.getAttribute("aria-pressed") === "true";
+      // The calculator and Archie take their own keys.
+      const elsewhere = !!target?.closest?.("[role=dialog], [role=complementary]");
 
-      if (e.key === "Enter" && !isTypingInInput) {
+      if (e.key === "Enter" && !isTypingInInput && !elsewhere && (!control || pickedChoice)) {
         e.preventDefault();
         if (feedback === "correct" || revealed) {
           nextProblem();
@@ -706,6 +733,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
       if (
         !isTypingInInput &&
+        !elsewhere &&
         feedback !== "correct" &&
         !revealed &&
         problem?.type === "multiple-choice" &&
@@ -721,6 +749,49 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedback, problem, handleSubmit, revealed, eliminated]);
+
+  // Keyboard focus follows the work, for someone working by keyboard only
+  // (a tap never moves it, so a phone's keyboard does not pop up). When an
+  // answer is done, the focus the answer box or Check button just lost goes
+  // to Next Problem; after Next or Skip it goes to the new answer box, or
+  // the first choice. Focus that is somewhere else (Archie, the calculator)
+  // is left alone.
+  const byKeyboard = useRef(false);
+  const focusNewProblem = useRef(false);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const key = () => (byKeyboard.current = true);
+    const tap = () => (byKeyboard.current = false);
+    window.addEventListener("keydown", key, true);
+    window.addEventListener("pointerdown", tap, true);
+    return () => {
+      window.removeEventListener("keydown", key, true);
+      window.removeEventListener("pointerdown", tap, true);
+    };
+  }, []);
+  const focusIsLost = () => {
+    const a = document.activeElement as HTMLElement | null;
+    return !a || a === document.body || a.matches(":disabled");
+  };
+  useEffect(() => {
+    if ((feedback === "correct" || revealed) && byKeyboard.current && focusIsLost()) nextRef.current?.focus();
+  }, [feedback, revealed]);
+  // A wrong pick is crossed out and turned off, which drops the focus it had:
+  // it goes to the first pick still open, so the next try is one key away.
+  useEffect(() => {
+    if (feedback !== "wrong" || revealed || !byKeyboard.current || !focusIsLost()) return;
+    document.querySelector<HTMLElement>("[data-choice]:not(:disabled)")?.focus();
+  }, [feedback, revealed, eliminated, eliminatedSteps]);
+  useEffect(() => {
+    focusNewProblem.current = byKeyboard.current;
+  }, [problemIndex]);
+  useEffect(() => {
+    if (!focusNewProblem.current || pending || feedback) return;
+    focusNewProblem.current = false;
+    // The button pressed may still hold the focus: Check Answer reuses Next Problem's place.
+    if (!focusIsLost() && document.activeElement !== leavingFrom.current) return;
+    (answerRef.current ?? document.querySelector<HTMLElement>("[data-choice]:not(:disabled)"))?.focus();
+  });
 
   if (!problem) return null;
 
@@ -753,12 +824,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         <div
           style={hueVars(unitHue(unitOfSkill?.id ?? units[0].id))}
           className="hue-banner animate-pop-in relative overflow-hidden rounded-2xl px-5 py-5 shadow-sm sm:px-6"
-          role="status"
         >
           <div className="flex flex-wrap items-center gap-4">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
               <Icon name={celebration.unitNumber ? "trophy" : "check"} size={26} />
             </span>
+            {/* Read out by the practice's status line below, which is on the page before this arrives. */}
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold leading-tight">
                 {celebration.unitNumber ? `Unit ${celebration.unitNumber} complete` : "Skill complete"}
@@ -792,7 +863,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               )}
               <button
                 type="button"
-                onClick={() => setCelebration(null)}
+                onClick={() => {
+                  setCelebration(null);
+                  // The banner, and this button with it, goes away: the focus goes on to the practice.
+                  requestAnimationFrame(() => (nextRef.current ?? answerRef.current)?.focus());
+                }}
                 className="rounded-lg border border-white/35 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
               >
                 Keep practicing
@@ -967,7 +1042,13 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               spellCheck={false}
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && feedback !== "correct" && handleSubmit()}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || feedback === "correct") return;
+                // preventDefault stops the same key press from also landing on Next
+                // Problem, which takes the focus the moment the answer is right.
+                e.preventDefault();
+                handleSubmit();
+              }}
               placeholder={
                 "decimalPlaces" in problem && typeof problem.decimalPlaces === "number"
                   ? "Your answer, rounded"
@@ -1003,6 +1084,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   disabled={over || out}
                   onClick={() => setSelectedChoice(choice)}
                   onKeyDown={ignoreSpaceKey}
+                  data-choice=""
+                  aria-pressed={picked}
                   aria-label={out ? `${choice}, already tried` : undefined}
                   className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
                     isAnswer
@@ -1041,7 +1124,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         {!pending && problem.type === "error-analysis" && getProblemSteps(problem) && (
           <div className="mt-4 space-y-2">
             <p className="text-sm text-slate-500">
-              Click the step that contains the error:
+              Choose the step that contains the error:
             </p>
             {getProblemSteps(problem)!.map((step, i) => {
               const out = eliminatedSteps.includes(i);
@@ -1053,13 +1136,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   disabled={over || out}
                   onClick={() => setSelectedStep(i)}
                   onKeyDown={ignoreSpaceKey}
+                  data-choice=""
+                  aria-pressed={selectedStep === i && !revealed}
                   className={`block w-full rounded-xl border px-4 py-3 text-left font-mono text-sm ${
                     isError
                       ? "border-amber-400 bg-amber-50 text-amber-950"
                       : out
                         ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400"
                         : selectedStep === i && !revealed
-                          ? "border-red-400 bg-red-50"
+                          ? "border-red-400 bg-red-50 ring-2 ring-red-400"
                           : "border-slate-200 hover:border-red-200"
                   }`}
                 >
@@ -1093,6 +1178,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   <MathText text={getProblemSteps(problem)![stepIdx]} />
                 </span>
                 <button
+                  ref={(el) => {
+                    stepArrows.current[`${stepIdx}-up`] = el;
+                  }}
                   type="button"
                   disabled={over || position === 0}
                   onClick={() => moveStep(position, -1)}
@@ -1102,6 +1190,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   <Icon name="chevron-up" size={18} />
                 </button>
                 <button
+                  ref={(el) => {
+                    stepArrows.current[`${stepIdx}-down`] = el;
+                  }}
                   type="button"
                   disabled={over || position === stepOrder.length - 1}
                   onClick={() => moveStep(position, 1)}
@@ -1112,8 +1203,21 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 </button>
               </div>
             ))}
+            <p role="status" className="sr-only">
+              {stepNote}
+            </p>
           </div>
         )}
+
+        {/* Always on the page, so a screen reader reads each verdict as it lands. */}
+        <p role="status" className="sr-only">
+          {[
+            feedback && !revealed ? feedbackLine(feedback, feedbackSeed) : "",
+            celebration ? `${celebration.unitNumber ? `Unit ${celebration.unitNumber}` : "Skill"} complete. ${skill.title} is done.` : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        </p>
 
         {/* Feedback */}
         {feedback && !revealed && (
@@ -1244,6 +1348,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </button>
           ) : (
             <button
+              ref={nextRef}
               type="button"
               onClick={nextProblem}
               onKeyDown={ignoreSpaceKey}
@@ -1300,7 +1405,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 /** Problems banked so far: filled for each one right, hollow for what is still owed. */
 function SolvedPips({ done, total }: { done: number; total: number }) {
   return (
-    <span className="flex shrink-0 items-center gap-1" aria-label={`${done} of ${total} right`}>
+    <span role="img" className="flex shrink-0 items-center gap-1" aria-label={`${done} of ${total} right`}>
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}

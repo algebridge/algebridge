@@ -6,7 +6,7 @@ export default function TermsPage() {
   return (
     <article className="mx-auto max-w-2xl">
       <h1 className="page-title">Terms of Service</h1>
-      <p className="mt-1 text-sm text-slate-500">Last updated: July 2026</p>
+      <p className="mt-1 text-sm text-slate-500">Last updated: October 2026</p>
 
       <div className="mt-6 space-y-6 text-slate-700">
         <section>
@@ -21,8 +21,10 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Accounts &amp; roles</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>Lessons and practice need a free account, under your real first and last name.</li>
+            <li>If you are under 13, create an account only with a parent&apos;s, guardian&apos;s or teacher&apos;s permission.</li>
             <li>You are responsible for your account and for keeping your password secure.</li>
-            <li><strong>Teacher and tutor accounts require an access code.</strong> Do not request or use one unless you are genuinely a teacher or tutor.</li>
+            <li><strong>Teacher and tutor accounts require an access code.</strong> Do not request or use one unless you are genuinely a teacher or tutor, and do not share it.</li>
             <li>We may remove accounts that abuse the platform or other users.</li>
           </ul>
         </section>
@@ -39,8 +41,10 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-bold text-slate-900">Educational content</h2>
           <p className="mt-2">
-            Lessons, hints, and AI-generated call recaps are provided to help you learn but
-            may contain errors. Always double-check important work.
+            Lessons, hints, Archie&apos;s replies, word problems written by AI, and AI-written call
+            recaps are provided to help you learn but may contain errors. Always double-check
+            important work. Lesson videos come from public YouTube channels that are not
+            affiliated with AlgeBridge.
           </p>
         </section>
 

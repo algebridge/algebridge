@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../console.css";
 import { useAuth } from "@/lib/auth";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { consoleFontClass } from "@/lib/console-fonts";
 import { dayKey, timeOfDay, toLocalInput } from "@/lib/console-format";
 import {
@@ -62,6 +63,9 @@ export default function CalendarPage() {
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [draft, setDraft] = useState<EventDraft | null>(null);
   const [busy, setBusy] = useState(false);
+  // Keyboard: the entry dialog takes the focus, keeps Tab inside, closes on Escape and hands the focus back.
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(modalRef, !!draft, () => closeModal());
 
   const start = useMemo(() => gridStart(year, month), [year, month]);
   const days = useMemo(() => Array.from({ length: 42 }, (_, i) => addDays(start, i)), [start]);
@@ -255,21 +259,25 @@ export default function CalendarPage() {
             const list = byDay.get(key) ?? [];
             const outside = d.getMonth() !== month;
             return (
+              // A click anywhere on the day adds an entry. For the keyboard that is
+              // the date's own button: a cell that is a button cannot hold the
+              // entry buttons inside it (nested controls are not read out).
               <div
                 key={key}
-                role="button"
-                tabIndex={0}
                 className={`sbc-day${outside ? " is-outside" : ""}${key === todayKey ? " is-today" : ""}`}
                 onClick={() => openNew(d)}
-                onKeyDown={(ev) => {
-                  if (ev.target === ev.currentTarget && (ev.key === "Enter" || ev.key === " ")) {
-                    ev.preventDefault();
-                    openNew(d);
-                  }
-                }}
-                aria-label={`Add an entry on ${d.toDateString()}`}
               >
-                <span className="sbc-day-num">{d.getDate()}</span>
+                <button
+                  type="button"
+                  className="sbc-day-num"
+                  aria-label={`Add an entry on ${d.toDateString()}`}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    openNew(d);
+                  }}
+                >
+                  {d.getDate()}
+                </button>
                 {list.slice(0, CHIPS_PER_DAY).map((e) => (
                   <button
                     type="button"
@@ -330,7 +338,17 @@ export default function CalendarPage() {
                       {timeOfDay(e.startsAt)}
                     </td>
                     <td>
-                      <strong>{e.title}</strong>
+                      {/* The row opens on a click; this is the same thing for the keyboard. */}
+                      <button
+                        type="button"
+                        className="font-semibold hover:underline"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          openExisting(e);
+                        }}
+                      >
+                        {e.title}
+                      </button>
                       <small>
                         <span className={`sbc-pill${e.kind === "session" ? " is-ok" : " is-warn"}`}>
                           {e.kind}
@@ -351,6 +369,7 @@ export default function CalendarPage() {
       {draft && (
         <div className="sbc-modal-back" onClick={closeModal} role="presentation">
           <div
+            ref={modalRef}
             className={`sbc-modal ${consoleFontClass}`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"

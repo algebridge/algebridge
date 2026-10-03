@@ -6,6 +6,25 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
 
+/* ---- Gray text tokens (WCAG 2.1 AA) ------------------------------
+   Small text needs 4.5:1 against the surface it sits on. Tailwind's
+   slate-400 is 2.56:1 on white, and slate-500 falls to 4.1-4.5:1 on the
+   tinted surfaces used here (slate-100, the calculator's keypad tray,
+   every unit tint). So the two gray TEXT utilities are darkened to
+   shades that clear 4.5:1 on all of them (practice.test.ts checks
+   it). Borders, fills, rings and the dot pattern keep the palette's
+   slate-400 and slate-500. Variants follow (placeholder:, hover:).
+   On a dark surface use text-slate-300 or lighter. */
+@layer utilities {
+  .text-slate-400 {
+    color: #5f6f85;
+  }
+
+  .text-slate-500 {
+    color: #5b6b81;
+  }
+}
+
 @layer components {
   /* ---- Buttons ------------------------------------------------ */
   .btn-primary {

@@ -1074,5 +1074,502 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   }
 }
 
+// ============================================================================
+// Safety (Oct 3 2026): the personal information guard, reports, blocks on this
+// device, the crisis card's contacts, and school mode. src/lib/safety.ts,
+// src/lib/school-mode.ts, src/app/api/feedback/route.ts (kind "report").
+// ============================================================================
+{
+  const SF = await import("../safety.ts");
+  const { CRISIS_CONTACTS, CRISIS_EMERGENCY } = await import("../helper.ts");
+
+  // --- personal information: what must be held back ---------------------------
+  const PI_HIT: [string, string][] = [
+    ["my number is 302-555-0142", "phone"],
+    ["call me at (302) 555 0142", "phone"],
+    ["text me 3025550142", "phone"],
+    ["+1 302.555.0142", "phone"],
+    ["my cell is 555-0142", "phone"],
+    ["３０２-５５５-０１４２", "phone"],
+    ["three oh two five five five oh one four two", "phone"],
+    ["3 0 2 5 5 5 0 1 4 2", "phone"],
+    ["jay.r@gmail.com", "email"],
+    ["email me at jay at gmail dot com", "email"],
+    ["jay(at)yahoo(dot)com", "email"],
+    ["my email is jayr", "email"],
+    ["i live at 42 oak st", "address"],
+    ["42 Oak Street", "address"],
+    ["1200 north market st", "address"],
+    ["my address is 5 main", "address"],
+    ["come to my house after school", "address"],
+    ["my snap is jay_22", "handle"],
+    ["@jayr22", "handle"],
+    ["my insta: jay", "handle"],
+    ["ig: jay.r", "handle"],
+    ["discord.gg/abc", "link"],
+    ["https://evil.example.com/x", "link"],
+    ["check out www.site.com", "link"],
+    ["add me on snap", "off-platform"],
+    ["text me", "off-platform"],
+    ["snap me", "off-platform"],
+    ["hmu", "off-platform"],
+    ["what school do you go to", "off-platform"],
+    ["which school do u go to", "off-platform"],
+    ["where do you live", "off-platform"],
+    ["whats ur snap", "off-platform"],
+    ["send me your number", "off-platform"],
+    ["send a pic of yourself", "off-platform"],
+    ["lets talk somewhere else", "off-platform"],
+    ["message me on discord", "off-platform"],
+    ["lets play on roblox", "off-platform"],
+    ["call me later", "off-platform"],
+    ["facetime me tonight", "off-platform"],
+    ["can i have your number", "off-platform"],
+    ["are you home alone", "off-platform"],
+    ["meet up after school", "off-platform"],
+    ["don't tell your parents", "secrecy"],
+    ["keep this a secret", "secrecy"],
+    ["this stays between us", "secrecy"],
+  ];
+  for (const [text, kind] of PI_HIT) {
+    const kinds = SF.detectPersonalInfo(text).map((h) => h.kind);
+    ok(`safety: held back as ${kind}: "${text}"`, kinds.includes(kind as never), JSON.stringify(kinds));
+  }
+
+  // --- and what is ordinary math talk, which must go through -------------------
+  const PI_PASS = [
+    "is the answer 2x + 3?", "I got x = 4", "the slope is 3/4", "solve 3x - 7 = 11", "5280 * 6 = 31680",
+    "what is 125 - 1500", "what number is 125-1500", "the sequence 2, 4, 6, 8, 10, 12, 14", "I have 2 more steps to go",
+    "there is 1 other way", "round to 2 decimal places", "you can call me Sam", "thanks for the help!",
+    "can you add me to the group?", "my line is wrong", "my signal is bad", "here is a secret trick for factoring",
+    "I live in Newark", "dm me if you have questions", "minecraft is fun", "see learn.algebridge.org/learn/unit-1",
+    "it's 3.14", "e.g. 4x", "the car goes 60 miles per hour down the road", "I updated my email",
+    "my account page is broken", "16 is a perfect square", "y = mx + b", "(x + 3)(x - 2) = 0",
+    "lets go to the next problem", "i got 1234567890 as the product", "meet the deadline", "my answer is 302",
+    "the answer was 4.5 hours", "I scored 100%", "this problem is killing me", "what is 3 x 4 x 5",
+  ];
+  for (const text of PI_PASS) {
+    const hits = SF.detectPersonalInfo(text);
+    ok(`safety: goes through: "${text}"`, hits.length === 0, JSON.stringify(hits));
+  }
+
+  // --- who may send it ------------------------------------------------------------
+  const student = SF.guardMessage("my snap is jay_22", { staff: false });
+  ok("safety: a student's message is held back", student.action === "block" && student.kinds.includes("handle"));
+  ok("safety: and told why, kindly", student.action === "block" && /^Not sent/.test(student.message) && /report them/.test(student.message) && /social media username/.test(student.message), student.action === "block" ? student.message : "");
+  const staffPhone = SF.guardMessage("call the school office at 302-555-0142", { staff: true });
+  ok("safety: staff get a warning they can override", staffPhone.action === "warn" && staffPhone.kinds.includes("phone"));
+  const staffSecret = SF.guardMessage("this stays between us, ok?", { staff: true });
+  ok("safety: nobody sends a student a request for secrecy", staffSecret.action === "block" && staffSecret.kinds.includes("secrecy"));
+  ok("safety: a plain message is sent", SF.guardMessage("Try subtracting 3 from both sides first.", { staff: false }).action === "send");
+  for (const v of [student, staffPhone, staffSecret]) {
+    if (v.action === "send") continue;
+    ok(`safety: guard copy is house style: ${v.message.slice(0, 40)}`, !/[—–]/.test(v.message) && !/\p{Extended_Pictographic}/u.test(v.message));
+  }
+
+  // --- reports --------------------------------------------------------------------
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const good = SF.cleanReport({ reason: "personal-info", details: "  asked   where I live ", reportedUserId: B, place: "dm", placeId: `${A}--${B}`, excerpt: "what school do you go to", extra: "dropped" });
+  ok("report: a good report is kept, tidied", !!good && good.details === "asked where I live" && good.reportedUserId === B && good.place === "dm" && !("extra" in good), JSON.stringify(good));
+  ok("report: an unknown reason is refused", SF.cleanReport({ reason: "spam", reportedUserId: B, place: "dm", placeId: "x" }) === null);
+  ok("report: an unknown place is refused", SF.cleanReport({ reason: "other", reportedUserId: B, place: "email", placeId: "x" }) === null);
+  ok("report: a bad user id is refused", SF.cleanReport({ reason: "other", reportedUserId: "drop table", place: "dm", placeId: "x" }) === null);
+  ok("report: a bad place id is refused", SF.cleanReport({ reason: "other", reportedUserId: B, place: "dm", placeId: "x; drop" }) === null);
+  ok("report: no person is fine (a group as a whole)", SF.cleanReport({ reason: "other", reportedUserId: null, place: "group", placeId: "g1" })?.reportedUserId === null);
+  const long = SF.cleanReport({ reason: "other", reportedUserId: B, place: "group", placeId: "g1", details: "x".repeat(5000), excerpt: "y".repeat(5000) });
+  ok("report: text is capped", long?.details?.length === SF.REPORT_LIMITS.details && long?.excerpt?.length === SF.REPORT_LIMITS.excerpt);
+  const text = SF.reportMessage(good!);
+  ok("report: the message carries every field", /Asked for personal information/.test(text) && text.includes(`dm:${A}--${B}`) && text.includes(B) && /what school do you go to/.test(text) && /asked where I live/.test(text), text);
+  ok("report: the columns", JSON.stringify(SF.reportColumns(good!)) === JSON.stringify({ report_reason: "personal-info", report_where: `dm:${A}--${B}`, reported_user_id: B, report_excerpt: "what school do you go to" }));
+  ok("report: five reasons, as the form shows them", SF.REPORT_REASONS.map((r) => r.label).join("|") === "Bullying or harassment|Asked for personal information|Inappropriate content|Made me uncomfortable|Something else");
+
+  // --- the route: kind "report" ------------------------------------------------------
+  {
+    const FB = await import("../../app/api/feedback/route.ts");
+    const saved = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY };
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-test";
+    const realFetch2 = globalThis.fetch;
+    const rows: { url: string; auth: string; row: Record<string, unknown> }[] = [];
+    let answer: (row: Record<string, unknown>) => Response = () => new Response(null, { status: 201 });
+    const sessions: Record<string, string> = { "Bearer student-jwt": A };
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const auth = String((init?.headers as Record<string, string>)?.Authorization ?? "");
+      // The session check: Supabase answers with the user, or a 401.
+      if (String(input).endsWith("/auth/v1/user")) {
+        return sessions[auth] ? new Response(JSON.stringify({ id: sessions[auth] }), { status: 200 }) : new Response("{}", { status: 401 });
+      }
+      const row = JSON.parse(String(init?.body ?? "{}"));
+      rows.push({ url: String(input), auth, row });
+      return answer(row);
+    }) as typeof fetch;
+    const post = (body: unknown, ip = "10.3.0.1") =>
+      FB.POST(new Request("http://x/api/feedback", { method: "POST", headers: { "x-forwarded-for": ip }, body: JSON.stringify(body) })).then(async (r) => ({ status: r.status, body: (await r.json()) as Record<string, unknown> }));
+    const report = { reason: "bullying", reportedUserId: B, place: "group", placeId: "g-42", excerpt: "nobody likes you", details: "every day" };
+    try {
+      const anon = await post({ kind: "report", report });
+      ok("route report: signed out is refused", anon.status === 401 && anon.body.reason === "sign-in" && rows.length === 0, JSON.stringify(anon));
+      const bad = await post({ kind: "report", token: "t", report: { ...report, reason: "nope" } });
+      ok("route report: a bad report is a 400", bad.status === 400 && rows.length === 0);
+      const sent = await post({ kind: "report", token: "student-jwt", report, page: "/groups/g-42" });
+      const first = rows[0];
+      ok("route report: stored as kind report with its columns", sent.body.ok === true && sent.body.stored === "columns" && first.row.kind === "report" && first.row.reported_user_id === B && first.row.report_where === "group:g-42" && first.row.report_excerpt === "nobody likes you" && first.row.report_reason === "bullying", JSON.stringify({ sent, first }));
+      ok("route report: written as the reporter, to the feedback table", first.url === "https://example.supabase.co/rest/v1/feedback" && first.auth === "Bearer student-jwt" && first.row.user_id === A);
+      const forged = await post({ kind: "report", token: "made-up-jwt", report });
+      ok("route report: a token Supabase does not know is refused", forged.status === 401 && forged.body.reason === "sign-in" && rows.length === 1, JSON.stringify(forged));
+      ok("route report: the message reads whole", /Bullying or harassment/.test(String(first.row.message)) && /nobody likes you/.test(String(first.row.message)) && /every day/.test(String(first.row.message)));
+      // Before the migration: PostgREST does not know the columns, so the message carries it all.
+      rows.length = 0;
+      answer = (row) =>
+        "reported_user_id" in row
+          ? new Response(JSON.stringify({ code: "PGRST204", message: "Could not find the 'report_excerpt' column of 'feedback' in the schema cache" }), { status: 400 })
+          : new Response(null, { status: 201 });
+      const before = await post({ kind: "report", token: "student-jwt", report });
+      ok("route report: before the migration it is kept in the message", before.body.ok === true && before.body.stored === "message" && rows.length === 2 && !("reported_user_id" in rows[1].row) && String(rows[1].row.message).includes(B), JSON.stringify(before));
+      answer = () => new Response(JSON.stringify({ code: "42501", message: "new row violates row-level security policy" }), { status: 403 });
+      const refused = await post({ kind: "report", token: "student-jwt", report });
+      ok("route report: a refusal is said, not hidden", refused.body.ok === false && refused.body.reason === "rejected");
+    } finally {
+      globalThis.fetch = realFetch2;
+      if (saved.url === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = saved.url;
+      if (saved.anon === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = saved.anon;
+    }
+  }
+
+  // --- blocks on this device -----------------------------------------------------------
+  {
+    const mem = new Map<string, string>();
+    const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    ok("block: nothing blocked at first", SF.readBlocked(A, store).length === 0);
+    ok("block: a person is blocked", SF.blockOnDevice(A, { id: B, name: "Sam T." }, store) && SF.isBlocked(SF.readBlocked(A, store), B));
+    ok("block: per account on a shared computer", SF.readBlocked(B, store).length === 0);
+    ok("block: twice is still once", SF.blockOnDevice(A, { id: B, name: "Sam T." }, store) && SF.readBlocked(A, store).length === 1);
+    ok("block: not yourself, not a made-up id", !SF.blockOnDevice(A, { id: A, name: null }, store) && !SF.blockOnDevice(A, { id: "nope", name: null }, store));
+    ok("block: unblocked", SF.unblockOnDevice(A, B, store) && !SF.isBlocked(SF.readBlocked(A, store), B));
+    mem.set(SF.blockKey(A), "{not json");
+    ok("block: a broken list reads as empty", SF.readBlocked(A, store).length === 0);
+    ok("block: a browser that keeps nothing says so", !SF.blockOnDevice(A, { id: B, name: null }, null));
+  }
+
+  // --- the crisis card's buttons say what the fixed reply says ---------------------------
+  ok("crisis card: call and text 988, text HOME to 741741", CRISIS_CONTACTS.map((c) => c.href).join(" ") === "tel:988 sms:988 sms:741741?&body=HOME");
+  ok("crisis card: every number is in the fixed reply", CRISIS_CONTACTS.every((c) => CRISIS_REPLY.includes(c.detail)) && /call or text 988/.test(CRISIS_REPLY) && /text HOME to 741741/.test(CRISIS_REPLY));
+  ok("crisis card: 911", CRISIS_EMERGENCY.href === "tel:911" && /call 911/.test(CRISIS_REPLY));
+  ok("crisis card: house style", CRISIS_CONTACTS.every((c) => !/[—–]/.test(c.action + c.detail)));
+
+  // --- school mode: the switch ------------------------------------------------------------
+  {
+    const before = process.env.NEXT_PUBLIC_SCHOOL_MODE;
+    process.env.NEXT_PUBLIC_SCHOOL_MODE = "1";
+    const SM = await import("../school-mode.ts");
+    ok("school mode: on with \"1\"", SM.SCHOOL_MODE === true && SM.schoolModeFrom("1") && SM.schoolModeFrom(" 1 "));
+    ok("school mode: off by default and for anything else", !SM.schoolModeFrom(undefined) && !SM.schoolModeFrom("") && !SM.schoolModeFrom("true") && !SM.schoolModeFrom("0") && !SM.schoolModeFrom(1));
+    ok("school mode: no preview outside development", process.env.NODE_ENV !== "development" ? SM.schoolModePreview() === false : true);
+    for (const [path, feature] of [["/messages", "messages"], ["/messages/abc", "messages"], ["/groups/1", "groups"], ["/room/a--b", "calls"], ["/tutors", "tutors"], ["/tutor-hub", "tutors"], ["/calendar", "booking"], ["/leaderboard", "leaderboard"], ["/games", "games"]] as const) {
+      ok(`school mode: ${path} is off`, SM.featureForPath(path) === feature, String(SM.featureForPath(path)));
+    }
+    for (const path of ["/", "/learn/unit-1/one-step", "/review", "/notebook", "/house", "/achievements", "/classes", "/teacher", "/schools", "/messagesx", "/feedback"]) {
+      ok(`school mode: ${path} stays`, SM.featureForPath(path) === null);
+    }
+    const nav = [
+      { title: "Learn", items: [{ href: "/" }, { href: "/review" }] },
+      { title: "Classroom", items: [{ href: "/classes" }, { href: "/tutors" }, { href: "/messages" }, { href: "/groups" }, { href: "/calendar" }] },
+      { title: "Progress", items: [{ href: "/achievements" }, { href: "/leaderboard" }, { href: "/house" }, { href: "/games" }] },
+      { title: "Staff", items: [{ href: "/tutor-hub" }] },
+    ];
+    const hrefs = (s: { items: { href: string }[] }[]) => s.flatMap((x) => x.items.map((i) => i.href)).join(" ");
+    ok("school mode: the menu loses exactly the turned-off pages", hrefs(SM.navForSchool(nav, true)) === "/ /review /classes /achievements /house", hrefs(SM.navForSchool(nav, true)));
+    ok("school mode: an emptied section is dropped", !SM.navForSchool(nav, true).some((s) => s.title === "Staff"));
+    ok("school mode: off leaves the menu alone", hrefs(SM.navForSchool(nav, false)) === hrefs(nav));
+    const listed = new Set(SM.SCHOOL_MODE_OFF.map((f) => f.feature));
+    ok("school mode: /schools lists every feature it turns off", Object.values(SM.SCHOOL_OFF_PATHS).every((f) => listed.has(f)) && listed.size === new Set(Object.values(SM.SCHOOL_OFF_PATHS)).size);
+    ok("school mode: Archie points to the teacher, not a tutor", /teacher/.test(SM.SCHOOL_ESCALATION_REPLY) && !/tutor/i.test(SM.SCHOOL_ESCALATION_REPLY) && !/[—–]/.test(SM.SCHOOL_ESCALATION_REPLY));
+
+    // --- school mode: the pages, rendered with the switch on --------------------------------
+    // JSX is not something node strips, so .tsx files are compiled with the
+    // project's TypeScript on the way in.
+    const { createRequire } = await import("node:module");
+    const { readFileSync: readSrc } = await import("node:fs");
+    const { fileURLToPath: toPath } = await import("node:url");
+    const reqRepo = createRequire(import.meta.url);
+    const ts = reqRepo("typescript");
+    registerHooks({
+      resolve(spec, ctx, next) {
+        return ["next/link", "next/image", "next/navigation", "next/dynamic"].includes(spec) ? next(`${spec}.js`, ctx) : next(spec, ctx);
+      },
+      load(url, ctx, next) {
+        if (!url.startsWith("file:") || !url.endsWith(".tsx")) return next(url, ctx);
+        const file = toPath(url);
+        const out = ts.transpileModule(readSrc(file, "utf8"), { fileName: file, compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
+        return { format: "module", source: out.outputText, shortCircuit: true };
+      },
+    });
+    const { renderToStaticMarkup } = reqRepo("react-dom/server");
+    const { createElement: h } = reqRepo("react");
+    const page = h("p", null, "THE REAL PAGE");
+    const PANEL = /Turned off for school accounts/;
+    for (const [dir, name] of [["messages", "Messages"], ["groups", "Group chats"], ["room", "Video calls"], ["tutors", "Tutors"], ["tutor-hub", "Tutors"], ["calendar", "Booking a tutor"], ["leaderboard", "The leaderboard"], ["games", "The team games"]] as const) {
+      const layout = (await import(`../../app/${dir}/layout.tsx`)).default;
+      const html = renderToStaticMarkup(h(layout, null, page));
+      ok(`school mode on: /${dir} shows the panel, not the page`, PANEL.test(html) && html.includes(name) && !html.includes("THE REAL PAGE"), html.slice(0, 160));
+    }
+    const P = await import("../../components/SchoolModePanel.tsx");
+    const games = await import("../../components/GamesBanner.tsx");
+    ok("school mode on: no games banner on the course page", renderToStaticMarkup(h(games.GamesBanner)) === "");
+    const panel = renderToStaticMarkup(h(P.SchoolModePanel, { feature: "messages" }));
+    ok("school mode: the panel says what to do instead", /ask your teacher/.test(panel) && /Back to the course/.test(panel) && /href="\/schools#school-mode"/.test(panel) && !/[—–]/.test(panel));
+    const side = await import("../../components/SideNav.tsx");
+    const withHelp = [...nav, { title: "Help", items: [{ href: "/feedback", label: "Feedback", icon: "hint" as const }] }] as never;
+    ok("school mode on: the side menu and the phone menu drop the pages", hrefs(side.withSchoolsLink(withHelp)) === "/ /review /classes /achievements /house /feedback /schools", hrefs(side.withSchoolsLink(withHelp)));
+    ok("school mode off: the side menu keeps them", hrefs(side.withSchoolsLink(withHelp, false)).includes("/messages"));
+    if (before === undefined) delete process.env.NEXT_PUBLIC_SCHOOL_MODE;
+    else process.env.NEXT_PUBLIC_SCHOOL_MODE = before;
+  }
+}
+
+// ============================================================================
+// Safety, round 2 (Oct 3 2026): the red team's findings. Each line below is a
+// reproduction that got through before this round.
+// ============================================================================
+{
+  const H = await import("../helper.ts");
+  const SF = await import("../safety.ts");
+  const { readFileSync: readRepo } = await import("node:fs");
+  const repo = (f: string) => readRepo(new URL(`../../../${f}`, import.meta.url), "utf8");
+
+  // --- finding 3: the crisis net -----------------------------------------------------
+  const MISSED_BEFORE = [
+    // Spanish, every phrasing the red team tried (accents or not)
+    "me quiero morir", "quiero matarme", "me voy a suicidar", "no quiero vivir", "quiero suicidarme",
+    "mi papá me pega", "mi padrastro me toca", "me quiero cortar", "ya no quiero estar aquí", "me hago daño",
+    // Haitian Creole, Portuguese, Hindi in Latin letters
+    "mwen vle mouri", "mwen vle touye tèt mwen", "eu quero morrer", "quero me matar", "main marna chahta hoon",
+    // scripts the Latin patterns cannot read
+    "我想死", "我想自杀", "أريد أن أموت", "хочу умереть", "죽고 싶어",
+    // English the list missed
+    "i've been cutting", "how do i factor x^2+5x+6, also i've been cutting", "how do i factor x^2+5x+6 i'm cutting again",
+    "i took a bunch of my moms pills", "i swallowed pills", "k*ll myself", "i want to k!ll myself", "ki11 mys3lf",
+    "i have a plan to end it", "i wish i wasnt alive", "my uncle makes me do things", "an adult asked me to send pics of my body",
+    "my tutor asked me for pictures", "someone asked me to send pics", "i get hit at home", "i get beaten at home",
+    "kids at school keep threatening me", "my parents kick me and lock me in my room", "im scared of my dad",
+    "he makes me keep secrets about what he does to me", "there's no food at home and i haven't eaten in 2 days",
+    "idw to live anymore", "idwtl", "i want to sleep forever", "i want it all to stop", "i'm done with life",
+    "i wrote my goodbye letter", "thinking about jumping off a bridge", "i burn myself", "i dont see the point anymore",
+    "suicidle", "s/h again", "i want to d!e", "i wnt to die", "i wanna dye", "i want to be ded",
+    // disguised
+    "suіcide", "kill​myself", "ｉ ｗａｎｔ ｔｏ ｄｉｅ",
+  ];
+  for (const q of MISSED_BEFORE) ok(`round 2 crisis: "${q}"`, H.detectCrisis(q) !== null);
+  const STILL_MATH = [
+    "i'm cutting 3 pieces of wood", "the saw has been cutting wood", "i want to dye my hair", "i took my meds this morning",
+    "my teacher asked me for pictures of my homework", "my mom makes me do things like the dishes", "the diver is jumping off a cliff",
+    "me corto el pelo", "i'm done with life science homework", "my friend told me to keep it a secret", "i keep cutting corners",
+    "im cutting the cake", "x*y = 12", "f(x) = 11x + 2", "quiero morir de la risa", "mi mama me va a matar si repruebo",
+    "the s/h ratio is 2", "i wish i was there", "i'm scared of my test", "i want it to end at x = 5", "i'm cutting down on sugar",
+    "how many pills in 3 bottles", "i haven't eaten lunch", "i can't take it anymore", "this problem is killing me",
+  ];
+  for (const q of STILL_MATH) ok(`round 2 not a crisis: "${q}"`, H.detectCrisis(q) === null, String(H.detectCrisis(q)));
+
+  // Split across two messages: read together, and only once.
+  ok("split: 'i want to' then 'die'", H.detectCrisisInTurns("i want to", "die") === "self-harm");
+  ok("split: 'my uncle makes me' then 'do things'", H.detectCrisisInTurns("my uncle makes me", "do things") === "abuse");
+  ok("split: a message already answered is not joined again", H.detectCrisisInTurns("i want to die", "ok can you give me a hint") === null);
+  ok("split: math stays math", H.detectCrisisInTurns("i want to", "dye my hair") === null && H.detectCrisisInTurns("how many kms", "per hour") === null);
+  ok("split: the latest message alone still counts", H.detectCrisisInTurns(null, "i want to die") === "self-harm");
+
+  // The model-side net.
+  ok("model net: the signal", H.CRISIS_SIGNAL === "CRISIS" && H.modelSignalsCrisis("CRISIS") && H.modelSignalsCrisis("Crisis.") && H.modelSignalsCrisis('{"reply":"CRISIS"}'));
+  ok("model net: not every mention", !H.modelSignalsCrisis("This is not a crisis, just a sign slip.") && !H.modelSignalsCrisis(undefined));
+  ok("model net: the rule is house style", /any language/.test(H.CRISIS_MODEL_RULE) && !/[—–]/.test(H.CRISIS_MODEL_RULE));
+
+  // --- finding 15: the card works on a Chromebook --------------------------------------
+  ok("crisis reply: from any phone, and the web chat", /from any phone/.test(H.CRISIS_REPLY) && /chat\.988lifeline\.org/.test(H.CRISIS_REPLY));
+  ok("crisis reply: still short", H.CRISIS_REPLY.split(/\s+/).length <= 90, String(H.CRISIS_REPLY.split(/\s+/).length));
+  ok("crisis card: the chat link is 988's own", H.CRISIS_CHAT.href === "https://chat.988lifeline.org/" && H.CRISIS_SPANISH.chatHref === "https://chat.988lifeline.org/?lang=es");
+  ok("crisis card: 988's Spanish line, in its own words", /988/.test(H.CRISIS_SPANISH.text) && /presiona 2/.test(H.CRISIS_SPANISH.text) && /AYUDA/.test(H.CRISIS_SPANISH.text));
+  ok("crisis card: house style", ![H.CRISIS_CHAT.action, H.CRISIS_CHAT.detail, H.CRISIS_SPANISH.text].some((t) => /[—–]/.test(t) || /\p{Extended_Pictographic}/u.test(t)));
+  const card = repo("src/components/helper/CrisisCard.tsx");
+  ok("crisis card: shows the chat and the Spanish line", card.includes("CRISIS_CHAT.href") && card.includes("CRISIS_SPANISH.text") && /from any phone/.test(card));
+
+  // --- finding 6: the personal information guard -------------------------------------------
+  const GOT_THROUGH = [
+    "302​555​0142", "302­555­0142", "302‍555‍0142", "٣٠٢٥٥٥٠١٤٢", "३०२५५५०१४२",
+    "302 555 01 42", "302-five five five-0142", "302_555_0142", "302/555/0142", "+44 7700 900123", "07700900123",
+    "jay at gmail", "jay @ gmail . com", "jaysmith on gmail", "jay.smith@gmail", "jay at gmailcom", "jay​@gmail.com",
+    "snap jay2010", "ig jay2010", "tt: jay2010", "discord jay#1234", "jay#1234", "my sn@p is jay2010", "my s n a p is jay2010",
+    "s.n.a.p jay2010", "snapchat → jay2010", "my snаp is jay2010", "add me jay2010 on snap",
+    "whats ur snap", "wats ur snap", "whats ur sc", "drop ur snap", "u got snap?", "do you have snapchat",
+    "where u live", "wya", "what school u go to", "how old are you", "are your parents home",
+    "send pics", "send a pic", "send me a selfie", "wanna hang out irl",
+    "evil.com/algebridge.org", "algebridge.org.evil.com/x", "https://algebridge.org@evil.com",
+    "www dot discord dot gg slash abc", "discord . gg / abc", "discord​.gg/abc",
+    "keep this between us", "don't tell anyone", "dont tell anyone about this", "no one needs to know",
+    "you can't tell your parents", "delete this after you read it", "don't show this to anyone",
+  ];
+  for (const t of GOT_THROUGH) ok(`round 2 guard holds back: ${JSON.stringify(t)}`, SF.detectPersonalInfo(t).length > 0);
+  const STILL_FINE = [
+    "the answer is 12. good job", "is 3.5 right?", "i got 6 / 3 = 2", "where are you at with this problem",
+    "send me a hint please", "send a pic of your work", "ig that makes sense", "what is 20 22 24 26 28",
+    "the sequence 10 20 30 40 50", "2 4 6 8 10 12 14", "don't tell anyone the answer, let them try",
+    "no one has to know it by heart", "i can't tell your 7 from a 1", "is that true irl?", "f(x) = 302x + 555",
+    "multiply 302 by 555", "302 * 555 = 167610", "200 300 400 500", "page 302 problem 5", "see learn.algebridge.org/learn/unit-1",
+    "https://algebridge.org/schools", "the score was 20 - 15", "x1 = 3, x2 = 5", "a.b is the dot product",
+  ];
+  for (const t of STILL_FINE) ok(`round 2 guard lets through: ${JSON.stringify(t)}`, SF.detectPersonalInfo(t).length === 0, JSON.stringify(SF.detectPersonalInfo(t)));
+  ok("guard: every script's digits read as 0 to 9", SF.asciiDigits("٣٠٢ ३०२ 𝟑𝟎𝟐 ٣") === "302 302 302 3");
+  ok("guard: AlgeBridge's own host only", SF.isOwnSiteLink("learn.algebridge.org/x") && SF.isOwnSiteLink("https://algebridge.org") && !SF.isOwnSiteLink("evil.com/algebridge.org") && !SF.isOwnSiteLink("algebridge.org.evil.com") && !SF.isOwnSiteLink("https://algebridge.org@evil.com"));
+  for (const t of ["keep this between us", "no one needs to know", "don't tell anyone"]) {
+    ok(`guard: staff cannot send secrecy either: "${t}"`, SF.guardMessage(t, { staff: true }).action === "block");
+  }
+
+  // Split across messages: the sender's last few, joined to the new one.
+  ok("split guard: '302', '555', then '0142' is held back", SF.guardWithRecent("0142", ["302", "555"], { staff: false }).action === "block");
+  const splitMsg = SF.guardWithRecent("0142", ["302", "555"], { staff: false });
+  ok("split guard: and says why", splitMsg.action === "block" && /phone number/.test(splitMsg.message) && /pieces/.test(splitMsg.message) && !/[—–]/.test(splitMsg.message));
+  ok("split guard: a staff override is not held against the next message", SF.guardWithRecent("thanks!", ["office line 302 555 0142"], { staff: true }).action === "send");
+  ok("split guard: plain math after numbers goes through", SF.guardWithRecent("so x = 4", ["2x + 3 = 11", "2x = 8"], { staff: false }).action === "send");
+  const now = Date.parse("2026-10-03T12:00:00Z");
+  const at = (m: number) => new Date(now - m * 60_000).toISOString();
+  const recent = SF.recentForGuard(
+    [
+      { senderId: "me", body: "old", createdAt: at(30) },
+      { senderId: "them", body: "theirs", createdAt: at(2) },
+      { senderId: "me", body: "a", createdAt: at(9) },
+      { senderId: "me", body: "b", createdAt: at(5) },
+      { senderId: "me", body: "c", createdAt: at(3) },
+      { senderId: "me", body: "d", createdAt: at(1) },
+    ],
+    "me",
+    now
+  );
+  ok("split guard: the sender's own last three from the last ten minutes, oldest first", recent.join(",") === "b,c,d", recent.join(","));
+  ok("split guard: nobody signed in reads nothing", SF.recentForGuard([{ senderId: "me", body: "x", createdAt: at(1) }], null, now).length === 0);
+
+  // --- finding 7: booking answers and bios ----------------------------------------------------
+  const booking = SF.guardFreeText("after 4, text me at 302 555 01 42 or snap jay2010", "booking");
+  ok("booking: contact details are left out, and the student is told why", !!booking && /phone number/.test(booking) && /tutors can read/.test(booking) && !/[—–]/.test(booking), String(booking));
+  ok("booking: a time is fine", SF.guardFreeText("tuesday after 4 or weekday evenings", "booking") === null && SF.guardFreeText("anyone", "booking") === null);
+  const bio = SF.guardFreeText("Algebra tutor. Text me at 302-555-0142", "bio");
+  ok("bio: contact details are not saved", !!bio && /^Not saved/.test(bio) && /shown to students/.test(bio));
+  ok("bio: a plain bio is fine", SF.guardFreeText("I love slope and pizza. 8 years of tutoring.", "bio") === null);
+  const social = repo("src/lib/social.ts");
+  ok("bio: updateMyProfile runs the guard before saving", /guardFreeText\(fields\.bio, "bio"\)/.test(social));
+  const helperPanel = repo("src/components/StudyHelper.tsx");
+  ok("booking: the panel guards the time and tutor answers", /guardFreeText\(text, "booking"\)/.test(helperPanel) && /awaiting_time/.test(helperPanel));
+  ok("booking: a held answer never goes over the wire", /m\.kind !== "held"/.test(helperPanel));
+
+  // --- finding 14: a refused send in plain words --------------------------------------------
+  const rls = SF.sendErrorText('new row violates row-level security policy for table "direct_messages" 42501');
+  ok("send error: no Postgres words", !/row-level|policy|42501|violates/i.test(rls) && /could not be sent/.test(rls));
+  ok("send error: a block is never named", !/block/i.test(rls));
+  ok("send error: the contact trigger, in plain words", /phone numbers or email addresses/.test(SF.sendErrorText("Messages from students cannot include phone numbers or email addresses. 22023")));
+  ok("send error: social.ts and the group thread use it", /sendErrorText\(/.test(social) && /sendErrorText\(error\)/.test(repo("src/components/GroupThread.tsx")));
+  for (const f of ["src/components/MessageThread.tsx", "src/components/GroupThread.tsx"]) {
+    const src = repo(f);
+    ok(`report flag is always visible: ${f}`, !/opacity-0/.test(src) && /ReportFlag/.test(src));
+    ok(`split guard is used: ${f}`, /guardWithRecent\(body, recentForGuard\(messages, user\?\.id\)/.test(src));
+    ok(`a report carries the message id: ${f}`, /messageId: m\.id/.test(src));
+  }
+
+  // --- finding 5: reports carry a message id, not a quote --------------------------------------
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const M = "33333333-3333-4333-8333-333333333333";
+  const withId = SF.cleanReport({ reason: "personal-info", reportedUserId: B, place: "dm", placeId: `${A}--${B}`, messageId: M.toUpperCase(), excerpt: "a quote that was never sent" });
+  ok("report: a message id is kept, and the typed quote dropped", withId?.messageId === M && withId?.excerpt === null, JSON.stringify(withId));
+  ok("report: the columns carry the id", SF.reportColumns(withId!).report_message_id === M && SF.reportColumns(withId!).report_excerpt === null);
+  ok("report: the message names the id and its table", /Message id: 33333333/.test(SF.reportMessage(withId!)) && /direct_messages/.test(SF.reportMessage(withId!)));
+  ok("report: a made-up id is dropped", SF.cleanReport({ reason: "other", reportedUserId: B, place: "dm", placeId: "x", messageId: "not-an-id" })?.messageId === undefined);
+  ok("report: only a message in a chat has an id", SF.cleanReport({ reason: "other", reportedUserId: B, place: "call", placeId: "x", messageId: M })?.messageId === undefined);
+  ok("report: without an id the columns are as before", !("report_message_id" in SF.reportColumns(SF.cleanReport({ reason: "other", reportedUserId: B, place: "profile", placeId: "x" })!)));
+  const reportUi = repo("src/components/ReportButton.tsx");
+  ok("report: the dialog sends the id, and the text only without one", /messageId: target\.messageId/.test(reportUi) && /excerpt: target\.excerpt/.test(reportUi));
+  ok("report: the dialog says reports are not read right away", /not read right away/.test(reportUi) && !/for the AlgeBridge admins to review/.test(reportUi));
+  ok("report: words that sound like danger bring up the crisis card (finding 11)", /detectCrisis\(details\)/.test(reportUi) && /<CrisisCard/.test(reportUi));
+
+  // --- finding 4: Archie forgets on sign-out ---------------------------------------------------
+  ok("sign-out: a change of account drops every thread", /setThreads\(\{\}\)/.test(helperPanel) && /seenUser\.current === id/.test(helperPanel) && /sessionGen\.current \+= 1/.test(helperPanel));
+  ok("sign-out: a reply on its way is dropped", /if \(gen !== sessionGen\.current\) return;/.test(helperPanel));
+  ok("crisis: the panel reads two turns and the model's signal", /detectCrisisInTurns\(before\.content, text\)/.test(helperPanel) && /modelSignalsCrisis\(data\.message\)/.test(helperPanel));
+
+  // --- finding 8: school mode -----------------------------------------------------------------
+  {
+    const fresh = await import("../school-mode.ts?round2");
+    ok("school mode: the tutors' workspace is off", fresh.featureForPath("/workspace") === "tutors" && fresh.featureForPath("/workspace/requests") === "tutors");
+    const was = fresh.schoolModeNow();
+    let heard = 0;
+    const g = globalThis as unknown as { window?: unknown };
+    const hadWindow = "window" in g;
+    const fakeWindow = { dispatchEvent: () => { heard += 1; return true; } };
+    if (!hadWindow) g.window = fakeWindow;
+    try {
+      fresh.setManagedAccount(true);
+      ok("school mode: a school-managed account turns it on", fresh.schoolModeNow() === true && fresh.managedAccountNow() === true);
+      ok("school mode: and tells the page", hadWindow || heard === 1);
+      fresh.setManagedAccount(false);
+      ok("school mode: signing out turns it back to the build's switch", fresh.schoolModeNow() === was);
+    } finally {
+      if (!hadWindow) delete g.window;
+    }
+    const { renderToStaticMarkup } = (await import("node:module")).createRequire(import.meta.url)("react-dom/server");
+    const { createElement: h } = (await import("node:module")).createRequire(import.meta.url)("react");
+    const layout = (await import("../../app/workspace/layout.tsx")).default;
+    const html = renderToStaticMarkup(h(layout, null, h("p", null, "THE REAL PAGE")));
+    ok("school mode on: /workspace shows the panel, not the page", /Turned off for school accounts/.test(html) && !html.includes("THE REAL PAGE"));
+    const ring = repo("src/components/IncomingCall.tsx");
+    ok("school mode: the account's flag is read after sign-in and cleared on sign-out", /loadManagedFlag\(user\.id\)/.test(ring) && /setManagedAccount\(false\)/.test(ring));
+    ok("school mode: no unread count and no message listener", /if \(schoolModeNow\(\)\) return 0;/.test(social) && /if \(schoolModeNow\(\)\) return \(\) => \{\};/.test(social));
+    ok("school mode: the phone menu follows the account's switch", /school: boolean = schoolModeNow\(\)/.test(repo("src/components/SideNav.tsx")));
+  }
+
+  // --- finding 10: a blocked person adds nothing to the unread count -----------------------------
+  ok("blocks: the unread count skips people blocked on this device", /isBlocked\(blocked, r\.sender_id\)/.test(social) && /!isBlocked\(blocked, otherId\)/.test(social));
+  ok("blocks: a live message from them is dropped", /if \(isBlocked\(readBlocked\(myId\), msg\.senderId\)\) return;/.test(social));
+
+  // --- finding 9 (h): an admin's call rings --------------------------------------------------
+  ok("calls: an admin or teacher caller is checked with the database, not dropped", /rpc\("profile_is_staff", \{ uid: callerId \}\)/.test(social) && /verifyCaller\(payload\.callerId\)/.test(repo("src/components/IncomingCall.tsx")));
+
+  // --- finding 9: the policy pages say what the code does ---------------------------------------
+  const pages = ["src/app/privacy/page.tsx", "src/app/safety/page.tsx", "src/app/schools/page.tsx"].map((f) => [f, repo(f)] as const);
+  for (const [f, src] of pages) {
+    ok(`policy: ${f} lists the shared pending update`, /PENDING_SAFETY_UPDATE\.map/.test(src));
+    ok(`policy: ${f} no longer says secrecy is something nobody can send`, !/nobody can send/.test(src));
+    ok(`policy: ${f} no longer says a disclosure always stays on the device`, !/message stays on the student(&apos;|')s device/.test(src));
+    ok(`policy: ${f} says what happens to a message the list misses`, /the list misses/.test(src));
+    ok(`policy: ${f} says reports are not read right away`, /not read right away/.test(src));
+    ok(`policy: ${f} has the old waiting-list contact rule gone`, !/asked that tutor for help/.test(src));
+  }
+  ok("policy: /schools no longer says 'from every menu'", !/from every menu/.test(pages[2][1]));
+  ok("policy: the pending list names the leaderboard's old default and the class hole", SF.PENDING_SAFETY_UPDATE.some((l) => /old default/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /class code/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /took the request/.test(l)));
+  ok("policy: the pending list is house style", SF.PENDING_SAFETY_UPDATE.every((l) => !/[—–]/.test(l) && /\.$/.test(l) && !/\p{Extended_Pictographic}/u.test(l)));
+
+  // --- the extension's model-side rule (finding 3c) ---------------------------------------------
+  const EX = await import("../extension-hints.ts");
+  ok("extension: ASK_SYSTEM tells the model to answer CRISIS", EX.ASK_SYSTEM.includes(H.CRISIS_MODEL_RULE));
+  ok("extension: the route maps it to the fixed reply", /modelSignalsCrisis\(raw\)/.test(repo("src/app/api/extension/hint/route.ts")));
+
+  // --- the migration holds the database half (run in PGlite: scratchpad pg/safety-test.mjs) -------
+  const sql = repo("supabase/schema-2026-10-03-safety.sql");
+  for (const [what, re] of [
+    ["classes need a teacher account", /create policy "Teachers manage their own classes"[\s\S]{0,200}caller_is_teacher\(\)/],
+    ["no direct roster inserts", /guard_class_member_insert/],
+    ["invites", /invite_student_to_class[\s\S]*answer_class_invite/],
+    ["school-managed accounts", /add column if not exists managed/],
+    ["a tutor cannot move a request", /guard_session_request_update/],
+    ["an open request naming nobody reaches nobody", /sr\.preferred_tutor_id = staff\s+and sr\.created_at > now\(\) - interval '14 days'/],
+    ["blocks in staff_can_reach", /b\.blocker_id = student and b\.blocked_id = staff/],
+    ["invisible characters and other digits", /\\u200B-\\u200F/],
+    ["split messages in the trigger", /recent \|\| ' ' \|\| new\.body/],
+    ["reports quote the database", /new\.report_excerpt := left\(m_body, 500\)/],
+    ["reports per account", /sent_lately >= 30/],
+    ["bios", /guard_profile_bio/],
+    ["tutor_directory", /create or replace view public\.tutor_directory/],
+    ["leaderboard_public", /create or replace view public\.leaderboard_public/],
+  ] as const) ok(`migration: ${what}`, re.test(sql));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

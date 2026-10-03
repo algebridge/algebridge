@@ -686,7 +686,7 @@ function PieceActions({
       <div className="rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-lg">
         <div className="flex items-center gap-1">
           <span className="max-w-[9rem] truncate px-1.5 text-xs font-semibold text-slate-800">{item.name}</span>
-          <ActionButton label={showColors ? "Colours, hide" : "Colour"} pressed={showColors} onClick={onShowColors}>
+          <ActionButton label={showColors ? "Colors, hide" : "Color"} pressed={showColors} onClick={onShowColors}>
             <span className="h-3.5 w-3.5 rounded-full ring-1 ring-inset ring-black/10" style={{ background: color ? swatchHex(color) : primaryHex(piece.itemId) }} />
           </ActionButton>
           {usable && (
@@ -747,23 +747,42 @@ function ActionButton({ label, pressed, onClick, children }: { label: string; pr
 
 /** The swatches a piece can be painted in, its own colour first. */
 export function ColorDots({ itemId, value, onPick, size = 18 }: { itemId: string; value: string | null | undefined; onPick: (swatch: string | null) => void; size?: number }) {
-  const dot = (hex: string, selected: boolean, title: string, pick: () => void) => (
-    <button
-      key={title}
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      aria-label={title}
-      title={title}
-      onClick={pick}
-      className={`rounded-full ring-2 ring-offset-1 transition hover:scale-110 ${selected ? "ring-slate-800" : "ring-transparent hover:ring-slate-300"}`}
-      style={{ width: size, height: size, background: hex, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
-    />
-  );
+  // Each swatch is a 24 px target (WCAG 2.5.8) around a dot drawn at `size`.
+  // One Tab stop for the set, the chosen swatch; the arrow keys move along it,
+  // as radio buttons do (a shop of a hundred pieces was 1,500 Tab stops).
+  const options: { hex: string; title: string; id: string | null }[] = [
+    { hex: primaryHex(itemId), title: "Its own color", id: null },
+    ...SWATCHES.map((s) => ({ hex: swatchHex(s.id), title: s.name, id: s.id as string | null })),
+  ];
+  const at = Math.max(0, options.findIndex((o) => (o.id === null ? !value : value === o.id)));
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    const to = step ? (at + step + options.length) % options.length : e.key === "Home" ? 0 : e.key === "End" ? options.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    onPick(options[to].id);
+    (e.currentTarget.children[to] as HTMLElement | undefined)?.focus();
+  };
   return (
-    <div role="radiogroup" aria-label="Colour" className="flex flex-wrap items-center gap-1.5">
-      {dot(primaryHex(itemId), !value, "Its own colour", () => onPick(null))}
-      {SWATCHES.map((s) => dot(swatchHex(s.id), value === s.id, s.name, () => onPick(s.id)))}
+    <div role="radiogroup" aria-label="Color" onKeyDown={onKeyDown} className="flex flex-wrap items-center">
+      {options.map((o, i) => (
+        <button
+          key={o.title}
+          type="button"
+          role="radio"
+          aria-checked={i === at}
+          tabIndex={i === at ? 0 : -1}
+          aria-label={o.title}
+          title={o.title}
+          onClick={() => onPick(o.id)}
+          className="group flex h-6 w-6 items-center justify-center rounded-full"
+        >
+          <span
+            className={`block rounded-full ring-2 ring-offset-1 transition group-hover:scale-110 ${i === at ? "ring-slate-800" : "ring-transparent group-hover:ring-slate-300"}`}
+            style={{ width: size, height: size, background: o.hex, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
+          />
+        </button>
+      ))}
     </div>
   );
 }

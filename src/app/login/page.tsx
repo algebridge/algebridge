@@ -308,7 +308,7 @@ function LoginPageInner() {
           </div>
         </div>
 
-        {error && <p className="notice-error">{error}</p>}
+        {error && <p role="alert" className="notice-error">{error}</p>}
         {message && <p className="notice-success">{message}</p>}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
@@ -355,6 +355,7 @@ function LoginPageInner() {
             <button
               type="button"
               onClick={() => setMode("signup")}
+              aria-pressed={mode === "signup"}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
                 mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
               }`}
@@ -364,6 +365,7 @@ function LoginPageInner() {
             <button
               type="button"
               onClick={() => setMode("signin")}
+              aria-pressed={mode === "signin"}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
                 mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
               }`}
@@ -376,8 +378,8 @@ function LoginPageInner() {
             {mode === "signup" && (
               <>
                 <div>
-                  <span className="label">I am a…</span>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  <span id="role-label" className="label">I am a…</span>
+                  <div role="group" aria-labelledby="role-label" className="mt-1.5 grid grid-cols-3 gap-2">
                     {([
                       ["student", "Student"],
                       ["teacher", "Teacher"],
@@ -387,6 +389,7 @@ function LoginPageInner() {
                         key={value}
                         type="button"
                         onClick={() => setRole(value)}
+                        aria-pressed={role === value}
                         className={`rounded-lg border px-2 py-2.5 text-sm font-medium transition ${
                           role === value
                             ? "border-bridge-500 bg-bridge-50 text-bridge-700"
@@ -536,7 +539,7 @@ function LoginPageInner() {
           </>
           )}
 
-          {error && <p className="notice-error mt-4">{error}</p>}
+          {error && <p role="alert" className="notice-error mt-4">{error}</p>}
           {message && <p className="notice-success mt-4">{message}</p>}
         </div>
       </div>

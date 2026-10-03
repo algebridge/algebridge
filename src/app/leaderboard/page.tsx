@@ -55,14 +55,14 @@ export default function LeaderboardPage() {
   );
 
   useEffect(() => {
-    setOptIn(getProgress().leaderboardOptIn ?? true);
+    setOptIn(getProgress().leaderboardOptIn === true);
     setMounted(true);
     void loadBoard(sort);
   }, [sort, loadBoard]);
 
   useEffect(() => {
     function refresh() {
-      setOptIn(getProgress().leaderboardOptIn ?? true);
+      setOptIn(getProgress().leaderboardOptIn === true);
     }
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
@@ -91,8 +91,8 @@ export default function LeaderboardPage() {
       <header>
         <h1 className="page-title">Leaderboard</h1>
         <p className="page-subtitle">
-          The top five students across AlgeBridge, kept current as everyone learns. Names show as a first name and
-          an initial.
+          The top five students across AlgeBridge, kept current as everyone learns. Only students who choose to show
+          themselves are on it, as a first name and an initial.
         </p>
       </header>
 
@@ -125,8 +125,8 @@ export default function LeaderboardPage() {
               The board is for signed-in students
             </h2>
             <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-600">
-              Sign in to see who is on top and where you stand. Your Bridgeys, lessons and house put you on it, shown as
-              your first name and an initial.
+              Sign in to see who is on top. You are not on it unless you choose to be, and then only as your first name
+              and an initial.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Link href="/login?mode=signin" className="btn-primary">

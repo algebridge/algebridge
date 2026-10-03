@@ -52,6 +52,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: sidebarBootScript() }} />
       </head>
       <body className="min-h-screen bg-slate-50 font-body">
+        {/* First in the Tab order: past the menus, straight to the page. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-bridge-700 focus:shadow-raised focus:outline-none focus:ring-2 focus:ring-bridge-500"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <AppNavProvider>
           <ScratchpadProvider>
@@ -76,12 +83,15 @@ export default function RootLayout({
                   sidebar (helper.css: .helper-shift). The header stays full width. */}
               <div className="helper-shift flex flex-1 flex-col">
               <LoginBanner />
-              <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7 sm:px-6 lg:px-8">
+              <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 scroll-mt-14 px-4 py-7 focus:outline-none sm:px-6 lg:px-8">
                 {children}
               </main>
-              <footer className="border-t border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 sm:px-6">
+              {/* pb-24 on phones: the calculator and Archie buttons float over the
+                  bottom corners, so the last line can scroll up clear of them. */}
+              <footer className="border-t border-slate-200 bg-white px-4 pb-24 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
                 <p>Free forever. Videos, practice, and real tutors. Algebra&nbsp;1, grades 7-10.</p>
-                <nav className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
+                {/* py-1 makes each link a 24 px tall target (WCAG 2.5.8) where the links wrap on a phone. */}
+                <nav aria-label="Footer" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs [&>a]:py-1">
                   <Link href="/schools" className="font-medium text-slate-600 hover:text-bridge-600">For schools</Link>
                   <Link href="/privacy" className="hover:text-bridge-600">Privacy Policy</Link>
                   <Link href="/terms" className="hover:text-bridge-600">Terms of Service</Link>

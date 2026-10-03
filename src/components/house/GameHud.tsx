@@ -37,13 +37,26 @@ export function GameHud({ houseStyleId, onExit, mode, hint, view, onView, night 
         )}
         <p className="panel-title truncate">{house?.name}</p>
         {view && onView && (
-          <div role="tablist" aria-label="Which side of the house" className="inline-flex gap-0.5 rounded-lg bg-slate-200/70 p-0.5">
+          <div
+            role="tablist"
+            aria-label="Which side of the house"
+            className="inline-flex gap-0.5 rounded-lg bg-slate-200/70 p-0.5"
+            onKeyDown={(e) => {
+              // Two tabs, one Tab stop: the arrow keys switch sides.
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+              e.preventDefault();
+              const to = e.key === "Home" ? "front" : e.key === "End" ? "back" : view === "front" ? "back" : "front";
+              onView(to);
+              (e.currentTarget.children[to === "front" ? 0 : 1] as HTMLElement | undefined)?.focus();
+            }}
+          >
             {(["front", "back"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
                 role="tab"
                 aria-selected={view === v}
+                tabIndex={view === v ? 0 : -1}
                 onClick={() => onView(v)}
                 className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                   view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"

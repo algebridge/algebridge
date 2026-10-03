@@ -23,10 +23,16 @@ const ROLE_LABEL: Record<string, string> = {
 export function Header() {
   const pathname = usePathname();
   const { sections, continueTarget, stats, mounted, unread } = useAppNavState();
-  const { user, profile, signOut, needsRealName } = useAuth();
+  const { user, profile, loading, signOut, needsRealName } = useAuth();
+  // Level, streak and Bridgeys are the student's own game layer. A signed-out
+  // visitor has earned none of it, and a teacher is not playing it.
+  const gameLayer = !!user && !!profile && profile.role !== "teacher";
+  const gamePending = loading || (!!user && !profile) || (gameLayer && !mounted);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const { enabled: soundEnabled, toggle: toggleSound, mounted: soundMounted } = useSound();
   const {
@@ -42,11 +48,14 @@ export function Header() {
     setAccountOpen(false);
   }, [pathname]);
 
-  // The phone menu closes on Escape, like the account menu.
+  // The phone menu closes on Escape, like the account menu. The keyboard goes
+  // back to the button that opened it, not to the top of the page.
   useEffect(() => {
     if (!menuOpen) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -58,7 +67,9 @@ export function Header() {
       if (!accountRef.current?.contains(e.target as Node)) setAccountOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAccountOpen(false);
+      if (e.key !== "Escape") return;
+      setAccountOpen(false);
+      accountButtonRef.current?.focus();
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);
@@ -69,23 +80,25 @@ export function Header() {
   }, [accountOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95">
+    // Solid white: a translucent bar let the page (a lesson title, the game
+    // tiles) show through it on scroll.
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
         {/* Logo, the sidebar carries it on desktop. */}
         <Link href="/" className="flex shrink-0 items-center gap-2 lg:hidden">
-          <Image src="/brand/logo-icon.png" alt="AlgeBridge" width={26} height={26} />
+          <Image src="/brand/logo-icon.png" alt="" width={26} height={26} />
           <span className="font-display text-base tracking-wide text-slate-900">AlgeBridge</span>
         </Link>
 
         {/* Stat chips, desktop. Until progress loads, quiet placeholders hold
             their place so the bar does not jump when they arrive. */}
-        {!mounted && (
+        {gamePending && (
           <div className="hidden items-center gap-2 lg:flex" aria-hidden>
             <span className="h-8 w-28 animate-pulse rounded-full bg-slate-100" />
             <span className="h-8 w-16 animate-pulse rounded-full bg-slate-100" />
           </div>
         )}
-        {mounted && (
+        {mounted && gameLayer && (
           <div className="hidden items-center gap-2 lg:flex">
             <Link
               href="/achievements"
@@ -149,13 +162,17 @@ export function Header() {
           {/* Account */}
           {user ? (
             <div ref={accountRef} className="relative ml-1">
+              {/* A disclosure, not an ARIA menu: what opens is a short list of
+                  ordinary links and one button, reached with Tab. */}
               <button
+                ref={accountButtonRef}
                 type="button"
                 onClick={() => setAccountOpen((o) => !o)}
-                aria-haspopup="menu"
                 aria-expanded={accountOpen}
+                aria-controls={accountOpen ? "account-menu" : undefined}
                 className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-slate-100"
               >
+                <span className="sr-only">Account menu, </span>
                 <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-bridge-600 text-xs font-bold text-white">
                   {initialsOf(profile?.displayName ?? user.email)}
                   {(unread > 0 || needsRealName) && (
@@ -170,7 +187,7 @@ export function Header() {
 
               {accountOpen && (
                 <div
-                  role="menu"
+                  id="account-menu"
                   className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-raised"
                 >
                   <div className="border-b border-slate-100 px-4 py-3">
@@ -224,10 +241,12 @@ export function Header() {
 
           {/* Mobile menu toggle */}
           <button
+            ref={menuButtonRef}
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
+            aria-controls={menuOpen ? "phone-menu" : undefined}
             className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 lg:hidden"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -248,8 +267,8 @@ export function Header() {
         </div>
       </div>
 
-      {/* Slim progress strip, mobile at-a-glance */}
-      {mounted && (
+      {/* Slim progress strip, mobile at-a-glance, for a student's own work */}
+      {mounted && gameLayer && (
         <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-1.5 text-xs text-slate-500 sm:px-6 lg:hidden">
           <span className="shrink-0">
             {stats.completedSkills}/{stats.totalSkills} skills · {stats.percent}%
@@ -278,7 +297,7 @@ export function Header() {
           down and leaving it live underneath. Positioned against the header
           (its backdrop blur would trap a fixed child anyway). */}
       {menuOpen && (
-        <div data-lenis-prevent className="absolute inset-x-0 top-full h-[calc(100dvh-100%)] lg:hidden">
+        <div id="phone-menu" data-lenis-prevent className="absolute inset-x-0 top-full h-[calc(100dvh-100%)] lg:hidden">
           <button
             type="button"
             aria-label="Close menu"
@@ -303,6 +322,7 @@ export function Header() {
                         <Link
                           href={item.href}
                           onClick={() => setMenuOpen(false)}
+                          aria-current={active ? "page" : undefined}
                           className={`flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                             active ? "bg-bridge-50 text-bridge-700" : "text-slate-700 hover:bg-slate-100"
                           }`}
@@ -398,7 +418,7 @@ function UtilityToggles({
               : "Turn on calm background music"
           }
           aria-pressed={musicEnabled}
-          aria-label={musicEnabled ? "Turn off background music" : "Turn on background music"}
+          aria-label="Background music"
           className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition hover:bg-slate-100 ${
             musicEnabled ? "text-bridge-600" : "text-slate-400 hover:text-slate-700"
           }`}
@@ -412,7 +432,7 @@ function UtilityToggles({
           onClick={toggleSound}
           title={soundEnabled ? "Mute sound effects" : "Turn on sound effects"}
           aria-pressed={soundEnabled}
-          aria-label={soundEnabled ? "Mute sound effects" : "Turn on sound effects"}
+          aria-label="Sound effects"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
         >
           <Icon name={soundEnabled ? "speaker" : "speaker-off"} size={17} />

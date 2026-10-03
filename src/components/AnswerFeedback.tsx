@@ -11,13 +11,18 @@ const RETRY = [
   "Look back at the key idea, then try again.",
 ];
 
+/** The verdict's words, also read out by the practice panel's status line. */
+export function feedbackLine(state: "correct" | "wrong", seed: number): string {
+  const lines = state === "correct" ? RIGHT : RETRY;
+  return lines[Math.abs(seed) % lines.length];
+}
+
 /**
  * The verdict line. `flush` drops its own box, for when it opens a larger
  * note (the mistake note under a wrong answer) that already has one.
  */
 export function AnswerFeedback({ state, seed, flush = false }: { state: "correct" | "wrong"; seed: number; flush?: boolean }) {
-  const lines = state === "correct" ? RIGHT : RETRY;
-  const message = lines[Math.abs(seed) % lines.length];
+  const message = feedbackLine(state, seed);
   const box = flush
     ? "bg-transparent"
     : state === "correct"

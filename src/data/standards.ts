@@ -13,6 +13,11 @@
  * considered and left off are in NOT_CLAIMED with the reason, so nobody has to
  * wonder whether they were missed.
  *
+ * No practice item draws or reads a graph yet, so no standard whose point is
+ * making or reading a graph is claimed. Four skills (intercepts, graphing
+ * inequalities, systems of inequalities, parabolas) therefore cite no code;
+ * NOT_CLAIMED says why for each. Add the codes back along with graph items.
+ *
  * Codes use the official dot notation with the high school prefix joined by a
  * hyphen ("HSA-REI.B.3"), and a lettered sub-standard as a last dot part
  * ("HSF-IF.C.7.a", "6.RP.A.3.d"), matching the official identifiers
@@ -116,15 +121,11 @@ const STANDARD_LIST: Standard[] = [
   std("HSA-REI.B.4.a", "Use completing the square to rewrite a quadratic equation in the form (x − p)² = q."),
   std("HSA-REI.B.4.b", "Solve quadratic equations by inspection, square roots, completing the square, the quadratic formula or factoring."),
   std("HSA-REI.C.6", "Solve systems of two linear equations exactly and approximately, for example with graphs."),
-  std("HSA-REI.D.10", "Understand that the graph of an equation in two variables is the set of all its solutions."),
-  std("HSA-REI.D.11", "Explain why the x-values where the graphs of y = f(x) and y = g(x) cross solve f(x) = g(x), and find them approximately."),
-  std("HSA-REI.D.12", "Graph a linear inequality in two variables as a half-plane, and a system of them as the region where the half-planes overlap."),
 
   // ---- High school: Functions ----
   std("HSF-IF.A.1", "A function assigns each input in its domain exactly one output in its range; f(x) names that output."),
   std("HSF-IF.A.2", "Use function notation and evaluate functions for inputs in their domains."),
   std("HSF-IF.B.6", "Calculate and interpret the average rate of change of a function over an interval."),
-  std("HSF-IF.C.7.a", "Graph linear and quadratic functions and show intercepts, maximums and minimums."),
   std("HSF-IF.C.8.b", "Use the properties of exponents to read exponential functions, such as their percent rate of change, and classify them as growth or decay."),
   std("HSF-BF.A.2", "Write arithmetic and geometric sequences with a recursive and an explicit formula, and move between the two."),
   std("HSF-LE.A.1.c", "Recognize situations where a quantity grows or decays by a constant percent rate."),
@@ -137,7 +138,6 @@ const STANDARD_LIST: Standard[] = [
   std("6.RP.A.3.b", "Solve unit rate problems, including unit pricing and constant speed."),
   std("6.RP.A.3.d", "Use ratio reasoning to convert measurement units."),
   std("6.NS.C.6.b", "Read the signs in an ordered pair as the quadrant of the coordinate plane the point lies in."),
-  std("6.NS.C.6.c", "Find and plot points with integer and rational coordinates on the coordinate plane."),
   std("6.NS.C.7.c", "Understand the absolute value of a number as its distance from 0 on the number line."),
   std("6.EE.B.7", "Solve equations of the form x + p = q and px = q."),
   std("7.EE.B.4.a", "Solve equations of the form px + q = r and p(x + q) = r fluently."),
@@ -186,15 +186,18 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
 
   // ---- Unit 3: Linear Equations & Graphs ----
   // Quadrants and reading coordinates. No high school standard covers this;
-  // it is grade 6 content that Algebra 1 reviews.
-  "coordinate-plane": ["6.NS.C.6.b", "6.NS.C.6.c"],
+  // it is grade 6 content that Algebra 1 reviews. Nothing is plotted, so
+  // 6.NS.C.6.c is in NOT_CLAIMED.
+  "coordinate-plane": ["6.NS.C.6.b"],
   // Slope from two points, horizontal and vertical lines. The cleanest match
   // is 8.F.B.4 (rate of change from two points).
   slope: ["8.F.B.4"],
-  // y-intercept of y = mx + b and points on the line.
-  "graphing-lines": ["HSF-IF.C.7.a", "HSA-REI.D.10", "8.F.A.3"],
-  // x- and y-intercepts of Ax + By = C.
-  intercepts: ["HSF-IF.C.7.a"],
+  // y-intercept of y = mx + b and points on the line, read from the equation.
+  // No item draws or reads a graph, so the graphing standards are in NOT_CLAIMED.
+  "graphing-lines": ["8.F.A.3"],
+  // x- and y-intercepts of Ax + By = C, computed. No standard is claimed: the
+  // one that names intercepts (HSF-IF.C.7.a) is about graphing.
+  intercepts: [],
 
   // ---- Unit 4: Forms of Linear Equations ----
   // Write y = mx + b from a slope and intercept; read m and b off an equation.
@@ -207,21 +210,23 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
   "parallel-perpendicular": ["HSG-GPE.B.5"],
 
   // ---- Unit 5: Systems of Equations ----
-  // Where two lines cross, found by setting the right sides equal.
-  "graphing-systems": ["HSA-REI.C.6", "HSA-REI.D.11", "8.EE.C.8.a"],
+  // Where two lines cross, found from the equations. HSA-REI.D.11 (reading
+  // the crossing off graphs or tables) is in NOT_CLAIMED.
+  "graphing-systems": ["HSA-REI.C.6", "8.EE.C.8.a"],
   substitution: ["HSA-REI.C.6", "8.EE.C.8.b"],
   elimination: ["HSA-REI.C.6", "8.EE.C.8.b"],
   // Tickets, baskets and coins: two constraints, two equations.
   "systems-word-problems": ["HSA-CED.A.3", "HSA-REI.C.6", "8.EE.C.8.c"],
 
   // ---- Unit 6: Inequalities (Systems & Graphs) ----
-  // Solid or dashed boundary, which side to shade.
-  "graphing-inequalities": ["HSA-REI.D.12"],
+  // Solid or dashed boundary, which side to shade, asked as multiple choice.
+  // No graph is drawn or read, so HSA-REI.D.12 is in NOT_CLAIMED.
+  "graphing-inequalities": [],
   // The CCSS-M does not name compound inequalities; each part is a linear
   // inequality in one variable.
   "compound-inequalities": ["HSA-REI.B.3"],
-  // Which point lies in both half-planes.
-  "systems-inequalities": ["HSA-REI.D.12"],
+  // Which point satisfies both inequalities, tested by substitution.
+  "systems-inequalities": [],
 
   // ---- Unit 7: Functions ----
   "function-notation": ["HSF-IF.A.2"],
@@ -267,8 +272,8 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
   "factoring-special": ["HSA-SSE.A.2"],
 
   // ---- Unit 12: Quadratic Functions & Equations ----
-  // Opens up or down, vertex, axis of symmetry.
-  "graphing-parabolas": ["HSF-IF.C.7.a"],
+  // Opens up or down, vertex, axis of symmetry, all read from the equation.
+  "graphing-parabolas": [],
   // Zero product property on factored quadratics.
   "solving-by-factoring": ["HSA-REI.B.4.b", "HSA-SSE.B.3.a"],
   // Practice drills the step both standards rest on, finding the (b/2)²
@@ -296,10 +301,58 @@ export interface NotClaimed {
 }
 
 /**
+ * The standards whose point is drawing or reading a graph. None can be
+ * claimed until practice has items that show a graph or ask for one.
+ */
+export const GRAPHING_STANDARDS = ["6.NS.C.6.c", "HSA-REI.D.10", "HSA-REI.D.11", "HSA-REI.D.12", "HSF-IF.C.7.a", "HSF-IF.C.7.b"];
+
+/**
  * Standards that look like a match from a skill's title but that the skill
  * does not actually teach. Listed so the gap is visible, not hidden.
  */
 export const NOT_CLAIMED: NotClaimed[] = [
+  // No practice item in the course shows a graph or asks for one (Oct 2026), so
+  // every standard whose point is making or reading a graph is listed here.
+  {
+    skillId: "coordinate-plane",
+    code: "6.NS.C.6.c",
+    reason: "That standard asks students to plot points on a coordinate plane. Practice names quadrants and reads coordinates, and no point is plotted.",
+  },
+  {
+    skillId: "graphing-lines",
+    code: "HSF-IF.C.7.a",
+    reason: "That standard asks students to graph linear and quadratic functions. Practice reads the y-intercept and points from y = mx + b but never asks for a graph.",
+  },
+  {
+    skillId: "graphing-lines",
+    code: "HSA-REI.D.10",
+    reason: "That standard is about a graph as the set of all solutions of an equation. Practice finds points from the equation and shows no graph.",
+  },
+  {
+    skillId: "intercepts",
+    code: "HSF-IF.C.7.a",
+    reason: "Intercepts are part of graphing a line, but practice only computes them from Ax + By = C and never asks for a graph.",
+  },
+  {
+    skillId: "graphing-systems",
+    code: "HSA-REI.D.11",
+    reason: "That standard finds where two graphs cross, approximately, from graphs or tables. Practice finds the crossing point from the equations, with no graph.",
+  },
+  {
+    skillId: "graphing-inequalities",
+    code: "HSA-REI.D.12",
+    reason: "That standard asks students to graph an inequality as a half-plane. Practice asks the two choices the graph depends on, solid or dashed and which side to shade, but no graph is drawn or read.",
+  },
+  {
+    skillId: "systems-inequalities",
+    code: "HSA-REI.D.12",
+    reason: "That standard asks students to graph a system of inequalities as overlapping half-planes. Practice tests which point satisfies both inequalities, with no graph.",
+  },
+  {
+    skillId: "graphing-parabolas",
+    code: "HSF-IF.C.7.a",
+    reason: "That standard asks students to graph quadratic functions. Practice reads the direction, vertex and axis of symmetry from the equation but never asks for a graph.",
+  },
   {
     skillId: "piecewise-functions",
     code: "HSF-IF.C.7.b",

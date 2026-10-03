@@ -4,8 +4,9 @@ import { Icon } from "@/components/Icon";
 /** Required attribution for the CC BY-licensed background music tracks. */
 export function MusicCredits() {
   return (
-    <details className="mx-auto mt-3 max-w-md text-xs text-slate-400">
-      <summary className="cursor-pointer select-none hover:text-slate-600">
+    <details className="mx-auto mt-2 max-w-md text-xs text-slate-400">
+      {/* py-1: a 24 px tall target on a phone. */}
+      <summary className="cursor-pointer select-none py-1 hover:text-slate-600">
         <Icon name="music" size={13} className="mr-1 inline-block align-[-2px]" />
         Background music credits
       </summary>

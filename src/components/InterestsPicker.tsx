@@ -183,7 +183,7 @@ export function InterestsPicker({
         </div>
       </div>
 
-      {error && <p className="field-error">{error}</p>}
+      {error && <p role="alert" className="field-error">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void save()} disabled={saving} className="btn-primary flex-1">

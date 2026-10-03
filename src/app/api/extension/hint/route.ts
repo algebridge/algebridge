@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { aiConfigured, callJson, clientKey, makeRateLimiter } from "@/lib/ai-provider";
+import { modelSignalsCrisis } from "@/lib/helper";
 import {
   ASK_SYSTEM,
   CHECK_NUDGE,
@@ -50,7 +51,10 @@ import {
 /**
  * The AlgeBridge Hints endpoint, called by the Chrome extension.
  *
- *   1. Validate and rate limit.
+ *   1. Validate. An "ask" (or a typed answer to check) that sounds like the
+ *      student is in danger gets the fixed crisis reply here, before any
+ *      limit, so it is never a 429.
+ *      Then rate limit.
  *   2. An "ask" that wants the answer (in English, Spanish, French, German,
  *      Portuguese or Italian), wants what a step produces, offers an answer
  *      to be judged, or tries to change the rules gets a fixed reply here.
@@ -235,7 +239,7 @@ async function guardedReply(
   fallback: () => string,
   left: Clock,
   trace: Trace
-): Promise<{ reply: string; source: Source }> {
+): Promise<{ reply: string; source: Source; crisis?: boolean }> {
   if (!aiConfigured() || left() < 3_000) {
     trace.push("fallback:no-time");
     return { reply: fallback(), source: "local" };
@@ -245,6 +249,12 @@ async function guardedReply(
     const { system, user } = build(strict);
     const raw = await modelReply(system, user, Math.min(8_000, left() - 1_000), trace);
     if (raw === null) break;
+    // The model-side crisis net (ASK_SYSTEM): a question the patterns missed,
+    // in another language say, comes back as the one word CRISIS.
+    if (modelSignalsCrisis(raw)) {
+      trace.push("model:crisis");
+      return { reply: "", source: "ai", crisis: true };
+    }
     // Hints and answers to questions: 1 to 3 sentences ending with a question. Concepts and nudges: up to 4.
     let text = cleanReply(raw);
     if (text && question) text = oneQuestion(limitSentences(/\?\s*$/.test(text) ? text : ensureQuestion(cleanReply(raw, 2), question), 3));
@@ -282,6 +292,30 @@ export async function POST(request: Request) {
     const valid = validateRequest(body);
     if (!valid.ok) return fail(400, "bad-request", valid.message);
     const req = valid.req;
+
+    // A student who may be in danger: the fixed reply (a trusted adult, 988,
+    // the Crisis Text Line, 911), before any limit and with no model. The
+    // words are not logged or kept. A question is read by askGate; an answer
+    // typed into Check my answer is read too, since a student in trouble may
+    // type it wherever there is a box.
+    const typed = req.action === "ask" ? req.question ?? "" : req.action === "check" ? req.answer ?? "" : "";
+    if ((req.action === "ask" && askGate(typed, req.problem) === "crisis") || (req.action === "check" && askGate(typed, "") === "crisis")) {
+      trace.push("gate:crisis");
+      const known = unseal(req.sealed, req.problem);
+      const kind = known?.kind ?? guessKind(req.problem);
+      const out: HintResponse = {
+        reply: gateReplyFor("crisis"),
+        sealed: known ? (req.sealed as string) : "",
+        step: -1,
+        steps: known?.steps.length ?? 0,
+        done: known ? req.hints.length >= known.steps.length : false,
+        kind,
+        level: known?.level ?? levelFor(kind, req.problem),
+        source: "gate",
+        crisis: true,
+      };
+      return send(out);
+    }
 
     // Vercel sets x-vercel-forwarded-for itself and overwrites any client-sent X-Forwarded-For
     // (https://vercel.com/docs/headers/request-headers), so on production this key cannot be forged.
@@ -422,6 +456,8 @@ export async function POST(request: Request) {
           left,
           trace
         );
+        // The same fixed reply and flag as the code gate above.
+        if (r.crisis) return send({ ...reply(gateReplyFor("crisis"), { source: "gate", crisis: true }), reply: gateReplyFor("crisis") });
         return send(reply(r.reply, { source: r.source }));
       }
     }

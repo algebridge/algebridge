@@ -186,7 +186,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
         {!loaded && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-            <p className="text-sm text-slate-400">Loading video…</p>
+            <p className="text-sm text-slate-300">Loading video…</p>
           </div>
         )}
         <iframe
@@ -203,7 +203,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
       </div>
       <div className="bg-slate-900 px-4 py-3">
         <p className="font-medium text-white">{activeVideo.title}</p>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-300">
           {activeVideo.channel} · {activeVideo.duration}
         </p>
         <div className="mt-2 flex flex-wrap gap-3">
@@ -238,7 +238,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
                 style={{ width: `${watchPercent}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-300">
               {watchPercent > 0
                 ? `${watchPercent}% watched, press play to keep tracking your progress`
                 : "Press play to start tracking your progress"}
@@ -248,7 +248,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
 
         {!watched && fallbackMode && (
           <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-300">
               {fallbackUnlocked
                 ? "Finished the video? Confirm below."
                 : "Keep watching, this unlocks once you've seen most of the video."}

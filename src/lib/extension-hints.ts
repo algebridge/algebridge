@@ -14,7 +14,7 @@
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
-import { classifyIntent, formatNumber, leaksAnswer, leaksAnswerText } from "@/lib/helper";
+import { classifyIntent, CRISIS_MODEL_RULE, CRISIS_REPLY, CRISIS_SIGNAL, detectCrisis, formatNumber, leaksAnswer, leaksAnswerText } from "@/lib/helper";
 import { diagnoseMistake } from "@/lib/diagnose";
 import { stripMarkdownEmphasis } from "@/lib/tutor";
 import * as M from "@/lib/mathexpr";
@@ -87,6 +87,8 @@ export interface HintResponse {
   level: 1 | 2;
   verdict?: Verdict;
   source: Source;
+  /** Set on the fixed reply to a student who may be in danger (see askGate). */
+  crisis?: boolean;
 }
 
 export interface Step {
@@ -482,6 +484,7 @@ Rules:
 - ${EARLIER_RESULTS_RULE}
 - Never say whether an answer, guess, or number from the student is right or wrong, and never praise or doubt it. Checking is what Check my answer is for.
 - 1 to 3 short sentences, ending with a short question.
+- ${CRISIS_MODEL_RULE} In JSON that is {"reply": "${CRISIS_SIGNAL}"}. AlgeBridge then shows the student a trusted adult, 988 and 911.
 ${STYLE_RULE}
 Reply with JSON only: {"reply": "..."}`;
 
@@ -2899,15 +2902,19 @@ function normalizeMathText(s: string): string {
   return M.normalizeMath(s).toLowerCase().replace(/[‘’]/g, "'").trim();
 }
 
-export type AskGate = "answer" | "step" | "proposal" | null;
+export type AskGate = "crisis" | "answer" | "step" | "proposal" | null;
 
 /** The fixed reply for each gate. */
 export function gateReplyFor(gate: Exclude<AskGate, null>): string {
+  if (gate === "crisis") return CRISIS_REPLY;
   return gate === "proposal" ? PROPOSAL_REPLY : gate === "step" ? STEP_REPLY : GATE_REPLY;
 }
 
 /**
- * Should this question be answered in code instead of by a model? "answer"
+ * Should this question be answered in code instead of by a model? "crisis"
+ * first, for a question that sounds like the student is in danger (the same
+ * detectCrisis as Archie, with the same fixed reply: a trusted adult, 988,
+ * the Crisis Text Line, 911). Then "answer"
  * for requests for the answer (in English, Spanish, French, German,
  * Portuguese or Italian) and attempts to change the rules; "step" for
  * requests for what a step produces; "proposal" for a student offering an
@@ -2915,6 +2922,7 @@ export function gateReplyFor(gate: Exclude<AskGate, null>): string {
  * answer is, so the reply can never confirm or deny.
  */
 export function askGate(question: string, problem: string): AskGate {
+  if (detectCrisis(question)) return "crisis";
   const t = normalizeMathText(question);
   if (!t) return null;
   const folded = foldAccents(t).replace(/[¿¡]/g, " ").replace(/\s+/g, " ").trim();

@@ -126,26 +126,126 @@ export function isNo(text: string): boolean {
 export const CRISIS_REPLY =
   "I'm really glad you told me. I'm an AI math helper, and this needs a real person who can help you. " +
   "Please talk to a trusted adult now, like a parent, a teacher, or your school counselor. " +
-  "In the US you can call or text 988 (the 988 Suicide and Crisis Lifeline) or text HOME to 741741 (Crisis Text Line). " +
+  "In the US, from any phone, you can call or text 988 (the 988 Suicide and Crisis Lifeline) or text HOME to 741741 (Crisis Text Line). " +
+  "On a computer, chat with 988 at chat.988lifeline.org. " +
   "Both are free, confidential, and open 24/7. If you are in danger right now, call 911.";
 
+/**
+ * The same help as CRISIS_REPLY, as the things the panel lets a student tap:
+ * call or text 988, text HOME to 741741, and 911. On a phone each one opens
+ * the dialer or the messages app with the number filled in. The test in
+ * helper.test.ts holds these to the reply's own words.
+ */
+export const CRISIS_CONTACTS = [
+  { id: "call-988", action: "Call 988", detail: "988 Suicide and Crisis Lifeline", href: "tel:988" },
+  { id: "text-988", action: "Text 988", detail: "988 Suicide and Crisis Lifeline", href: "sms:988" },
+  // "?&body=" is the one form both iOS and Android read as a prefilled text.
+  { id: "text-741741", action: "Text HOME to 741741", detail: "Crisis Text Line", href: "sms:741741?&body=HOME" },
+] as const;
+export const CRISIS_EMERGENCY = { action: "Call 911", href: "tel:911" } as const;
+
+/**
+ * The 988 Lifeline's web chat, for a school Chromebook, where a tel: or sms:
+ * link does nothing. The address is the one 988lifeline.org's own Chat
+ * button opens (checked 3 Oct 2026); ?lang=es is its Spanish chat.
+ */
+export const CRISIS_CHAT = {
+  action: "Chat with 988 online",
+  detail: "chat.988lifeline.org, from any computer",
+  href: "https://chat.988lifeline.org/",
+} as const;
+
+/**
+ * Spanish help on the same line, in 988's own words (988lifeline.org,
+ * "Servicios en español", checked 3 Oct 2026): dial 988 and press 2, or text
+ * AYUDA to 988. Not a translation of CRISIS_REPLY: that still needs a Spanish
+ * speaker's review before it ships.
+ */
+export const CRISIS_SPANISH = {
+  text: "En español: llama al 988 y presiona 2, o envía AYUDA al 988.",
+  chatHref: "https://chat.988lifeline.org/?lang=es",
+} as const;
+
 export type CrisisKind = "self-harm" | "abuse" | "danger";
+
+/**
+ * The model-side net. A message the patterns below miss (another language, a
+ * new slang word) still reaches a model, and the model is told to answer it
+ * with this one word, which the server and the panel turn into CRISIS_REPLY
+ * and the card. CRISIS_MODEL_RULE is the line every system prompt that sees a
+ * student's words should carry.
+ */
+export const CRISIS_SIGNAL = "CRISIS";
+export const CRISIS_MODEL_RULE =
+  "If the student's message, in any language, suggests self-harm, suicide, abuse, neglect, or that they are in danger, reply with exactly CRISIS and nothing else.";
+
+/** Did a model answer with the crisis signal, give or take quotes, a period or JSON? */
+export function modelSignalsCrisis(reply: string | null | undefined): boolean {
+  if (!reply) return false;
+  let t = reply.trim();
+  try {
+    const parsed = JSON.parse(t) as unknown;
+    if (parsed && typeof parsed === "object" && typeof (parsed as { reply?: unknown }).reply === "string") {
+      t = (parsed as { reply: string }).reply.trim();
+    }
+  } catch {
+    /* plain text */
+  }
+  return t.replace(/^[\s"'`*_]+|[\s"'`*_.!]+$/g, "").toUpperCase() === CRISIS_SIGNAL;
+}
 
 /** Digits and symbols standing in for letters: k1ll, su1c1de, d3ad. */
 const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", $: "s" };
 
 /**
+ * Letters from other alphabets that look like Latin ones (a Cyrillic "і" in
+ * "suіcide"), read as the Latin letter they imitate.
+ */
+const LOOKALIKE: Record<string, string> = {
+  "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d", "ӏ": "l",
+  "ο": "o", "α": "a", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ρ": "p", "τ": "t", "υ": "u", "χ": "x",
+};
+const LOOKALIKE_RE = new RegExp(`[${Object.keys(LOOKALIKE).join("")}]`, "g");
+
+/** Characters that print as nothing: zero-width spaces and joiners, soft hyphens, direction marks. */
+export const INVISIBLE_RE = /[­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁤⁪-⁯ㅤ︀-️﻿ﾠ]/g;
+
+/** Text with look-alike letters read as Latin and invisible characters taken out. */
+export function foldLookalikes(text: string): string {
+  return text.replace(INVISIBLE_RE, "").replace(LOOKALIKE_RE, (c) => LOOKALIKE[c] ?? c);
+}
+
+/**
+ * Words in scripts the Latin patterns cannot read, checked on the text as
+ * typed: Chinese, Arabic, Russian and Ukrainian, Korean, Hindi. A short list
+ * of the plainest ways to say "I want to die" or "suicide", not a translation
+ * of the English patterns. The model-side net (CRISIS_MODEL_RULE) is there
+ * for everything else.
+ */
+const OTHER_SCRIPTS: RegExp[] = [
+  /我想死|想自杀|自杀|不想活|活不下去|想去死|自殺/,
+  /أريد\s*أن\s*أموت|اريد\s*ان\s*اموت|انتحار|أنتحر|انتحر|أقتل\s*نفسي|اقتل\s*نفسي/,
+  /хочу\s+умереть|хочу\s+померти|убить\s+себя|убью\s+себя|вбити\s+себе|покончить\s+с\s+собой|суицид|самоубийств|самогубств/i,
+  /죽고\s?싶|자살/,
+  /मरना\s?चाह|आत्महत्या|खुदकुशी/,
+];
+
+/**
  * Text as the patterns read it: lower case, no accents or apostrophes
  * ("don't" is "dont"), leetspeak inside words undone, runs of three or more
  * of a letter cut to one ("diiie"), punctuation as spaces, and single letters
- * spelled out with gaps joined ("k i l l", "k.m.s").
+ * spelled out with gaps joined ("k i l l", "k.m.s"). Invisible characters
+ * go first, and letters from other alphabets that imitate Latin ones are read
+ * as Latin; a star or an exclamation mark between two letters stands for a
+ * vowel ("k*ll", "d!e"), and "11" inside a word for "ll" ("ki11").
  */
 export function safetyText(text: string): string {
-  let t = text
-    .toLowerCase()
+  let t = foldLookalikes(text.toLowerCase())
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/['‘’ʼ`´]/g, "");
+  t = t.replace(/(?<=[a-z])[*!|](?=[a-z])/g, "i");
+  t = t.replace(/(?<=[a-z]{2})11(?=[a-z]|\b)/g, "ll");
   // Only inside words that start with a letter and hold two or more letters,
   // so "3x", "x1" and "$20" are left alone.
   t = t.replace(/\b[a-z][a-z0-9@$]*[0-9@$][a-z0-9@$]*/g, (w) =>
@@ -166,13 +266,24 @@ const PERSON =
 
 const SELF_HARM: RegExp[] = [
   // kill myself, killmyself, kil myslef, hurt myself, cut myself, unalive myself
-  new RegExp(`\\b(?:${KILL}|off|end|ending|hurt|hurting|harm|harming|cut|cutting|hang|hanging|shoot|shooting|stab|stabbing|starve|starving|drown|drowning|poison|poisoning|unalive|unaliving)\\s?${MYSELF}\\b`),
+  new RegExp(`\\b(?:${KILL}|off|end|ending|hurt|hurting|harm|harming|cut|cutting|hang|hanging|shoot|shooting|stab|stabbing|starve|starving|drown|drowning|poison|poisoning|unalive|unaliving|burn|burning|scratch|scratching|choke|choking|suffocate|suffocating)\\s?${MYSELF}\\b`),
   // suicide, suicidal and the ways it gets misspelled
-  /\bsu[aeiouy]*[cs]{1,2}[aeiy]*i[aeiy]*d(?:e|es|al|ally|ing|ed)?\b/,
+  /\bsu[aeiouy]*[cs]{1,2}[aeiy]*i[aeiy]*d(?:e|es|al|ally|ing|ed|le|el|l)?\b/,
   /\b(?:suicd\w*|suecid\w*|sewer ?slide\w*|sewerslid\w*|un ?aliv\w*|commit (?:die|sudoku|toaster bath))\b/,
   /\bself ?harm\w*\b/,
   // want to die, wanna die, ready to die, want to be dead, want to disappear forever
-  /\b(?:want|wnat|wamt|wan|wanna|wana|wnna|wanted|ready|deserve|deserves)\s+(?:to\s+|2\s+)?(?:just\s+|really\s+|literally\s+|honestly\s+|lowkey\s+)?(?:die|be dead|stop existing|not exist|not be alive|not live|disappear|end it all|end it|end my life|kill me)\b/,
+  /\b(?:want|wnat|wamt|wnt|wan|wanna|wana|wnna|wanted|ready|deserve|deserves)\s+(?:to\s+|2\s+)?(?:just\s+|really\s+|literally\s+|honestly\s+|lowkey\s+)?(?:die|be dead|be ded|stop existing|not exist|not be alive|not live|disappear|end it all|end it|end my life|kill me)\b/,
+  // "i wanna dye" (but not "i want to dye my hair")
+  /\b(?:want|wanna|wana|wnt)\s+(?:to\s+|2\s+)?dye\b(?! (?:my|your|her|his|the|it|them|a|some|their|our)\b)/,
+  /\bidw(?:tl|t live| to live| 2 live)\b/,
+  /\b(?:want|wanna|wish i could) (?:to )?sleep forever\b/,
+  /\bwish (?:that )?i (?:wasnt|was not|werent|were not) (?:alive|here anymore|here|born|around)\b/,
+  /\bwant (?:it all|everything|all of it|the pain|this pain|my life) to (?:stop|end)\b/,
+  /\bdone with (?:life|living|existing|being alive)\b(?! (?:science|skills?|cycles?|insurance|lessons?|unit|class)\b)/,
+  /\b(?:have|made|got|making|wrote|written) (?:a |my )?plan to (?:end it|end my life|kill myself|die|end things|end everything)\b/,
+  /\bplan(?:ning)? (?:to|on) (?:end|ending) (?:it|my life|things|everything)\b/,
+  /\b(?:goodbye|suicide) (?:letter|note)s?\b/,
+  /\b(?:dont|do not|cant|cannot) see (?:the|any) point (?:anymore|any more|in (?:living|life|anything|going on|being alive))\b/,
   /\b(?:thinking (?:about|of)|want to|going to|gonna|wanna) end(?:ing)? (?:things|everything)\b/,
   /\bi cant go on\b(?! (?:to|with)\b)/,
   /\b(?:wont|will not) be (?:around|here) (?:much longer|tomorrow|anymore)\b/,
@@ -195,11 +306,33 @@ const SELF_HARM: RegExp[] = [
   /\bhate (?:my life|myself|being alive|my existence)\b/,
   /\b(?:im|i am) (?:just )?a burden\b/,
   /\boverdos\w*\b/,
-  /\b(?:take|took|taking|swallow|swallowed) (?:all|a bunch|a lot|a handful|too many|way too many) (?:of )?(?:my |the |those |these )?(?:pills|meds|medicine|tablets)\b/,
+  /\b(?:take|took|taking|swallow|swallowed) (?:all|a bunch|a lot|a handful|too many|way too many) (?:of )?(?:my |the |those |these )?(?:\w+ )?(?:pills|meds|medicine|tablets)\b/,
+  /\bswallow(?:ed|ing)? (?:\w+ ){0,3}?(?:pills|tablets|bleach)\b/,
   /\b(?:i|im|i am|gonna|wanna|want to|going to|about to|will|might|should|ill|id) (?:just )?jump (?:off|from|in front of)\b/,
+  /\b(?:think|thinking|thought|keep thinking|dream|dreaming) (?:about|of) (?:jumping|jump) (?:off|from|in front of)\b/,
   /\b(?:started|been|keep|kept|i) cutting (?:again|myself|my (?:arm|arms|wrist|wrists|leg|legs|skin))\b/,
+  // "i've been cutting", "im cutting again" in the middle of a math question,
+  // but not "i'm cutting the pizza into 8 slices" or "i keep cutting corners".
+  /\b(?:im|i am|ive|i have|i|i keep|i kept|i started|i still|im still)(?: been| still| started)? cutting\b(?! (?:\d|the|a|an|it|its|this|that|these|those|out|in|into|up|down|back|off|class|school|corners|paper|my hair|my nails|hair|his|her|their|our|your|some|cake|pizza|wood|lines?|shapes?|fabric|coupons?|across|through|each|every|both|half|halves)\b)/,
   /\b(?:slit|cut|cutting) my wrists?\b/,
   /\b(?:told|tell|telling|tells|said) me to (?:kys|kill myself|die)\b/,
+  // Spanish (accents are gone by now: "aquí" reads "aqui", "daño" "dano").
+  /\b(?:me )?quiero (?:morir(?:me)?|matarme|suicidarme|desaparecer para siempre|cortarme|hacerme dano|estar muert[oa])\b(?! de (?:la |el )?(?:risa|verguenza|pena|amor|ganas|hambre|sueno|aburrimiento|calor|frio)\b)/,
+  /\bme quiero (?:morir|matar|suicidar|cortar)\b(?! de (?:la |el )?(?:risa|verguenza|pena|amor|ganas|hambre|sueno|aburrimiento|calor|frio)\b)/,
+  /\b(?:me voy a (?:matar|suicidar|cortar)|voy a (?:matarme|suicidarme|cortarme))\b/,
+  /\bsuicid(?:ar|arme|arse|io|a|o)\b/,
+  /\b(?:ya )?no quiero (?:vivir|seguir viviendo|existir|estar aqui|estar viv[oa])\b/,
+  /\bme (?:corto|lastimo|hago dano)\b(?! (?:el|la|las|los|mis) (?:pelo|cabello|unas|flequillo)\b)/,
+  // Haitian Creole, Portuguese, Hindi in Latin letters, Vietnamese without accents.
+  /\b(?:mwen|m) vle mouri\b/,
+  /\btouye tet (?:mwen|m)\b/,
+  /\bswisid\w*\b/,
+  /\b(?:eu )?quero morrer\b/,
+  /\b(?:quero|vou|queria) me matar\b/,
+  /\bnao quero (?:mais )?viver\b/,
+  /\bmarna chah(?:ta|ti|te|ti hu|ta hu)\b/,
+  /\b(?:khudkushi|aatmahatya|atmahatya)\b/,
+  /\btoi muon chet\b/,
 ];
 
 const ABUSE: RegExp[] = [
@@ -218,6 +351,24 @@ const ABUSE: RegExp[] = [
   /\b(?:being|getting) (?:abused|bullied|beaten|beat up|groomed|stalked|threatened|molested)\b/,
   /\bbull(?:y|ies|ied|ying) me\b/,
   /\b(?:scared|afraid|terrified) (?:to go|of going) home\b/,
+  // "my uncle makes me do things", "he makes me keep secrets"
+  new RegExp(`\\b${PERSON} (?:\\w+ ){0,2}?(?:makes|made|forces|forced) me (?:do|touch|watch) (?:things|stuff|something|sexual \\w+)\\b(?! (?:like|for)\\b)`),
+  /\b(?:makes|made|forces|forced) me (?:to )?keep (?:it |this |them |a |our )?secrets?\b/,
+  /\bwhat (?:he|she|they) (?:does|did|do) to me\b/,
+  /\b(?:scared|afraid|terrified) of (?:my )?(?:dad|father|stepdad|step dad|mom|mother|stepmom|uncle|aunt|parents?|brother|grandpa|grandfather|boyfriend|coach|tutor)\b/,
+  // "my tutor asked me for pictures", "an adult asked me to send pics of my
+  // body", but not "asked me for pictures of my homework"
+  /\b(?:asked|asking|asks|wants|wanted|told|tells) me (?:for|to send|to take|to show) (?:\w+ )?(?:pics|pictures|photos|nudes|selfies|videos)\b(?! of (?:the|my|your|our) (?:homework|work|graph|project|answer|answers|notes|problem|worksheet|whiteboard)\b)/,
+  /\bsend (?:\w+ )?(?:pics|pictures|photos) of my body\b/,
+  /\bget (?:hit|beaten|beat up|beat|slapped|punched|kicked|choked|hurt|touched) (?:at home|by (?:my|him|her|them)|every day|everyday)\b/,
+  /\b(?:keep|keeps|kept|always) (?:threatening|bullying|hitting|hurting|harassing|touching|beating) me\b/,
+  new RegExp(`\\b${PERSON} (?:\\w+ ){0,2}?(?:kick|punch|slap|choke|whip|grab|starve|threaten|touch|burn) me\\b(?! (?:up|out|off|back)\\b)`),
+  /\b(?:locks|locked|lock) me (?:in|inside) (?:my|the|a|our) (?:room|closet|basement|house|car)\b/,
+  // Spanish
+  /\bmi (?:papa|padre|mama|madre|padrastro|madrastra|tio|tia|hermano|hermana|abuelo|primo|novio|novia|maestro|entrenador) me (?:pega|golpea|toca|lastima|maltrata|viola|amenaza|quema|ahorca|hace cosas)\b/,
+  /\bme (?:pegan|golpean|tocan|violan|maltratan|amenazan)\b/,
+  /\b(?:abuso|abusa|abusan|abusaron) de mi\b/,
+  /\btengo miedo de (?:ir a|volver a) (?:mi )?casa\b/,
 ];
 
 const DANGER: RegExp[] = [
@@ -229,6 +380,8 @@ const DANGER: RegExp[] = [
   /\b(?:someone|somebody|he|she|they|a man|a guy|theres someone|there is someone) (?:has|have|got|is holding|pulled) a (?:gun|knife|weapon)\b/,
   /\b(?:shoot|shooting|bomb|bombing|blow) up (?:the|my|this|our) school\b/,
   /\bbring(?:ing)? a (?:gun|knife|weapon) to school\b/,
+  /\bno food (?:at home|in the house|in my house)\b/,
+  /\b(?:havent|have not|didnt|did not) (?:eat|eaten|had food) (?:in|for) (?:\d+|two|three|four|five|a few|several) days\b/,
   // A threat to someone else. "kill the x term" has no person in it, and
   // "gonna kill my brother if he eats my fries" is the idiom, so a
   // condition straight after it lets it pass.
@@ -269,12 +422,28 @@ function kmsAsSlang(t: string): boolean {
  * I fail". The list of what must and must not fire is in helper.test.ts.
  */
 export function detectCrisis(text: string): CrisisKind | null {
-  const t = safetyText(text);
+  const raw = (text ?? "").replace(INVISIBLE_RE, "");
+  // Scripts the Latin patterns cannot read, and "s/h", which punctuation
+  // removal would turn into two loose letters.
+  if (OTHER_SCRIPTS.some((r) => r.test(raw)) || /(?:^|[\s(])s\/h(?=$|[\s.,!?)])(?!\s*(?:ratio|rate|=|is\s+\d))/i.test(raw)) return "self-harm";
+  const t = safetyText(raw);
   if (!t) return null;
   if (SELF_HARM.some((r) => r.test(t)) || kmsAsSlang(t)) return "self-harm";
   if (ABUSE.some((r) => r.test(t))) return "abuse";
   if (DANGER.some((r) => r.test(t))) return "danger";
   return null;
+}
+
+/**
+ * The student's last message, and their one before it read together with it,
+ * so a disclosure split in two ("i want to", then "die") is caught. A message
+ * that already matched on its own was already answered, so it is not joined
+ * again (or every later message would bring the card back).
+ */
+export function detectCrisisInTurns(previous: string | null | undefined, latest: string): CrisisKind | null {
+  const alone = detectCrisis(latest);
+  if (alone || !previous || !previous.trim() || detectCrisis(previous)) return alone;
+  return detectCrisis(`${previous.trim()} ${latest}`);
 }
 
 /**

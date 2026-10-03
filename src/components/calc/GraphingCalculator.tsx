@@ -452,6 +452,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
         <div className={`relative ${narrow ? "h-[50%] shrink-0" : "min-w-0 flex-1"}`}>
           <GraphCanvas
             items={items}
+            names={items.map((it) => rows[it.row]?.text ?? "")}
             selected={selected}
             onSelect={(row) => {
               setSelected(row);

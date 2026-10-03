@@ -3,22 +3,54 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { getPublicProfile, sendCallDecline, subscribeToRing, type RingPayload } from "@/lib/social";
+import { loadManagedFlag, sendCallDecline, subscribeToRing, verifyCaller, type RingPayload } from "@/lib/social";
 import { showToast } from "@/lib/notify";
 import { Icon } from "@/components/Icon";
+import { isBlocked, readBlocked } from "@/lib/safety";
+import { useSchoolMode } from "@/components/SchoolModePanel";
+import { setManagedAccount } from "@/lib/school-mode";
 
 /**
  * App-wide listener that "rings" the current user when someone calls them.
  * Mounted in the root layout so it works on every page while signed in.
+ *
+ * A ring from someone this student blocked on this device is ignored, and in
+ * school mode (src/lib/school-mode.ts) there are no calls, so nothing is
+ * listened for at all. The name shown is the caller's own profile name, not
+ * the name the ring carries, so a ring cannot claim to be someone else. A
+ * ring rings only when the caller has a staff account: tutor, teacher or
+ * admin (verifyCaller).
+ *
+ * Mounted on every page, it also reads whether the signed-in account is
+ * managed by a school (profiles.managed) and turns school mode on for it, so
+ * a class member gets the school menus at learn.algebridge.org too.
  */
 export function IncomingCall() {
   const { user, profile } = useAuth();
+  const school = useSchoolMode();
   const router = useRouter();
   const [incoming, setIncoming] = useState<RingPayload | null>(null);
   const audioRef = useRef<{ ctx: AudioContext; timer: ReturnType<typeof setInterval> } | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const myName = profile?.displayName || user?.email?.split("@")[0] || "Me";
+
+  // School mode for a school-managed account, wherever it signs in. Cleared
+  // when nobody is signed in, so the next person on a shared computer starts
+  // from the build's own switch.
+  useEffect(() => {
+    if (!user) {
+      setManagedAccount(false);
+      return;
+    }
+    let live = true;
+    loadManagedFlag(user.id).then((managed) => {
+      if (live) setManagedAccount(managed);
+    });
+    return () => {
+      live = false;
+    };
+  }, [user]);
 
   function stopRing() {
     if (audioRef.current) {
@@ -61,16 +93,17 @@ export function IncomingCall() {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || school) return;
     const unsub = subscribeToRing(
       user.id,
       (payload) => {
-        // Only tutors may call. Verify the caller is actually a tutor before
-        // ringing, a non-tutor caller's profile is either role!='tutor' or
-        // not readable (RLS), so the ring is ignored.
-        getPublicProfile(payload.callerId).then((caller) => {
-          if (caller?.role !== "tutor") return;
-          setIncoming(payload);
+        if (isBlocked(readBlocked(user.id), payload.callerId)) return;
+        // Only staff may call (a tutor, a teacher, an admin), checked against
+        // the caller's own account before anything rings. An admin whose
+        // profile says "student" used to be ignored here.
+        verifyCaller(payload.callerId).then((caller) => {
+          if (!caller.ok) return;
+          setIncoming({ ...payload, callerName: caller.name || "Your tutor" });
           startRing();
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
           timeoutRef.current = setTimeout(() => {
@@ -89,7 +122,7 @@ export function IncomingCall() {
       setIncoming(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, school]);
 
   if (!incoming) return null;
 

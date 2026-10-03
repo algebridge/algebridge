@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getProgress, markOnboarded } from "@/lib/progress";
 import { Icon, type IconName } from "@/components/Icon";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 const STEPS: { icon: IconName; title: string; body: string }[] = [
   {
@@ -38,6 +39,10 @@ export function WelcomeModal() {
     setVisible(false);
   }
 
+  // Keyboard: focus starts on the main button, Tab stays in the card, Escape skips the intro.
+  const cardRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(cardRef, visible, close);
+
   if (!visible) return null;
 
   const current = STEPS[step];
@@ -45,20 +50,30 @@ export function WelcomeModal() {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 p-4">
-      <div className="animate-modal-in w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+      <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-title"
+        className="animate-modal-in w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+      >
         <div className="text-center">
           <Image
             src="/brand/logo-icon.png"
-            alt="AlgeBridge"
+            alt=""
             width={64}
             height={64}
             className="animate-gentle-bounce mx-auto"
           />
-          <h2 className="mt-3 font-display text-2xl tracking-wide text-slate-900">Welcome to AlgeBridge</h2>
+          <h2 id="welcome-title" className="mt-3 font-display text-2xl tracking-wide text-slate-900">Welcome to AlgeBridge</h2>
           <p className="mt-1 text-sm text-slate-500">Here is how every skill works, in three steps.</p>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-bridge-50 p-5 text-center">
+        {/* Next swaps this card in place, so it is read out when it changes. */}
+        <div className="mt-6 rounded-2xl bg-bridge-50 p-5 text-center" aria-live="polite">
+          <span className="sr-only">
+            Step {step + 1} of {STEPS.length}.{" "}
+          </span>
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-bridge-600 shadow-panel ring-1 ring-bridge-100">
             <Icon name={current.icon} size={24} />
           </span>
@@ -66,7 +81,7 @@ export function WelcomeModal() {
           <p className="mt-1 text-sm text-slate-600">{current.body}</p>
         </div>
 
-        <div className="mt-5 flex items-center justify-center gap-1.5">
+        <div className="mt-5 flex items-center justify-center gap-1.5" aria-hidden>
           {STEPS.map((s, i) => (
             <span
               key={s.title}
@@ -85,6 +100,7 @@ export function WelcomeModal() {
           )}
           <button
             type="button"
+            data-autofocus
             onClick={() => (isLast ? close() : setStep((s) => s + 1))}
             className="btn-primary flex-1"
           >
@@ -95,7 +111,7 @@ export function WelcomeModal() {
           <button
             type="button"
             onClick={close}
-            className="mt-3 w-full text-center text-xs text-slate-400 hover:text-slate-600"
+            className="mt-2 w-full py-1.5 text-center text-xs text-slate-400 hover:text-slate-600"
           >
             Skip intro
           </button>

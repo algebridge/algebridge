@@ -16,11 +16,15 @@ import {
 import {
   advanceScheduler,
   BOOKING_INTRO,
+  CRISIS_REPLY,
+  detectCrisis,
+  detectCrisisInTurns,
   FORMULA_CARDS,
   forbiddenValues,
   isNo,
   isYes,
   leaksAnswer,
+  modelSignalsCrisis,
   schedulerPrompt,
   type HelperAction,
   type HelperContext,
@@ -78,6 +82,10 @@ import {
 import { autoReactionFor, responseToReaction, toggleReaction, type ReactionId } from "@/lib/archie-reactions";
 import { Chip, ChipGrid, ChipRow, type ChipSpec } from "@/components/helper/Chips";
 import { ContextCard } from "@/components/helper/ContextCard";
+import { CrisisCard } from "@/components/helper/CrisisCard";
+import { useSchoolMode } from "@/components/SchoolModePanel";
+import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
+import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble, prefersReducedMotion } from "@/components/helper/MessageBubble";
 import { TypingDots } from "@/components/helper/TypingDots";
 import {
@@ -109,7 +117,22 @@ import {
  *
  * When the conversation reaches the point where a person is needed, the panel
  * takes over from the model and walks a fixed three-question booking script.
- * Deterministic on purpose: a booking is a transaction, not a chat.
+ * Deterministic on purpose: a booking is a transaction, not a chat. In school
+ * mode (lib/school-mode.ts) there is no booking: he points to the teacher.
+ *
+ * Before any of that, every message is checked for signs that the student is
+ * in danger (detectCrisis), on its own and joined to the student's message
+ * before it (detectCrisisInTurns), so "i want to" then "die" is caught. One
+ * that matches is not saved into a booking, not sent to a tutor and not sent
+ * to the server: the panel shows the crisis card (helper/CrisisCard.tsx) with
+ * 988, the Crisis Text Line and a trusted adult, and nothing playful follows
+ * it. A reply that comes back as the model's crisis signal (CRISIS) gets the
+ * same card. A booking answer, which every tutor can read, gets the personal
+ * information guard too (guardFreeText): no phone numbers or usernames.
+ *
+ * The conversation lives in memory for one person: when the signed-in
+ * account changes (a sign-out on a shared Chromebook), every thread, quiz,
+ * booking and reply on its way is dropped.
  *
  * Archie himself reacts to practice (PRACTICE_EVENT): a hop and confetti for a
  * right answer, a fist pump for a miss, and in Tutor mode a short buddy line
@@ -204,10 +227,14 @@ function studentForPrompt(firstName: string | null): { firstName?: string; inter
   return { ...(firstName ? { firstName } : {}), ...(interests.length ? { interests } : {}) };
 }
 
-/** What goes over the wire: roles and words, never the panel's own errors or his hello. */
+/**
+ * What goes over the wire: roles and words, never the panel's own errors or
+ * his hello, never a crisis turn, and never a message the panel held back:
+ * those stay on this device.
+ */
 function toWire(messages: ChatMessage[]): HelperMessage[] {
   return messages
-    .filter((m) => m.kind !== "error" && m.kind !== "greeting")
+    .filter((m) => m.kind !== "error" && m.kind !== "greeting" && m.kind !== "crisis" && m.kind !== "held")
     .map((m) => ({ role: m.role, content: m.content }));
 }
 
@@ -263,6 +290,8 @@ interface Reaction {
 
 export function StudyHelper() {
   const { user, profile, loading: authLoading } = useAuth();
+  /** School mode: no booking, and an ask for a person points to the teacher. */
+  const school = useSchoolMode();
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   /** Opened from memory on page load: no slide in, no focus grab. */
@@ -276,6 +305,10 @@ export function StudyHelper() {
   const [pending, setPending] = useState<string | null>(null);
   const [spoken, setSpoken] = useState(false);
   const [sends, setSends] = useState(0);
+  // No Book a tutor tab in school mode, so never sit on it.
+  useEffect(() => {
+    if (school && mode === "scheduler") setMode("tutor");
+  }, [school, mode]);
 
   // Size: what the student chose, kept within what this window allows.
   const wide = useSyncExternalStore(subscribeWide, getWide, getServerWide);
@@ -311,6 +344,8 @@ export function StudyHelper() {
   const typing = inputFocused && input.trim().length > 0;
   /** The student has said something in this conversation. */
   const hasUser = thread.messages.some((m) => m.role === "user");
+  /** The newest thing here is the crisis card: Archie stays calm and quiet under it. */
+  const calm = thread.messages[thread.messages.length - 1]?.kind === "crisis";
 
   const firstName = profile && isRealName(profile.displayName) ? splitName(profile.displayName).first : null;
 
@@ -495,8 +530,8 @@ export function StudyHelper() {
   }, [shown, showReaction]);
 
   // What the practice listener needs to know, without re-subscribing each render.
-  const live = useRef({ shown, busy, revealing, typing, mode, firstName, problem });
-  live.current = { shown, busy, revealing, typing, mode, firstName, problem };
+  const live = useRef({ shown, busy, revealing, typing, mode, firstName, problem, calm });
+  live.current = { shown, busy, revealing, typing, mode, firstName, problem, calm };
   const streak = useRef(0);
   const recentLines = useRef<string[]>([]);
 
@@ -507,8 +542,9 @@ export function StudyHelper() {
       streak.current = result === "correct" ? streak.current + 1 : 0;
       const now = live.current;
       // Only while he is on screen, and never over a reply being written or
-      // read: a hint mid-reveal is not the moment for confetti.
-      if (!now.shown || now.busy || now.revealing) return;
+      // read: a hint mid-reveal is not the moment for confetti. Never under
+      // the crisis card either.
+      if (!now.shown || now.busy || now.revealing || now.calm) return;
       const pose: ArchiePose = result === "correct" ? "party" : "encourage";
       const ms = result === "correct" ? 3200 : 3400;
       // Mid-sentence, he reacts without a word.
@@ -591,9 +627,9 @@ export function StudyHelper() {
     return () => window.clearTimeout(id);
   }, [shown, mode, problem, hasUser, busy, padShown, threadKey, showReaction, say]);
 
-  const archiePose: ArchiePose = busy ? "thinking" : (reaction?.pose ?? "idle");
-  const archieMark = !busy && reaction?.pose === "happy" ? (reaction.mark ?? null) : null;
-  const archieLine = !busy && reaction?.line ? reaction.line : null;
+  const archiePose: ArchiePose = calm ? "idle" : busy ? "thinking" : (reaction?.pose ?? "idle");
+  const archieMark = !calm && !busy && reaction?.pose === "happy" ? (reaction.mark ?? null) : null;
+  const archieLine = !calm && !busy && reaction?.line ? reaction.line : null;
 
   // --- Resizing the docked panel ------------------------------------------
 
@@ -741,6 +777,38 @@ export function StudyHelper() {
   const localTimer = useRef(0);
   useEffect(() => () => window.clearTimeout(localTimer.current), []);
 
+  // --- One person's conversation ------------------------------------------
+  //
+  // A shared Chromebook: one student types something private, signs out from
+  // the account menu (no reload), and the next student opens Archie. Nothing
+  // of the first conversation may be there. Any change of account, sign-out
+  // included, drops every thread, and a reply still on its way is thrown
+  // away when it lands (sessionGen).
+  const sessionGen = useRef(0);
+  const seenUser = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (authLoading) return;
+    const id = user?.id ?? null;
+    if (seenUser.current === undefined) {
+      seenUser.current = id;
+      return;
+    }
+    if (seenUser.current === id) return;
+    seenUser.current = id;
+    sessionGen.current += 1;
+    window.clearTimeout(localTimer.current);
+    window.clearTimeout(reactionTimer.current);
+    setReaction(null);
+    setThreads({});
+    threadsRef.current = {};
+    setPending(null);
+    setInput("");
+    setSpoken(false);
+    recentSaid.current = [];
+    greeted.current = false;
+    setMode("tutor");
+  }, [authLoading, user?.id]);
+
   /**
    * A line Archie writes himself: a beat of typing dots and his thinking
    * pose first, so it lands like a reply, then it is written out.
@@ -884,7 +952,9 @@ export function StudyHelper() {
       push(key, { role: "assistant", kind: "booking", content: "Sign in first and I can send this to a tutor for you." });
       return;
     }
+    const gen = sessionGen.current;
     const err = await createSessionRequest(user.id, state.freeText ?? "", state.tutorName ?? null, null);
+    if (gen !== sessionGen.current) return;
     push(key, {
       role: "assistant",
       kind: "booking",
@@ -895,6 +965,7 @@ export function StudyHelper() {
   /** Sends the conversation so far, then adds the reply, or an error with a retry, to that thread. */
   async function ask(key: string, modeAt: HelperMode, history: ChatMessage[], action?: HelperAction) {
     setPending(key);
+    const gen = sessionGen.current;
     try {
       const res = await fetch("/api/helper", {
         method: "POST",
@@ -911,17 +982,36 @@ export function StudyHelper() {
         }),
       });
       if (!res.ok) throw new Error(`helper ${res.status}`);
+      // Someone else signed in while this was on its way: it is not theirs.
+      if (gen !== sessionGen.current) return;
       const data = (await res.json()) as {
         message?: string;
         source?: string;
         offerTutor?: boolean;
+        crisis?: boolean;
         card?: ChatMessage["card"];
       };
       if (typeof data.message !== "string" || !data.message.trim()) throw new Error("empty reply");
+      if (data.crisis || modelSignalsCrisis(data.message)) {
+        // The server caught what the panel did not (an older copy of the
+        // rules, say), or the model answered with the crisis signal for a
+        // message the patterns missed. Same card, and that turn is kept off
+        // the wire from now on.
+        const card = makeMessage({ role: "assistant", kind: "crisis", content: CRISIS_REPLY, sentAt: Date.now() });
+        const asked = history[history.length - 1]?.id;
+        update(key, (t) => ({
+          ...t,
+          scheduler: null,
+          messages: [...t.messages.map((m) => (m.id === asked ? { ...m, kind: "crisis" as const, archieReaction: null } : m)), card],
+        }));
+        return;
+      }
+      // School mode has no booking: an ask for a person is pointed to the teacher.
+      const offer = !school && (data.offerTutor || modeAt === "scheduler");
       const kind: MessageKind = data.card ? "formula" : data.source === "gate" ? "gate" : "reply";
       const reply = makeMessage({
         role: "assistant",
-        content: data.message,
+        content: school && data.offerTutor ? SCHOOL_ESCALATION_REPLY : data.message,
         kind,
         card: data.card,
         sentAt: Date.now(),
@@ -931,12 +1021,12 @@ export function StudyHelper() {
       update(key, (t) => ({
         ...t,
         messages: [...t.messages, reply],
-        scheduler: data.offerTutor || modeAt === "scheduler" ? { step: "offered" } : t.scheduler,
+        scheduler: offer ? { step: "offered" } : t.scheduler,
       }));
     } catch {
-      push(key, { role: "assistant", kind: "error", content: ERROR_TEXT, retryAction: action });
+      if (gen === sessionGen.current) push(key, { role: "assistant", kind: "error", content: ERROR_TEXT, retryAction: action });
     } finally {
-      setPending(null);
+      if (gen === sessionGen.current) setPending(null);
     }
   }
 
@@ -959,10 +1049,48 @@ export function StudyHelper() {
     });
     pinnedToBottom.current = true;
 
+    // A student who may be in danger is answered first, before their words
+    // go anywhere: not into a booking, not to a tutor, not to the server.
+    // The card carries the same fixed help the server would send. Read on
+    // its own and joined to their message before, so a disclosure split in
+    // two is caught; then both halves stay off the wire.
+    const before = [...current.messages].reverse().find((m) => m.role === "user" && m.kind !== "crisis");
+    const crisisAlone = detectCrisis(text);
+    const crisisJoined = !crisisAlone && !!before && !!detectCrisisInTurns(before.content, text);
+    if (crisisAlone || crisisJoined) {
+      window.clearTimeout(reactionTimer.current);
+      window.clearTimeout(localTimer.current);
+      setReaction(null);
+      update(key, (t) => ({
+        ...t,
+        quiz: null,
+        scheduler: null,
+        messages: [
+          ...t.messages.map((m) => (crisisJoined && m.id === before!.id ? { ...m, kind: "crisis" as const, archieReaction: null } : m)),
+          { ...userMsg, kind: "crisis", archieReaction: null },
+          makeMessage({ role: "assistant", kind: "crisis", content: CRISIS_REPLY, sentAt: Date.now() }),
+        ],
+      }));
+      return;
+    }
+
     // Once a booking is under way the panel owns the conversation. A model
     // has no business improvising here.
     const sched = current.scheduler;
     if (sched && sched.step !== "done" && sched.step !== "declined") {
+      // What goes into a booking is read by every tutor, so it gets the
+      // personal information guard: no phone number, username or plan to
+      // talk somewhere else. The same question is asked again.
+      if (sched.step === "awaiting_time" || sched.step === "awaiting_tutor") {
+        const refused = guardFreeText(text, "booking");
+        if (refused) {
+          update(key, (t) => ({
+            ...t,
+            messages: [...t.messages, { ...userMsg, kind: "held", archieReaction: null }, makeMessage({ role: "assistant", kind: "booking", content: refused, sentAt: Date.now() })],
+          }));
+          return;
+        }
+      }
       const next = advanceScheduler(sched, text);
       let replyText: string | null;
       if (next.step === "done") replyText = null;
@@ -1056,7 +1184,7 @@ export function StudyHelper() {
   }
 
   function switchMode(next: HelperMode) {
-    if (next === mode) return;
+    if (next === mode || (school && next === "scheduler")) return;
     setMode(next);
     // A booking is a fresh transaction each time it is picked.
     if (next === "scheduler") {
@@ -1122,7 +1250,7 @@ export function StudyHelper() {
         ...chatChips,
         { id: "start", label: "How do I start a problem?", icon: "play", onPick: () => void send("How do I start a problem?") },
         { id: "topic", label: "Explain a topic", icon: "teach", onPick: () => void send("Can you explain a topic?") },
-        { id: "book", label: "Book a tutor", icon: "tutors", onPick: () => switchMode("scheduler") },
+        ...(school ? [] : [{ id: "book", label: "Book a tutor", icon: "tutors" as const, onPick: () => switchMode("scheduler") }]),
       ];
   const formulaChips: ChipSpec[] = FORMULA_CHIPS.map((f) => ({ id: f.name, label: f.label, onPick: () => void send(f.name) }));
   const bookingChips: ChipSpec[] =
@@ -1233,8 +1361,8 @@ export function StudyHelper() {
 
       {/* The mode, as a segmented control. */}
       <div className="shrink-0 px-3 pb-2.5">
-        <div role="group" aria-label="Helper mode" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-          {MODES.map((m) => (
+        <div role="group" aria-label="Helper mode" className={`grid ${school ? "grid-cols-2" : "grid-cols-3"} gap-1 rounded-xl bg-slate-100 p-1`}>
+          {MODES.filter((m) => !school || m.id !== "scheduler").map((m) => (
             <button
               key={m.id}
               type="button"
@@ -1284,6 +1412,8 @@ export function StudyHelper() {
             {messages.map((m) =>
               m.role === "user" ? (
                 <UserBubble key={m.id} message={m} />
+              ) : m.kind === "crisis" ? (
+                <CrisisCard key={m.id} reply={m.content} />
               ) : (
                 <AssistantBubble
                   key={m.id}
@@ -1354,7 +1484,7 @@ export function StudyHelper() {
               {bookingChips.length > 0 ? (
                 <ChipRow chips={bookingChips} disabled={busy} label="Quick answers" />
               ) : (
-                hasUser && rowChips.length > 0 && <ChipRow chips={rowChips} disabled={busy} label={chipsLabel} />
+                hasUser && !calm && rowChips.length > 0 && <ChipRow chips={rowChips} disabled={busy} label={chipsLabel} />
               )}
               <form
                 onSubmit={(e) => {

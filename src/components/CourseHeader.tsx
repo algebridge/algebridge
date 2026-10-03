@@ -20,8 +20,11 @@ const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
  * like a place they're working, not a landing page.
  */
 export function CourseHeader() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { stats, continueTarget, mounted } = useProgress();
+  // A teacher sees the course, not the student game layer (daily goal pay,
+  // streak, level).
+  const teacher = profile?.role === "teacher";
 
   // Nobody is authenticated on the first paint, so the prerendered HTML, what
   // a visitor and a search engine see, is the course pitch, not an empty
@@ -45,12 +48,12 @@ export function CourseHeader() {
             Algebra 1 · Grades 7-10
           </p>
           <h1 className="mt-2.5 max-w-2xl text-balance font-display text-[36px] font-normal leading-[1.04] tracking-[0.01em] sm:text-[48px]">
-            The full Algebra&nbsp;1 course, one skill at a time.
+            Core Algebra&nbsp;1 skills, one at a time.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-bridge-100">
-            Watch a short lesson, see the idea drawn out, then practice until it
-            sticks. Teachers run their classes here; students get a real tutor when
-            they&apos;re stuck. Free, with no ads.
+            Watch a short lesson, read the key idea, then practice until it
+            sticks. Teachers can run their classes here, and students can ask a
+            tutor for help. Free, with no ads.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
@@ -89,11 +92,11 @@ export function CourseHeader() {
       )}
       <div className="relative flex flex-wrap items-start justify-between gap-4 px-6 py-6 sm:px-8">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-80">Algebra 1 · Grades 7-10</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em]">Algebra 1 · Grades 7-10</p>
           <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">
             {mounted && continueTarget ? `Unit ${continueTarget.unitNumber}: ${continueTarget.unitTitle}` : "Your course"}
           </h1>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed opacity-90">
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed">
             {mounted && continueTarget
               ? `Up next: ${continueTarget.skillTitle}.`
               : mounted
@@ -103,7 +106,7 @@ export function CourseHeader() {
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           {/* Today, as a ring: ten right answers is a good day, and it pays. */}
-          {mounted && (
+          {mounted && !teacher && (
             <div className="flex items-center gap-2.5 rounded-xl bg-black/10 px-3 py-2">
               <DailyGoalRing right={stats.todayRight} goal={stats.dailyGoal} size={40} stroke={5} tone="onColor" />
               <div className="leading-tight">
@@ -142,11 +145,11 @@ export function CourseHeader() {
             </div>
             <span className="text-sm font-semibold">{stats.percent}%</span>
           </div>
-          <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <dl className={`mt-4 grid grid-cols-2 gap-4 ${teacher ? "" : "sm:grid-cols-4"}`}>
             <MiniStat label="Skills complete" value={`${stats.completedSkills}/${stats.totalSkills}`} />
             <MiniStat label="Problems solved" value={stats.problemsSolved.toLocaleString()} />
-            <MiniStat label="Day streak" value={String(stats.streak)} />
-            <MiniStat label="Level" value={`${stats.level} · ${stats.levelTitle}`} />
+            {!teacher && <MiniStat label="Day streak" value={String(stats.streak)} />}
+            {!teacher && <MiniStat label="Level" value={`${stats.level} · ${stats.levelTitle}`} />}
           </dl>
         </div>
       )}
@@ -166,7 +169,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs opacity-80">{label}</dt>
+      <dt className="text-xs">{label}</dt>
       <dd className="mt-0.5 truncate text-sm font-semibold">{value}</dd>
     </div>
   );

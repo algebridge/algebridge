@@ -13,6 +13,7 @@ import { hueVars, unitHue } from "@/lib/hues";
 import { stripVariantTag } from "@/lib/personalize";
 import { displayAnswer } from "@/lib/problem-utils";
 import { rinkPayFor, type RinkProblem } from "@/lib/rink";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 /** How a game answer went: right or not, what it paid, and what was given when it was wrong. */
 export interface GameVerdict {
@@ -48,11 +49,15 @@ export function GameProblemDialog({
   label: string;
 }) {
   const answerRef = useRef<HTMLInputElement>(null);
+  // Keyboard: the card takes the focus (the answer box, or the first choice), Tab stays in it, and the
+  // focus goes back to the game when it closes.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, true);
   const problem = open.problem;
   // A wrong answer is read for where it went wrong, in the student's own numbers.
   const mistake = verdict && !verdict.right && verdict.given !== undefined ? diagnoseMistake(problem, { given: verdict.given }) : null;
   return (
-    <div className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
+    <div ref={dialogRef} className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
       <div style={hueVars(unitHue(open.unitId))} className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="hue-banner flex items-center justify-between gap-3 px-4 py-2.5">
           <p className="text-xs font-semibold uppercase tracking-wide">
@@ -75,6 +80,7 @@ export function GameProblemDialog({
                   <button
                     key={choice}
                     type="button"
+                    data-autofocus={i === 0 ? "" : undefined}
                     onClick={() => onCheck(choice)}
                     className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
                   >
@@ -96,6 +102,7 @@ export function GameProblemDialog({
                 <input
                   ref={answerRef}
                   autoFocus
+                  data-autofocus=""
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   inputMode="decimal"

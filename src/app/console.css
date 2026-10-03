@@ -12,7 +12,8 @@
   --paper-deep: #e8e3d7;
   --paper-bright: #fbfaf5;
   --ink: #151714;
-  --muted: #66685f;
+  /* 5.3:1 or better on all three papers (WCAG AA small text); #66685f was 4.4:1 on paper-deep. */
+  --muted: #5a5c54;
   --line: #c8c4b8;
   --line-dark: #98978e;
   --blue: #174ae6;
@@ -327,7 +328,7 @@ table.sbc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 }
 .sbc-day:hover { background: rgba(216, 255, 95, 0.3); }
 .sbc-day.is-outside { background: var(--paper-deep); }
-.sbc-day.is-outside .sbc-day-num { color: var(--line-dark); }
+.sbc-day.is-outside .sbc-day-num { color: var(--muted); }
 .sbc-day.is-today .sbc-day-num {
   background: var(--ink);
   color: var(--paper-bright);

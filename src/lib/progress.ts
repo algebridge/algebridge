@@ -165,12 +165,12 @@ const DEFAULT_PROGRESS: UserProgress = {
   placedFurnitureItems: [],
   ownedTitles: [],
   bridgeyRewardsClaimed: { complete: [] },
-  // On by default since 22 Sep 2026: the board only ever shows a first name
-  // and an initial, and a board nobody is on tracks nothing. A student can
-  // hide themselves with one checkbox on the leaderboard page.
+  // Off by default since 3 Oct 2026: the board is readable by every
+  // signed-in account and most students are minors, so nobody is on it until
+  // they tick "Show me on the board" on the leaderboard page.
   // (The one-time switch flag is set by ensureBridgeyFields, never here: a
-  // default of true would be merged into old saves and skip their switch.)
-  leaderboardOptIn: true,
+  // flag in the defaults would be merged into old saves and skip their switch.)
+  leaderboardOptIn: false,
 };
 
 /** Fills in any missing fields (e.g. from an older save, or a remotely-fetched student record) with safe defaults. */

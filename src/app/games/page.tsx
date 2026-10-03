@@ -127,7 +127,8 @@ export default function GamesPage() {
       >
         {picked === "rink" ? (
           <>
-            <RinkScene />
+            {/* The scene moves only during play (and on screen); before it, a still picture. */}
+            <RinkScene live={playing} />
             {progress && (
               <RinkDecor
                 progress={progress}
@@ -252,9 +253,10 @@ function CourtPreview({ card, onPlay }: { card: GameCard; onPlay: () => void }) 
   const scale = depthScale(game.area, game.start.y);
   return (
     <>
-      <CourtScene game={game.id} />
+      <CourtScene game={game.id} live={false} />
+      {/* figures-still: before play the player is a picture, so their idle motion holds. */}
       <div
-        className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+        className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
         style={{ left: pctX(game.start.x), top: pctY(game.start.y), width: pctX(((game.height * 100) / 160) * scale), zIndex: 340 }}
       >
         <Player game={game.id} pose="idle" className="w-full" />
@@ -285,7 +287,7 @@ function RinkPreview({
   return (
     <>
       <div
-        className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+        className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
         style={{ left: pctX(RINK.cx + RINK.rx - 30), top: pctY(RINK.cy + 96), width: pctX((card.height * 100) / 160), zIndex: 330 }}
       >
         <Veronica pose="idle" facing={-1} className="w-full" />

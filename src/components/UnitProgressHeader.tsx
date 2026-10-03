@@ -39,11 +39,11 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
             <UnitMark unitId={unit.id} size={28} />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] opacity-80">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em]">
               Unit {unit.number} of {stats.totalUnits} · {unit.skills.length} skills
             </p>
             <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">{unit.title}</h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed opacity-90">{unit.description}</p>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed">{unit.description}</p>
           </div>
         </div>
         {showProgress && (
@@ -67,15 +67,15 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
               <CartoonFurnitureArt itemId={prize.id} size={40} variant="room" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+              <p className="text-xs font-semibold uppercase tracking-wide">
                 {prizeEarned ? "Earned" : "Unit prize"}
               </p>
               <p className="text-sm font-semibold sm:truncate">
                 {prize.name}
-                <span className="font-normal opacity-90"> · {prizeEarned ? "in your house" : `finish all ${total} skills`}</span>
+                <span className="font-normal"> · {prizeEarned ? "in your house" : `finish all ${total} skills`}</span>
               </p>
             </div>
-            <p className="w-full shrink-0 text-left text-xs leading-tight opacity-90 sm:w-auto sm:text-right">
+            <p className="w-full shrink-0 text-left text-xs leading-tight sm:w-auto sm:text-right">
               <span className="block text-sm font-semibold">{unitPay} Bridgeys</span>
               across the unit
             </p>

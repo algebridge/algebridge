@@ -9,9 +9,11 @@ interface BridgeysLogoProps {
 /** Bridgeys currency logo, coin mark used across shop, HUD, and header. */
 export function BridgeysLogo({ size = 32, showText = false, className = "" }: BridgeysLogoProps) {
   return (
-    <div className={`inline-flex items-center gap-2 ${className}`}>
-      <div
-        className="relative shrink-0 bg-transparent"
+    // Spans, not divs: the coin sits inside sentences and labels (a <p>, a
+    // button), where a div is invalid HTML and breaks hydration.
+    <span className={`inline-flex items-center gap-2 ${className}`}>
+      <span
+        className="relative block shrink-0 bg-transparent"
         style={{ width: size, height: size }}
       >
         <Image
@@ -22,10 +24,10 @@ export function BridgeysLogo({ size = 32, showText = false, className = "" }: Br
           className="object-contain drop-shadow-sm"
           sizes={`${size}px`}
         />
-      </div>
+      </span>
       {showText && (
         <span className="font-display text-lg tracking-wide text-amber-800">Bridgeys</span>
       )}
-    </div>
+    </span>
   );
 }

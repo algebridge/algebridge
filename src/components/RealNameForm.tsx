@@ -59,8 +59,9 @@ export function RealNameForm({ onSaved }: { onSaved?: () => void }) {
             placeholder="Maria"
             className="field mt-1"
             aria-invalid={error.field === "first" || undefined}
+            aria-describedby={error.field === "first" ? "real-first-error" : undefined}
           />
-          {error.field === "first" && <p className="field-error">{error.text}</p>}
+          {error.field === "first" && <p id="real-first-error" role="alert" className="field-error">{error.text}</p>}
         </div>
         <div>
           <label htmlFor="real-last" className="label">
@@ -78,12 +79,13 @@ export function RealNameForm({ onSaved }: { onSaved?: () => void }) {
             placeholder="Alvarez"
             className="field mt-1"
             aria-invalid={error.field === "last" || undefined}
+            aria-describedby={error.field === "last" ? "real-last-error" : undefined}
           />
-          {error.field === "last" && <p className="field-error">{error.text}</p>}
+          {error.field === "last" && <p id="real-last-error" role="alert" className="field-error">{error.text}</p>}
         </div>
       </div>
       {error.text && !error.field ? (
-        <p className="field-error">{error.text}</p>
+        <p role="alert" className="field-error">{error.text}</p>
       ) : (
         <p className="field-hint">
           {lastLooksShort
