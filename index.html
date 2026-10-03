@@ -209,30 +209,31 @@ img{display:block;max-width:100%;}
 .hero-note{margin:1rem auto 0;text-align:center;color:var(--muted);font-size:.875rem;max-width:64ch;}
 
 /* ── Demo frames ────────────────────────────────────────────────
-   Every product picture on this page is one of these: a still of the
-   platform that becomes the platform. When the frame comes near (or is
-   tapped on a phone) an iframe of the matching page on
-   learn.algebridge.org is dropped in at the still's height; the page
-   inside reports its own height and the still fades out. If nothing
-   answers in 15 s the still stays and a link to the page appears.   */
-.demo{position:relative;background:var(--white);overflow:hidden;cursor:pointer;}
-.demo img{display:block;width:100%;height:auto;transition:opacity .35s ease;}
-.demo iframe{display:block;width:100%;border:0;height:0;transition:height .25s ease;}
-.demo.loading iframe,.demo.live iframe{position:relative;z-index:1;}
-.demo.live img{position:absolute;inset:0;opacity:0;pointer-events:none;}
-.demo.live{cursor:default;}
-.demo-go{position:absolute;left:50%;bottom:14px;z-index:2;transform:translateX(-50%);
-  display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border-radius:999px;
-  background:var(--black);color:var(--white);font-size:.875rem;box-shadow:0 10px 30px -12px rgba(0,0,0,.5);
-  transition:transform .18s ease,opacity .25s ease;white-space:nowrap;}
-.demo-go i{width:7px;height:7px;border-radius:50%;background:var(--accent);display:block;}
-.demo:hover .demo-go{transform:translateX(-50%) translateY(-2px);}
-.demo.loading .demo-go,.demo.live .demo-go{opacity:0;pointer-events:none;}
-.demo.loading .demo-go{opacity:1;}
-.demo.failed .demo-go{background:var(--white);color:var(--black);border:1px solid var(--line);}
-.shot .demo img{border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -14px rgba(0,0,0,.25);}
+   Every product visual on this page is the platform itself: an iframe
+   of the matching page on learn.algebridge.org, dropped in as the frame
+   comes near the viewport (on every screen size). Until the page inside
+   reports its height the frame holds a quiet placeholder at the height
+   the page usually has (--h, --hp on phones); if nothing answers in 15 s
+   the placeholder stays and a link to the page appears. No stills.    */
+.demo{position:relative;background:var(--frame);overflow:hidden;min-height:var(--h,320px);}
+.demo iframe{display:block;width:100%;border:0;height:var(--h,320px);transition:height .25s ease;position:relative;z-index:1;background:transparent;}
+.demo.live{min-height:0;}
+.demo-wait{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding-top:1.25rem;
+  background:linear-gradient(100deg,var(--frame) 40%,#fafafa 50%,var(--frame) 60%) 0 0/300% 100%;
+  animation:shimmer 2.2s linear infinite;}
+@keyframes shimmer{from{background-position:100% 0;}to{background-position:0 0;}}
+.demo-wait .label{text-align:center;padding:0 1rem;}
+.demo.live .demo-wait{display:none;}
+.demo.failed .demo-wait{animation:none;background:var(--frame);}
+.demo-open{display:none;position:absolute;left:50%;top:50%;z-index:2;transform:translate(-50%,-50%);
+  padding:.65rem 1rem;border-radius:999px;background:var(--black);color:var(--white);font-size:.875rem;white-space:nowrap;max-width:calc(100% - 2rem);overflow:hidden;text-overflow:ellipsis;}
+.demo.failed .demo-open{display:inline-block;}
 .shot .demo{border-radius:10px;}
-.shot .demo.live,.shot .demo.loading{box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -14px rgba(0,0,0,.25);}
+.shot .demo.live{box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -14px rgba(0,0,0,.25);}
+@media(max-width:640px){
+  .demo{min-height:var(--hp,var(--h,320px));}
+  .demo iframe{height:var(--hp,var(--h,320px));}
+}
 
 /* ── Scroll-revealed statement ──────────────────────────────── */
 .statement{background:var(--black);color:var(--white);padding:11rem 0;}
@@ -251,11 +252,8 @@ img{display:block;max-width:100%;}
 
 /* ── Product frames ─────────────────────────────────────────── */
 .shot{background:var(--frame);border:1px solid #e6e6e6;border-radius:14px;padding:12px;overflow:hidden;}
-.shot img{width:100%;height:auto;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -14px rgba(0,0,0,.25);}
 .shot.bare{padding:0;border:0;background:none;}
-.shot.bare img{border-radius:12px;border:1px solid #e6e6e6;box-shadow:none;}
 .shot.bare .demo{border-radius:12px;border:1px solid #e6e6e6;}
-.shot.bare .demo img{border:0;border-radius:0;}
 
 /* ── How a skill works ──────────────────────────────────────── */
 .how{padding:7rem 0;}
@@ -279,7 +277,6 @@ img{display:block;max-width:100%;}
 .chips span{border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:.4rem .85rem;font-size:.875rem;color:rgba(255,255,255,.85);}
 .archie .more{margin-top:1.5rem;color:#fff;}
 .archie .shot{background:#111;border-color:#2a2a2a;}
-.archie .shot img{box-shadow:none;}
 
 
 /* ── Curriculum stage ───────────────────────────────────────── */
@@ -426,7 +423,11 @@ img{display:block;max-width:100%;}
   .statement{padding:5rem 0;}
   .close-sec{padding:4.5rem 0;}
   .sec-head{margin-bottom:2rem;}
-  .step{padding:1.25rem;}
+  .step{padding:1rem .75rem 1.25rem;}
+  .shot{padding:4px;border-radius:12px;}
+  .shot .demo{border-radius:9px;}
+  .play-cell{padding:.5rem;}
+  .also-card .shot{margin-bottom:1.25rem;}
   .team{grid-template-columns:1fr 1fr;}
   .member{min-height:auto;padding:1.25rem 1rem 1.375rem;}
   .member .initials{width:36px;height:36px;font-size:.75rem;}
@@ -439,7 +440,6 @@ img{display:block;max-width:100%;}
   .window{margin-top:2.25rem;border-radius:12px;}
   .window-bar{height:36px;}
   .window-bar .url{display:none;}
-  .demo-go{bottom:10px;font-size:.8125rem;padding:.5rem .85rem;}
   .play-cell{padding:.75rem;}
   .play-copy,.who-col,.also-card{padding:1.75rem 1.25rem 2rem;}
   .foot{padding-bottom:5.5rem;}
@@ -529,10 +529,7 @@ img{display:block;max-width:100%;}
         <span class="url">learn.algebridge.org/learn/working-with-units/unit-basics</span>
         <span class="live-tag"><i></i>Live</span>
       </div>
-      <div class="demo" data-demo="/demo/lesson" data-demo-phone="/try" data-eager data-title="A live lesson from AlgeBridge: watch, read the key idea, practice">
-        <img src="shots/lesson.webp" width="1216" height="937" alt="A lesson on the platform: the video, the key idea with its Common Core codes, and a practice problem" fetchpriority="high" decoding="async">
-        <button class="demo-go" type="button"><i></i>Try the lesson live</button>
-      </div>
+      <div class="demo" data-demo="/demo/lesson" data-eager data-title="A live lesson from AlgeBridge: watch, read the key idea, practice" style="--h:960px;--hp:1150px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading the first lesson from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first lesson on the platform</a></div>
     </div>
     <p class="hero-note">That is the real first lesson, served live from the platform: watch the video, read the key idea,
       answer the problem, get one wrong on purpose. Nothing is saved until you make an account.</p>
@@ -577,19 +574,19 @@ img{display:block;max-width:100%;}
 
     <div class="steps rv">
       <article class="step">
-        <div class="shot"><div class="demo" data-demo="/try" data-title="Try three practice problems"><img src="shots/tryopen.webp" width="712" height="213" alt="A practice problem card: convert 114 inches to feet, with an answer box and a Check button" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Try it</button></div></div>
+        <div class="shot"><div class="demo" data-demo="/try" data-title="Try three practice problems" style="--h:310px;--hp:330px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading three practice problems from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open three practice problems on the platform</a></div></div>
         <span class="label">01 · Practice</span>
         <h3>Problems that regenerate.</h3>
         <p>New numbers every time, so ten more questions are always there. Five right on the first try finish the skill. Answer this one.</p>
       </article>
       <article class="step">
-        <div class="shot"><div class="demo" data-demo="/try?wrong=1" data-title="See the feedback for a wrong answer"><img src="shots/tryfeedback.webp" width="712" height="444" alt="A wrong answer on the platform, with a note that names the slip behind it and a Try again button" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Try it</button></div></div>
+        <div class="shot"><div class="demo" data-demo="/try?wrong=1" data-title="See the feedback for a wrong answer" style="--h:500px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading the feedback on a wrong answer from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open the feedback on a wrong answer on the platform</a></div></div>
         <span class="label">02 · Feedback</span>
         <h3>A wrong answer gets read, and the slip gets named.</h3>
         <p>The platform looks at what the student typed and says what probably went wrong, in their own terms, while keeping the answer to itself. Two tries in, the worked steps open. This one starts on a wrong answer: fix it.</p>
       </article>
       <article class="step">
-        <div class="shot"><div class="demo" data-demo="/demo/review" data-title="Review skills that are due"><img src="shots/review.webp" width="576" height="421" alt="The Review page: three skills due for review, each after 1, 3 or 7 days" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Try it</button></div></div>
+        <div class="shot"><div class="demo" data-demo="/demo/review" data-title="Review skills that are due" style="--h:470px;--hp:520px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading the review page from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/review" target="_blank" rel="noopener">Open the review page on the platform</a></div></div>
         <span class="label">03 · Review</span>
         <h3>It comes back before it fades.</h3>
         <p>Finished skills return for a quick check after 1, 3, 7, 14 and 30 days, so Unit 1 is still there in Unit 8. Open a skill that is due and clear it.</p>
@@ -627,7 +624,7 @@ img{display:block;max-width:100%;}
       </div>
     </div>
     <div class="shot rv">
-      <div class="demo" data-demo="/demo/archie" data-title="Ask Archie for a hint on a live problem"><img src="shots/archie-demo.webp" width="1240" height="646" alt="A practice problem with Archie's panel open beside it: a greeting, and buttons for a hint, the first step, the key idea, a similar example and checking your work" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Ask Archie</button></div>
+      <div class="demo" data-demo="/demo/archie" data-title="Ask Archie for a hint on a live problem" style="--h:648px;--hp:586px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading Archie on a problem from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/archie" target="_blank" rel="noopener">Open Archie on a problem on the platform</a></div>
     </div>
   </div>
 </section>
@@ -677,7 +674,7 @@ img{display:block;max-width:100%;}
 
     <div class="play-grid rv">
       <div class="play-cell">
-        <div class="shot bare"><div class="demo" data-demo="/demo/games" data-title="Play the five team games"><img src="shots/games.webp" width="952" height="1012" alt="The Games page: five characters to pick from and Veronica's rink, ready to play" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Play</button></div></div>
+        <div class="shot bare"><div class="demo" data-demo="/demo/games" data-title="Play the five team games" style="--h:930px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading the five games from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/games" target="_blank" rel="noopener">Open the five games on the platform</a></div></div>
       </div>
       <div class="play-copy">
         <span class="label">Five games</span>
@@ -693,7 +690,7 @@ img{display:block;max-width:100%;}
     </div>
     <div class="play-grid rv">
       <div class="play-cell">
-        <div class="shot bare"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House"><img src="shots/house.webp" width="950" height="1259" alt="Bridgey House: a cottage with two floors, a garden, and the shop for furniture and titles" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Furnish it</button></div></div>
+        <div class="shot bare"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House" style="--h:1248px;--hp:1140px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading Bridgey House from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/house" target="_blank" rel="noopener">Open Bridgey House on the platform</a></div></div>
       </div>
       <div class="play-copy">
         <span class="label">Bridgey House</span>
@@ -774,7 +771,7 @@ img{display:block;max-width:100%;}
   <div class="wrap">
     <div class="also-grid rv">
       <div class="also-card">
-        <div class="shot"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard"><img src="shots/whiteboard.webp" width="616" height="426" alt="The whiteboard a tutor and student share on a call, with pen colors and an eraser" loading="lazy" decoding="async"><button class="demo-go" type="button"><i></i>Draw on it</button></div></div>
+        <div class="shot"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span class="label">Loading the whiteboard from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
         <span class="label">Tutoring</span>
         <h3>Real tutors, inside the app.</h3>
         <p>Message a tutor from any lesson. A tutor can start a video call with a shared whiteboard, the student's
@@ -1088,30 +1085,27 @@ img{display:block;max-width:100%;}
     paint();
   });
 
-  /* ── Demo frames: the platform, live, inside every product picture ──
-     See the .demo CSS. A frame gets its iframe when it comes near the
-     viewport (on phones only the hero does; the rest wait for a tap),
-     at the still's height so nothing jumps. The page inside posts its
-     own height and the still fades out. No answer in 15 s: the still
-     stays and the button opens the page on the platform instead.    */
+  /* ── Demo frames: the platform, live, inside every product frame ──
+     See the .demo CSS. A frame gets its iframe as it comes near the
+     viewport, at the height the page usually has; the page inside posts
+     its own height and the placeholder goes. No answer in 15 s: the
+     placeholder stays and a link to the page on the platform appears. */
   var demoOrigin = /[?&]try=local\b/.test(location.search) ? 'http://localhost:3216' : 'https://learn.algebridge.org';
   var phoneQuery = window.matchMedia('(max-width: 640px)');
   /* a dev server compiles a page on its first visit, so the local build waits longer */
   var demoWait = demoOrigin.indexOf('localhost') > -1 ? 60000 : 15000;
   var demos = Array.prototype.slice.call(document.querySelectorAll('.demo'));
-  function demoPath(d, embed){
-    var p = (phoneQuery.matches && d.getAttribute('data-demo-phone')) || d.getAttribute('data-demo');
-    return embed ? p + (p.indexOf('?') > -1 ? '&' : '?') + 'embed=1' : p;
+  function demoPath(d){
+    var p = d.getAttribute('data-demo');
+    return p + (p.indexOf('?') > -1 ? '&' : '?') + 'embed=1';
   }
   function activateDemo(d){
     if (d.querySelector('iframe') || d.classList.contains('failed')) return;
-    var img = d.querySelector('img');
     var f = document.createElement('iframe');
     f.title = d.getAttribute('data-title') || 'Live from learn.algebridge.org';
     f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
     f.setAttribute('allow', 'autoplay; fullscreen');
-    f.style.height = Math.round(img ? img.getBoundingClientRect().height : 320) + 'px';
-    f.src = demoOrigin + demoPath(d, true);
+    f.src = demoOrigin + demoPath(d);
     d.classList.add('loading');
     d.setAttribute('aria-busy', 'true');
     d.appendChild(f);
@@ -1121,24 +1115,19 @@ img{display:block;max-width:100%;}
       d.classList.add('failed');
       d.removeAttribute('aria-busy');
       if (f.parentNode) f.parentNode.removeChild(f);
-      var go = d.querySelector('.demo-go');
-      if (go) go.textContent = 'Open it on the platform';
     }, demoWait);
   }
-  demos.forEach(function(d){
-    d.addEventListener('click', function(){
-      if (d.classList.contains('live') || d.classList.contains('loading')) return;
-      if (d.classList.contains('failed')){ window.open(demoOrigin + demoPath(d, false), '_blank', 'noopener'); return; }
-      activateDemo(d);
-    });
-  });
   window.addEventListener('message', function(e){
     if (e.origin !== demoOrigin || !e.data) return;
     if (e.data.type !== 'algebridge-embed-height' && e.data.type !== 'algebridge-try-height') return;
     demos.forEach(function(d){
       var f = d.querySelector('iframe');
       if (!f || f.contentWindow !== e.source) return;
+      /* any message means the page is alive, so it is never marked failed;
+         a card still setting itself up reports a few dozen pixels, and the
+         placeholder holds until the real card reports */
       clearTimeout(d._timer);
+      if (!(e.data.height >= 120)) return;
       d.classList.add('live');
       d.classList.remove('loading', 'failed');
       d.removeAttribute('aria-busy');
@@ -1151,10 +1140,10 @@ img{display:block;max-width:100%;}
   var dio = new IntersectionObserver(function(entries){
     entries.forEach(function(en){
       if (!en.isIntersecting) return;
-      var d = en.target;
-      if (d.hasAttribute('data-eager') || !phoneQuery.matches){ activateDemo(d); dio.unobserve(d); }
+      activateDemo(en.target);
+      dio.unobserve(en.target);
     });
-  }, { rootMargin: '600px 0px' });
+  }, { rootMargin: (phoneQuery.matches ? '400px' : '700px') + ' 0px' });
   demos.forEach(function(d){ dio.observe(d); });
 
   /* ── Sticky start button on phones: after the hero, until the
