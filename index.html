@@ -4,8 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Algebridge | Free Algebra 1 for every student</title>
-<meta name="description" content="Algebridge is a student-led initiative making Algebra 1 learnable for every student. A free practice platform, a 173-topic directory, and real people to help when you get stuck.">
+<meta name="description" content="Algebridge is a student-led initiative making Algebra 1 learnable for every student. Thirteen units, forty-six skills, feedback that names the slip, an AI helper that refuses to give answers, real tutors, and a 173-topic directory. Free, ad-free.">
+<link rel="canonical" href="https://algebridge.org/">
+<meta name="theme-color" content="#000000">
 <link rel="icon" type="image/png" href="algebridge logo icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Algebridge">
+<meta property="og:title" content="Every student deserves to master Algebra 1.">
+<meta property="og:description" content="Free Algebra 1: 13 units, 46 skills, feedback that names the slip, an AI helper that refuses to give answers, and real tutors. Built by students.">
+<meta property="og:url" content="https://algebridge.org/">
+<meta property="og:image" content="https://algebridge.org/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Algebridge: every student deserves to master Algebra 1.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Every student deserves to master Algebra 1.">
+<meta name="twitter:description" content="Free Algebra 1: 13 units, 46 skills, feedback that names the slip, an AI helper that refuses to give answers, and real tutors. Built by students.">
+<meta name="twitter:image" content="https://algebridge.org/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "EducationalOrganization",
+      "@id": "https://algebridge.org/#org",
+      "name": "Algebridge",
+      "url": "https://algebridge.org/",
+      "logo": "https://algebridge.org/algebridge%20logo%20icon.png",
+      "email": "info@algebridge.org",
+      "foundingDate": "2026",
+      "description": "A student-led initiative making Algebra 1 learnable for every student: a free practice platform, a 173-topic directory, and real tutors."
+    },
+    {
+      "@type": "Course",
+      "name": "Algebra 1 on AlgeBridge",
+      "description": "Thirteen units and forty-six skills covering Algebra 1, each with a video, a key idea, practice that regenerates, and feedback that names the slip behind a wrong answer.",
+      "provider": { "@id": "https://algebridge.org/#org" },
+      "url": "https://learn.algebridge.org/",
+      "isAccessibleForFree": true,
+      "educationalLevel": "Grades 7 to 10",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -16,6 +61,9 @@
    near-monochrome, large low-weight display type, tight tracking,
    mono eyebrow labels, 8px radii, scroll-revealed statements.
    Brand blue #2563eb takes the place of Scale's bronze accent.
+   The product sections show the platform itself: real crops of
+   learn.algebridge.org in soft grey frames, and one live sample
+   problem served by the platform inside an iframe.
    ══════════════════════════════════════════════════════════════ */
 
 :root{
@@ -23,10 +71,13 @@
   --white:#fff;
   --stage:#eaeaea;        /* light section panel */
   --muted:#929292;        /* secondary text */
+  --ink-2:#3a3a3a;        /* body text on white that has to be read */
   --line:#c7c7c7;         /* hairline border */
+  --line-soft:#ededed;    /* hairline between white cells */
   --line-dark:#242424;    /* hairline on black */
   --label:#575757;        /* footer label */
   --accent:#2563eb;       /* Algebridge blue */
+  --frame:#f3f4f6;        /* behind a product crop */
   --max:1472px;
   --pad:24px;
 }
@@ -44,6 +95,7 @@ body{
 a{color:inherit;text-decoration:none;}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
 img{display:block;max-width:100%;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
 
 .wrap{max-width:var(--max);margin:0 auto;width:100%;padding-left:var(--pad);padding-right:var(--pad);}
 
@@ -57,6 +109,13 @@ img{display:block;max-width:100%;}
   text-transform:uppercase;color:var(--muted);
 }
 .lede{font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.6;color:var(--muted);}
+.eyebrow{display:block;margin-bottom:1.25rem;}
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem 4rem;margin-bottom:3.5rem;flex-wrap:wrap;}
+.sec-head .h2{max-width:16ch;}
+.sec-head .lede{max-width:40ch;}
+.more{display:inline-flex;align-items:center;gap:.5rem;font-size:.9375rem;}
+.more svg{transition:transform .2s ease;}
+.more:hover svg{transform:translateX(3px);}
 
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
@@ -68,6 +127,8 @@ img{display:block;max-width:100%;}
 .btn-ghost:hover{border-color:var(--black);color:var(--black);}
 .btn-invert{background:var(--white);color:var(--black);border-radius:6px;}
 .btn-invert:hover{opacity:.86;}
+.btn-accent{background:var(--accent);color:var(--white);}
+.btn-accent:hover{background:#1d4fd7;}
 .btn-lg{padding:.9375rem 1.75rem;font-size:1rem;}
 
 /* ── Announcement bar ───────────────────────────────────────── */
@@ -166,8 +227,68 @@ img{display:block;max-width:100%;}
 .statement .w.lit{color:var(--white);}
 .statement .w.accent.lit{color:var(--accent);}
 
+/* ── Facts: what is true about the product today ───────────── */
+.facts{border-bottom:1px solid var(--line-soft);}
+.facts-grid{display:grid;grid-template-columns:repeat(6,1fr);}
+.fact{padding:2.25rem 1.5rem 2.25rem 0;border-right:1px solid var(--line-soft);margin-right:1.5rem;}
+.fact:last-child{border-right:0;margin-right:0;}
+.fact b{display:block;font-size:clamp(1.75rem,2.6vw,2.5rem);font-weight:400;letter-spacing:-0.02em;line-height:1;}
+.fact .label{display:block;margin-top:.625rem;}
+
+/* ── Product frames ─────────────────────────────────────────── */
+.shot{background:var(--frame);border:1px solid #e6e6e6;border-radius:14px;padding:12px;overflow:hidden;}
+.shot img{width:100%;height:auto;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 20px -14px rgba(0,0,0,.25);}
+.shot.bare{padding:0;border:0;background:none;}
+.shot.bare img{border-radius:12px;border:1px solid #e6e6e6;box-shadow:none;}
+
+/* ── How a skill works ──────────────────────────────────────── */
+.how{padding:7rem 0;}
+.steps{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);}
+.step{background:var(--white);padding:1.5rem;display:flex;flex-direction:column;grid-column:span 2;}
+.step.wide{grid-column:span 4;}
+.step .shot{margin-bottom:1.5rem;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
+.step.wide .shot{aspect-ratio:1.9;}
+.step .shot img{width:auto;height:auto;max-width:100%;max-height:100%;}
+.step .label{display:block;}
+.step h3{font-size:1.375rem;font-weight:500;letter-spacing:-0.015em;line-height:1.2;margin:.375rem 0 .5rem;}
+.step p{color:var(--muted);font-size:.9375rem;line-height:1.6;max-width:52ch;}
+.step.wide p{max-width:60ch;}
+.how-foot{margin-top:1.5rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;}
+.how-foot p{color:var(--muted);font-size:.9375rem;max-width:62ch;}
+
+/* ── Archie ─────────────────────────────────────────────────── */
+.archie{background:var(--black);color:var(--white);padding:7rem 0;}
+.archie-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:4rem;align-items:center;}
+.archie .h2{max-width:14ch;}
+.archie p{color:rgba(255,255,255,.66);font-size:1.0625rem;line-height:1.65;margin-top:1.5rem;max-width:48ch;}
+.archie p strong{color:#fff;font-weight:500;}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.75rem;}
+.chips span{border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:.4rem .85rem;font-size:.875rem;color:rgba(255,255,255,.85);}
+.archie .more{margin-top:2rem;color:#fff;}
+.archie .shot{background:#111;border-color:#2a2a2a;}
+.archie .shot img{box-shadow:none;}
+
+/* ── Try a problem ──────────────────────────────────────────── */
+.try-sec{background:var(--stage);padding:7rem 0;}
+.try-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.7fr);gap:3rem;align-items:start;}
+.try-frame{position:relative;background:var(--white);border:1px solid #d9d9d9;border-radius:16px;padding:12px;min-height:300px;}
+.try-frame iframe{position:relative;z-index:1;display:block;width:100%;height:300px;border:0;border-radius:10px;background:transparent;transition:height .25s ease;}
+.try-wait{position:absolute;inset:12px;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+.try-frame.live .try-wait,.try-frame.failed .try-wait{display:none;}
+.try-fallback{display:none;padding:2rem 1.5rem;text-align:center;}
+.try-fallback p{color:var(--muted);margin-bottom:1.25rem;max-width:40ch;margin-left:auto;margin-right:auto;}
+.try-frame.failed iframe{display:none;}
+.try-frame.failed .try-fallback{display:block;}
+.try-cap{margin-top:1rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;}
+.try-cap .label{display:flex;align-items:center;gap:.5rem;}
+.try-cap .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;}
+.try-notes{list-style:none;display:grid;gap:1.75rem;margin-top:.5rem;}
+.try-notes li{padding-top:1.25rem;border-top:1px solid #d6d6d6;}
+.try-notes b{display:block;font-weight:500;font-size:1.0625rem;margin:.375rem 0 .375rem;letter-spacing:-0.01em;}
+.try-notes p{color:var(--label);font-size:.9375rem;line-height:1.6;}
+
 /* ── Curriculum stage ───────────────────────────────────────── */
-.stage{background:var(--stage);padding:7rem 0;}
+.stage{background:var(--white);padding:7rem 0;border-bottom:1px solid var(--line-soft);}
 .stage-words{display:flex;flex-wrap:wrap;gap:.35em 1.15em;align-items:baseline;justify-content:center;
   font-size:clamp(1.5rem,4vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.01em;max-width:1100px;margin:0 auto;}
 .stage-words span{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;}
@@ -175,44 +296,52 @@ img{display:block;max-width:100%;}
 .stage-words .dim{color:#8d8d8d;}
 .stage-words .hot{color:var(--accent);}
 .stage-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
-.stage-foot{margin-top:4rem;display:flex;justify-content:center;}
+.stage-foot{margin-top:4rem;display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap;}
 
-/* ── Marquee ────────────────────────────────────────────────── */
-.marquee-sec{padding:6rem 0;overflow:hidden;border-bottom:1px solid #ededed;}
-.marquee-head{margin-bottom:3.5rem;}
-.marquee{display:flex;width:max-content;gap:0;}
-.marquee.run{animation:slide 64s linear infinite;}
-.marquee.rev{animation-direction:reverse;}
-.marquee-row{overflow:hidden;}
-.marquee-row + .marquee-row{border-top:1px solid #ededed;}
-.marquee-sec:hover .marquee.run{animation-play-state:paused;}
-@keyframes slide{from{transform:translateX(0);}to{transform:translateX(-50%);}}
-.mcard{width:340px;flex-shrink:0;padding:3rem 2rem 3rem 0;margin-right:2rem;border-right:1px solid #ededed;}
-.mcard h3{margin-bottom:1.25rem;min-height:5.5em;}
-.mcard .label{display:block;}
+/* ── Games and the house ────────────────────────────────────── */
+.play{padding:7rem 0;background:var(--stage);}
+.play-strip{margin-bottom:1.5rem;}
+.play-strip .shot.bare img{border-radius:12px;}
+.play-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);}
+.play-grid + .play-grid{border-top:0;}
+.play-cell{background:var(--white);padding:1.25rem;}
+.play-copy{background:var(--white);padding:2.25rem 2rem;display:flex;flex-direction:column;justify-content:center;}
+.play-copy h3{font-size:clamp(1.5rem,2.2vw,1.875rem);font-weight:400;letter-spacing:-0.015em;line-height:1.15;margin:.75rem 0 1rem;}
+.play-copy p{color:var(--muted);font-size:.9375rem;line-height:1.65;max-width:44ch;}
+.play-copy p + p{margin-top:.875rem;}
+.play-copy .names{margin-top:1.25rem;display:flex;flex-wrap:wrap;gap:.4rem;}
+.play-copy .names span{border:1px solid var(--line);border-radius:999px;padding:.3rem .7rem;font-size:.8125rem;color:var(--ink-2);}
 
-/* ── Card grid ──────────────────────────────────────────────── */
-.grid-sec{background:var(--stage);padding:6rem 0;}
-/* the ch constraint must sit on the display element itself: on a 16px
-   wrapper it resolves ~8px per ch and shreds the 64px headline */
-.grid-head{margin-bottom:3.5rem;}
-.grid-head .h2{max-width:20ch;}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#ededed;border:1px solid #ededed;}
-.card{background:var(--white);padding:2.5rem 2rem;display:flex;flex-direction:column;min-height:26rem;
-  transition:background .25s ease;}
-.card:hover{background:#fafafa;}
-.card .label{margin-bottom:auto;}
-.card h3{font-size:clamp(1.5rem,2.4vw,2rem);font-weight:400;line-height:1.15;letter-spacing:-0.015em;margin:3.5rem 0 1.25rem;}
-.card p{color:var(--muted);font-size:.9375rem;line-height:1.65;}
-.card .more{margin-top:1.75rem;display:inline-flex;align-items:center;gap:.5rem;font-size:.9375rem;}
-.card .more svg{transition:transform .2s ease;}
-.card:hover .more svg{transform:translateX(3px);}
+/* ── Students, parents, teachers ────────────────────────────── */
+.who{padding:7rem 0;}
+.who-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);}
+.who-col{background:var(--white);padding:2.25rem 2rem 2.5rem;display:flex;flex-direction:column;transition:background .25s ease;}
+.who-col:hover{background:#fafafa;}
+.who-col h3{font-size:clamp(1.5rem,2.2vw,1.875rem);font-weight:400;letter-spacing:-0.015em;line-height:1.15;margin:2rem 0 1.25rem;}
+.who-col ul{list-style:none;display:grid;gap:.75rem;color:var(--label);font-size:.9375rem;line-height:1.55;margin-bottom:2rem;}
+.who-col li{padding-left:1.25rem;position:relative;}
+.who-col li::before{content:'';position:absolute;left:0;top:.65em;width:7px;height:1px;background:var(--black);}
+.who-col .cta{margin-top:auto;display:flex;gap:.5rem;flex-wrap:wrap;}
+
+/* ── Also on Algebridge ─────────────────────────────────────── */
+.also{padding:0 0 7rem;}
+.also-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);}
+.also-card{background:var(--white);padding:2.25rem 2rem;display:flex;flex-direction:column;}
+.also-card .shot{margin-bottom:1.75rem;}
+.also-card h3{font-size:clamp(1.5rem,2.2vw,1.875rem);font-weight:400;letter-spacing:-0.015em;line-height:1.15;margin:.5rem 0 1rem;}
+.also-card p{color:var(--muted);font-size:.9375rem;line-height:1.65;max-width:52ch;margin-bottom:1.75rem;}
+.also-card .more{margin-top:auto;}
+.dir-art{height:100%;min-height:220px;border-radius:14px;border:1px solid #e6e6e6;background:var(--frame);padding:1.5rem;display:flex;flex-direction:column;justify-content:space-between;margin-bottom:1.75rem;}
+.dir-art .row{display:flex;gap:.5rem;flex-wrap:wrap;}
+.dir-art .row span{background:#fff;border:1px solid #e3e3e3;border-radius:6px;padding:.35rem .6rem;font-size:.8125rem;color:var(--ink-2);}
+.dir-art .big{font-size:clamp(2.5rem,4vw,3.5rem);font-weight:400;letter-spacing:-0.02em;line-height:1;}
+.dir-art .big small{display:block;font-size:.8125rem;color:var(--muted);letter-spacing:0;margin-top:.5rem;}
 
 /* ── Team ───────────────────────────────────────────────────── */
-.team-sec{padding:6rem 0;}
+.team-sec{padding:7rem 0;background:var(--stage);}
 .team-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
-.team{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--white);}
-.member{background:var(--white);box-shadow:0 0 0 1px #ededed;padding:2rem 1.75rem 2.25rem;display:flex;flex-direction:column;min-height:15rem;
+.team{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);}
+.member{background:var(--white);padding:2rem 1.75rem 2.25rem;display:flex;flex-direction:column;min-height:15rem;
   transition:background .25s ease;}
 .member:hover{background:#fafafa;}
 .member .initials{width:44px;height:44px;border-radius:8px;background:var(--black);color:var(--white);
@@ -222,10 +351,29 @@ img{display:block;max-width:100%;}
 .member .label{margin-bottom:.875rem;}
 .member p{color:var(--muted);font-size:.875rem;line-height:1.6;}
 
+/* ── FAQ ────────────────────────────────────────────────────── */
+.faq{padding:7rem 0;}
+.faq-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:3rem;}
+.faq-grid .h2{max-width:10ch;}
+.faq-grid .lede{margin-top:1.5rem;max-width:30ch;}
+.faq details{border-top:1px solid var(--line-soft);padding:1.375rem 0;}
+.faq details:last-child{border-bottom:1px solid var(--line-soft);}
+.faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  font-size:1.125rem;font-weight:500;letter-spacing:-0.01em;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary .plus{width:24px;height:24px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;flex-shrink:0;transition:transform .2s ease,border-color .2s ease;}
+.faq details[open] summary .plus{transform:rotate(45deg);border-color:var(--black);}
+.faq details p{margin-top:.875rem;color:var(--label);line-height:1.65;max-width:64ch;}
+.faq details p + p{margin-top:.625rem;}
+.faq details a{text-decoration:underline;text-underline-offset:3px;}
+
 /* ── Closing CTA ────────────────────────────────────────────── */
 .close-sec{background:var(--black);color:var(--white);padding:9rem 0;}
 .close-sec .h2{max-width:14ch;}
 .close-sec p{margin:2rem 0 2.75rem;max-width:46ch;color:rgba(255,255,255,.6);font-size:1.0625rem;line-height:1.6;}
+.close-sec .ctas{display:flex;gap:.75rem;flex-wrap:wrap;}
+.close-sec .btn-line{border:1px solid rgba(255,255,255,.28);color:#fff;}
+.close-sec .btn-line:hover{border-color:#fff;background:rgba(255,255,255,.06);}
 
 /* ── Footer ─────────────────────────────────────────────────── */
 .foot{background:var(--black);color:var(--white);padding:8rem 0 1.5rem;}
@@ -240,6 +388,10 @@ img{display:block;max-width:100%;}
 .foot-legal span,.foot-legal a{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.6875rem;
   text-transform:uppercase;color:var(--label);letter-spacing:-0.01em;}
 .foot-legal a:hover{color:rgba(255,255,255,.8);}
+.foot-legal .links{display:flex;gap:1.25rem;flex-wrap:wrap;}
+
+/* ── Sticky start button on phones ──────────────────────────── */
+.sticky-cta{display:none;}
 
 /* ── Reveal on scroll ───────────────────────────────────────── */
 .rv{opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1);}
@@ -247,8 +399,19 @@ img{display:block;max-width:100%;}
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media(max-width:1100px){
-  .cards{grid-template-columns:1fr 1fr;}
-  .team{grid-template-columns:1fr 1fr;}
+  .facts-grid{grid-template-columns:repeat(3,1fr);}
+  .fact:nth-child(3){border-right:0;margin-right:0;}
+  .fact:nth-child(n+4){border-top:1px solid var(--line-soft);}
+  .steps{grid-template-columns:repeat(2,1fr);}
+  .step,.step.wide{grid-column:span 1;}
+  .step.wide{grid-column:span 2;}
+  .archie-grid{grid-template-columns:1fr;gap:2.5rem;}
+  .try-grid{grid-template-columns:1fr;gap:2rem;}
+  .who-grid{grid-template-columns:1fr;}
+  .who-col h3{margin-top:1.25rem;}
+  .play-grid{grid-template-columns:1fr;}
+  .faq-grid{grid-template-columns:1fr;gap:1.5rem;}
+  .faq-grid .lede{margin-top:.75rem;}
   .foot-cols{grid-template-columns:1fr 1fr;gap:3rem 2rem;}
 }
 @media(max-width:860px){
@@ -256,24 +419,44 @@ img{display:block;max-width:100%;}
   .nav-actions .btn-ghost{display:none;}
   .burger{display:flex;}
   .statement{padding:7rem 0;}
-  .stage{padding:5rem 0;}
-  .marquee-sec,.grid-sec,.team-sec{padding:4.5rem 0;}
+  .stage,.how,.archie,.try-sec,.play,.who,.team-sec,.faq{padding:4.5rem 0;}
+  .also{padding-bottom:4.5rem;}
   .close-sec{padding:6rem 0;}
   .foot{padding:5rem 0 1.5rem;}
   .foot-cols{padding-bottom:4.5rem;}
   .foot-tag{padding-bottom:3.5rem;}
-  .card{min-height:22rem;padding:2rem 1.5rem;}
-  .card h3{margin-top:2.5rem;}
+  .sec-head{margin-bottom:2.5rem;}
   .scroll-cue{left:var(--pad);right:auto;}
+  .also-grid{grid-template-columns:1fr;}
 }
 @media(max-width:640px){
-  .cards{grid-template-columns:1fr;}
-  .team{grid-template-columns:1fr;}
-  .member{min-height:auto;}
-  .member h4{margin-top:1.5rem;}
-  .card h3{margin-top:2rem;}
-  .mcard{width:260px;padding-right:1.5rem;margin-right:1.5rem;}
+  .fact{padding:1.375rem .75rem 1.375rem 0;margin-right:.75rem;}
+  .fact b{font-size:1.625rem;}
+  .stage,.how,.archie,.try-sec,.play,.who,.team-sec,.faq{padding:3.5rem 0;}
+  .also{padding-bottom:3.5rem;}
+  .statement{padding:5rem 0;}
+  .close-sec{padding:4.5rem 0;}
+  .sec-head{margin-bottom:2rem;}
+  .steps{grid-template-columns:1fr;}
+  .step,.step.wide{grid-column:span 1;}
+  .step{padding:1.25rem;}
+  .team{grid-template-columns:1fr 1fr;}
+  .member{min-height:auto;padding:1.25rem 1rem 1.375rem;}
+  .member .initials{width:36px;height:36px;font-size:.75rem;}
+  .member h4{margin-top:1.25rem;font-size:1rem;}
+  .member p{font-size:.8125rem;}
+  .archie .shot img{max-height:520px;object-fit:cover;object-position:top;}
   .hero-inner{padding-top:5rem;padding-bottom:6rem;}
+  .play-cell{padding:.75rem;}
+  .play-copy,.who-col,.also-card{padding:1.75rem 1.25rem 2rem;}
+  .try-frame{padding:8px;}
+  .foot{padding-bottom:5.5rem;}
+  .sticky-cta{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;
+    padding:.625rem var(--pad) calc(.625rem + env(safe-area-inset-bottom));
+    background:var(--white);border-top:1px solid #e4e4e4;
+    transform:translateY(110%);transition:transform .3s ease;}
+  .sticky-cta.show{transform:none;}
+  .sticky-cta .btn{width:100%;}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
@@ -305,28 +488,31 @@ img{display:block;max-width:100%;}
       <img src="algebridge logo icon.png" alt="">
       <span>algebridge</span>
     </a>
-    <nav class="nav-links">
-      <a href="#platform">Platform</a>
-      <a href="#directory">Directory</a>
-      <a href="#mission">Mission</a>
+    <nav class="nav-links" aria-label="Page sections">
+      <a href="#how">Platform</a>
+      <a href="#try">Try it</a>
+      <a href="#for-you">Who it's for</a>
+      <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a>
       <a href="#team">Team</a>
     </nav>
     <div class="nav-actions">
-      <a class="btn btn-ghost" href="https://learn.algebridge.org" target="_blank" rel="noopener">Log in</a>
-      <a class="btn btn-solid" href="https://learn.algebridge.org" target="_blank" rel="noopener">Start learning</a>
+      <a class="btn btn-ghost" href="https://learn.algebridge.org/login?mode=signin" target="_blank" rel="noopener" data-cta="nav-login">Log in</a>
+      <a class="btn btn-solid" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="nav-start">Start learning</a>
       <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i><i></i></button>
     </div>
   </div>
 </header>
 
 <div class="sheet" id="sheet">
-  <a href="#platform">Platform</a>
-  <a href="#directory">Directory</a>
-  <a href="#mission">Mission</a>
+  <a href="#how">Platform</a>
+  <a href="#try">Try it</a>
+  <a href="#for-you">Who it's for</a>
+  <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a>
+  <a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">For parents</a>
   <a href="#team">Team</a>
   <div class="sheet-cta">
-    <a class="a" href="https://learn.algebridge.org" target="_blank" rel="noopener">Start learning</a>
-    <a class="b" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Get involved</a>
+    <a class="a" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="sheet-start">Start learning</a>
+    <a class="b" href="https://learn.algebridge.org/login?mode=signin" target="_blank" rel="noopener" data-cta="sheet-login">Log in</a>
   </div>
 </div>
 
@@ -366,13 +552,150 @@ img{display:block;max-width:100%;}
   </div>
 </section>
 
+<!-- ══ Facts ═════════════════════════════════════════════════
+     Only what is true of the product today. Student counts and
+     quotes wait for real figures and real people.               -->
+<section class="facts" aria-label="Algebridge at a glance">
+  <div class="wrap">
+    <div class="facts-grid">
+      <div class="fact"><b>13</b><span class="label">Units</span></div>
+      <div class="fact"><b>46</b><span class="label">Skills</span></div>
+      <div class="fact"><b>36</b><span class="label">Common Core codes mapped</span></div>
+      <div class="fact"><b>5</b><span class="label">Team games</span></div>
+      <div class="fact"><b>173</b><span class="label">Directory topics</span></div>
+      <div class="fact"><b>$0</b><span class="label">Forever, ad-free</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ How a skill works ═════════════════════════════════════ -->
+<section class="how" id="how">
+  <span id="platform"></span>
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div>
+        <span class="label eyebrow">The platform · learn.algebridge.org</span>
+        <h2 class="h2">How a skill works.</h2>
+      </div>
+      <p class="lede">All 46 skills run the same loop. Each one pays Bridgeys, and the feedback step is the part
+        that separates it from a worksheet.</p>
+    </div>
+
+    <div class="steps rv">
+      <article class="step">
+        <div class="shot"><img src="shots/watch.webp" width="571" height="457" alt="A lesson video card on the platform: Unit conversion word problem, with a switch to a second video" loading="lazy" decoding="async"></div>
+        <span class="label">01 · Watch</span>
+        <h3>A short lesson, with a backup.</h3>
+        <p>Every skill opens with a video. A second one stands ready in case the first explanation misses.</p>
+      </article>
+      <article class="step">
+        <div class="shot"><img src="shots/keyidea.webp" width="371" height="282" alt="The key idea panel: what you'll learn, the key idea, the Common Core standards it covers, and the Bridgeys it pays" loading="lazy" decoding="async"></div>
+        <span class="label">02 · Key idea</span>
+        <h3>One idea, named.</h3>
+        <p>The sentence the skill rests on, with the Common Core codes it covers, right next to the video.</p>
+      </article>
+      <article class="step">
+        <div class="shot"><img src="shots/practice.webp" width="573" height="300" alt="A practice problem card: convert 4 kilometers to meters, with an answer box and a Check answer button" loading="lazy" decoding="async"></div>
+        <span class="label">03 · Practice</span>
+        <h3>Problems that regenerate.</h3>
+        <p>New numbers every time, so ten more questions are always there. Five right on the first try finish the skill.</p>
+      </article>
+      <article class="step wide">
+        <div class="shot"><img src="shots/tryfeedback.webp" width="736" height="393" alt="A wrong answer on the platform, with a note that names the slip behind it and a Try again button" loading="lazy" decoding="async"></div>
+        <span class="label">04 · Feedback</span>
+        <h3>A wrong answer gets read, and the slip gets named.</h3>
+        <p>The platform looks at what the student typed and says what probably went wrong, in their own terms, while
+          keeping the answer to itself. Two tries in, the worked steps open. Students can also set the word problems
+          in their own sport or hobby.</p>
+      </article>
+      <article class="step">
+        <div class="shot"><img src="shots/review.webp" width="600" height="421" alt="The Review page: skills due for review come back after 1, 3, 7, 14 and 30 days" loading="lazy" decoding="async"></div>
+        <span class="label">05 · Review</span>
+        <h3>It comes back before it fades.</h3>
+        <p>Finished skills return for a quick check after 1, 3, 7, 14 and 30 days, so Unit 1 is still there in Unit 8.</p>
+      </article>
+    </div>
+
+    <div class="how-foot rv">
+      <p>Pictured: real screens from learn.algebridge.org, in a sample account.</p>
+      <a class="more" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="how-open">Open the platform
+        <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Archie ════════════════════════════════════════════════ -->
+<section class="archie" id="archie">
+  <div class="wrap archie-grid">
+    <div class="rv">
+      <span class="label eyebrow" style="color:rgba(255,255,255,.5)">Archie · the study helper</span>
+      <h2 class="h2">Built to help students think.</h2>
+      <p>Archie sits beside every lesson. Ask him for a hint, the first step, the key idea, a similar example,
+        or a check of your work. <strong>He is built to refuse to give the final answer</strong>, and the refusal is
+        enforced in code rather than left to a prompt, so it holds when a student asks nicely, and when they ask
+        twice.</p>
+      <div class="chips" aria-label="What Archie does">
+        <span>Hint</span><span>First step</span><span>Key idea</span><span>Similar example</span><span>Check my work</span>
+      </div>
+      <a class="more" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">How the refusal works, on the For schools page
+        <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+      </a>
+    </div>
+    <div class="rv">
+      <div class="shot"><img src="shots/archie.webp" width="400" height="595" alt="Archie's sidebar on a lesson: a greeting, and buttons for a hint, the first step, the key idea, a similar example and checking your work" loading="lazy" decoding="async"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Try a problem ═════════════════════════════════════════
+     The card inside the frame is served by the platform itself
+     (learn.algebridge.org/try?embed=1): the same generator,
+     grading and mistake notes the course uses. Nothing is saved. -->
+<section class="try-sec" id="try">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div>
+        <span class="label eyebrow">Try it</span>
+        <h2 class="h2">Try a problem before you sign up.</h2>
+      </div>
+      <p class="lede">Three real problems from the first skill, with the course's own feedback. Live from the platform,
+        right here on this page.</p>
+    </div>
+    <div class="try-grid">
+      <div class="rv">
+        <div class="try-frame" id="tryFrame">
+          <div class="try-wait"><span class="label">Loading the sample from learn.algebridge.org</span></div>
+          <iframe title="Try a problem on AlgeBridge" data-src="/try?embed=1" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          <div class="try-fallback">
+            <p>The live sample is taking a while to arrive. It is ready on the platform itself.</p>
+            <a class="btn btn-solid" href="https://learn.algebridge.org/try" target="_blank" rel="noopener" data-cta="try-fallback">Try a problem on the platform</a>
+          </div>
+        </div>
+        <div class="try-cap">
+          <span class="label"><span class="dot"></span>Live from learn.algebridge.org · nothing is saved</span>
+          <a class="more" href="https://learn.algebridge.org/try" target="_blank" rel="noopener" data-cta="try-open">Open it on the platform
+            <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
+          </a>
+        </div>
+      </div>
+      <ul class="try-notes rv">
+        <li><span class="label">Same generator</span><b>Fresh numbers each load.</b><p>The problems come from the generator the course uses, so the sample is the product, in miniature.</p></li>
+        <li><span class="label">Same feedback</span><b>Get one wrong on purpose.</b><p>The note reads your answer for the slip behind it. Two tries in, the worked steps open.</p></li>
+        <li><span class="label">Then the course</span><b>Forty-six skills work this way.</b><p>Five right on the first try finish a skill. An account saves the progress and unlocks the rest.</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- ══ Curriculum stage ══════════════════════════════════════ -->
-<section class="stage">
+<section class="stage" id="curriculum">
   <div class="wrap">
     <div class="stage-head rv">
       <h2 class="h2">Thirteen units.<br>Forty-six skills.<br>All of Algebra 1.</h2>
-      <p class="lede" style="max-width:34ch">Every skill on the platform carries a video, a key idea,
-        practice that regenerates, and step-by-step feedback the moment an answer goes wrong.</p>
+      <p class="lede" style="max-width:36ch">Every skill carries a video, a key idea, practice that regenerates,
+        and feedback the moment an answer goes wrong. 42 of the 46 skills map to 36 Common Core codes, and the
+        map is public.</p>
     </div>
     <div class="stage-words" id="stageWords">
       <span>Working with Units</span>
@@ -390,79 +713,148 @@ img{display:block;max-width:100%;}
       <span>Absolute Value</span>
     </div>
     <div class="stage-foot rv">
-      <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener">Start learning</a>
+      <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="curriculum-start">Start learning</a>
+      <a class="btn btn-ghost btn-lg" href="https://learn.algebridge.org/schools#standards" target="_blank" rel="noopener">See the standards map</a>
     </div>
   </div>
 </section>
 
-<!-- ══ Marquee ═══════════════════════════════════════════════ -->
-<section class="marquee-sec" id="platform">
-  <div class="wrap marquee-head rv">
-    <h2 class="h2">Built for every part of the year.</h2>
-  </div>
-
-  <div class="marquee-row">
-    <div class="marquee run" data-dup>
-      <div class="mcard"><h3>46 skills, each with a video, a key idea, and problems that regenerate so practice never runs out.</h3><span class="label">Platform</span></div>
-      <div class="mcard"><h3>Step-by-step feedback the moment an answer goes wrong, instead of a red X.</h3><span class="label">Practice</span></div>
-      <div class="mcard"><h3>Two explanations for every topic. One plain, one in depth, one click apart.</h3><span class="label">Directory</span></div>
-      <div class="mcard"><h3>Interactive explorers for slope, balance, parabolas, and inequality lines.</h3><span class="label">Visualize</span></div>
-      <div class="mcard"><h3>Progress that saves to an account and follows the student across devices.</h3><span class="label">Accounts</span></div>
-    </div>
-  </div>
-
-  <div class="marquee-row">
-    <div class="marquee run rev" data-dup>
-      <div class="mcard"><h3>173 topics spanning Pre-Algebra, Algebra 1, Geometry, and Algebra 2.</h3><span class="label">Directory</span></div>
-      <div class="mcard"><h3>A house to build and Bridgeys to earn, so a hard set is worth finishing.</h3><span class="label">Motivation</span></div>
-      <div class="mcard"><h3>Live sessions with a real person, on a shared whiteboard and notebook.</h3><span class="label">Tutoring</span></div>
-      <div class="mcard"><h3>Class tools that let a teacher group students and follow a whole period.</h3><span class="label">Classroom</span></div>
-      <div class="mcard"><h3>Spaced review that brings back the skills a student is about to forget.</h3><span class="label">Retention</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ Card grid ═════════════════════════════════════════════ -->
-<section class="grid-sec" id="directory">
+<!-- ══ Games and the house ═══════════════════════════════════ -->
+<section class="play" id="games">
   <div class="wrap">
-    <div class="grid-head rv">
-      <h2 class="h2">We build the parts students actually get stuck on.</h2>
+    <div class="sec-head rv">
+      <div>
+        <span class="label eyebrow">Why they come back</span>
+        <h2 class="h2">Practice with a payoff.</h2>
+      </div>
+      <p class="lede">Five team games and a house to furnish, paid in Bridgeys, the currency every finished skill earns.
+        The games stop for math, so they reward practice instead of replacing it.</p>
     </div>
-    <div class="cards rv">
 
-      <a class="card" href="https://learn.algebridge.org" target="_blank" rel="noopener">
-        <span class="label">The platform</span>
-        <h3>A platform that teaches, not just tests.</h3>
-        <p>Thirteen units and forty-six skills covering Algebra 1 end to end. Every skill pairs a video
-          with a key idea and a bank of problems that regenerates, so a student who needs ten more
-          questions gets ten more questions.</p>
-        <span class="more">Open the platform
+    <div class="play-strip rv">
+      <div class="shot bare"><img src="shots/gamestrip.webp" width="976" height="180" alt="The five game characters: Veronica skating, Shaurya wrestling, Jo cheer, Jordyn volleyball, Rayla soccer" loading="lazy" decoding="async"></div>
+    </div>
+    <div class="play-grid rv">
+      <div class="play-cell">
+        <div class="shot bare"><img src="shots/rink.webp" width="976" height="651" alt="Skate with Veronica: the Algebridge rink, with the stands full and Veronica on the ice" loading="lazy" decoding="async"></div>
+      </div>
+      <div class="play-copy">
+        <span class="label">Five games</span>
+        <h3>One game for each teammate.</h3>
+        <p>Every game pauses for a head-math question from the unit the student is on, and right answers pay
+          Bridgeys, up to 60 a day across all five.</p>
+        <p>The characters are drawn after the students who built Algebridge, so a player skates, wrestles and
+          scores alongside the team.</p>
+        <div class="names" aria-label="The five games">
+          <span>Skate with Veronica</span><span>Wrestle with Shaurya</span><span>Cheer with Jo</span><span>Spike with Jordyn</span><span>Score with Rayla</span>
+        </div>
+      </div>
+    </div>
+    <div class="play-grid rv">
+      <div class="play-cell">
+        <div class="shot bare"><img src="shots/house.webp" width="974" height="649" alt="Bridgey House: a cottage with two floors, a garden, and the shop for furniture and titles" loading="lazy" decoding="async"></div>
+      </div>
+      <div class="play-copy">
+        <span class="label">Bridgey House</span>
+        <h3>Something to spend it on.</h3>
+        <p>Bridgeys buy furniture for a house with two floors and a garden, plus 38 titles to wear on the
+          leaderboard. The first house is free, and a finished unit hands out a prize for the shelf.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Students, parents, teachers ═══════════════════════════ -->
+<section class="who" id="for-you">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div>
+        <span class="label eyebrow">Who it's for</span>
+        <h2 class="h2">Students, parents, teachers.</h2>
+      </div>
+      <p class="lede">Three different questions, three different pages. Each answer below links to the page that
+        proves it.</p>
+    </div>
+    <div class="who-grid rv">
+
+      <div class="who-col">
+        <span class="label">Students</span>
+        <h3>Free, and yours.</h3>
+        <ul>
+          <li>Start at Unit 1, or pass Show what you know, three in a row, to skip a skill you already have.</li>
+          <li>Five right on the first try finishes a skill. A wrong one gets a note about the slip, and Archie is a click away.</li>
+          <li>Word problems set in your sport or hobby. Same math, your setting.</li>
+          <li>Progress saves to your account and follows you to any computer or phone.</li>
+        </ul>
+        <div class="cta">
+          <a class="btn btn-solid" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="students-start">Create a free account</a>
+        </div>
+      </div>
+
+      <div class="who-col">
+        <span class="label">Parents</span>
+        <h3>Free forever, ad-free, and built around safety.</h3>
+        <ul>
+          <li>A student can message only a tutor, teacher or Algebridge admin, and the app screens messages for personal information before they send.</li>
+          <li>Video calls are started by tutors or admins, with the student able to decline, and video and audio stay unrecorded.</li>
+          <li>Every message, call and profile has Report and Block.</li>
+          <li>Archie hints and checks work. He refuses to give the final answer, so the homework stays theirs.</li>
+          <li>Your data stays private: Algebridge shows no ads and sells nothing.</li>
+        </ul>
+        <div class="cta">
+          <a class="btn btn-solid" href="https://learn.algebridge.org/safety" target="_blank" rel="noopener" data-cta="parents-safety">Read the safety page</a>
+          <a class="btn btn-ghost" href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
+        </div>
+      </div>
+
+      <div class="who-col">
+        <span class="label">Teachers and schools</span>
+        <h3>A whole period in one code.</h3>
+        <ul>
+          <li>Classes with six-character join codes, rosters, and assignments with due dates.</li>
+          <li>Progress by student, skill by skill, as they work.</li>
+          <li>42 of 46 skills mapped to 36 Common Core codes, with the map public.</li>
+          <li>School mode turns off chat, calls and games for every account at a school.</li>
+          <li>A printable summary of all of it, written for the person who has to say yes.</li>
+        </ul>
+        <div class="cta">
+          <a class="btn btn-solid" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="teachers-schools">For schools</a>
+          <a class="btn btn-ghost" href="https://learn.algebridge.org/schools#standards" target="_blank" rel="noopener">Standards map</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══ Also on Algebridge ════════════════════════════════════ -->
+<section class="also" id="directory">
+  <div class="wrap">
+    <div class="also-grid rv">
+      <div class="also-card">
+        <div class="shot"><img src="shots/tutor.webp" width="573" height="150" alt="The tutor card on a lesson: stuck? get help from a real tutor, with Find a tutor and My notebook buttons" loading="lazy" decoding="async"></div>
+        <span class="label">Tutoring</span>
+        <h3>Real tutors, inside the app.</h3>
+        <p>Message a tutor from any lesson. A tutor can start a video call with a shared whiteboard, the student's
+          notebook and a calculator, all on Algebridge and under the rules above.</p>
+        <a class="more" href="https://learn.algebridge.org/tutors" target="_blank" rel="noopener">Meet the tutors
           <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
-        </span>
-      </a>
-
-      <a class="card" href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">
+        </a>
+      </div>
+      <div class="also-card">
+        <div class="dir-art" aria-hidden="true">
+          <div class="row"><span>Pre-Algebra</span><span>Algebra 1</span><span>Geometry</span><span>Algebra 2</span></div>
+          <div class="big">173<small>topics, each explained twice: one plain, one in depth</small></div>
+        </div>
         <span class="label">The directory</span>
         <h3>Every topic explained twice.</h3>
-        <p>173 topics from Pre-Algebra through Algebra 2, each with a plain explanation and an in-depth
-          one, a worked example, the mistakes people actually make, and a video. Having only one depth
-          available is what makes students give up.</p>
-        <span class="more">Browse the directory
+        <p>173 topics from Pre-Algebra through Algebra 2, each with a plain explanation and an in-depth one, a worked
+          example, the mistakes people actually make, and a video. One depth is where students give up; two is where
+          they keep going.</p>
+        <a class="more" href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">Browse the directory
           <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
-        </span>
-      </a>
-
-      <a class="card" href="#team">
-        <span class="label">The team</span>
-        <h3>Built by students who sat in the same class.</h3>
-        <p>Algebridge was founded in 2026 by Ivan Dubovyi after watching how fast classmates lose
-          confidence once Algebra 1 begins. The people building it are close enough to the problem to
-          remember exactly where it starts.</p>
-        <span class="more">Meet the team
-          <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg>
-        </span>
-      </a>
-
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -543,13 +935,53 @@ img{display:block;max-width:100%;}
   </div>
 </section>
 
+<!-- ══ FAQ ═══════════════════════════════════════════════════ -->
+<section class="faq" id="faq">
+  <div class="wrap faq-grid">
+    <div class="rv">
+      <span class="label eyebrow">Questions</span>
+      <h2 class="h2">Before you decide.</h2>
+      <p class="lede">The four things parents and teachers ask first, answered plainly, with the page that backs each one.</p>
+    </div>
+    <div class="rv">
+      <details>
+        <summary>Is it really free?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>Yes. Every unit and skill, the games, the tutors and the directory. Algebridge shows no ads and sells no data. It is a student-led initiative, and it stays free.</p>
+      </details>
+      <details>
+        <summary>Who are the tutors?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>Students on the Algebridge team. Tutor and teacher accounts are opened with an access code from Algebridge, and the database limits who a student can reach: a tutor, a teacher or an Algebridge admin, never another student. Calls are started by tutors or admins, ring only while the student is online, can be declined, and stay unrecorded.</p>
+        <p><a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">Safety &amp; Trust</a> lists the rules in full, including the ones still in progress.</p>
+      </details>
+      <details>
+        <summary>Is it safe for my kid?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>The app screens every message for phone numbers, addresses, social handles, outside links and requests for secrecy before it sends. Every message, call and profile has Report and Block. A message to Archie that sounds like a student is in danger gets a calm card with 988 and Crisis Text Line, and goes to no AI service.</p>
+        <p>The <a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">safety page</a> says exactly what is enforced today and what is still being built, so you can judge for yourself.</p>
+      </details>
+      <details>
+        <summary>Does it match my class?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>Thirteen units cover Algebra 1 from units and equations through quadratics and absolute value. 42 of the 46 skills map to 36 Common Core codes; the <a href="https://learn.algebridge.org/schools#standards" target="_blank" rel="noopener">standards map</a> is public and names the graphing standards still to come. A teacher can assign a unit or a single skill with a due date.</p>
+      </details>
+      <details>
+        <summary>Will Archie do the homework?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>He refuses to give the final answer. The rule is enforced in code: the answer to the problem on screen is checked against every reply before it reaches the student. He gives a hint, the first step, the key idea, a similar example, or a check of the student's own work.</p>
+      </details>
+      <details>
+        <summary>Can a school turn parts of it off?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
+        <p>Yes. School mode turns off direct messages, group chats, video calls, the tutor directory, the leaderboard and the games for every account at a school, and leaves lessons, practice and Archie on. The <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a> page lists exactly what the switch does and prints as a handout.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
 <!-- ══ Closing CTA ═══════════════════════════════════════════ -->
 <section class="close-sec">
   <div class="wrap">
     <h2 class="h2 rv">Our mission,<br>your foundation.</h2>
     <p class="rv">Start today. Algebridge is free, it stays free, and every unit of Algebra 1 is already waiting.</p>
-    <div class="rv">
-      <a class="btn btn-invert btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener">Start learning</a>
+    <div class="rv ctas">
+      <a class="btn btn-invert btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="close-start">Start learning</a>
+      <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="close-schools">Bring it to a school</a>
     </div>
   </div>
 </section>
@@ -561,9 +993,10 @@ img{display:block;max-width:100%;}
       <div class="foot-col">
         <span class="label">Platform</span>
         <a href="https://learn.algebridge.org" target="_blank" rel="noopener">Open the platform</a>
-        <a href="https://learn.algebridge.org" target="_blank" rel="noopener">Practice</a>
-        <a href="https://learn.algebridge.org" target="_blank" rel="noopener">Progress</a>
-        <a href="https://learn.algebridge.org" target="_blank" rel="noopener">Classroom</a>
+        <a href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Try a problem</a>
+        <a href="https://learn.algebridge.org/games" target="_blank" rel="noopener">Games</a>
+        <a href="https://learn.algebridge.org/tutors" target="_blank" rel="noopener">Tutors</a>
+        <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a>
       </div>
       <div class="foot-col">
         <span class="label">Directory</span>
@@ -576,14 +1009,16 @@ img{display:block;max-width:100%;}
         <span class="label">About</span>
         <a href="#mission">Mission</a>
         <a href="#team">Team</a>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Get involved</a>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Support our work</a>
+        <a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">Safety &amp; Trust</a>
+        <a href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
+        <a href="https://learn.algebridge.org/terms" target="_blank" rel="noopener">Terms</a>
       </div>
       <div class="foot-col">
         <span class="label">Contact</span>
-        <a href="mailto:ivan.malchugan@gmail.com">info@algebridge.org</a>
-        <span>Student-led initiative</span>
-        <span>Founded 2026</span>
+        <a href="mailto:info@algebridge.org">info@algebridge.org</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener">Volunteer with us</a>
+        <a href="mailto:info@algebridge.org?subject=Algebridge%20in%20our%20school">Bring it to a school</a>
+        <span>Student-led initiative, founded 2026</span>
       </div>
     </div>
 
@@ -591,15 +1026,34 @@ img{display:block;max-width:100%;}
 
     <div class="foot-legal">
       <span>&copy; 2026 Algebridge. All rights reserved.</span>
-      <a href="mailto:ivan.malchugan@gmail.com">info@algebridge.org</a>
+      <span class="links">
+        <a href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
+        <a href="https://learn.algebridge.org/terms" target="_blank" rel="noopener">Terms</a>
+        <a href="mailto:info@algebridge.org">info@algebridge.org</a>
+      </span>
     </div>
   </div>
 </footer>
+
+<!-- ══ Sticky start button, phones only ══════════════════════ -->
+<div class="sticky-cta" id="stickyCta">
+  <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="sticky-start">Start learning, free</a>
+</div>
 
 <script>
 (function(){
   'use strict';
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── CTA events for whichever analytics gets installed ──────
+     GA4 reads window.dataLayer as is; Plausible can read the same
+     pushes from a one-line adapter. Nothing is sent anywhere until
+     one of them is added to the page.                             */
+  window.dataLayer = window.dataLayer || [];
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('[data-cta]') : null;
+    if (a) window.dataLayer.push({ event: 'cta_click', cta: a.getAttribute('data-cta') });
+  });
 
   /* ── Announcement dismiss ─────────────────────────────────── */
   var ax = document.getElementById('announceX');
@@ -624,11 +1078,6 @@ img{display:block;max-width:100%;}
   });
   Array.prototype.forEach.call(sheet.querySelectorAll('a'), function(a){
     a.addEventListener('click', closeSheet);
-  });
-
-  /* ── Duplicate marquee tracks for a seamless loop ─────────── */
-  Array.prototype.forEach.call(document.querySelectorAll('[data-dup]'), function(track){
-    track.innerHTML += track.innerHTML;
   });
 
   /* ── Generic reveal ───────────────────────────────────────── */
@@ -695,6 +1144,53 @@ img{display:block;max-width:100%;}
     window.addEventListener('resize', onScroll);
     paint();
   });
+
+  /* ── Try a problem: the live card from the platform ──────────
+     The iframe gets its src only as the section comes near, and
+     the card inside posts its own height, so the frame fits it
+     with no inner scrollbar. If no height arrives, the frame
+     gives way to a plain link to the same card on the platform. */
+  var tryFrame = document.getElementById('tryFrame');
+  if (tryFrame){
+    var tryOrigin = /[?&]try=local\b/.test(location.search) ? 'http://localhost:3216' : 'https://learn.algebridge.org';
+    var frame = tryFrame.querySelector('iframe');
+    var heard = false;
+    window.addEventListener('message', function(e){
+      if (e.origin !== tryOrigin || !e.data || e.data.type !== 'algebridge-try-height') return;
+      heard = true;
+      tryFrame.classList.add('live');
+      tryFrame.classList.remove('failed');
+      frame.style.height = Math.max(200, Math.min(1400, Math.ceil(e.data.height) + 2)) + 'px';
+    });
+    function armTry(){
+      if (frame.getAttribute('src')) return;
+      frame.setAttribute('src', tryOrigin + frame.getAttribute('data-src'));
+      setTimeout(function(){ if (!heard) tryFrame.classList.add('failed'); }, 15000);
+    }
+    var tio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting){ armTry(); tio.disconnect(); } });
+    }, { rootMargin: '700px 0px' });
+    tio.observe(tryFrame);
+  }
+
+  /* ── Sticky start button on phones: after the hero, until the
+     closing call to action is itself on screen ─────────────── */
+  var sticky = document.getElementById('stickyCta');
+  var closing = document.querySelector('.close-sec');
+  var heroEl = document.querySelector('.hero');
+  if (sticky && closing && heroEl){
+    var closingSeen = false;
+    var cio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ closingSeen = e.isIntersecting; paintSticky(); });
+    }, { threshold: 0.05 });
+    cio.observe(closing);
+    function paintSticky(){
+      var past = window.scrollY > heroEl.offsetTop + heroEl.offsetHeight * 0.5;
+      sticky.classList.toggle('show', past && !closingSeen);
+    }
+    window.addEventListener('scroll', paintSticky, { passive:true });
+    paintSticky();
+  }
 
   /* ── Hero: footage scrubbed by scroll ──────────────────────────
      The video element is only a frame source; what you see is the
