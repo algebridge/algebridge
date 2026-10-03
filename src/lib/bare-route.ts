@@ -1,12 +1,12 @@
 /**
  * Routes that render without the app shell: no menu, header, banner, footer
- * or floating buttons. /try is embedded by algebridge.org in an iframe and
- * must be the card alone. The attribute goes on <html> before first paint
+ * or floating buttons. /try and the /demo pages are embedded by algebridge.org
+ * in iframes and must be the card alone. The attribute goes on <html> before first paint
  * (bareRouteBootScript, in the layout's head), and globals.css hides the
  * shell's parts under it; the shell itself still mounts, since the layout is
  * shared by every page.
  */
-export const BARE_ROUTES = ["/try"];
+export const BARE_ROUTES = ["/try", "/demo"];
 
 export function isBareRoute(pathname: string | null | undefined): boolean {
   if (!pathname) return false;

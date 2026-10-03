@@ -166,19 +166,22 @@ export function GameChip({ children }: { children: React.ReactNode }) {
 
 const HOW_TO_SEEN = "algebridge:game-howto:";
 const HOW_TO_MS = 4000;
+/** The demo's memory of which how-tos have shown: for the page's life, never in storage. */
+const seenInDemo = new Set<string>();
 
 /**
  * How to play, over the court. For the first 4 seconds of someone's first
  * game of each kind it sits large in the middle, where it gets read; then
  * it goes back to its small place at the bottom. Marked as seen only once
- * it has shown in full, so leaving at once shows it again next time.
+ * it has shown in full, so leaving at once shows it again next time. In
+ * the demo (`demo`) it is remembered in memory, so nothing is stored.
  */
-export function GameHowTo({ id, children }: { id: string; children: React.ReactNode }) {
+export function GameHowTo({ id, children, demo = false }: { id: string; children: React.ReactNode; demo?: boolean }) {
   const [intro, setIntro] = useState(false);
   useEffect(() => {
     const key = HOW_TO_SEEN + id;
     try {
-      if (window.localStorage.getItem(key)) return;
+      if (demo ? seenInDemo.has(key) : window.localStorage.getItem(key)) return;
     } catch {
       // No storage (a private window): the line stays in its usual place.
       return;
@@ -186,6 +189,10 @@ export function GameHowTo({ id, children }: { id: string; children: React.ReactN
     setIntro(true);
     const timer = window.setTimeout(() => {
       setIntro(false);
+      if (demo) {
+        seenInDemo.add(key);
+        return;
+      }
       try {
         window.localStorage.setItem(key, "1");
       } catch {
@@ -193,7 +200,7 @@ export function GameHowTo({ id, children }: { id: string; children: React.ReactN
       }
     }, HOW_TO_MS);
     return () => window.clearTimeout(timer);
-  }, [id]);
+  }, [id, demo]);
   return (
     <p
       className={

@@ -1756,8 +1756,9 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ok("login: staff accounts need a shared access code from AlgeBridge", /need a shared access code from AlgeBridge/.test(login) && !/verified with an access code|verified with a\s+code/.test(login));
   const profilePage = repo("src/app/profile/page.tsx");
   ok("school mode: profile hides Messages and Find a tutor", /\{!school && \(\s*<Link href="\/messages"/.test(profilePage) && /\{!school &&\s*\(isTutor/.test(profilePage));
-  const house = repo("src/app/house/page.tsx");
-  ok("school mode: the house page has no leaderboard link or rink items", /school \? \(\s*<NextStepCard\s+title="Earn more"/.test(house) && /\{!school && \(\s*<section>/.test(house));
+  // The house UI lives in HouseConsole since the /demo/house card shares it.
+  const house = repo("src/components/house/HouseConsole.tsx");
+  ok("school mode: the house page has no leaderboard link or rink items", /const leaderboard = [^;\n]*!school/.test(house) && /leaderboard \? \(/.test(house) && /title="Earn more"/.test(house) && /\{!school && \(\s*<section>/.test(house));
 
   // --- 6. small items ---------------------------------------------------------------------
   const card = repo("src/components/helper/CrisisCard.tsx");
