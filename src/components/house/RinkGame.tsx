@@ -41,9 +41,24 @@ interface Ring {
   item: RinkProblem;
 }
 
-export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgress; onExit: () => void; onUpdate: () => void }) {
+export function RinkGame({
+  progress,
+  onExit,
+  onUpdate,
+  demo = false,
+}: {
+  progress: UserProgress;
+  onExit: () => void;
+  onUpdate: () => void;
+  /**
+   * The demo on algebridge.org: no sound setting is read and the how-to is
+   * remembered in memory, so the game touches no storage. What an answer
+   * pays already goes through the progress store (lib/progress-sandbox.ts).
+   */
+  demo?: boolean;
+}) {
   const day = useRef(today()).current;
-  const { playCorrect, playWrong } = useSound();
+  const { playCorrect, playWrong } = useSound({ muted: demo });
 
   const skater = useRef<HTMLDivElement>(null);
   const pos = useRef({ x: RINK.cx, y: RINK.cy + 40 });
@@ -359,7 +374,7 @@ export function RinkGame({ progress, onExit, onUpdate }: { progress: UserProgres
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <GameHowTo id="rink">
+        <GameHowTo id="rink" demo={demo}>
           <span className="sm:hidden">Drag to skate. Go through the ring.</span>
           <span className="hidden sm:inline">
             {source.borrowed

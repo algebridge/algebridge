@@ -33,18 +33,23 @@ function playTones(
   });
 }
 
-/** Client-side hook for optional, mutable UI sound effects (off by default). */
-export function useSound() {
+/**
+ * Client-side hook for optional, mutable UI sound effects (off by default).
+ * `muted`: the /demo pages, which play nothing and read no setting, so a
+ * demo touches no storage.
+ */
+export function useSound({ muted = false }: { muted?: boolean } = {}) {
   const [enabled, setEnabled] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (muted) return;
     setEnabled(getProgress().soundEnabled);
     setMounted(true);
     const handler = () => setEnabled(getProgress().soundEnabled);
     window.addEventListener(PROGRESS_UPDATED_EVENT, handler);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, handler);
-  }, []);
+  }, [muted]);
 
   const toggle = useCallback(() => {
     const next = !enabled;

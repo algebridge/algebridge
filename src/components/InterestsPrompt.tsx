@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { isBareRoute } from "@/lib/bare-route";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveInterests } from "@/lib/progress";
@@ -34,6 +35,8 @@ export function InterestsPrompt() {
       const progress = getProgress();
       if (progress.interests || !progress.onboarded) return;
       if (pathname?.startsWith("/room")) return;
+      // The /try and /demo cards sit inside algebridge.org; a modal there is a surprise.
+      if (isBareRoute(pathname)) return;
       if (configured && (loading || !user || !profile || profile.role !== "student" || needsRealName)) return;
       setManual(false);
       setOpen(true);

@@ -1488,16 +1488,22 @@ a:hover .figures-still * {
 .dh-cloud { animation-timing-function: steps(240, jump-none); will-change: auto; }
 
 /* ── Bare routes ──────────────────────────────────────────────────
-   /try, which algebridge.org embeds in an iframe: the page alone. The
-   shell still mounts (the layout is shared), so its parts are hidden
-   here; lib/bare-route.ts sets the attribute before first paint. */
+   /try and the /demo pages, which algebridge.org embeds in iframes: the
+   page alone. The shell still mounts (the layout is shared), so its
+   parts are hidden here; lib/bare-route.ts sets the attribute before
+   first paint. */
 html[data-bare] aside[aria-label="Site menu"],
 html[data-bare] body > svg,
-html[data-bare] header,
-html[data-bare] footer,
+html[data-bare] body > div > header.sticky,
+html[data-bare] body > div footer,
 html[data-bare] .helper-launch,
 html[data-bare] [data-calc-launch] {
   display: none !important;
+}
+/* /demo/archie keeps Archie's launcher (ArchieDemo.tsx sets the
+   attribute), so a visitor who closes his panel can open him again. */
+html[data-bare][data-demo-helper] .helper-launch {
+  display: block !important;
 }
 html[data-bare] body {
   background: transparent;

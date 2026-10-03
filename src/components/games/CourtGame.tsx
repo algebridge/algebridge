@@ -48,15 +48,22 @@ export function CourtGame({
   progress,
   onExit,
   onUpdate,
+  demo = false,
 }: {
   gameId: CourtGameId;
   progress: UserProgress;
   onExit: () => void;
   onUpdate: () => void;
+  /**
+   * The demo on algebridge.org: no sound setting is read and the how-to is
+   * remembered in memory, so the game touches no storage. What an answer
+   * pays already goes through the progress store (lib/progress-sandbox.ts).
+   */
+  demo?: boolean;
 }) {
   const game = getCourtGame(gameId)!;
   const day = useRef(today()).current;
-  const { playCorrect, playWrong } = useSound();
+  const { playCorrect, playWrong } = useSound({ muted: demo });
 
   const stage = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -423,7 +430,7 @@ export function CourtGame({
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <GameHowTo id={`court-${gameId}`}>
+        <GameHowTo id={`court-${gameId}`} demo={demo}>
           <span className="sm:hidden">Drag to move. Get to {game.target}.</span>
           <span className="hidden sm:inline">
             Arrows or WASD to move, drag on a phone. Get to {game.target}. Space for a move. Unit {source.unitNumber} problems, in your head.
