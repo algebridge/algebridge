@@ -12,7 +12,7 @@ export function DemoCard({ children, className = "", pad = true }: { children: R
   const ref = useRef<HTMLDivElement>(null);
   useEmbedHeight(ref);
   return (
-    <div ref={ref} className={`try-card ${pad ? "p-4 sm:p-5" : ""} ${className}`.trim()}>
+    <div ref={ref} className={`try-card ${pad ? "p-3 sm:p-5" : ""} ${className}`.trim()}>
       {children}
     </div>
   );

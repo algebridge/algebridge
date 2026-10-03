@@ -250,8 +250,8 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
           {card.id === "rink" ? <Veronica pose="idle" className="w-full" /> : <Player game={card.id} pose="idle" className="w-full" />}
         </span>
       </span>
-      <span className="mt-1.5 w-full truncate text-xs font-semibold text-slate-900 sm:text-sm">{card.player}</span>
-      <span className="w-full truncate text-[10px] text-slate-500 sm:text-xs">{card.sport}</span>
+      <span className="mt-1.5 w-full break-words text-[11px] font-semibold leading-tight text-slate-900 sm:text-sm">{card.player}</span>
+      <span className="w-full break-words text-[10px] leading-tight text-slate-500 sm:text-xs">{card.sport}</span>
       <span
         aria-hidden
         className={`mt-1 h-1 w-6 rounded-full transition-opacity ${active ? "opacity-100" : "opacity-0"}`}

@@ -213,7 +213,7 @@ export function TryProblem({
     inputRef.current?.focus({ preventScroll: true });
   }, [state, problem]);
 
-  const pad = embed ? "p-4 sm:p-5" : "p-5 sm:p-7";
+  const pad = embed ? "p-3 sm:p-5" : "p-5 sm:p-7";
   const shell = card ? `try-card ${pad}` : pad;
   const choices = !loading && !done && problem.type === "multiple-choice" ? problem.choices ?? [] : null;
   const settled = state === "right" || state === "shown";
