@@ -30,12 +30,13 @@ function StepMark({ n, done }: { n: number; done: boolean }) {
 }
 
 /**
- * The top of the first lesson, as LearnContent lays it out: the video and
- * its step heading, the skill's aside, and the practice step, with the
- * sample card standing in for the practice panel. A watched video turns its
- * step's check green here and goes no further; nothing is saved.
+ * The first skill as the lesson page lays it out, minus the video unless
+ * asked for: the sample card standing in for the practice panel on the
+ * left, the skill's aside (what you learn, the key idea, its standards,
+ * what it pays) on the right. With `watch`, the Watch step and its real
+ * video player come first, as on the lesson page. Nothing is saved.
  */
-export function LessonDemo() {
+export function LessonDemo({ watch = false }: { watch?: boolean }) {
   const [videoWatched, setVideoWatched] = useState(false);
   const video = getVideoForSkill(SKILL.id, SKILL.video);
   const backupVideo = getBackupVideoForSkill(SKILL.id) ?? SKILL.backupVideo;
@@ -44,31 +45,35 @@ export function LessonDemo() {
 
   return (
     <DemoCard>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5" style={hueVars(unitHue(UNIT.id))}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-8" style={hueVars(unitHue(UNIT.id))}>
         <div className="min-w-0 space-y-6 lg:col-span-3">
-          <section>
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="section-title flex items-center gap-2">
-                <StepMark n={1} done={videoWatched} />
-                Watch
-                {videoWatched && <span className="sr-only">, done</span>}
-              </h2>
-              {!videoWatched && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
-            </div>
-            <VideoPlayer video={video} backupVideo={backupVideo} onWatched={() => setVideoWatched(true)} />
-          </section>
+          {watch && (
+            <section>
+              <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h2 className="section-title flex items-center gap-2">
+                  <StepMark n={1} done={videoWatched} />
+                  Watch
+                  {videoWatched && <span className="sr-only">, done</span>}
+                </h2>
+                {!videoWatched && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
+              </div>
+              <VideoPlayer video={video} backupVideo={backupVideo} onWatched={() => setVideoWatched(true)} />
+            </section>
+          )}
 
           <section>
-            <h2 className="section-title mb-3 flex items-center gap-2">
-              <StepMark n={2} done={false} />
-              Practice
-            </h2>
+            {watch && (
+              <h2 className="section-title mb-3 flex items-center gap-2">
+                <StepMark n={2} done={false} />
+                Practice
+              </h2>
+            )}
             <TryProblem embed skillId={SKILL.id} count={3} reportHeight={false} />
           </section>
         </div>
 
         <aside aria-label="About this skill" className="min-w-0 lg:col-span-2">
-          <div className="card sticky top-24 space-y-4">
+          <div className="card space-y-4 lg:sticky lg:top-24">
             <div>
               <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
               <p className="mt-2 text-sm text-slate-600">{SKILL.learningGoal}</p>
