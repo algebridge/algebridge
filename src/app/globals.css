@@ -1515,6 +1515,11 @@ html[data-bare] main {
   max-width: none;
   padding: 0.75rem;
 }
+@media (max-width: 640px) {
+  html[data-bare] main {
+    padding: 0.5rem;
+  }
+}
 .try-card {
   border-radius: 1rem;
   border: 1px solid #e2e8f0;
