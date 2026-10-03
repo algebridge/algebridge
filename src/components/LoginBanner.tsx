@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { isBareRoute } from "@/lib/bare-route";
 import { useAuth } from "@/lib/auth";
 import { dismissLoginPrompt, getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
 /**
  * One-line reminder for signed-out visitors that the course is behind a free
- * account. Disappears for good once dismissed or signed in.
+ * account. Disappears for good once dismissed or signed in. Left off the
+ * home page, whose own hero makes the same offer, and off bare routes.
  */
 export function LoginBanner() {
   const { user, configured, loading } = useAuth();
+  const pathname = usePathname();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -23,6 +27,7 @@ export function LoginBanner() {
   }, []);
 
   if (user || loading || !configured || dismissed) return null;
+  if (pathname === "/" || isBareRoute(pathname)) return null;
 
   function handleDismiss() {
     dismissLoginPrompt();

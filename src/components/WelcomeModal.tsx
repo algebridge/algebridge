@@ -1,5 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { isBareRoute } from "@/lib/bare-route";
+
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { getProgress, markOnboarded } from "@/lib/progress";
@@ -28,11 +32,15 @@ export function WelcomeModal() {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Opens once there is an account to welcome (or when accounts are off and
+  // the app is local), never on top of the sign-up pitch a visitor sees
+  // first, and never on a bare route.
+  const { user, configured, loading } = useAuth();
+  const pathname = usePathname();
   useEffect(() => {
-    if (!getProgress().onboarded) {
-      setVisible(true);
-    }
-  }, []);
+    if (loading || (configured && !user) || isBareRoute(pathname)) return;
+    if (!getProgress().onboarded) setVisible(true);
+  }, [user, configured, loading, pathname]);
 
   function close() {
     markOnboarded();
