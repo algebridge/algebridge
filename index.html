@@ -250,8 +250,9 @@ img{display:block;max-width:100%;}
 }
 
 /* ── Scroll-revealed statement ──────────────────────────────── */
-.statement{position:relative;overflow:hidden;background:linear-gradient(180deg,#d6e9ff,#edf5ff);color:var(--black);padding:9rem 0;}
-.statement p{font-size:clamp(1.75rem,4.4vw,3.5rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
+.statement{position:relative;overflow:hidden;background:linear-gradient(180deg,#d6e9ff,#edf5ff);color:var(--black);padding:7rem 0;}
+.statement p{font-size:clamp(1.5rem,3.1vw,2.75rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
+.statement-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3rem 5rem;align-items:center;}
 .statement .w{color:rgba(27,42,82,.24);transition:color .35s ease;}
 .statement .w.lit{color:var(--black);}
 .statement .w.accent.lit{color:var(--accent);}
@@ -265,6 +266,8 @@ img{display:block;max-width:100%;}
 .sec-grey{background:var(--stage);}
 .sec-lavender{background:#eeebfd;}
 .sec-lavender .people,.sec-lavender .person{border-color:#cfc8f2;}
+.team-top{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:2rem 5rem;align-items:end;}
+.team-top .snap-tall{justify-self:end;}
 .sec-intro{max-width:64ch;}
 .sec-intro .h2{max-width:16ch;}
 .sec-intro p{margin-top:1.5rem;color:var(--label);font-size:1.0625rem;line-height:1.65;}
@@ -291,7 +294,8 @@ img{display:block;max-width:100%;}
 
 /* ── Students, parents, teachers ────────────────────────────── */
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:2.5rem;}
-.col{border-radius:18px;padding:1.5rem 1.375rem 1.625rem;}
+.col{border-radius:18px;padding:1.5rem 1.375rem 1.625rem;transition:transform .25s ease,box-shadow .25s ease;}
+.col:hover{transform:translateY(-3px);box-shadow:0 22px 44px -28px rgba(27,42,82,.4);}
 .col.mint{background:var(--mint);}
 .col.peach{background:var(--peach);}
 .col.lav{background:var(--lavender);}
@@ -389,6 +393,18 @@ img{display:block;max-width:100%;}
 .sec-intro.with-art > div:first-child{max-width:64ch;}
 .art-plane{width:min(100%,520px);display:block;margin-left:auto;overflow:visible;}
 .art-asks{width:min(100%,330px);display:block;margin-left:auto;overflow:visible;}
+/* a photograph: big rounded corners, a soft shadow, and a sun-yellow backing
+   that slides out from behind it as it comes into view */
+.snap{margin:0;}
+.snap-pic{position:relative;}
+.snap-pic::before{content:'';position:absolute;inset:16px -16px -16px 16px;background:var(--sun);border-radius:24px;transform:translate(-16px,-16px);}
+.snap.seen .snap-pic::before{animation:backing-out .8s cubic-bezier(.2,.8,.2,1) .2s forwards;}
+@keyframes backing-out{to{transform:translate(0,0);}}
+.snap img{position:relative;display:block;width:100%;height:auto;border-radius:22px;box-shadow:0 30px 60px -34px rgba(27,42,82,.45);}
+.snap figcaption{margin-top:1.75rem;font-size:.875rem;color:var(--label);}
+.snap figcaption a{color:var(--black);text-decoration:underline;text-underline-offset:3px;}
+.snap-wide{max-width:600px;justify-self:end;}
+.snap-tall{max-width:340px;}
 .art-wrap{display:flex;justify-content:center;align-items:center;}
 .art-books{width:min(100%,380px);display:block;}
 .close-art{display:block;width:100%;height:auto;margin-top:3.5rem;}
@@ -475,6 +491,8 @@ img{display:block;max-width:100%;}
 @media(max-width:1100px){
   .row,.row.single,.row.compact{grid-template-columns:1fr;}
   .row-text{position:static;}
+  .statement-grid{gap:3rem;}
+  .team-top{grid-template-columns:minmax(0,1fr) 300px;gap:2rem 3rem;}
   .archie-head{grid-template-columns:1fr;gap:1.5rem;}
   .archie-fig{order:-1;justify-self:start;}
   .archie-fig svg{width:160px;height:160px;}
@@ -492,7 +510,11 @@ img{display:block;max-width:100%;}
   .nav-actions .btn-ghost{display:none;}
   .burger{display:flex;}
   .scroll-cue{left:var(--pad);right:auto;}
-  .statement{padding:7rem 0;}
+  .statement{padding:5.5rem 0;}
+  .statement-grid{grid-template-columns:1fr;}
+  .snap-wide{justify-self:start;max-width:560px;}
+  .team-top{grid-template-columns:1fr;gap:2.5rem;align-items:start;}
+  .team-top .snap-tall{justify-self:start;max-width:300px;}
   .sec,.archie-sec,.stage,.faq{padding:4.5rem 0;}
   .close-sec{padding:6rem 0 0;}
   .foot{padding:5rem 0 1.5rem;}
@@ -504,7 +526,9 @@ img{display:block;max-width:100%;}
 @media(max-width:640px){
   .demo-sec{margin-top:-10vh;padding-bottom:2.5rem;}
   .scroll-cue{display:none;}
-  .statement{padding:5rem 0;}
+  .statement{padding:4rem 0;}
+  .snap-pic::before{inset:12px -12px -12px 12px;border-radius:20px;}
+  .snap img{border-radius:18px;}
   .sec,.archie-sec,.stage,.faq{padding:3.5rem 0;}
   .close-sec{padding:4.5rem 0 0;}
   .person{grid-template-columns:56px minmax(0,1fr);gap:.25rem 1rem;}
@@ -621,8 +645,12 @@ img{display:block;max-width:100%;}
 <!-- ══ Statement ═════════════════════════════════════════════ -->
 <section class="statement" id="mission">
   <div class="glow" aria-hidden="true" data-anim="glow"></div>
-  <div class="wrap">
+  <div class="wrap statement-grid">
     <p data-reveal-words>Algebra 1 is the year math stops being arithmetic and starts being a language. Everything after it is built on that year.</p>
+    <figure class="snap snap-wide rv" data-anim="snap">
+      <div class="snap-pic"><img src="images/team-lounge.webp" width="1600" height="1200" alt="Six members of the Algebridge team sitting together on a couch in a lounge" loading="lazy" decoding="async"></div>
+      <figcaption>Part of the Algebridge team. <a href="#team">Meet everyone</a></figcaption>
+    </figure>
   </div>
 </section>
 
@@ -791,9 +819,15 @@ img{display:block;max-width:100%;}
 <!-- ══ Team ══════════════════════════════════════════════════ -->
 <section class="sec sec-lavender" id="team">
   <div class="wrap">
-    <div class="sec-intro rv">
-      <h2 class="h2">From students.<br>For students.</h2>
-      <p>A student-led initiative founded in 2026, run by people who are still in the room where the problem happens.</p>
+    <div class="team-top">
+      <div class="sec-intro rv">
+        <h2 class="h2">From students.<br>For students.</h2>
+        <p>A student-led initiative founded in 2026, run by people who are still in the room where the problem happens.</p>
+      </div>
+      <figure class="snap snap-tall rv" data-anim="snap">
+        <div class="snap-pic"><img src="images/team-laptops.webp" width="960" height="1280" alt="The Algebridge team around a counter with their laptops open, giving a thumbs up" loading="lazy" decoding="async"></div>
+        <figcaption>Part of the team at a working session.</figcaption>
+      </figure>
     </div>
     <div class="people rv">
       <div class="person"><span class="pic" aria-hidden="true">ID</span><div><b>Ivan Dubovyi</b><small>Founder &amp; CEO</small></div><p>Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p></div>
