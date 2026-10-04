@@ -940,6 +940,7 @@ img{display:block;max-width:100%;}
 (function(){
   'use strict';
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var phoneQuery = window.matchMedia('(max-width: 640px)');
 
   /* ── CTA events for whichever analytics gets installed ──────
      GA4 reads window.dataLayer as is; Plausible can read the same
@@ -1000,6 +1001,12 @@ img{display:block;max-width:100%;}
     });
   }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
   Array.prototype.forEach.call(document.querySelectorAll('[data-anim]'), function(a){ aio.observe(a); });
+  /* the bridge is four times as wide as it is tall; a phone gets its left end,
+     the pier standing in the water and the arch rising out of frame */
+  var bridge = document.querySelector('.close-art');
+  function fitBridge(){ if (bridge) bridge.setAttribute('viewBox', phoneQuery.matches ? '20 60 560 240' : '0 0 1200 300'); }
+  fitBridge();
+  window.addEventListener('resize', fitBridge);
 
   /* ── Generic reveal ───────────────────────────────────────── */
   var io = new IntersectionObserver(function(entries){
@@ -1219,7 +1226,6 @@ img{display:block;max-width:100%;}
   var local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var demoOrigin = (local && !/[?&]try=prod\b/.test(location.search)) || /[?&]try=local\b/.test(location.search)
     ? 'http://localhost:3216' : 'https://learn.algebridge.org';
-  var phoneQuery = window.matchMedia('(max-width: 640px)');
   /* a dev server compiles a page on its first visit, so the local build waits longer */
   var demoWait = demoOrigin.indexOf('localhost') > -1 ? 60000 : 15000;
   var demos = Array.prototype.slice.call(document.querySelectorAll('.demo'));
