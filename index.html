@@ -205,12 +205,14 @@ img{display:block;max-width:100%;}
 .frame-dark{border-color:#2a2a2a;}
 /* the big features (the games, the house, the whiteboard) sit in a smaller
    window that scrolls inside itself: a demo of the thing, at a demo's size */
-.frame.demo-window{max-width:700px;max-height:680px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.frame.demo-window{max-width:600px;max-height:560px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.row .frame{max-width:680px;}
+.archie .frame{max-width:1040px;}
 .row.compact{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
 
 /* ── The first skill, under the hero ────────────────────────── */
 .demo-sec{position:relative;z-index:4;margin-top:-16vh;padding-bottom:3.5rem;}
-.demo-sec .wrap{max-width:1140px;}
+.demo-sec .wrap{max-width:980px;}
 .demo-sec .frame{box-shadow:0 1px 2px rgba(0,0,0,.08),0 50px 90px -40px rgba(0,0,0,.55);}
 .demo-cap{display:flex;justify-content:space-between;gap:.75rem 2rem;flex-wrap:wrap;margin-top:1rem;color:var(--muted);font-size:.9375rem;line-height:1.5;}
 .demo-cap a{color:var(--black);white-space:nowrap;}
@@ -390,7 +392,7 @@ img{display:block;max-width:100%;}
   .person{grid-template-columns:56px minmax(0,1fr);gap:.25rem 1rem;}
   .person p{grid-column:2;}
   .frame{border-radius:12px;}
-  .frame.demo-window{max-height:560px;}
+  .frame.demo-window{max-height:480px;}
   .foot{padding-bottom:5.5rem;}
   .sticky-cta{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;
     padding:.625rem var(--pad) calc(.625rem + env(safe-area-inset-bottom));
@@ -486,7 +488,7 @@ img{display:block;max-width:100%;}
 <section class="demo-sec" aria-label="The first skill, live from the platform">
   <div class="wrap">
     <div class="frame" id="heroDemo">
-      <div class="demo" data-eager data-demo="/demo/lesson" data-title="The first skill on AlgeBridge: the key idea and three practice problems" style="--h:400px;--hp:720px"><div class="demo-wait" aria-hidden="true"><span>Loading the first skill from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first skill on the platform</a></div>
+      <div class="demo" data-eager data-demo="/demo/lesson" data-title="The first skill on AlgeBridge: the key idea and three practice problems" style="--h:400px;--hp:720px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first skill on the platform</a></div>
     </div>
     <div class="demo-cap">
       <span>Unit 1, Skill 1, live from learn.algebridge.org. Nothing is saved until you make an account.</span>
@@ -519,7 +521,7 @@ img{display:block;max-width:100%;}
           <p>Problems come from a generator, so the numbers change every time and there is always one more. Five
             right answers on the first try finish a skill. Try three.</p>
         </div>
-        <div class="frame"><div class="demo" data-demo="/try" data-title="Three practice problems" style="--h:310px;--hp:330px"><div class="demo-wait" aria-hidden="true"><span>Loading three practice problems from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open three practice problems on the platform</a></div></div>
+        <div class="frame"><div class="demo" data-demo="/try?fixed=1" data-title="Three practice problems" style="--h:310px;--hp:330px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open three practice problems on the platform</a></div></div>
       </div>
       <div class="row rv">
         <div class="row-text">
@@ -528,7 +530,7 @@ img{display:block;max-width:100%;}
             without giving the answer away. After two tries it offers the worked steps. This one opens on a wrong
             answer: fix it.</p>
         </div>
-        <div class="frame"><div class="demo" data-demo="/try?wrong=1" data-title="The feedback for a wrong answer" style="--h:500px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading the feedback on a wrong answer from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open the feedback on a wrong answer on the platform</a></div></div>
+        <div class="frame"><div class="demo" data-demo="/try?wrong=1&fixed=1" data-title="The feedback for a wrong answer" style="--h:500px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/try" target="_blank" rel="noopener">Open the feedback on a wrong answer on the platform</a></div></div>
       </div>
       <div class="row rv">
         <div class="row-text">
@@ -536,7 +538,7 @@ img{display:block;max-width:100%;}
           <p>A finished skill comes back for a quick check after 1, 3, 7, 14 and 30 days, so what a student learned
             in September is still there in March. Open a skill that is due and clear it.</p>
         </div>
-        <div class="frame"><div class="demo" data-demo="/demo/review" data-title="Review the skills that are due" style="--h:470px;--hp:520px"><div class="demo-wait" aria-hidden="true"><span>Loading the review page from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/review" target="_blank" rel="noopener">Open the review page on the platform</a></div></div>
+        <div class="frame"><div class="demo" data-demo="/demo/review" data-title="Review the skills that are due" style="--h:470px;--hp:520px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/review" target="_blank" rel="noopener">Open the review page on the platform</a></div></div>
       </div>
     </div>
   </div>
@@ -555,7 +557,7 @@ img{display:block;max-width:100%;}
         <a class="more" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">How the refusal works, on the For schools page <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
       </div>
     </div>
-    <div class="frame frame-dark rv"><div class="demo" data-demo="/demo/archie" data-title="Ask Archie for a hint on a live problem" style="--h:648px;--hp:586px"><div class="demo-wait" aria-hidden="true"><span>Loading Archie on a problem from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/archie" target="_blank" rel="noopener">Open Archie on a problem on the platform</a></div></div>
+    <div class="frame frame-dark rv"><div class="demo" data-demo="/demo/archie" data-title="Ask Archie for a hint on a live problem" style="--h:648px;--hp:586px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/archie" target="_blank" rel="noopener">Open Archie on a problem on the platform</a></div></div>
   </div>
 </section>
 
@@ -607,7 +609,7 @@ img{display:block;max-width:100%;}
             Bridgeys, up to 60 a day across all five. The characters are drawn after the students who built
             Algebridge. Pick one and play a round.</p>
         </div>
-        <div class="frame demo-window"><div class="demo" data-demo="/demo/games" data-title="Play the five team games" style="--h:930px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading the five games from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/games" target="_blank" rel="noopener">Open the five games on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/games" data-title="Play the five team games" style="--h:930px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/games" target="_blank" rel="noopener">Open the five games on the platform</a></div></div>
       </div>
       <div class="row compact rv">
         <div class="row-text">
@@ -616,7 +618,7 @@ img{display:block;max-width:100%;}
             leaderboard. The first house is free, and finishing a unit earns a prize for the shelf. This one comes
             with 160 Bridgeys to spend.</p>
         </div>
-        <div class="frame demo-window"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House" style="--h:1248px;--hp:1140px"><div class="demo-wait" aria-hidden="true"><span>Loading Bridgey House from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/house" target="_blank" rel="noopener">Open Bridgey House on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House" style="--h:1248px;--hp:1140px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/house" target="_blank" rel="noopener">Open Bridgey House on the platform</a></div></div>
       </div>
     </div>
   </div>
@@ -672,7 +674,7 @@ img{display:block;max-width:100%;}
             one. Draw on it.</p>
           <a class="more" href="https://learn.algebridge.org/tutors" target="_blank" rel="noopener">Meet the tutors <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
         </div>
-        <div class="frame demo-window"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span>Loading the whiteboard from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
       </div>
       <div class="row single rv">
         <div class="row-text">
@@ -1102,14 +1104,20 @@ img{display:block;max-width:100%;}
       if (win) win.classList.add('has-live');
     });
   });
-  var dio = new IntersectionObserver(function(entries){
-    entries.forEach(function(en){
-      if (!en.isIntersecting) return;
-      activateDemo(en.target);
-      dio.unobserve(en.target);
+  /* the demos are part of the page, so they all start with it: the hero
+     frame at once, the rest a beat apart once the page itself has loaded,
+     so by the time anyone scrolls to one it is already there */
+  demos.forEach(function(d){ if (d.hasAttribute('data-eager')) activateDemo(d); });
+  function startTheRest(){
+    var wait = 0;
+    demos.forEach(function(d){
+      if (d.hasAttribute('data-eager')) return;
+      setTimeout(function(){ activateDemo(d); }, wait);
+      wait += 350;
     });
-  }, { rootMargin: (phoneQuery.matches ? '400px' : '700px') + ' 0px' });
-  demos.forEach(function(d){ dio.observe(d); });
+  }
+  if (document.readyState === 'complete') startTheRest();
+  else window.addEventListener('load', startTheRest);
 
   /* ── Sticky start button on phones: after the hero, until the
      closing call to action is itself on screen ─────────────── */
