@@ -177,35 +177,38 @@ img{display:block;max-width:100%;}
 .sheet .sheet-cta .b{border:1px solid #3a3a3a;color:var(--white);}
 
 /* ── Hero ───────────────────────────────────────────────────────
-   A dark stage, pinned over a runway on wide screens so the scroll
-   drives the scene drawn on the canvas behind the copy (hero-scene in
-   the script): graph paper, a parabola and a line drawn in, the points
-   where they meet, and the algebra that finds them. Phones get one
-   screen and the scene fills in on its own.                           */
-.hero{position:relative;background:#cfe6ff;color:var(--black);min-height:min(88vh,860px);}
-.hero-stage{position:relative;height:min(88vh,860px);overflow:hidden;isolation:isolate;
-  display:flex;flex-direction:column;justify-content:flex-start;background:#cfe6ff;}
+   Headline, one line, two buttons, and the product itself in the first
+   view. Behind everything a canvas (hero-scene in the script): a pale
+   morning gradient with a warm bloom of light, and below the copy a
+   coordinate grid in perspective that the camera flies over on its own,
+   steered a little by the pointer. The lesson window sits on the paper,
+   laid back a few degrees until the page scrolls. Everything enters on
+   load; reduced motion gets the finished state.                      */
+.hero{position:relative;overflow:hidden;background:#cfe6ff;color:var(--black);padding:clamp(2.5rem,7vh,5.5rem) 0 clamp(2rem,4vh,3rem);}
 .hero-scene{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;}
-.hero-veil{position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:radial-gradient(60% 46% at 50% 36%,rgba(255,255,255,.6) 0%,rgba(255,255,255,.24) 55%,rgba(255,255,255,0) 100%),
-             linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 72%,rgba(251,252,255,.96) 100%);}
-.hero-inner{position:relative;z-index:3;text-align:center;max-width:900px;margin:0 auto;padding:clamp(2.5rem,7vh,5rem) var(--pad) 0;
-  will-change:opacity,transform;}
-.hero h1{font-size:clamp(2.6rem,6.6vw,6rem);font-weight:400;line-height:1.02;letter-spacing:-0.025em;max-width:14ch;margin:0 auto;}
-.hero-sub{margin:1.75rem auto 0;max-width:50ch;color:var(--ink-2);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;}
-.hero-cta{margin-top:2.25rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;}
+.hero-veil{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(60% 40% at 50% 22%,rgba(255,255,255,.6) 0%,rgba(255,255,255,.24) 55%,rgba(255,255,255,0) 100%),
+             linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 62%,rgba(251,252,255,.92) 100%);}
+.hero-inner{position:relative;z-index:2;text-align:center;max-width:900px;margin:0 auto;}
+.hero h1{font-size:clamp(2.6rem,6.4vw,5.75rem);font-weight:400;line-height:1.02;letter-spacing:-0.03em;max-width:14ch;margin:0 auto;}
+.hero h1 .w{display:inline-block;animation:word-in .9s cubic-bezier(.2,.8,.2,1) both;}
+.hero h1 .w:nth-child(2){animation-delay:.07s;}.hero h1 .w:nth-child(3){animation-delay:.14s;}.hero h1 .w:nth-child(4){animation-delay:.21s;}
+.hero h1 .w:nth-child(5){animation-delay:.28s;}.hero h1 .w:nth-child(6){animation-delay:.35s;}
+@keyframes word-in{from{opacity:0;transform:translateY(22px);filter:blur(8px);}to{opacity:1;transform:none;filter:blur(0);}}
+.hero-sub{margin:1.75rem auto 0;max-width:50ch;color:var(--ink-2);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;
+  animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .4s both;}
+.hero-cta{margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .5s both;}
+.hero-cta .btn .arr{transition:transform .2s ease;}
+.hero-cta .btn:hover .arr{transform:translateX(3px);}
 .hero-cta .btn-line{border:1px solid rgba(27,42,82,.3);color:var(--black);background:rgba(255,255,255,.55);}
 .hero-cta .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.9);}
-.scroll-cue{position:absolute;right:var(--pad);bottom:1.75rem;z-index:4;
-  display:flex;align-items:center;gap:.75rem;color:rgba(27,42,82,.62);font-size:.8125rem;will-change:opacity;}
-.scroll-cue .ring{width:30px;height:30px;border:1px solid rgba(27,42,82,.3);border-radius:6px;
-  display:flex;align-items:center;justify-content:center;}
-.scroll-cue .ring svg{animation:nudge 2.2s ease-in-out infinite;}
-@keyframes nudge{0%,100%{transform:translateY(-2px);}50%{transform:translateY(2px);}}
-@media(min-width:861px){
-  .hero{height:165vh;min-height:0;}
-  .hero-stage{position:sticky;top:0;height:100vh;}
-}
+.hero-note{margin:1.125rem auto 0;font-size:.875rem;color:var(--label);animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .6s both;}
+@keyframes rise-in{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(2.5rem,6vh,4.5rem);perspective:1600px;}
+.hero-window .tilt{transform-origin:50% 0;}
+.hero-window .frame{border-radius:16px;box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);
+  animation:window-in 1s cubic-bezier(.2,.8,.2,1) .55s both;}
+@keyframes window-in{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:none;}}
 
 /* ── Frames: a hairline around whatever the platform sends ──── */
 .frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--white);}
@@ -214,10 +217,7 @@ img{display:block;max-width:100%;}
 .archie-sec .frame{max-width:1040px;}
 .row.compact{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
 
-/* ── The first skill, under the hero ────────────────────────── */
-.demo-sec{position:relative;z-index:4;margin-top:-12vh;padding-bottom:3.5rem;}
-.demo-sec .wrap{max-width:980px;}
-.demo-sec .frame{box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);}
+/* ── The caption under the lesson window ────────────────────── */
 .demo-cap{display:flex;justify-content:space-between;gap:.75rem 2rem;flex-wrap:wrap;margin-top:1rem;color:var(--muted);font-size:.9375rem;line-height:1.5;}
 .demo-cap a{color:var(--black);white-space:nowrap;}
 .demo-cap a:hover{text-decoration:underline;text-underline-offset:3px;}
@@ -522,7 +522,7 @@ img{display:block;max-width:100%;}
   .nav-links{display:none;}
   .nav-actions .btn-ghost{display:none;}
   .burger{display:flex;}
-  .scroll-cue{left:var(--pad);right:auto;}
+  .hero{padding-top:2.5rem;}
   .statement{padding:5rem 0 2.5rem;}
   .statement-grid{grid-template-columns:1fr;}
   .snap-wide{justify-self:start;max-width:400px;margin:0 1rem -6.5rem 0;}
@@ -538,8 +538,11 @@ img{display:block;max-width:100%;}
   .rows{margin-top:2.5rem;}
 }
 @media(max-width:640px){
-  .demo-sec{margin-top:-10vh;padding-bottom:2.5rem;}
-  .scroll-cue{display:none;}
+  .hero{padding:2.25rem 0 1.5rem;}
+  .hero-cta{flex-direction:column;align-items:stretch;max-width:360px;margin-left:auto;margin-right:auto;}
+  .hero-window{margin-top:2rem;}
+  .hero-window .frame{border-radius:12px;}
+  .demo-cap{font-size:.8125rem;}
   .statement{padding:4rem 0 2rem;}
   .snap{--tilt:-2deg;}
   .snap-tall{--tilt:2deg;max-width:210px;}
@@ -624,37 +627,26 @@ img{display:block;max-width:100%;}
 
 <!-- ══ Hero ══════════════════════════════════════════════════ -->
 <section class="hero" id="top">
-  <div class="hero-stage" id="heroStage">
-    <canvas class="hero-scene" id="heroScene" aria-hidden="true"></canvas>
-    <div class="hero-veil"></div>
-    <div class="hero-inner" id="heroCopy">
-      <h1>Every student deserves to master Algebra&nbsp;1.</h1>
-      <p class="hero-sub">Algebridge is a free Algebra 1 course built by students: thirteen units, forty-six skills,
-        practice that explains what went wrong, and a study helper that keeps the thinking yours.</p>
-      <div class="hero-cta">
-        <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="hero-start">Start learning</a>
-        <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="hero-schools">For teachers and schools</a>
+  <canvas class="hero-scene" id="heroScene" aria-hidden="true"></canvas>
+  <div class="hero-veil" aria-hidden="true"></div>
+  <div class="wrap hero-inner" id="heroCopy">
+    <h1><span class="w">Every</span> <span class="w">student</span> <span class="w">deserves</span> <span class="w">to</span> <span class="w">master</span> <span class="w">Algebra&nbsp;1.</span></h1>
+    <p class="hero-sub">Algebridge is a free Algebra 1 course built by students: thirteen units, forty-six skills,
+      practice that explains what went wrong, and a study helper that keeps the thinking yours.</p>
+    <div class="hero-cta">
+      <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="hero-start">Start learning <svg class="arr" width="14" height="12" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.3"/></svg></a>
+      <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="hero-schools">For teachers and schools</a>
+    </div>
+    <p class="hero-note">Free and ad-free. The first skill is open right here, live from the platform.</p>
+  </div>
+  <div class="wrap hero-window" aria-label="The first skill, live from the platform">
+    <div class="tilt" id="heroTilt">
+      <div class="frame" id="heroDemo">
+        <div class="demo" data-eager data-demo="/demo/lesson" data-title="The first skill on AlgeBridge: the key idea and three practice problems" style="--h:400px;--hp:720px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first skill on the platform</a></div>
       </div>
     </div>
-    <div class="scroll-cue" id="scrollCue">
-      <span>Scroll</span>
-      <span class="ring">
-        <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
-          <path d="M5.5 0v11M1 7l4.5 4.5L10 7" stroke="currentColor" stroke-width="1.2"/>
-        </svg>
-      </span>
-    </div>
-  </div>
-</section>
-
-<!-- ══ The first skill ═══════════════════════════════════════ -->
-<section class="demo-sec" aria-label="The first skill, live from the platform">
-  <div class="wrap">
-    <div class="frame" id="heroDemo">
-      <div class="demo" data-eager data-demo="/demo/lesson" data-title="The first skill on AlgeBridge: the key idea and three practice problems" style="--h:400px;--hp:720px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first skill on the platform</a></div>
-    </div>
     <div class="demo-cap">
-      <span>Unit 1, Skill 1, live from learn.algebridge.org. Nothing is saved until you make an account.</span>
+      <span>Unit 1, Skill 1, live from learn.algebridge.org. Progress saves once you make an account.</span>
       <a href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="demo-open">Open the platform</a>
     </div>
   </div>
@@ -1121,21 +1113,23 @@ img{display:block;max-width:100%;}
 
 
   /* ── Hero scene: a flight over graph paper, in morning light ───────
-     One canvas. A pale gradient above the horizon with a warm bloom of
-     light at the upper right (no sun drawn, only its light); below the
-     horizon a coordinate grid in perspective that the camera flies over
-     as the page scrolls, with algebra curves and their equations laid
-     on it. While the hero is on screen the flight drifts on its own
-     too. The loop runs only while the hero is in view and the tab
-     visible, and reduced motion gets a single still frame.          */
+     One canvas behind the whole hero. A pale gradient with a warm bloom
+     of light at the upper right (no sun drawn, only its light); below
+     the copy a coordinate grid in perspective that the camera flies over
+     on its own, with algebra curves and their equations laid on it. The
+     pointer steers the flight a little, scrolling carries it forward,
+     and the lesson window lies back a few degrees until the page
+     scrolls. The loop runs only while the hero is in view and the tab
+     visible; reduced motion gets a single still frame and a flat window. */
   var hero  = document.querySelector('.hero');
-  var stage = document.getElementById('heroStage');
   var scene = document.getElementById('heroScene');
   var copy  = document.getElementById('heroCopy');
-  var cue   = document.getElementById('scrollCue');
-  if (hero && stage && scene && scene.getContext){
+  var tiltBox = document.getElementById('heroTilt');
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (hero && scene && scene.getContext){
     var ctx = scene.getContext('2d');
-    var W = 0, H = 0, horizon = 0;
+    /* S is the scene's scale: the hero's height, up to about a screen's worth */
+    var W = 0, H = 0, S = 0, horizon = 0;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
     var BLUE = '37,99,235', AMBER = '245,158,11', INK = '27,42,82';
     /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
@@ -1150,23 +1144,23 @@ img{display:block;max-width:100%;}
     ];
     function size(){
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      W = stage.clientWidth; H = stage.clientHeight;
+      W = hero.clientWidth; H = hero.clientHeight; S = Math.min(H, 900);
       scene.width = Math.floor(W * dpr); scene.height = Math.floor(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      /* the paper starts a little under the copy (offsetHeight ignores the fade's transform) */
-      horizon = Math.min(H * 0.82, Math.max(H * 0.5, copy.offsetTop + copy.offsetHeight + 18));
+      /* the paper starts a little under the copy */
+      horizon = Math.min(H * 0.8, copy.offsetTop + copy.offsetHeight + 16);
     }
+    /* how far the hero has scrolled past the top of the window, 0 to 1 */
     function progress(){
-      var runway = hero.offsetHeight - stage.clientHeight;
-      if (runway <= 0) return 0;
-      return Math.max(0, Math.min(1, -hero.getBoundingClientRect().top / runway));
+      var r = hero.getBoundingClientRect();
+      return Math.max(0, Math.min(1, -r.top / Math.max(1, r.height)));
     }
-    /* a point on the ground plane (x across, z ahead), seen from a camera one unit up.
-       hor is the horizon for this frame: it climbs as the page scrolls, the camera tilting down to the paper */
-    var hor = 0;
+    /* a point on the ground plane (x across, z ahead), seen from a camera one unit up;
+       hor is this frame's horizon and vx the vanishing point's drift under the pointer */
+    var hor = 0, vx = 0, vxTarget = 0;
     function project(x, z){
-      var F = H * 0.8;
-      return [W / 2 + x * F / z, hor + F / z];
+      var F = S * 0.8;
+      return [W / 2 + vx + x * F / z, hor + F / z];
     }
     function stroke(points, rgb, width, alpha){
       ctx.lineWidth = width; ctx.strokeStyle = 'rgba(' + rgb + ',' + alpha + ')';
@@ -1175,21 +1169,21 @@ img{display:block;max-width:100%;}
       ctx.stroke();
     }
     function draw(travel, t, p){
-      hor = horizon - p * (horizon - H * 0.34);
+      hor = horizon - p * S * 0.12;
       /* the light above, and the paper below the horizon */
       var sky = ctx.createLinearGradient(0, 0, 0, hor);
       sky.addColorStop(0, '#b7dbff'); sky.addColorStop(1, '#eaf4ff');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hor + 1);
       ctx.fillStyle = '#f2f6ff'; ctx.fillRect(0, hor, W, H - hor);
       /* warm light from the upper right, breathing very slowly */
-      var lx = W * 0.8, ly = hor - H * 0.42, lr = H * (0.58 + 0.03 * Math.sin(t * 0.4));
+      var lx = W * 0.8, ly = hor - S * 0.42, lr = S * (0.58 + 0.03 * Math.sin(t * 0.4));
       var glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
       glow.addColorStop(0, 'rgba(255,232,150,.78)'); glow.addColorStop(0.45, 'rgba(255,238,180,.32)'); glow.addColorStop(1, 'rgba(255,245,210,0)');
-      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, Math.min(H, ly + lr));
       /* haze where the sky meets the paper */
-      var hz = ctx.createLinearGradient(0, hor - H * 0.09, 0, hor + H * 0.05);
+      var hz = ctx.createLinearGradient(0, hor - S * 0.09, 0, hor + S * 0.05);
       hz.addColorStop(0, 'rgba(255,255,255,0)'); hz.addColorStop(0.6, 'rgba(255,255,255,.85)'); hz.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = hz; ctx.fillRect(0, hor - H * 0.09, W, H * 0.14);
+      ctx.fillStyle = hz; ctx.fillRect(0, hor - S * 0.09, W, S * 0.14);
       /* grid: lines across, flowing toward the camera */
       var off = ((travel % 1) + 1) % 1;
       ctx.lineCap = 'butt';
@@ -1231,19 +1225,24 @@ img{display:block;max-width:100%;}
         ctx.fillText(c.label, Math.min(W - 130, tail[0] + 12), tail[1] - fs * 0.9);
       });
     }
+    /* the window lies back seven degrees at the top of the page and comes flat as
+       the page scrolls; once flat the transform goes, so the page inside renders crisp */
+    function paintTilt(){
+      if (!tiltBox) return;
+      if (!finePointer || reduce){ tiltBox.style.transform = ''; return; }
+      var k = Math.max(0, 1 - window.scrollY / 360);
+      tiltBox.style.transform = k > 0.004 ? 'rotateX(' + (7 * k).toFixed(2) + 'deg) scale(' + (1 - 0.025 * k).toFixed(4) + ')' : '';
+    }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
     function frame(now){
       raf = 0;
       if (!last) last = now;
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (!reduceMotion) t += dt * 0.55;
+      vx += (vxTarget - vx) * 0.06;
       var p = progress();
-      draw(t + p * 26, t, p);
-      /* the copy fades as the runway is consumed, the cue goes first */
-      var fade = Math.max(0, Math.min(1, (p - 0.42) / 0.38));
-      copy.style.opacity = String(1 - fade);
-      copy.style.transform = 'translateY(' + (-fade * 44).toFixed(1) + 'px)';
-      if (cue) cue.style.opacity = String(Math.max(0, 1 - p * 5));
+      draw(t + p * 14, t, p);
+      paintTilt();
       if (!reduceMotion && inView && !document.hidden) raf = requestAnimationFrame(frame);
     }
     function wake(){ if (!raf){ last = 0; raf = requestAnimationFrame(frame); } }
@@ -1255,6 +1254,12 @@ img{display:block;max-width:100%;}
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) wake(); });
     window.addEventListener('scroll', wake, { passive: true });
     window.addEventListener('resize', function(){ size(); wake(); });
+    /* the lesson window changes height as its page arrives, and the hero with it */
+    if (window.ResizeObserver) new ResizeObserver(function(){ size(); wake(); }).observe(hero);
+    if (finePointer){
+      hero.addEventListener('pointermove', function(e){ vxTarget = (e.clientX / Math.max(1, W) - 0.5) * 70; wake(); });
+      hero.addEventListener('pointerleave', function(){ vxTarget = 0; wake(); });
+    }
   }
 
   /* ── Demo frames: the platform, live, inside every product frame ──
