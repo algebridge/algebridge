@@ -1254,7 +1254,12 @@ img{display:block;max-width:100%;}
      viewport, at the height the page usually has; the page inside posts
      its own height and the placeholder goes. No answer in 15 s: the
      placeholder stays and a link to the page on the platform appears. */
-  var demoOrigin = /[?&]try=local\b/.test(location.search) ? 'http://localhost:3216' : 'https://learn.algebridge.org';
+  /* served from a local folder, the frames come from the local app (port
+     3216), so the page previews what is on this machine; ?try=prod points
+     them at the live platform instead */
+  var local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var demoOrigin = (local && !/[?&]try=prod\b/.test(location.search)) || /[?&]try=local\b/.test(location.search)
+    ? 'http://localhost:3216' : 'https://learn.algebridge.org';
   var phoneQuery = window.matchMedia('(max-width: 640px)');
   /* a dev server compiles a page on its first visit, so the local build waits longer */
   var demoWait = demoOrigin.indexOf('localhost') > -1 ? 60000 : 15000;
