@@ -205,13 +205,15 @@ img{display:block;max-width:100%;}
 .hero-note{margin:1.125rem auto 0;font-size:.875rem;color:var(--label);animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .6s both;}
 @keyframes rise-in{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
 .hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(2.5rem,6vh,4.5rem);perspective:1600px;}
-.hero-window .tilt{transform-origin:50% 0;}
-.hero-window .frame{border-radius:16px;box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);
+.hero-window .tilt{transform-origin:50% 0;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.hero-window .frame{--fr:16px;box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);
   animation:window-in 1s cubic-bezier(.2,.8,.2,1) .55s both;}
 @keyframes window-in{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:none;}}
 
 /* ── Frames: a hairline around whatever the platform sends ──── */
-.frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--white);}
+.frame{--fr:14px;border:1px solid var(--line);border-radius:var(--fr);overflow:hidden;background:var(--white);}
+/* Safari leaves an iframe's corners square under overflow:hidden; a clip path on the frame's content rounds them */
+.frame > .demo{clip-path:inset(0 round calc(var(--fr) - 1px));}
 .frame-dark{border-color:var(--line-dark);}
 .row .frame{max-width:680px;}
 .archie-sec .frame{max-width:1040px;}
@@ -230,7 +232,8 @@ img{display:block;max-width:100%;}
    the page usually has (--h, --hp on phones); if nothing answers in 15 s
    the placeholder stays and a link to the page appears. No stills.    */
 .demo{position:relative;background:var(--frame);overflow:hidden;min-height:var(--h,320px);}
-.demo iframe{display:block;width:100%;border:0;height:var(--h,320px);transition:height .25s ease;position:relative;z-index:1;background:transparent;}
+/* width from min-width: iOS sizes an iframe by its content and ignores width alone */
+.demo iframe{display:block;width:1px;min-width:100%;max-width:100%;border:0;height:var(--h,320px);transition:height .25s ease;position:relative;z-index:1;background:transparent;}
 .demo.live{min-height:0;}
 .demo-wait{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding-top:1.25rem;
   background:linear-gradient(100deg,var(--frame) 40%,#fafafa 50%,var(--frame) 60%) 0 0/300% 100%;
@@ -538,10 +541,15 @@ img{display:block;max-width:100%;}
   .rows{margin-top:2.5rem;}
 }
 @media(max-width:640px){
-  .hero{padding:2.25rem 0 1.5rem;}
-  .hero-cta{flex-direction:column;align-items:stretch;max-width:360px;margin-left:auto;margin-right:auto;}
-  .hero-window{margin-top:2rem;}
-  .hero-window .frame{border-radius:12px;}
+  .announce-inner{min-height:34px;padding:.5rem 2.75rem .5rem 1rem;font-size:.75rem;}
+  .announce-inner .mark,.announce-more{display:none;}
+  .hero{padding:2rem 0 1.5rem;}
+  .hero h1{font-size:clamp(2.25rem,10.6vw,2.6rem);}
+  .hero-sub{margin-top:1.25rem;font-size:1rem;}
+  .hero-cta{margin-top:1.5rem;flex-direction:column;align-items:stretch;max-width:360px;margin-left:auto;margin-right:auto;}
+  .hero-note{margin-top:.875rem;font-size:.8125rem;}
+  .hero-window{margin-top:1.5rem;}
+  .hero-window .frame{--fr:12px;}
   .demo-cap{font-size:.8125rem;}
   .statement{padding:4rem 0 2rem;}
   .snap{--tilt:-2deg;}
@@ -558,7 +566,7 @@ img{display:block;max-width:100%;}
   .col{padding:1.375rem 1.25rem 1.5rem;}
   .archie-fig svg{width:130px;height:130px;}
   .person p{grid-column:2;}
-  .frame{border-radius:12px;}
+  .frame{--fr:12px;}
   .foot{padding-bottom:5.5rem;}
   .sticky-cta{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;
     padding:.625rem var(--pad) calc(.625rem + env(safe-area-inset-bottom));
@@ -584,8 +592,7 @@ img{display:block;max-width:100%;}
     <svg class="mark" width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
       <path d="M1 10L10 1M10 1H3.5M10 1V7.5" stroke="currentColor" stroke-width="1.2"/>
     </svg>
-    <span>The Algebridge Directory is live. 173 topics, Pre-Algebra through Algebra 2.
-      <a href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">Explore it</a></span>
+    <span>The Algebridge Directory is live. <span class="announce-more">173 topics, Pre-Algebra through Algebra 2. </span><a href="https://algebridge-directory.vercel.app" target="_blank" rel="noopener">Explore it</a></span>
   </div>
   <button class="announce-x" id="announceX" aria-label="Dismiss announcement">&times;</button>
 </div>
@@ -1143,7 +1150,7 @@ img{display:block;max-width:100%;}
       { z: 29, tone: BLUE,  label: 'y = (x + 3)²',  xs: [-7.5, 1.5],  g: function(x){ return 0.5 * (x + 3) * (x + 3); } }
     ];
     function size(){
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var dpr = Math.min(window.devicePixelRatio || 1, finePointer ? 2 : 1.5);
       W = hero.clientWidth; H = hero.clientHeight; S = Math.min(H, 900);
       scene.width = Math.floor(W * dpr); scene.height = Math.floor(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1234,9 +1241,12 @@ img{display:block;max-width:100%;}
       tiltBox.style.transform = k > 0.004 ? 'rotateX(' + (7 * k).toFixed(2) + 'deg) scale(' + (1 - 0.025 * k).toFixed(4) + ')' : '';
     }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
+    /* a phone redraws thirty times a second instead of sixty: the flight is slow enough that nobody can tell, and the battery can */
+    var minFrame = finePointer ? 0 : 1000 / 30;
     function frame(now){
       raf = 0;
       if (!last) last = now;
+      if (minFrame && !reduceMotion && now - last < minFrame){ if (inView && !document.hidden) raf = requestAnimationFrame(frame); return; }
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (!reduceMotion) t += dt * 0.55;
       vx += (vxTarget - vx) * 0.06;
@@ -1270,11 +1280,15 @@ img{display:block;max-width:100%;}
   /* served from a local folder, the frames come from the local app (port
      3216), so the page previews what is on this machine; ?try=prod points
      them at the live platform instead */
-  var local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  /* a phone on the same network reaches this computer by its address, so any
+     host served on the site's dev port (4828) counts as local too, with the
+     app expected on that same host at 3216 */
+  var devSite = location.port === '4828';
+  var local = devSite || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var demoOrigin = (local && !/[?&]try=prod\b/.test(location.search)) || /[?&]try=local\b/.test(location.search)
-    ? 'http://localhost:3216' : 'https://learn.algebridge.org';
+    ? 'http://' + (devSite ? location.hostname : 'localhost') + ':3216' : 'https://learn.algebridge.org';
   /* a dev server compiles a page on its first visit, so the local build waits longer */
-  var demoWait = demoOrigin.indexOf('localhost') > -1 ? 60000 : 15000;
+  var demoWait = /:3216$/.test(demoOrigin) ? 60000 : 15000;
   var demos = Array.prototype.slice.call(document.querySelectorAll('.demo'));
   function demoPath(d){
     var p = d.getAttribute('data-demo');
