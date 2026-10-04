@@ -210,9 +210,6 @@ img{display:block;max-width:100%;}
 /* ── Frames: a hairline around whatever the platform sends ──── */
 .frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--white);}
 .frame-dark{border-color:var(--line-dark);}
-/* the big features (the games, the house, the whiteboard) sit in a smaller
-   window that scrolls inside itself: a demo of the thing, at a demo's size */
-.frame.demo-window{max-width:600px;max-height:560px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 .row .frame{max-width:680px;}
 .archie-sec .frame{max-width:1040px;}
 .row.compact{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
@@ -262,6 +259,9 @@ img{display:block;max-width:100%;}
 
 /* ── Sections: an introduction, then rows of text beside a frame ─ */
 .sec{padding:7rem 0;}
+.sec-tight{padding:5rem 0 4rem;}
+.sec-tight .sec-intro p{margin-top:1rem;font-size:1rem;}
+.sec-tight .sec-intro .h2{font-size:clamp(1.75rem,3.6vw,2.75rem);}
 .sec-grey{background:var(--stage);}
 .sec-lavender{background:#eeebfd;}
 .sec-lavender .people,.sec-lavender .person{border-color:#cfc8f2;}
@@ -290,13 +290,13 @@ img{display:block;max-width:100%;}
 .archie-sec .more{color:var(--black);margin-top:1.25rem;}
 
 /* ── Students, parents, teachers ────────────────────────────── */
-.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
-.col{border-radius:20px;padding:1.75rem 1.625rem 1.875rem;}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:2.5rem;}
+.col{border-radius:18px;padding:1.5rem 1.375rem 1.625rem;}
 .col.mint{background:var(--mint);}
 .col.peach{background:var(--peach);}
 .col.lav{background:var(--lavender);}
-.col h3{font-size:1.25rem;font-weight:500;letter-spacing:-0.01em;}
-.col p{margin-top:.875rem;color:var(--ink-2);font-size:.9375rem;line-height:1.65;}
+.col h3{font-size:1.125rem;font-weight:500;letter-spacing:-0.01em;}
+.col p{margin-top:.75rem;color:var(--ink-2);font-size:.9rem;line-height:1.6;}
 .col .more{margin-top:1rem;margin-right:1.25rem;}
 
 /* ── Team, as a list ────────────────────────────────────────── */
@@ -321,7 +321,8 @@ img{display:block;max-width:100%;}
 .stage-words span.in{opacity:1;transform:none;}
 .stage-words .dim{color:#8fa8dc;}
 .stage-words .hot{color:var(--accent);}
-.stage-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
+.stage-head{display:flex;flex-direction:column;align-items:flex-start;gap:.75rem;margin-bottom:3rem;}
+.stage-title{font-size:clamp(1.0625rem,1.5vw,1.3125rem);font-weight:500;letter-spacing:-0.01em;line-height:1.3;}
 .stage-foot{margin-top:4rem;display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap;}
 
 /* ── FAQ ────────────────────────────────────────────────────── */
@@ -387,9 +388,7 @@ img{display:block;max-width:100%;}
 .sec-intro.with-art{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:2rem 4rem;align-items:center;max-width:none;}
 .sec-intro.with-art > div:first-child{max-width:64ch;}
 .art-plane{width:min(100%,520px);display:block;margin-left:auto;overflow:visible;}
-.photo{position:relative;max-width:470px;margin:0 0 0 auto;}
-.photo::before{content:'';position:absolute;inset:18px -18px -18px 18px;background:var(--sun);border-radius:22px;}
-.photo img{position:relative;display:block;width:100%;height:auto;border-radius:20px;}
+.art-asks{width:min(100%,330px);display:block;margin-left:auto;overflow:visible;}
 .art-wrap{display:flex;justify-content:center;align-items:center;}
 .art-books{width:min(100%,380px);display:block;}
 .close-art{display:block;width:100%;height:auto;margin-top:3.5rem;}
@@ -459,9 +458,14 @@ img{display:block;max-width:100%;}
 .archie-tdot{animation:archie-think 1.2s ease-in-out infinite;animation-delay:var(--d,0ms);}
 @keyframes archie-think{0%,100%{opacity:.3;transform:translateY(0);}50%{opacity:1;transform:translateY(-1.5px);}}
 
-.photo::before{transform:translate(-18px,-18px);}
-.photo.seen::before{animation:backing-out .8s cubic-bezier(.2,.8,.2,1) .2s forwards;}
-@keyframes backing-out{to{transform:translate(0,0);}}
+.art-asks .bubble{transform-box:fill-box;transform-origin:14% 100%;}
+.art-asks .b2{transform-origin:86% 100%;}
+.art-asks.seen .bubble{animation:bubble-pop .55s cubic-bezier(.2,.8,.2,1.25) both,bubble-float 5s ease-in-out .55s infinite;}
+.art-asks.seen .b2{animation-delay:.16s,.71s;}
+.art-asks.seen .b3{animation-delay:.32s,.87s;}
+.art-asks.seen:not(.in-view) .bubble{animation-play-state:running,paused;}
+@keyframes bubble-pop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
+@keyframes bubble-float{0%,100%{translate:0 0;}50%{translate:0 -4px;}}
 
 .glow.in-view{animation:breathe 9s ease-in-out infinite;}
 .archie-sec.in-view::after{animation:breathe 9s ease-in-out infinite;}
@@ -470,13 +474,12 @@ img{display:block;max-width:100%;}
 /* ── Responsive ─────────────────────────────────────────────── */
 @media(max-width:1100px){
   .row,.row.single,.row.compact{grid-template-columns:1fr;}
-  .frame.demo-window{max-width:none;}
   .row-text{position:static;}
   .archie-head{grid-template-columns:1fr;gap:1.5rem;}
   .archie-fig{order:-1;justify-self:start;}
   .archie-fig svg{width:160px;height:160px;}
   .sec-intro.with-art{grid-template-columns:1fr;gap:2.5rem;}
-  .art-plane,.photo{margin-left:0;}
+  .art-plane,.art-asks{margin-left:0;}
   .photo{max-width:440px;}
   .cols{grid-template-columns:1fr;gap:2.5rem;}
   .people{grid-template-columns:1fr;}
@@ -511,7 +514,6 @@ img{display:block;max-width:100%;}
   .archie-fig svg{width:130px;height:130px;}
   .person p{grid-column:2;}
   .frame{border-radius:12px;}
-  .frame.demo-window{max-height:480px;}
   .foot{padding-bottom:5.5rem;}
   .sticky-cta{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;
     padding:.625rem var(--pad) calc(.625rem + env(safe-area-inset-bottom));
@@ -700,8 +702,8 @@ img{display:block;max-width:100%;}
   <div class="glow" aria-hidden="true" data-anim="glow"></div>
   <div class="wrap" style="position:relative">
     <div class="stage-head rv">
-      <h2 class="h2">Thirteen units.<br>Forty-six skills.<br>All of Algebra 1.</h2>
-      <p class="lede" style="max-width:36ch">Every skill has a video, a key idea, practice that regenerates, and
+      <h2 class="stage-title">Thirteen units. Forty-six skills. All of Algebra 1.</h2>
+      <p class="lede" style="max-width:60ch">Every skill has a video, a key idea, practice that regenerates, and
         feedback the moment an answer goes wrong. 42 of the 46 skills map to 36 Common Core codes, and the map
         is public.</p>
     </div>
@@ -728,16 +730,14 @@ img{display:block;max-width:100%;}
 </section>
 
 <!-- ══ Students, parents, teachers ═══════════════════════════ -->
-<section class="sec" id="for-you">
+<section class="sec sec-tight" id="for-you">
   <div class="wrap">
     <div class="sec-intro with-art rv">
       <div>
         <h2 class="h2">Students, parents, teachers.</h2>
         <p>Each of you is asking a different question. Short answers here, and a page for each that goes further.</p>
       </div>
-      <figure class="photo" data-anim="photo">
-        <img src="images/students-whiteboard.webp" width="1200" height="850" alt="Two students working through an equation together at a whiteboard" loading="lazy" decoding="async">
-      </figure>
+      <svg class="art-asks" viewBox="0 0 360 236" aria-hidden="true" data-anim="asks"><g class="bubble b1"><path class="bub" d="M30 20 L168 20 A14 14 0 0 1 182 34 L182 52 A14 14 0 0 1 168 66 L58 66 L46 79 L44 66 L30 66 A14 14 0 0 1 16 52 L16 34 A14 14 0 0 1 30 20 Z" fill="#dcf5ea" stroke="#1b2a52" stroke-width="2" stroke-linejoin="round"/><text class="ask" x="99" y="48.5" text-anchor="middle" font-family="Inter, -apple-system, Arial, sans-serif" font-size="15" font-weight="500" fill="#1b2a52">Is it really free?</text></g><g class="bubble b2"><path class="bub" d="M164 94 L330 94 A14 14 0 0 1 344 108 L344 126 A14 14 0 0 1 330 140 L316 140 L316 153 L302 140 L164 140 A14 14 0 0 1 150 126 L150 108 A14 14 0 0 1 164 94 Z" fill="#ffe4d3" stroke="#1b2a52" stroke-width="2" stroke-linejoin="round"/><text class="ask" x="247" y="122.5" text-anchor="middle" font-family="Inter, -apple-system, Arial, sans-serif" font-size="15" font-weight="500" fill="#1b2a52">Is it safe for my kid?</text></g><g class="bubble b3"><path class="bub" d="M48 168 L232 168 A14 14 0 0 1 246 182 L246 200 A14 14 0 0 1 232 214 L76 214 L64 227 L62 214 L48 214 A14 14 0 0 1 34 200 L34 182 A14 14 0 0 1 48 168 Z" fill="#e9e5ff" stroke="#1b2a52" stroke-width="2" stroke-linejoin="round"/><text class="ask" x="140" y="196.5" text-anchor="middle" font-family="Inter, -apple-system, Arial, sans-serif" font-size="15" font-weight="500" fill="#1b2a52">Does it match my class?</text></g></svg>
     </div>
     <div class="cols rv">
       <div class="col mint">
@@ -774,16 +774,6 @@ img{display:block;max-width:100%;}
 <section class="sec" id="directory" style="padding-top:0">
   <div class="wrap">
     <div class="rows" style="margin-top:0">
-      <div class="row compact rv">
-        <div class="row-text">
-          <h3>Real tutors, inside the app</h3>
-          <p>Message a tutor from any lesson. A tutor can start a video call with a shared whiteboard, the student's
-            notebook and a calculator, all on Algebridge and under the rules above. The whiteboard here is the real
-            one. Draw on it.</p>
-          <a class="more" href="https://learn.algebridge.org/tutors" target="_blank" rel="noopener">Meet the tutors <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
-        </div>
-        <div class="frame demo-window"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
-      </div>
       <div class="row compact rv">
         <div class="row-text">
           <h3>The Algebridge Directory</h3>
