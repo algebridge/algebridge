@@ -87,7 +87,7 @@ export function ReviewDemo() {
                 Back to review
               </button>
             </div>
-            <TryProblem key={openId} embed skillId={openId} count={3} reportHeight={false} onFinish={() => markReviewed(openId)} />
+            <TryProblem key={openId} embed fixed skillId={openId} count={3} reportHeight={false} onFinish={() => markReviewed(openId)} />
           </div>
         ) : dueItems.length === 0 ? (
           <div className="card flex flex-col items-center px-6 py-8 text-center">

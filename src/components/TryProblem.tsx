@@ -16,6 +16,9 @@ import { PromptText } from "@/components/PromptText";
 import { Icon } from "@/components/Icon";
 import { Archie } from "@/components/archie/Archie";
 
+/** The seed behind the fixed set: the demos on algebridge.org show these same problems every time. */
+const FIXED_SEED = 20261003;
+
 /** How many problems a visitor gets before the card asks them to keep going with an account. */
 const SAMPLE_SIZE = 3;
 
@@ -47,10 +50,13 @@ function typeable(value: string | number | undefined): boolean {
  * only. With `leadWithTrap` the first problem is one with a classic wrong
  * answer on file, so a card can open on the note that answer earns.
  */
-function sampleFor(skill: Skill, count: number, leadWithTrap = false): PracticeProblem[] {
-  const batch = getFreshProblemsForSkill(skill.id, skill.problems).filter(
+function sampleFor(skill: Skill, count: number, leadWithTrap = false, seed?: number): PracticeProblem[] {
+  const batch = getFreshProblemsForSkill(skill.id, skill.problems, seed).filter(
     (p) => p.type === "numeric" || p.type === "multiple-choice"
   );
+  // With a seed the batch is the same every time, but the bank is still
+  // shuffled on the way out, so the order is fixed here too.
+  if (seed !== undefined) batch.sort((x, y) => x.prompt.localeCompare(y.prompt));
   if (leadWithTrap) {
     const i = batch.findIndex((p) => typeable(p.traps?.[0]?.value));
     if (i > 0) batch.unshift(...batch.splice(i, 1));
@@ -67,6 +73,8 @@ interface TryProblemProps {
   count?: number;
   /** Open with the first problem already answered wrong, its feedback note on screen. */
   startWrong?: boolean;
+  /** The same three problems on every visit, so a demo on algebridge.org is a fixture of the page rather than a new draw. */
+  fixed?: boolean;
   /** Open Archie on the problem, and keep him told which problem is up. */
   helper?: boolean;
   /** Its own white card. False inside a DemoCard, which is the card then. */
@@ -90,6 +98,7 @@ export function TryProblem({
   skillId = FIRST_SKILL_ID,
   count = SAMPLE_SIZE,
   startWrong = false,
+  fixed = false,
   helper = false,
   card = true,
   reportHeight = true,
@@ -117,8 +126,12 @@ export function TryProblem({
   // Generated after mount: the bank is seeded at random, and a server render
   // would disagree with the browser's. A card that opens on a wrong answer
   // gives its first problem's classic slip, so the note is there at once.
+  /** Which fixed set is showing; "Three more" moves to the next one. */
+  const round = useRef(0);
+  const seedFor = () => (fixed ? FIXED_SEED + round.current * 7919 : undefined);
+
   useEffect(() => {
-    const list = sampleFor(skill, count, startWrong);
+    const list = sampleFor(skill, count, startWrong, seedFor());
     setProblems(list);
     const trap = startWrong ? list[0]?.traps?.[0] : undefined;
     if (list[0] && trap && typeable(trap.value)) {
@@ -128,7 +141,8 @@ export function TryProblem({
       setDiagnosis(diagnoseMistake(list[0], { given: miss }));
       setState("wrong");
     }
-  }, [skill, count, startWrong]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skill, count, startWrong, fixed]);
 
   const problem = problems[index];
   const loading = problems.length === 0;
@@ -201,7 +215,8 @@ export function TryProblem({
     setAnswer("");
     setTries(0);
     setDiagnosis(null);
-    setTimeout(() => setProblems(sampleFor(skill, count)), 0);
+    round.current += 1;
+    setTimeout(() => setProblems(sampleFor(skill, count, false, seedFor())), 0);
   }
 
   // The answer box takes focus when a problem opens. Not for the first one

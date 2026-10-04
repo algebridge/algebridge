@@ -68,7 +68,7 @@ export function LessonDemo({ watch = false }: { watch?: boolean }) {
                 Practice
               </h2>
             )}
-            <TryProblem embed skillId={SKILL.id} count={3} reportHeight={false} />
+            <TryProblem embed fixed skillId={SKILL.id} count={3} reportHeight={false} />
           </section>
         </div>
 

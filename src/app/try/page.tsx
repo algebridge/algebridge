@@ -19,9 +19,9 @@ export const metadata: Metadata = {
 export default async function TryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ embed?: string; wrong?: string; skill?: string }>;
+  searchParams: Promise<{ embed?: string; wrong?: string; skill?: string; fixed?: string }>;
 }) {
-  const { embed, wrong, skill } = await searchParams;
+  const { embed, wrong, skill, fixed } = await searchParams;
   const inFrame = embed === "1";
   const chosen = skill ? units.flatMap((u) => u.skills).find((s) => s.id === skill) : undefined;
   return (
@@ -35,7 +35,7 @@ export default async function TryPage({
           </p>
         </div>
       )}
-      <TryProblem embed={inFrame} skillId={chosen?.id} startWrong={wrong === "1"} />
+      <TryProblem embed={inFrame} skillId={chosen?.id} startWrong={wrong === "1"} fixed={fixed === "1"} />
     </div>
   );
 }

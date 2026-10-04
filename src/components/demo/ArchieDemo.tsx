@@ -20,7 +20,7 @@ export function ArchieDemo() {
   return (
     <DemoCard pad={false}>
       <div className="min-h-[560px] sm:min-h-[620px]">
-        <TryProblem embed helper card={false} reportHeight={false} />
+        <TryProblem embed helper fixed card={false} reportHeight={false} />
       </div>
     </DemoCard>
   );
