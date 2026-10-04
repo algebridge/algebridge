@@ -142,7 +142,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       </header>
 
       {/* The team: pick who to play with. */}
-      <nav aria-label="Pick a game" className="grid grid-cols-5 gap-1.5 sm:gap-3">
+      <nav aria-label="Pick a game" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
         {GAME_CARDS.map((g) => (
           <TeamTile key={g.id} card={g} active={g.id === picked} best={g.id === "rink" ? (progress?.rink?.best ?? 0) : (progress?.gameBest?.[g.id] ?? 0)} onPick={() => pick(g.id)} />
         ))}
@@ -235,7 +235,7 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
       type="button"
       onClick={onPick}
       aria-pressed={active}
-      className={`flex min-w-0 flex-col items-center rounded-xl border px-1 pb-2 pt-2 text-center transition duration-150 ease-out active:scale-[0.98] ${
+      className={`flex min-w-0 shrink-0 basis-[31%] snap-start flex-col items-center rounded-xl border px-1 pb-2 pt-2 text-center transition duration-150 ease-out active:scale-[0.98] sm:shrink sm:basis-auto ${
         active ? "border-transparent bg-white shadow-md" : "border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-raised"
       }`}
       style={active ? { boxShadow: `0 0 0 2px ${card.accent}, 0 6px 16px -6px rgba(15,23,42,0.25)` } : undefined}
@@ -250,8 +250,8 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
           {card.id === "rink" ? <Veronica pose="idle" className="w-full" /> : <Player game={card.id} pose="idle" className="w-full" />}
         </span>
       </span>
-      <span className="mt-1.5 w-full break-words text-[11px] font-semibold leading-tight text-slate-900 sm:text-sm">{card.player}</span>
-      <span className="w-full break-words text-[10px] leading-tight text-slate-500 sm:text-xs">{card.sport}</span>
+      <span className="mt-1.5 w-full truncate text-xs font-semibold text-slate-900 sm:text-sm">{card.player}</span>
+      <span className="w-full truncate text-[11px] text-slate-500 sm:text-xs">{card.sport}</span>
       <span
         aria-hidden
         className={`mt-1 h-1 w-6 rounded-full transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
