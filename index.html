@@ -184,12 +184,12 @@ img{display:block;max-width:100%;}
    screen and the scene fills in on its own.                           */
 .hero{position:relative;background:#cfe6ff;color:var(--black);min-height:min(88vh,860px);}
 .hero-stage{position:relative;height:min(88vh,860px);overflow:hidden;isolation:isolate;
-  display:flex;flex-direction:column;justify-content:center;background:#cfe6ff;}
+  display:flex;flex-direction:column;justify-content:flex-start;background:#cfe6ff;}
 .hero-scene{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;}
 .hero-veil{position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:radial-gradient(58% 50% at 50% 48%,rgba(255,255,255,.62) 0%,rgba(255,255,255,.26) 55%,rgba(255,255,255,0) 100%),
+  background:radial-gradient(60% 46% at 50% 36%,rgba(255,255,255,.6) 0%,rgba(255,255,255,.24) 55%,rgba(255,255,255,0) 100%),
              linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 72%,rgba(251,252,255,.96) 100%);}
-.hero-inner{position:relative;z-index:3;text-align:center;max-width:900px;margin:0 auto;padding:0 var(--pad);
+.hero-inner{position:relative;z-index:3;text-align:center;max-width:900px;margin:0 auto;padding:clamp(2.5rem,7vh,5rem) var(--pad) 0;
   will-change:opacity,transform;}
 .hero h1{font-size:clamp(2.6rem,6.6vw,6rem);font-weight:400;line-height:1.02;letter-spacing:-0.025em;max-width:14ch;margin:0 auto;}
 .hero-sub{margin:1.75rem auto 0;max-width:50ch;color:var(--ink-2);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;}
@@ -203,7 +203,7 @@ img{display:block;max-width:100%;}
 .scroll-cue .ring svg{animation:nudge 2.2s ease-in-out infinite;}
 @keyframes nudge{0%,100%{transform:translateY(-2px);}50%{transform:translateY(2px);}}
 @media(min-width:861px){
-  .hero{height:190vh;min-height:0;}
+  .hero{height:165vh;min-height:0;}
   .hero-stage{position:sticky;top:0;height:100vh;}
 }
 
@@ -214,11 +214,11 @@ img{display:block;max-width:100%;}
    window that scrolls inside itself: a demo of the thing, at a demo's size */
 .frame.demo-window{max-width:600px;max-height:560px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 .row .frame{max-width:680px;}
-.archie .frame{max-width:1040px;}
+.archie-sec .frame{max-width:1040px;}
 .row.compact{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
 
 /* ── The first skill, under the hero ────────────────────────── */
-.demo-sec{position:relative;z-index:4;margin-top:-16vh;padding-bottom:3.5rem;}
+.demo-sec{position:relative;z-index:4;margin-top:-12vh;padding-bottom:3.5rem;}
 .demo-sec .wrap{max-width:980px;}
 .demo-sec .frame{box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);}
 .demo-cap{display:flex;justify-content:space-between;gap:.75rem 2rem;flex-wrap:wrap;margin-top:1rem;color:var(--muted);font-size:.9375rem;line-height:1.5;}
@@ -253,7 +253,7 @@ img{display:block;max-width:100%;}
 }
 
 /* ── Scroll-revealed statement ──────────────────────────────── */
-.statement{position:relative;overflow:hidden;background:linear-gradient(180deg,#cfe6ff,#e9f3ff);color:var(--black);padding:11rem 0;}
+.statement{position:relative;overflow:hidden;background:linear-gradient(180deg,#d6e9ff,#edf5ff);color:var(--black);padding:9rem 0;}
 .statement p{font-size:clamp(1.75rem,4.4vw,3.5rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
 .statement .w{color:rgba(27,42,82,.24);transition:color .35s ease;}
 .statement .w.lit{color:var(--black);}
@@ -281,13 +281,13 @@ img{display:block;max-width:100%;}
 .row.single p{max-width:64ch;}
 
 /* ── Archie ─────────────────────────────────────────────────── */
-.archie{position:relative;overflow:hidden;background:var(--butter);color:var(--black);padding:7rem 0;}
-.archie-head{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:2rem 4rem;align-items:end;margin-bottom:2.5rem;position:relative;}
+.archie-sec{position:relative;overflow:hidden;background:var(--butter);color:var(--black);padding:6rem 0;}
+.archie-head{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,6fr) 230px;gap:2rem 3rem;align-items:end;margin-bottom:2.5rem;position:relative;}
 .archie-head .h2{max-width:12ch;}
 .archie-head p{color:var(--ink-2);font-size:1.0625rem;line-height:1.65;max-width:58ch;}
 .archie-head p + p{margin-top:1rem;}
 .archie-head strong{color:var(--black);font-weight:500;}
-.archie .more{color:var(--black);margin-top:1.25rem;}
+.archie-sec .more{color:var(--black);margin-top:1.25rem;}
 
 /* ── Students, parents, teachers ────────────────────────────── */
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
@@ -376,17 +376,17 @@ img{display:block;max-width:100%;}
    to SVG). One photograph, in the Students, parents, teachers
    introduction. The light is a warm bloom here and there, never a sun. */
 .glow{position:absolute;pointer-events:none;border-radius:50%;}
-.statement .glow{right:-12%;top:-45%;width:min(70vw,900px);height:min(70vw,900px);
-  background:radial-gradient(circle,rgba(255,228,140,.6) 0%,rgba(255,228,140,.22) 38%,rgba(255,228,140,0) 66%);}
+.statement .glow{right:-18%;bottom:-70%;width:min(96vw,1200px);height:min(96vw,1200px);
+  background:radial-gradient(circle,rgba(255,228,140,.42) 0%,rgba(255,228,140,.14) 40%,rgba(255,228,140,0) 66%);}
 .statement .wrap{position:relative;}
 .stage .glow{left:-14%;bottom:-50%;width:min(64vw,820px);height:min(64vw,820px);
   background:radial-gradient(circle,rgba(255,230,150,.5) 0%,rgba(255,230,150,.16) 40%,rgba(255,230,150,0) 66%);}
-.archie::after{content:'';position:absolute;right:-10%;top:-30%;width:min(50vw,640px);height:min(50vw,640px);border-radius:50%;pointer-events:none;
+.archie-sec::after{content:'';position:absolute;right:-10%;top:-30%;width:min(50vw,640px);height:min(50vw,640px);border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,rgba(255,255,255,.75) 0%,rgba(255,255,255,.25) 40%,rgba(255,255,255,0) 66%);}
-.archie .wrap{position:relative;z-index:1;}
+.archie-sec .wrap{position:relative;z-index:1;}
 .sec-intro.with-art{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:2rem 4rem;align-items:center;max-width:none;}
 .sec-intro.with-art > div:first-child{max-width:64ch;}
-.art-plane{width:min(100%,440px);display:block;margin-left:auto;overflow:visible;}
+.art-plane{width:min(100%,520px);display:block;margin-left:auto;overflow:visible;}
 .art-plane .plane{transform-box:fill-box;transform-origin:center;animation:bob 4.5s ease-in-out infinite;}
 @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-9px);}}
 .photo{position:relative;max-width:470px;margin:0 0 0 auto;}
@@ -395,8 +395,8 @@ img{display:block;max-width:100%;}
 .art-wrap{display:flex;justify-content:center;align-items:center;}
 .art-books{width:min(100%,380px);display:block;}
 .close-art{display:block;width:100%;height:auto;margin-top:3.5rem;}
-.archie-lead{display:flex;flex-direction:column;gap:1.25rem;align-items:flex-start;}
-.archie-lead svg{width:176px;height:176px;overflow:visible;}
+.archie-fig{justify-self:end;}
+.archie-fig svg{display:block;width:230px;height:230px;overflow:visible;}
 .archie-wave-arm{transform-box:view-box;transform-origin:95px 66px;animation:archie-wave 2.6s ease-in-out infinite;}
 @keyframes archie-wave{0%,100%{transform:rotate(0);}25%{transform:rotate(-16deg);}55%{transform:rotate(10deg);}}
 .faq-archie{width:124px;height:124px;margin-top:2rem;overflow:visible;}
@@ -407,6 +407,8 @@ img{display:block;max-width:100%;}
   .frame.demo-window{max-width:none;}
   .row-text{position:static;}
   .archie-head{grid-template-columns:1fr;gap:1.5rem;}
+  .archie-fig{order:-1;justify-self:start;}
+  .archie-fig svg{width:160px;height:160px;}
   .sec-intro.with-art{grid-template-columns:1fr;gap:2.5rem;}
   .art-plane,.photo{margin-left:0;}
   .photo{max-width:440px;}
@@ -422,7 +424,7 @@ img{display:block;max-width:100%;}
   .burger{display:flex;}
   .scroll-cue{left:var(--pad);right:auto;}
   .statement{padding:7rem 0;}
-  .sec,.archie,.stage,.faq{padding:4.5rem 0;}
+  .sec,.archie-sec,.stage,.faq{padding:4.5rem 0;}
   .close-sec{padding:6rem 0;}
   .foot{padding:5rem 0 1.5rem;}
   .foot-cols{padding-bottom:4.5rem;}
@@ -434,11 +436,11 @@ img{display:block;max-width:100%;}
   .demo-sec{margin-top:-10vh;padding-bottom:2.5rem;}
   .scroll-cue{display:none;}
   .statement{padding:5rem 0;}
-  .sec,.archie,.stage,.faq{padding:3.5rem 0;}
+  .sec,.archie-sec,.stage,.faq{padding:3.5rem 0;}
   .close-sec{padding:4.5rem 0;}
   .person{grid-template-columns:56px minmax(0,1fr);gap:.25rem 1rem;}
   .col{padding:1.375rem 1.25rem 1.5rem;}
-  .archie-lead svg{width:128px;height:128px;}
+  .archie-fig svg{width:130px;height:130px;}
   .person p{grid-column:2;}
   .frame{border-radius:12px;}
   .frame.demo-window{max-height:480px;}
@@ -567,11 +569,11 @@ img{display:block;max-width:100%;}
       </div>
       <svg class="art-plane" viewBox="0 0 420 240" aria-hidden="true">
         <path d="M22 196 C 92 176, 112 236, 182 186 S 262 66, 336 70" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 9" stroke-linecap="round" opacity=".55"/>
-        <g class="plane" transform="translate(330 56) rotate(-28)">
+        <g transform="translate(330 56) rotate(-28)"><g class="plane">
           <path d="M0 14 L74 0 L30 24 Z" fill="#dcecff" stroke="#1b2a52" stroke-width="2.2" stroke-linejoin="round"/>
           <path d="M30 24 L74 0 L40 46 Z" fill="#fff" stroke="#1b2a52" stroke-width="2.2" stroke-linejoin="round"/>
           <path d="M30 24 L33 36" stroke="#1b2a52" stroke-width="2.2" stroke-linecap="round"/>
-        </g>
+        </g></g>
       </svg>
     </div>
     <div class="rows">
@@ -605,13 +607,10 @@ img{display:block;max-width:100%;}
 </section>
 
 <!-- ══ Archie ════════════════════════════════════════════════ -->
-<section class="archie" id="archie">
+<section class="archie-sec" id="archie">
   <div class="wrap">
     <div class="archie-head rv">
-      <div class="archie-lead">
-        <svg viewBox="0 0 120 120" class="archie archie-pose-wave  " aria-hidden="true" focusable="false"><ellipse class="archie-shadow" cx="60" cy="110" rx="31" ry="4.2" fill="#0f172a" opacity="0.08"></ellipse><g class="archie-fig"><g class="archie-body"><g stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M25 70 Q17 76 15 85" stroke="#1e3a8a" stroke-width="12.8"></path><path d="M25 70 Q17 76 15 85" stroke="#2563eb" stroke-width="7.6"></path><circle cx="15" cy="86" r="5.6" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6"></circle></g><g class="archie-wave-arm"><g stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M95 66 Q105 60 109 48" stroke="#1e3a8a" stroke-width="12.8"></path><path d="M95 66 Q105 60 109 48" stroke="#2563eb" stroke-width="7.6"></path><circle cx="109.5" cy="46.5" r="5.6" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6"></circle></g></g><path d="M22 60 C22 32 39 15 60 15 C81 15 98 32 98 60 L98 97 Q98 104 91 104 L81 104 Q74 104 74 97 L74 95 C74 88.5 67.7 84 60 84 C52.3 84 46 88.5 46 95 L46 97 Q46 104 39 104 L29 104 Q22 104 22 97 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6" stroke-linejoin="round"></path><path d="M31.5 47 C33 35 40.5 26 50 23" fill="none" stroke="#60a5fa" stroke-width="4.2" stroke-linecap="round"></path><ellipse cx="36" cy="59.5" rx="4.6" ry="2.9" fill="#f9a8d4"></ellipse><ellipse cx="84" cy="59.5" rx="4.6" ry="2.9" fill="#f9a8d4"></ellipse><g><ellipse cx="47" cy="48" rx="6.4" ry="7.2" fill="#ffffff"></ellipse><ellipse cx="73" cy="48" rx="6.4" ry="7.2" fill="#ffffff"></ellipse><g class="archie-pupils" style="transform:translate(0.6px, 1px)"><g><circle cx="47" cy="48" r="4.3" fill="#0f172a"></circle><circle cx="48.5" cy="46.4" r="1.35" fill="#ffffff"></circle></g><g><circle cx="73" cy="48" r="4.3" fill="#0f172a"></circle><circle cx="74.5" cy="46.4" r="1.35" fill="#ffffff"></circle></g></g></g><path d="M53.5 60.5 Q60 66.5 66.5 60.5" fill="none" stroke="#0f172a" stroke-width="3.2" stroke-linecap="round"></path></g></g></svg>
-        <h2 class="h2">Archie, the study helper.</h2>
-      </div>
+      <h2 class="h2">Archie, the study helper.</h2>
       <div>
         <p>Archie sits beside every lesson. He can give a hint, the first step, the key idea, a similar example,
           or check the student's own work. <strong>He is built to refuse to give the final answer</strong>, and the
@@ -619,6 +618,7 @@ img{display:block;max-width:100%;}
         <p>Below he is open on a live problem. Ask him something.</p>
         <a class="more" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">How the refusal works, on the For schools page <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
       </div>
+      <div class="archie-fig"><svg viewBox="0 0 120 120" class="archie archie-pose-wave  " aria-hidden="true" focusable="false"><ellipse class="archie-shadow" cx="60" cy="110" rx="31" ry="4.2" fill="#0f172a" opacity="0.08"></ellipse><g class="archie-fig"><g class="archie-body"><g stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M25 70 Q17 76 15 85" stroke="#1e3a8a" stroke-width="12.8"></path><path d="M25 70 Q17 76 15 85" stroke="#2563eb" stroke-width="7.6"></path><circle cx="15" cy="86" r="5.6" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6"></circle></g><g class="archie-wave-arm"><g stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M95 66 Q105 60 109 48" stroke="#1e3a8a" stroke-width="12.8"></path><path d="M95 66 Q105 60 109 48" stroke="#2563eb" stroke-width="7.6"></path><circle cx="109.5" cy="46.5" r="5.6" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6"></circle></g></g><path d="M22 60 C22 32 39 15 60 15 C81 15 98 32 98 60 L98 97 Q98 104 91 104 L81 104 Q74 104 74 97 L74 95 C74 88.5 67.7 84 60 84 C52.3 84 46 88.5 46 95 L46 97 Q46 104 39 104 L29 104 Q22 104 22 97 Z" fill="#2563eb" stroke="#1e3a8a" stroke-width="2.6" stroke-linejoin="round"></path><path d="M31.5 47 C33 35 40.5 26 50 23" fill="none" stroke="#60a5fa" stroke-width="4.2" stroke-linecap="round"></path><ellipse cx="36" cy="59.5" rx="4.6" ry="2.9" fill="#f9a8d4"></ellipse><ellipse cx="84" cy="59.5" rx="4.6" ry="2.9" fill="#f9a8d4"></ellipse><g><ellipse cx="47" cy="48" rx="6.4" ry="7.2" fill="#ffffff"></ellipse><ellipse cx="73" cy="48" rx="6.4" ry="7.2" fill="#ffffff"></ellipse><g class="archie-pupils" style="transform:translate(0.6px, 1px)"><g><circle cx="47" cy="48" r="4.3" fill="#0f172a"></circle><circle cx="48.5" cy="46.4" r="1.35" fill="#ffffff"></circle></g><g><circle cx="73" cy="48" r="4.3" fill="#0f172a"></circle><circle cx="74.5" cy="46.4" r="1.35" fill="#ffffff"></circle></g></g></g><path d="M53.5 60.5 Q60 66.5 66.5 60.5" fill="none" stroke="#0f172a" stroke-width="3.2" stroke-linecap="round"></path></g></g></svg></div>
     </div>
     <div class="frame rv"><div class="demo" data-demo="/demo/archie" data-title="Ask Archie for a hint on a live problem" style="--h:648px;--hp:586px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/archie" target="_blank" rel="noopener">Open Archie on a problem on the platform</a></div></div>
   </div>
@@ -807,7 +807,7 @@ img{display:block;max-width:100%;}
       <rect x="40" y="146" width="1120" height="14" rx="5" fill="#1b2a52"/>
       <rect x="138" y="160" width="24" height="76" rx="3" fill="#1b2a52"/>
       <rect x="1038" y="160" width="24" height="76" rx="3" fill="#1b2a52"/>
-      <rect x="40" y="140" width="1120" height="4" rx="2" fill="#ffd166"/>
+      <rect x="54" y="151" width="1092" height="3" rx="1.5" fill="#ffd166"/>
     </svg>
 </section>
 
@@ -1004,17 +1004,20 @@ img{display:block;max-width:100%;}
       W = stage.clientWidth; H = stage.clientHeight;
       scene.width = Math.floor(W * dpr); scene.height = Math.floor(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      horizon = H * 0.44;
+      /* the paper starts a little under the copy (offsetHeight ignores the fade's transform) */
+      horizon = Math.min(H * 0.82, Math.max(H * 0.5, copy.offsetTop + copy.offsetHeight + 18));
     }
     function progress(){
       var runway = hero.offsetHeight - stage.clientHeight;
       if (runway <= 0) return 0;
       return Math.max(0, Math.min(1, -hero.getBoundingClientRect().top / runway));
     }
-    /* a point on the ground plane (x across, z ahead), seen from a camera one unit up */
+    /* a point on the ground plane (x across, z ahead), seen from a camera one unit up.
+       hor is the horizon for this frame: it climbs as the page scrolls, the camera tilting down to the paper */
+    var hor = 0;
     function project(x, z){
-      var F = H * 0.95;
-      return [W / 2 + x * F / z, horizon + F / z];
+      var F = H * 0.8;
+      return [W / 2 + x * F / z, hor + F / z];
     }
     function stroke(points, rgb, width, alpha){
       ctx.lineWidth = width; ctx.strokeStyle = 'rgba(' + rgb + ',' + alpha + ')';
@@ -1023,32 +1026,34 @@ img{display:block;max-width:100%;}
       ctx.stroke();
     }
     function draw(travel, t, p){
-      /* the sky, and the paper below the horizon */
-      var sky = ctx.createLinearGradient(0, 0, 0, horizon);
+      hor = horizon - p * (horizon - H * 0.34);
+      /* the light above, and the paper below the horizon */
+      var sky = ctx.createLinearGradient(0, 0, 0, hor);
       sky.addColorStop(0, '#b7dbff'); sky.addColorStop(1, '#eaf4ff');
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, horizon + 1);
-      ctx.fillStyle = '#f3f7ff'; ctx.fillRect(0, horizon, W, H - horizon);
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hor + 1);
+      ctx.fillStyle = '#f2f6ff'; ctx.fillRect(0, hor, W, H - hor);
       /* warm light from the upper right, breathing very slowly */
-      var lx = W * 0.78, ly = horizon - H * 0.2, lr = H * (0.52 + 0.03 * Math.sin(t * 0.4));
+      var lx = W * 0.8, ly = hor - H * 0.42, lr = H * (0.58 + 0.03 * Math.sin(t * 0.4));
       var glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
       glow.addColorStop(0, 'rgba(255,232,150,.78)'); glow.addColorStop(0.45, 'rgba(255,238,180,.32)'); glow.addColorStop(1, 'rgba(255,245,210,0)');
       ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
       /* haze where the sky meets the paper */
-      var hz = ctx.createLinearGradient(0, horizon - H * 0.09, 0, horizon + H * 0.05);
+      var hz = ctx.createLinearGradient(0, hor - H * 0.09, 0, hor + H * 0.05);
       hz.addColorStop(0, 'rgba(255,255,255,0)'); hz.addColorStop(0.6, 'rgba(255,255,255,.85)'); hz.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = hz; ctx.fillRect(0, horizon - H * 0.09, W, H * 0.14);
+      ctx.fillStyle = hz; ctx.fillRect(0, hor - H * 0.09, W, H * 0.14);
       /* grid: lines across, flowing toward the camera */
       var off = ((travel % 1) + 1) % 1;
       ctx.lineCap = 'butt';
-      for (var k = 0; k < 40; k++){
+      for (var k = 0; k < 60; k++){
         var z = 1.0 + k - off;
         if (z < 0.9) continue;
         var y = project(0, z)[1];
-        stroke([[0, y], [W, y]], BLUE, 1, 0.03 + 0.2 * Math.pow(1 - k / 40, 1.6));
+        if (y > H + 2) continue;
+        stroke([[0, y], [W, y]], BLUE, 1, 0.05 + 0.3 * Math.pow(1 - k / 60, 1.5));
       }
       /* grid: lines ahead, converging */
-      for (var x = -16; x <= 16; x++){
-        stroke([project(x, 0.95), project(x, 80)], BLUE, 1, x === 0 ? 0.16 : 0.07);
+      for (var x = -24; x <= 24; x++){
+        stroke([project(x, 0.95), project(x, 120)], BLUE, 1, x === 0 ? 0.22 : 0.12);
       }
       /* the curves and their equations, nearest last so they paint on top */
       var placed = curves.map(function(c){
@@ -1064,14 +1069,17 @@ img{display:block;max-width:100%;}
         }
         if (pts.length < 2) return;
         var depth = Math.max(0, Math.min(1, 1 - (zc - 1.4) / PERIOD));
-        var wgt = 0.9 + 2.4 * depth, al = 0.3 + 0.7 * depth;
+        var wgt = 1.1 + 2.6 * depth, al = 0.35 + 0.65 * depth;
         stroke(pts, c.tone, wgt * 3, al * 0.14);
         stroke(pts, c.tone, wgt, al);
-        /* the equation sits by the curve's near end; on a phone it stays faint, where it crosses the copy */
-        var tail = pts[pts.length - 1], fs = Math.round(10 + 8 * depth);
+        /* the equation sits by the curve's near end, and only once the curve is near:
+           far off, six labels would pile up at the vanishing point */
+        var la = Math.max(0, (depth - 0.75) / 0.25) * (W < 700 ? 0.5 : 0.9);
+        if (la <= 0.02) return;
+        var tail = pts[pts.length - 1], fs = Math.round(11 + 8 * depth);
         ctx.font = '500 ' + fs + 'px ' + mono;
-        ctx.fillStyle = 'rgba(' + INK + ',' + ((0.4 + 0.55 * depth) * (W < 700 ? 0.45 : 1)) + ')';
-        ctx.fillText(c.label, Math.min(W - 120, tail[0] + 12), tail[1] - fs * 0.9);
+        ctx.fillStyle = 'rgba(' + INK + ',' + la + ')';
+        ctx.fillText(c.label, Math.min(W - 130, tail[0] + 12), tail[1] - fs * 0.9);
       });
     }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
@@ -1091,6 +1099,7 @@ img{display:block;max-width:100%;}
     }
     function wake(){ if (!raf){ last = 0; raf = requestAnimationFrame(frame); } }
     size(); wake();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ size(); wake(); });
     new IntersectionObserver(function(entries){
       entries.forEach(function(en){ inView = en.isIntersecting; if (inView) wake(); });
     }, { threshold: 0 }).observe(hero);
