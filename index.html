@@ -203,6 +203,10 @@ img{display:block;max-width:100%;}
 /* ── Frames: a hairline around whatever the platform sends ──── */
 .frame{border:1px solid #d9d9d9;border-radius:14px;overflow:hidden;background:var(--white);}
 .frame-dark{border-color:#2a2a2a;}
+/* the big features (the games, the house, the whiteboard) sit in a smaller
+   window that scrolls inside itself: a demo of the thing, at a demo's size */
+.frame.demo-window{max-width:700px;max-height:680px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.row.compact{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
 
 /* ── The first skill, under the hero ────────────────────────── */
 .demo-sec{position:relative;z-index:4;margin-top:-16vh;padding-bottom:3.5rem;}
@@ -282,7 +286,12 @@ img{display:block;max-width:100%;}
 
 /* ── Team, as a list ────────────────────────────────────────── */
 .people{margin-top:3rem;display:grid;grid-template-columns:1fr 1fr;gap:0 4rem;border-top:1px solid #d9d9d9;}
-.person{padding:1.375rem 0;border-bottom:1px solid #d9d9d9;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:.25rem 1.5rem;align-items:baseline;}
+.person{padding:1.375rem 0;border-bottom:1px solid #d9d9d9;display:grid;grid-template-columns:56px minmax(0,1fr) minmax(0,1.5fr);gap:.25rem 1.25rem;align-items:start;}
+/* the photo's place: a square with initials until there is a photo to put in it */
+.person .pic{width:56px;height:56px;border-radius:8px;background:#e4e4e4;color:var(--black);display:flex;align-items:center;justify-content:center;
+  font-size:.875rem;font-weight:500;letter-spacing:.02em;overflow:hidden;}
+.person .pic img{width:100%;height:100%;object-fit:cover;display:block;}
+.person.open .pic{background:var(--accent);color:var(--white);}
 .person b{font-weight:500;letter-spacing:-0.01em;}
 .person small{display:block;color:var(--muted);font-size:.8125rem;margin-top:.125rem;}
 .person p{color:var(--label);font-size:.9375rem;line-height:1.55;}
@@ -348,7 +357,8 @@ img{display:block;max-width:100%;}
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media(max-width:1100px){
-  .row,.row.single{grid-template-columns:1fr;}
+  .row,.row.single,.row.compact{grid-template-columns:1fr;}
+  .frame.demo-window{max-width:none;}
   .row-text{position:static;}
   .archie-head{grid-template-columns:1fr;gap:1.5rem;}
   .cols{grid-template-columns:1fr;gap:2.5rem;}
@@ -377,8 +387,10 @@ img{display:block;max-width:100%;}
   .statement{padding:5rem 0;}
   .sec,.archie,.stage,.faq{padding:3.5rem 0;}
   .close-sec{padding:4.5rem 0;}
-  .person{grid-template-columns:1fr;gap:.25rem;}
+  .person{grid-template-columns:56px minmax(0,1fr);gap:.25rem 1rem;}
+  .person p{grid-column:2;}
   .frame{border-radius:12px;}
+  .frame.demo-window{max-height:560px;}
   .foot{padding-bottom:5.5rem;}
   .sticky-cta{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;
     padding:.625rem var(--pad) calc(.625rem + env(safe-area-inset-bottom));
@@ -587,7 +599,7 @@ img{display:block;max-width:100%;}
         for math, so they reward practice instead of replacing it.</p>
     </div>
     <div class="rows">
-      <div class="row rv">
+      <div class="row compact rv">
         <div class="row-text">
           <h3>Five games, one for each teammate</h3>
           <p>Skating with Veronica, wrestling with Shaurya, cheer with Jo, volleyball with Jordyn, soccer with Rayla.
@@ -595,16 +607,16 @@ img{display:block;max-width:100%;}
             Bridgeys, up to 60 a day across all five. The characters are drawn after the students who built
             Algebridge. Pick one and play a round.</p>
         </div>
-        <div class="frame"><div class="demo" data-demo="/demo/games" data-title="Play the five team games" style="--h:930px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading the five games from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/games" target="_blank" rel="noopener">Open the five games on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/games" data-title="Play the five team games" style="--h:930px;--hp:560px"><div class="demo-wait" aria-hidden="true"><span>Loading the five games from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/games" target="_blank" rel="noopener">Open the five games on the platform</a></div></div>
       </div>
-      <div class="row rv">
+      <div class="row compact rv">
         <div class="row-text">
           <h3>Bridgey House</h3>
           <p>Bridgeys buy furniture for a house with two floors and a garden, and 38 titles to wear on the
             leaderboard. The first house is free, and finishing a unit earns a prize for the shelf. This one comes
             with 160 Bridgeys to spend.</p>
         </div>
-        <div class="frame"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House" style="--h:1248px;--hp:1140px"><div class="demo-wait" aria-hidden="true"><span>Loading Bridgey House from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/house" target="_blank" rel="noopener">Open Bridgey House on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/house" data-title="Furnish the Bridgey House" style="--h:1248px;--hp:1140px"><div class="demo-wait" aria-hidden="true"><span>Loading Bridgey House from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/house" target="_blank" rel="noopener">Open Bridgey House on the platform</a></div></div>
       </div>
     </div>
   </div>
@@ -652,7 +664,7 @@ img{display:block;max-width:100%;}
 <section class="sec" id="directory" style="padding-top:0">
   <div class="wrap">
     <div class="rows" style="margin-top:0">
-      <div class="row rv">
+      <div class="row compact rv">
         <div class="row-text">
           <h3>Real tutors, inside the app</h3>
           <p>Message a tutor from any lesson. A tutor can start a video call with a shared whiteboard, the student's
@@ -660,7 +672,7 @@ img{display:block;max-width:100%;}
             one. Draw on it.</p>
           <a class="more" href="https://learn.algebridge.org/tutors" target="_blank" rel="noopener">Meet the tutors <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
         </div>
-        <div class="frame"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span>Loading the whiteboard from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
+        <div class="frame demo-window"><div class="demo" data-demo="/demo/whiteboard" data-title="Draw on the tutoring whiteboard" style="--h:476px;--hp:470px"><div class="demo-wait" aria-hidden="true"><span>Loading the whiteboard from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/whiteboard" target="_blank" rel="noopener">Open the whiteboard on the platform</a></div></div>
       </div>
       <div class="row single rv">
         <div class="row-text">
@@ -683,15 +695,15 @@ img{display:block;max-width:100%;}
       <p>A student-led initiative founded in 2026, run by people who are still in the room where the problem happens.</p>
     </div>
     <div class="people rv">
-      <div class="person"><div><b>Ivan Dubovyi</b><small>Founder &amp; CEO</small></div><p>Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p></div>
-      <div class="person"><div><b>Shaurya Sethi</b><small>Director of Tutoring</small></div><p>Leads the tutoring program, breaking tough problems down step by step and building lasting problem-solving habits.</p></div>
-      <div class="person"><div><b>Zachary Balan</b><small>Tutor</small></div><p>Works one-on-one with students, turning confusing Algebra 1 topics into clear, confident steps.</p></div>
-      <div class="person"><div><b>Sebastian Sawicki</b><small>Director of Finance</small></div><p>Manages the budget and funding so our free tools and tutoring keep reaching more students.</p></div>
-      <div class="person"><div><b>Jordyn Miller</b><small>Director of Marketing</small></div><p>Leads marketing and outreach, getting Algebridge in front of the students who need it most.</p></div>
-      <div class="person"><div><b>Johara Bukar</b><small>Social Media Manager</small></div><p>Runs the social accounts, turning what Algebridge builds into posts students actually see.</p></div>
-      <div class="person"><div><b>Rayla Harwood</b><small>Director of Operations</small></div><p>Keeps everything running behind the scenes, coordinating programs, scheduling, and day-to-day operations.</p></div>
-      <div class="person"><div><b>Veronica Alves</b><small>Independent Content Creator</small></div><p>Creates the videos and explainers that make Algebra 1 click for students outside the classroom.</p></div>
-      <a class="person open" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener"><div><b>Join the team</b><small>Tutors, builders, organizers</small></div><p>For people who want Algebra 1 to stop being the wall it is today.</p></a>
+      <div class="person"><span class="pic" aria-hidden="true">ID</span><div><b>Ivan Dubovyi</b><small>Founder &amp; CEO</small></div><p>Founded Algebridge in 2026 to help every student cross the Algebra 1 bridge with confidence.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">SS</span><div><b>Shaurya Sethi</b><small>Director of Tutoring</small></div><p>Leads the tutoring program, breaking tough problems down step by step and building lasting problem-solving habits.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">ZB</span><div><b>Zachary Balan</b><small>Tutor</small></div><p>Works one-on-one with students, turning confusing Algebra 1 topics into clear, confident steps.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">SS</span><div><b>Sebastian Sawicki</b><small>Director of Finance</small></div><p>Manages the budget and funding so our free tools and tutoring keep reaching more students.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">JM</span><div><b>Jordyn Miller</b><small>Director of Marketing</small></div><p>Leads marketing and outreach, getting Algebridge in front of the students who need it most.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">JB</span><div><b>Johara Bukar</b><small>Social Media Manager</small></div><p>Runs the social accounts, turning what Algebridge builds into posts students actually see.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">RH</span><div><b>Rayla Harwood</b><small>Director of Operations</small></div><p>Keeps everything running behind the scenes, coordinating programs, scheduling, and day-to-day operations.</p></div>
+      <div class="person"><span class="pic" aria-hidden="true">VA</span><div><b>Veronica Alves</b><small>Independent Content Creator</small></div><p>Creates the videos and explainers that make Algebra 1 click for students outside the classroom.</p></div>
+      <a class="person open" href="https://docs.google.com/forms/d/e/1FAIpQLScq939vaDGM-JxnRDcOkfIo8VCz-Rei1m-DeGov7uBFSU4IbA/viewform?usp=header" target="_blank" rel="noopener"><span class="pic" aria-hidden="true">+</span><div><b>Join the team</b><small>Tutors, builders, organizers</small></div><p>For people who want Algebra 1 to stop being the wall it is today.</p></a>
     </div>
   </div>
 </section>
@@ -906,13 +918,13 @@ img{display:block;max-width:100%;}
   });
 
 
-  /* ── Hero scene: graph paper, a system of equations worked out ─────
-     Where the footage used to play. A sheet of graph paper; as the page
-     scrolls, a parabola is drawn, then a line, then the two points where
-     they meet are marked and the algebra that finds them is written out
-     beside the axes. Before anyone scrolls the sheet fills in on its own
-     a little; the loop runs only while the hero is on screen and the tab
-     visible, and reduced motion gets the finished page.               */
+  /* ── Hero scene: a flight over graph paper ───────────────────────
+     Drawn, where footage used to play: a coordinate grid in perspective
+     with algebra curves and their equations laid on it. Scrolling the
+     runway flies the camera forward (and back); while the hero is on
+     screen it also drifts on its own. One canvas; the loop runs only
+     while the hero is in view and the tab is visible, and reduced
+     motion gets a single still frame.                                */
   var hero  = document.querySelector('.hero');
   var stage = document.getElementById('heroStage');
   var scene = document.getElementById('heroScene');
@@ -920,107 +932,107 @@ img{display:block;max-width:100%;}
   var cue   = document.getElementById('scrollCue');
   if (hero && stage && scene && scene.getContext){
     var ctx = scene.getContext('2d');
-    var W = 0, H = 0;
+    var W = 0, H = 0, horizon = 0;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
-    var BLUE = '#2563eb';
+    var ACCENT = '37,99,235';
+    /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
+    var PERIOD = 44;
+    var curves = [
+      { z: 4,  tone: ACCENT,      label: 'y = x\u00B2',       xs: [-3.2, 3.2],  g: function(x){ return 0.42 * x * x; } },
+      { z: 14, tone: '255,255,255', label: 'y = 2x + 3',     xs: [-5, 5],      g: function(x){ return 0.9 * x + 4; } },
+      { z: 24, tone: ACCENT,      label: 'y = |x \u2212 2|', xs: [-3, 7],      g: function(x){ return 1.1 * Math.abs(x - 2); } },
+      { z: 34, tone: '255,255,255', label: 'y = 2\u02E3',     xs: [-6, 3.4],    g: function(x){ return 0.35 * Math.pow(2, x); } },
+      { z: 9,  tone: '255,255,255', label: 'y = \u2212x + 5', xs: [-5, 6],      g: function(x){ return 5.5 - 0.7 * x; } },
+      { z: 29, tone: ACCENT,      label: 'y = (x + 3)\u00B2',  xs: [-7.5, 1.5],  g: function(x){ return 0.5 * (x + 3) * (x + 3); } }
+    ];
     function size(){
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = stage.clientWidth; H = stage.clientHeight;
       scene.width = Math.floor(W * dpr); scene.height = Math.floor(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      horizon = H * 0.42;
     }
     function progress(){
       var runway = hero.offsetHeight - stage.clientHeight;
       if (runway <= 0) return 0;
       return Math.max(0, Math.min(1, -hero.getBoundingClientRect().top / runway));
     }
-    function ease(a){ a = a < 0 ? 0 : a > 1 ? 1 : a; return a * a * (3 - 2 * a); }
-    function part(p, a, b){ return ease((p - a) / (b - a)); }
-    /* the sheet: one unit is u pixels; the origin sits a little left of center and below the copy */
-    function sheet(){ var u = Math.max(40, Math.min(70, W / 19)); return { u: u, ox: W * 0.5 - u * 0.5, oy: H * 0.58 }; }
-    function at(S, x, y){ return [S.ox + x * S.u, S.oy - y * S.u]; }
-    function curve(S, fn, x0, x1, k, color, width){
-      if (k <= 0) return;
-      var n = 140;
+    /* a point on the ground plane (x across, z ahead), seen from a camera one unit up */
+    function project(x, z){
+      var F = H * 0.95;
+      return [W / 2 + x * F / z, horizon + F / z];
+    }
+    function stroke(points, rgb, width, alpha){
+      ctx.lineWidth = width; ctx.strokeStyle = 'rgba(' + rgb + ',' + alpha + ')';
       ctx.beginPath();
-      for (var i = 0; i <= n && i / n <= k; i++){
-        var x = x0 + (x1 - x0) * i / n, pt = at(S, x, fn(x));
-        if (i) ctx.lineTo(pt[0], pt[1]); else ctx.moveTo(pt[0], pt[1]);
-      }
-      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+      for (var i = 0; i < points.length; i++){ if (i) ctx.lineTo(points[i][0], points[i][1]); else ctx.moveTo(points[i][0], points[i][1]); }
+      ctx.stroke();
     }
-    function label(str, pt, dx, dy, alpha, color, px, align){
-      if (alpha <= 0) return;
-      ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.font = '500 ' + px + 'px ' + mono;
-      ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(str, pt[0] + dx, pt[1] + dy); ctx.globalAlpha = 1;
-    }
-    function point(pt, k){
-      if (k <= 0) return;
-      ctx.globalAlpha = k;
-      ctx.beginPath(); ctx.arc(pt[0], pt[1], 4.5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
-      ctx.beginPath(); ctx.arc(pt[0], pt[1], 9 + 8 * (1 - k), 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1; ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    function draw(p, t){
+    function draw(travel){
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      var S = sheet(), u = S.u, px = Math.round(u * 0.26) + 3;
-      ctx.save();
-      ctx.translate(Math.sin(t * 0.35) * 3, Math.cos(t * 0.27) * 2);   /* the sheet breathes a little */
-      /* graph paper: a line every unit, a stronger one every five */
-      ctx.lineWidth = 1;
-      var start = S.ox - Math.ceil(S.ox / u) * u - u, i;
-      for (var gx = start; gx < W + u; gx += u){
-        i = Math.round((gx - S.ox) / u);
-        ctx.strokeStyle = i % 5 === 0 ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.06)';
-        ctx.beginPath(); ctx.moveTo(gx, -10); ctx.lineTo(gx, H + 10); ctx.stroke();
+      /* a little light at the horizon */
+      var sky = ctx.createLinearGradient(0, horizon - H * 0.18, 0, horizon + H * 0.1);
+      sky.addColorStop(0, 'rgba(255,255,255,0)'); sky.addColorStop(0.75, 'rgba(255,255,255,0.06)'); sky.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sky; ctx.fillRect(0, horizon - H * 0.18, W, H * 0.28);
+      /* grid: lines across, flowing toward the camera */
+      var off = ((travel % 1) + 1) % 1;
+      ctx.lineCap = 'butt';
+      for (var i = 0; i < 40; i++){
+        var z = 1.0 + i - off;
+        if (z < 0.9) continue;
+        var y = project(0, z)[1];
+        var a = 0.02 + 0.16 * Math.pow(1 - i / 40, 1.6);
+        stroke([[0, y], [W, y]], '255,255,255', 1, a);
       }
-      start = S.oy - Math.ceil(S.oy / u) * u - u;
-      for (var gy = start; gy < H + u; gy += u){
-        i = Math.round((S.oy - gy) / u);
-        ctx.strokeStyle = i % 5 === 0 ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.06)';
-        ctx.beginPath(); ctx.moveTo(-10, gy); ctx.lineTo(W + 10, gy); ctx.stroke();
+      /* grid: lines ahead, converging */
+      for (var x = -16; x <= 16; x++){
+        var near = project(x, 0.95), far = project(x, 80);
+        stroke([near, far], '255,255,255', 1, x === 0 ? 0.16 : 0.07);
       }
-      /* the axes */
-      ctx.strokeStyle = 'rgba(255,255,255,.42)';
-      ctx.beginPath(); ctx.moveTo(-10, S.oy); ctx.lineTo(W + 10, S.oy); ctx.moveTo(S.ox, -10); ctx.lineTo(S.ox, H + 10); ctx.stroke();
-      /* 1. the parabola y = x² − 4 */
-      curve(S, function(x){ return x * x - 4; }, -3.3, 3.3, part(p, 0, 0.3), 'rgba(255,255,255,.92)', 2);
-      label('y = x² − 4', at(S, 2.75, 3.6), 14, 0, part(p, 0.24, 0.32), 'rgba(255,255,255,.85)', px);
-      /* 2. the line y = x + 2 */
-      curve(S, function(x){ return x + 2; }, -4.8, 4.2, part(p, 0.32, 0.56), BLUE, 2);
-      label('y = x + 2', at(S, -4.6, -2.6), -6, 22, part(p, 0.5, 0.58), BLUE, px, 'left');
-      /* 3. where they meet */
-      var A = at(S, -2, 0), B = at(S, 3, 5);
-      point(A, part(p, 0.58, 0.7)); point(B, part(p, 0.64, 0.76));
-      label('(−2, 0)', A, -12, 20, part(p, 0.6, 0.7), 'rgba(255,255,255,.85)', px - 1, 'right');
-      label('(3, 5)', B, 14, -12, part(p, 0.66, 0.76), 'rgba(255,255,255,.85)', px - 1);
-      /* 4. the working, where there is room for it */
-      if (W >= 900){
-        var lines = ['x² − 4 = x + 2', 'x² − x − 6 = 0', '(x − 3)(x + 2) = 0', 'x = 3  or  x = −2'];
-        var lx = S.ox + 3.9 * u, ly = S.oy + 1.4 * u, lh = Math.round(u * 0.46) + 6;
-        for (var j = 0; j < lines.length; j++){
-          label(lines[j], [lx, ly + j * lh], 0, 0, part(p, 0.72 + j * 0.06, 0.82 + j * 0.06), j === 3 ? BLUE : 'rgba(255,255,255,.8)', px);
+      /* the curves and their equations, nearest last so they paint on top */
+      var placed = curves.map(function(c){
+        var zc = (((c.z - travel) % PERIOD) + PERIOD) % PERIOD;
+        return { c: c, zc: zc };
+      }).sort(function(p, q){ return q.zc - p.zc; });
+      ctx.font = '500 13px ' + mono; ctx.textBaseline = 'middle';
+      placed.forEach(function(pl){
+        var c = pl.c, zc = pl.zc + 1.4;
+        var pts = [];
+        for (var k = 0; k <= 48; k++){
+          var x = c.xs[0] + (c.xs[1] - c.xs[0]) * k / 48;
+          var z = zc + c.g(x);
+          if (z < 0.95 || z > 90) continue;
+          pts.push(project(x, z));
         }
-      }
-      ctx.restore();
+        if (pts.length < 2) return;
+        var depth = Math.max(0, Math.min(1, 1 - (zc - 1.4) / PERIOD));
+        var wgt = 0.8 + 2.2 * depth;
+        var al = 0.25 + 0.7 * depth;
+        if (c.tone === ACCENT){ stroke(pts, c.tone, wgt * 5, al * 0.12); stroke(pts, c.tone, wgt * 2.2, al * 0.3); }
+        stroke(pts, c.tone, wgt, al);
+        /* the equation sits by the curve's near end */
+        var tail = pts[pts.length - 1];
+        var fs = Math.round(10 + 8 * depth);
+        ctx.font = '500 ' + fs + 'px ' + mono;
+        /* on a phone the labels cross the copy, so they stay faint there */
+        ctx.fillStyle = 'rgba(' + c.tone + ',' + ((0.35 + 0.55 * depth) * (W < 700 ? 0.45 : 1)) + ')';
+        ctx.fillText(c.label, Math.min(W - 120, tail[0] + 12), tail[1] - fs * 0.9);
+      });
     }
-    var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
+    var reduceMotion = reduce;
+    var t = 0, last = 0, raf = 0, inView = true;
     function frame(now){
       raf = 0;
       if (!last) last = now;
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (!reduceMotion) t += dt;
-      /* before anyone scrolls the sheet fills in on its own: the parabola on a wide screen, the whole system on a phone */
-      var phone = W < 861;
-      var auto = Math.min(phone ? 0.9 : 0.3, t / (phone ? 18 : 10));
-      var sp = progress();
-      draw(reduceMotion ? 1 : Math.max(sp, auto), t);
+      if (!reduceMotion) t += dt * 0.55;
+      var p = progress();
+      draw(t + p * 26);
       /* the copy fades as the runway is consumed, the cue goes first */
-      var fade = Math.max(0, Math.min(1, (sp - 0.42) / 0.38));
+      var fade = Math.max(0, Math.min(1, (p - 0.42) / 0.38));
       copy.style.opacity = String(1 - fade);
       copy.style.transform = 'translateY(' + (-fade * 44).toFixed(1) + 'px)';
-      if (cue) cue.style.opacity = String(Math.max(0, 1 - sp * 5));
+      if (cue) cue.style.opacity = String(Math.max(0, 1 - p * 5));
       if (!reduceMotion && inView && !document.hidden) raf = requestAnimationFrame(frame);
     }
     function wake(){ if (!raf){ last = 0; raf = requestAnimationFrame(frame); } }
