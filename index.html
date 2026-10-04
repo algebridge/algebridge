@@ -6,7 +6,7 @@
 <title>Algebridge | Free Algebra 1 for every student</title>
 <meta name="description" content="Algebridge is a student-led initiative making Algebra 1 learnable for every student. Thirteen units, forty-six skills, feedback that names the slip, an AI helper that refuses to give answers, real tutors, and a 173-topic directory. Free, ad-free.">
 <link rel="canonical" href="https://algebridge.org/">
-<meta name="theme-color" content="#0f1b3d">
+<meta name="theme-color" content="#bfe0ff">
 <link rel="icon" type="image/png" href="algebridge logo icon.png">
 
 <meta property="og:type" content="website">
@@ -64,18 +64,23 @@
    ══════════════════════════════════════════════════════════════ */
 
 :root{
-  --black:#0f1b3d;        /* deep blue where the page is dark */
+  --black:#1e2a4a;        /* ink: a deep sky blue, where the page is dark */
   --white:#fff;
-  --stage:#e8effd;        /* pastel blue section panel */
-  --paper:#f6f8ff;        /* the page itself */
-  --muted:#7c89a8;        /* secondary text */
+  --paper:#f3f8ff;        /* the page: the palest sky */
+  --stage:#fff6d1;        /* a sunny panel */
+  --sky:#dcecff;          /* a sky panel */
+  --lavender:#ece8ff;
+  --mint:#e3f6ec;
+  --peach:#ffe9d9;
+  --sun:#f8c84a;          /* the sun */
+  --muted:#7a86a6;        /* secondary text */
   --ink-2:#2b3550;        /* body text that has to be read */
-  --line:#b9c8ee;         /* hairline border */
-  --line-soft:#dfe7fb;    /* hairline between cells */
-  --line-dark:#283765;    /* hairline on the dark blue */
+  --line:#cddbf3;         /* hairline border */
+  --line-soft:#e3ecfa;    /* hairline between cells */
+  --line-dark:#34436c;    /* hairline on the dark blue */
   --label:#55627f;        /* footer label */
   --accent:#2563eb;       /* Algebridge blue */
-  --frame:#edf2fe;        /* behind a loading frame */
+  --frame:#edf3ff;        /* behind a loading frame */
   --max:1472px;
   --pad:24px;
 }
@@ -176,23 +181,23 @@ img{display:block;max-width:100%;}
    the script): graph paper, a parabola and a line drawn in, the points
    where they meet, and the algebra that finds them. Phones get one
    screen and the scene fills in on its own.                           */
-.hero{position:relative;background:var(--black);color:var(--white);min-height:min(88vh,860px);}
+.hero{position:relative;background:#bfe0ff;color:var(--black);min-height:min(88vh,860px);}
 .hero-stage{position:relative;height:min(88vh,860px);overflow:hidden;isolation:isolate;
-  display:flex;flex-direction:column;justify-content:center;background:var(--black);}
+  display:flex;flex-direction:column;justify-content:center;background:#bfe0ff;}
 .hero-scene{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;}
 .hero-veil{position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:radial-gradient(62% 50% at 50% 46%,rgba(0,0,0,.66) 0%,rgba(0,0,0,.3) 55%,rgba(0,0,0,0) 100%),
-             linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,0) 26%,rgba(0,0,0,0) 74%,rgba(0,0,0,.9) 100%);}
+  background:radial-gradient(60% 50% at 50% 46%,rgba(255,255,255,.55) 0%,rgba(255,255,255,.2) 55%,rgba(255,255,255,0) 100%),
+             linear-gradient(180deg,rgba(255,255,255,0) 70%,rgba(243,248,255,.95) 100%);}
 .hero-inner{position:relative;z-index:3;text-align:center;max-width:900px;margin:0 auto;padding:0 var(--pad);
   will-change:opacity,transform;}
 .hero h1{font-size:clamp(2.6rem,6.6vw,6rem);font-weight:400;line-height:1.02;letter-spacing:-0.025em;max-width:14ch;margin:0 auto;}
-.hero-sub{margin:1.75rem auto 0;max-width:50ch;color:rgba(255,255,255,.72);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;}
+.hero-sub{margin:1.75rem auto 0;max-width:50ch;color:var(--ink-2);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;}
 .hero-cta{margin-top:2.25rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;}
-.hero-cta .btn-line{border:1px solid rgba(255,255,255,.28);color:#fff;}
-.hero-cta .btn-line:hover{border-color:#fff;background:rgba(255,255,255,.06);}
+.hero-cta .btn-line{border:1px solid rgba(30,42,74,.3);color:var(--black);background:rgba(255,255,255,.5);}
+.hero-cta .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.85);}
 .scroll-cue{position:absolute;right:var(--pad);bottom:1.75rem;z-index:4;
-  display:flex;align-items:center;gap:.75rem;color:rgba(255,255,255,.62);font-size:.8125rem;will-change:opacity;}
-.scroll-cue .ring{width:30px;height:30px;border:1px solid rgba(255,255,255,.35);border-radius:6px;
+  display:flex;align-items:center;gap:.75rem;color:rgba(30,42,74,.65);font-size:.8125rem;will-change:opacity;}
+.scroll-cue .ring{width:30px;height:30px;border:1px solid rgba(30,42,74,.35);border-radius:6px;
   display:flex;align-items:center;justify-content:center;}
 .scroll-cue .ring svg{animation:nudge 2.2s ease-in-out infinite;}
 @keyframes nudge{0%,100%{transform:translateY(-2px);}50%{transform:translateY(2px);}}
@@ -203,7 +208,7 @@ img{display:block;max-width:100%;}
 
 /* ── Frames: a hairline around whatever the platform sends ──── */
 .frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--white);}
-.frame-dark{border-color:var(--line-dark);}
+.frame-dark{border-color:#b7cff5;}
 /* the big features (the games, the house, the whiteboard) sit in a smaller
    window that scrolls inside itself: a demo of the thing, at a demo's size */
 .frame.demo-window{max-width:600px;max-height:560px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
@@ -214,7 +219,7 @@ img{display:block;max-width:100%;}
 /* ── The first skill, under the hero ────────────────────────── */
 .demo-sec{position:relative;z-index:4;margin-top:-16vh;padding-bottom:3.5rem;}
 .demo-sec .wrap{max-width:980px;}
-.demo-sec .frame{box-shadow:0 1px 2px rgba(15,27,61,.08),0 50px 90px -40px rgba(15,27,61,.5);}
+.demo-sec .frame{box-shadow:0 1px 2px rgba(30,42,74,.08),0 40px 80px -40px rgba(30,42,74,.35);}
 .demo-cap{display:flex;justify-content:space-between;gap:.75rem 2rem;flex-wrap:wrap;margin-top:1rem;color:var(--muted);font-size:.9375rem;line-height:1.5;}
 .demo-cap a{color:var(--black);white-space:nowrap;}
 .demo-cap a:hover{text-decoration:underline;text-underline-offset:3px;}
@@ -247,19 +252,38 @@ img{display:block;max-width:100%;}
 }
 
 /* ── Scroll-revealed statement ──────────────────────────────── */
-.statement{background:var(--black);color:var(--white);padding:11rem 0;}
+.statement{background:linear-gradient(180deg,#3b78e0 0%,#5e97ec 100%);color:var(--white);padding:11rem 0;position:relative;overflow:hidden;}
+.statement .wrap{position:relative;z-index:1;}
 .statement p{font-size:clamp(1.75rem,4.4vw,3.5rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
 .statement .w{color:rgba(255,255,255,.2);transition:color .35s ease;}
 .statement .w.lit{color:var(--white);}
-.statement .w.accent.lit{color:#8fb3ff;}
+.statement .w.accent.lit{color:var(--sun);}
 
 
 /* ── Sections: an introduction, then rows of text beside a frame ─ */
-.sec{padding:7rem 0;}
-.sec-grey{background:var(--stage);}
-.sec-lavender{background:#eeebfd;}
+.sec{padding:7rem 0;position:relative;overflow:hidden;}
+.sec .wrap{position:relative;z-index:1;}
+.sec-sun{background:var(--stage);}
+.sec-sun .rows,.sec-sun .row{border-color:#f0dd9a;}
+.sec-lavender{background:var(--lavender);}
 .sec-lavender .people,.sec-lavender .person{border-color:#cfc8f2;}
-.sec-intro{max-width:64ch;}
+.sec-mint{background:var(--mint);}
+.sec-mint .cols{border-color:#bfe3cf;}
+.sec-intro{max-width:64ch;position:relative;}
+.art{display:block;}
+.sec-art{position:absolute;right:calc(var(--pad) + 2vw);top:5rem;z-index:0;pointer-events:none;}
+#directory .sec-art{top:3rem;}
+.art-sun{width:150px;animation:spin 48s linear infinite;}
+.art-cloud{width:220px;}
+.art-cloud.drift{animation:drift 26s ease-in-out infinite alternate;}
+.art-balloon{width:120px;animation:bob 7s ease-in-out infinite;}
+.art-kite{width:130px;animation:sway 6s ease-in-out infinite;transform-origin:50% 90%;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes drift{from{transform:translateX(0);}to{transform:translateX(40px);}}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+@keyframes sway{0%,100%{transform:rotate(-5deg);}50%{transform:rotate(5deg);}}
+.sky-clouds{position:absolute;inset:0;pointer-events:none;z-index:0;}
+.sky-clouds .art-cloud{position:absolute;opacity:.9;}
 .sec-intro .h2{max-width:16ch;}
 .sec-intro p{margin-top:1.5rem;color:var(--label);font-size:1.0625rem;line-height:1.65;}
 .rows{margin-top:3.5rem;border-top:1px solid var(--line-soft);}
@@ -275,13 +299,14 @@ img{display:block;max-width:100%;}
 .row.single p{max-width:64ch;}
 
 /* ── Archie ─────────────────────────────────────────────────── */
-.archie{background:var(--black);color:var(--white);padding:7rem 0;}
+.archie{background:var(--sky);color:var(--black);padding:7rem 0;position:relative;overflow:hidden;}
+.archie .wrap{position:relative;z-index:1;}
 .archie-head{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:2rem 4rem;align-items:end;margin-bottom:2.5rem;}
 .archie-head .h2{max-width:12ch;}
-.archie-head p{color:rgba(255,255,255,.7);font-size:1.0625rem;line-height:1.65;max-width:58ch;}
+.archie-head p{color:var(--ink-2);font-size:1.0625rem;line-height:1.65;max-width:58ch;}
 .archie-head p + p{margin-top:1rem;}
-.archie-head strong{color:#fff;font-weight:500;}
-.archie .more{color:#fff;margin-top:1.25rem;}
+.archie-head strong{color:var(--black);font-weight:500;}
+.archie .more{color:var(--black);margin-top:1.25rem;}
 
 /* ── Students, parents, teachers ────────────────────────────── */
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:3rem 4rem;margin-top:3rem;padding-top:3rem;border-top:1px solid var(--line);}
@@ -304,13 +329,15 @@ img{display:block;max-width:100%;}
 .person.open:hover b{text-decoration:underline;text-underline-offset:3px;}
 
 /* ── Curriculum stage ───────────────────────────────────────── */
-.stage{background:var(--white);padding:7rem 0;border-bottom:1px solid var(--line-soft);}
+.stage{background:var(--paper);padding:7rem 0;border-bottom:1px solid var(--line-soft);position:relative;overflow:hidden;}
+.stage .wrap{position:relative;z-index:1;}
 .stage-words{display:flex;flex-wrap:wrap;gap:.35em 1.15em;align-items:baseline;justify-content:center;
   font-size:clamp(1.5rem,4vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.01em;max-width:1100px;margin:0 auto;}
 .stage-words span{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;}
 .stage-words span.in{opacity:1;transform:none;}
 .stage-words .dim{color:#8da2d6;}
 .stage-words .hot{color:var(--accent);}
+.stage-words .warm{color:#e0a21b;}
 .stage-head{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:3.5rem;flex-wrap:wrap;}
 .stage-foot{margin-top:4rem;display:flex;justify-content:center;gap:.75rem;flex-wrap:wrap;}
 
@@ -331,15 +358,20 @@ img{display:block;max-width:100%;}
 .faq details a{text-decoration:underline;text-underline-offset:3px;}
 
 /* ── Closing CTA ────────────────────────────────────────────── */
-.close-sec{background:var(--black);color:var(--white);padding:9rem 0;}
+.close-sec{background:linear-gradient(180deg,#ffe3b8 0%,#ffd1c2 60%,#f6c0d6 100%);color:var(--black);padding:9rem 0 0;position:relative;overflow:hidden;}
+.close-sec .wrap{position:relative;z-index:1;padding-bottom:4rem;}
+.close-sec .btn-invert{background:var(--black);color:var(--white);}
+.close-sec .btn-line{border:1px solid rgba(30,42,74,.3);color:var(--black);}
+.close-sec .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.4);}
+.close-art{display:block;width:100%;height:auto;margin-top:-1px;}
 .close-sec .h2{max-width:14ch;}
-.close-sec p{margin:2rem 0 2.75rem;max-width:46ch;color:rgba(255,255,255,.66);font-size:1.0625rem;line-height:1.6;}
+.close-sec p{margin:2rem 0 2.75rem;max-width:46ch;color:var(--ink-2);font-size:1.0625rem;line-height:1.6;}
 .close-sec .ctas{display:flex;gap:.75rem;flex-wrap:wrap;}
-.close-sec .btn-line{border:1px solid rgba(255,255,255,.28);color:#fff;}
-.close-sec .btn-line:hover{border-color:#fff;background:rgba(255,255,255,.06);}
+.close-sec .btn-line{border:1px solid rgba(30,42,74,.3);color:var(--black);}
+.close-sec .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.4);}
 
 /* ── Footer ─────────────────────────────────────────────────── */
-.foot{background:var(--black);color:var(--white);padding:8rem 0 1.5rem;}
+.foot{background:var(--black);color:var(--white);padding:6rem 0 1.5rem;}
 .foot-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5rem;padding-bottom:7rem;}
 .foot-col .label{color:var(--label);margin-bottom:1.25rem;display:block;font-size:.8125rem;}
 .foot-col a,.foot-col span:not(.label){display:block;font-size:.9375rem;color:rgba(255,255,255,.72);padding:.3125rem 0;}
@@ -385,6 +417,8 @@ img{display:block;max-width:100%;}
   .foot-tag{padding-bottom:3.5rem;}
   .row{padding:2.5rem 0;gap:1.5rem;}
   .rows{margin-top:2.5rem;}
+  .sec-art{display:none;}
+  .sky-clouds .art-cloud{width:140px !important;}
 }
 @media(max-width:640px){
   .demo-sec{margin-top:-10vh;padding-bottom:2.5rem;}
@@ -472,7 +506,7 @@ img{display:block;max-width:100%;}
       <p class="hero-sub">Algebridge is a free Algebra 1 course built by students: thirteen units, forty-six skills,
         practice that explains what went wrong, and a study helper that keeps the thinking yours.</p>
       <div class="hero-cta">
-        <a class="btn btn-invert btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="hero-start">Start learning</a>
+        <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="hero-start">Start learning</a>
         <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="hero-schools">For teachers and schools</a>
       </div>
     </div>
@@ -502,6 +536,7 @@ img{display:block;max-width:100%;}
 
 <!-- ══ Statement ═════════════════════════════════════════════ -->
 <section class="statement" id="mission">
+  <div class="sky-clouds"><svg class="art art-cloud drift" style="left:6%;top:3rem;width:260px;opacity:.95" viewBox="0 0 220 110" aria-hidden="true"><path d="M50 95h120a30 30 0 0 0 2-60 42 42 0 0 0-78-14 32 32 0 0 0-44 74z" fill="#fff" stroke="#cfe0f8" stroke-width="3" stroke-linejoin="round"/></svg><svg class="art art-cloud" style="right:10%;bottom:3rem;width:200px;opacity:.85" viewBox="0 0 220 110" aria-hidden="true"><path d="M50 95h120a30 30 0 0 0 2-60 42 42 0 0 0-78-14 32 32 0 0 0-44 74z" fill="#fff" stroke="#cfe0f8" stroke-width="3" stroke-linejoin="round"/></svg></div>
   <div class="wrap">
     <p data-reveal-words>Algebra 1 is the year math stops being arithmetic and starts being a language. Everything after it is built on that year.</p>
   </div>
@@ -511,6 +546,7 @@ img{display:block;max-width:100%;}
 <section class="sec" id="how">
   <span id="platform"></span><span id="try"></span>
   <div class="wrap">
+    <div class="sec-art"><svg class="art art-sun" viewBox="0 0 160 160" aria-hidden="true"><g fill="none" stroke="#f3b31f" stroke-width="3" stroke-linecap="round"><path d="M80 10v16M80 134v16M10 80h16M134 80h16M30.5 30.5l11.3 11.3M118.2 118.2l11.3 11.3M30.5 129.5l11.3-11.3M118.2 41.8l11.3-11.3"/></g><circle cx="80" cy="80" r="38" fill="#f8c84a"/><circle cx="80" cy="80" r="38" fill="none" stroke="#f3b31f" stroke-width="3"/></svg></div>
     <div class="sec-intro rv">
       <h2 class="h2">How a skill works.</h2>
       <p>Every skill on Algebridge follows the same steps: a short video, the key idea, practice, feedback, and
@@ -549,6 +585,7 @@ img{display:block;max-width:100%;}
 
 <!-- ══ Archie ════════════════════════════════════════════════ -->
 <section class="archie" id="archie">
+  <div class="sky-clouds"><svg class="art art-cloud drift" style="left:4%;top:4rem;width:180px" viewBox="0 0 220 110" aria-hidden="true"><path d="M50 95h120a30 30 0 0 0 2-60 42 42 0 0 0-78-14 32 32 0 0 0-44 74z" fill="#fff" stroke="#cfe0f8" stroke-width="3" stroke-linejoin="round"/></svg><svg class="art art-cloud" style="right:6%;top:2rem;width:240px" viewBox="0 0 220 110" aria-hidden="true"><path d="M50 95h120a30 30 0 0 0 2-60 42 42 0 0 0-78-14 32 32 0 0 0-44 74z" fill="#fff" stroke="#cfe0f8" stroke-width="3" stroke-linejoin="round"/></svg></div>
   <div class="wrap">
     <div class="archie-head rv">
       <h2 class="h2">Archie, the study helper.</h2>
@@ -574,7 +611,7 @@ img{display:block;max-width:100%;}
         is public.</p>
     </div>
     <div class="stage-words" id="stageWords">
-      <span>Working with Units</span>
+      <span class="warm">Working with Units</span>
       <span class="dim">Solving Equations</span>
       <span>Linear Graphs</span>
       <span class="dim">Forms of Linear Equations</span>
@@ -582,7 +619,7 @@ img{display:block;max-width:100%;}
       <span class="dim">Inequalities</span>
       <span class="hot">Functions</span>
       <span class="dim">Sequences</span>
-      <span>Exponents &amp; Radicals</span>
+      <span class="warm">Exponents &amp; Radicals</span>
       <span class="dim">Exponential Growth</span>
       <span>Multiplying &amp; Factoring</span>
       <span class="dim">Quadratic Equations</span>
@@ -595,40 +632,10 @@ img{display:block;max-width:100%;}
   </div>
 </section>
 
-<!-- ══ Games and the house ═══════════════════════════════════ -->
-<section class="sec sec-grey" id="games">
-  <div class="wrap">
-    <div class="sec-intro rv">
-      <h2 class="h2">The games and the house.</h2>
-      <p>Finishing a skill pays Bridgeys. Bridgeys are for playing and for furnishing a house, and the games stop
-        for math, so they reward practice instead of replacing it.</p>
-    </div>
-    <div class="rows">
-      <div class="row single rv">
-        <div class="row-text">
-          <h3>Five games, one for each teammate</h3>
-          <p>Skating with Veronica, wrestling with Shaurya, cheer with Jo, volleyball with Jordyn, soccer with Rayla.
-            Every game stops for a head-math question from the unit the student is on, and right answers pay
-            Bridgeys, up to 60 a day across all five. The characters are drawn after the students who built
-            Algebridge.</p>
-          <a class="more" href="https://learn.algebridge.org/games" target="_blank" rel="noopener">The games on the platform <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
-        </div>
-      </div>
-      <div class="row single rv">
-        <div class="row-text">
-          <h3>Bridgey House</h3>
-          <p>Bridgeys buy furniture for a house with two floors and a garden, and 38 titles to wear on the
-            leaderboard. The first house is free, and finishing a unit earns a prize for the shelf.</p>
-          <a class="more" href="https://learn.algebridge.org/house" target="_blank" rel="noopener">Bridgey House on the platform <svg width="13" height="11" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.2"/></svg></a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ══ Students, parents, teachers ═══════════════════════════ -->
-<section class="sec" id="for-you">
+<section class="sec sec-mint" id="for-you">
   <div class="wrap">
+    <div class="sec-art"><svg class="art art-balloon" viewBox="0 0 160 240" aria-hidden="true"><path d="M80 10c-38 0-60 30-60 66 0 40 36 72 52 96h16c16-24 52-56 52-96 0-36-22-66-60-66z" fill="#ffb4c8" stroke="#e58aa6" stroke-width="3" stroke-linejoin="round"/><path d="M80 10c-14 0-24 30-24 66 0 40 14 72 20 96M80 10c14 0 24 30 24 66 0 40-14 72-20 96" fill="none" stroke="#e58aa6" stroke-width="3"/><path d="M72 172v22M88 172v22" stroke="#8a5a3c" stroke-width="3"/><rect x="64" y="194" width="32" height="28" rx="6" fill="#f8c84a" stroke="#d99a16" stroke-width="3"/></svg></div>
     <div class="sec-intro rv">
       <h2 class="h2">Students, parents, teachers.</h2>
       <p>Each of you is asking a different question. Short answers here, and a page for each that goes further.</p>
@@ -665,9 +672,10 @@ img{display:block;max-width:100%;}
 </section>
 
 <!-- ══ Tutoring and the directory ════════════════════════════ -->
-<section class="sec" id="directory" style="padding-top:0">
+<section class="sec" id="directory">
   <div class="wrap">
-    <div class="rows" style="margin-top:0">
+    <div class="sec-art"><svg class="art art-kite" viewBox="0 0 200 260" aria-hidden="true"><path d="M100 10 170 90 100 190 30 90z" fill="#9ed3ff" stroke="#4f9ee8" stroke-width="3" stroke-linejoin="round"/><path d="M100 10v180M30 90h140" stroke="#4f9ee8" stroke-width="3"/><path d="M100 190c-10 20 10 30 0 50s10 10 0 20" fill="none" stroke="#4f9ee8" stroke-width="3" stroke-linecap="round"/><path d="M92 214l-10 6M108 230l10 6M94 246l-10 6" stroke="#f3b31f" stroke-width="3" stroke-linecap="round"/></svg></div>
+    <div class="rows">
       <div class="row compact rv">
         <div class="row-text">
           <h3>Real tutors, inside the app</h3>
@@ -693,6 +701,7 @@ img{display:block;max-width:100%;}
 
 <!-- ══ Team ══════════════════════════════════════════════════ -->
 <section class="sec sec-lavender" id="team">
+  <div class="sky-clouds"><svg class="art art-cloud" style="right:8%;top:3rem;width:200px;opacity:.7" viewBox="0 0 220 110" aria-hidden="true"><path d="M50 95h120a30 30 0 0 0 2-60 42 42 0 0 0-78-14 32 32 0 0 0-44 74z" fill="#fff" stroke="#cfe0f8" stroke-width="3" stroke-linejoin="round"/></svg></div>
   <div class="wrap">
     <div class="sec-intro rv">
       <h2 class="h2">From students.<br>For students.</h2>
@@ -760,6 +769,7 @@ img{display:block;max-width:100%;}
       <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="close-schools">Bring it to a school</a>
     </div>
   </div>
+  <svg class="close-art" viewBox="0 0 1440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M0 150C200 110 360 110 540 140s360 40 540 10 240-40 360-30v90H0z" fill="#9fd3a3"/><path d="M0 180c240-40 480-40 720-10s480 20 720-20v70H0z" fill="#7fc287"/><path d="M380 150q340-130 680 0" fill="none" stroke="#1e2a4a" stroke-width="6"/><path d="M380 150h680" stroke="#1e2a4a" stroke-width="6"/><path d="M450 150v-40M520 150v-62M590 150v-76M660 150v-84M720 150v-86M790 150v-82M860 150v-72M930 150v-56M1000 150v-34" stroke="#1e2a4a" stroke-width="4"/></svg>
 </section>
 
 <!-- ══ Footer ════════════════════════════════════════════════ -->
@@ -938,15 +948,15 @@ img{display:block;max-width:100%;}
     var ctx = scene.getContext('2d');
     var W = 0, H = 0, horizon = 0;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
-    var ACCENT = '37,99,235';
+    var ACCENT = '37,99,235', AMBER = '217,142,10', INK = '30,42,74';
     /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
     var PERIOD = 44;
     var curves = [
       { z: 4,  tone: ACCENT,      label: 'y = x\u00B2',       xs: [-3.2, 3.2],  g: function(x){ return 0.42 * x * x; } },
-      { z: 14, tone: '255,255,255', label: 'y = 2x + 3',     xs: [-5, 5],      g: function(x){ return 0.9 * x + 4; } },
+      { z: 14, tone: AMBER, label: 'y = 2x + 3',     xs: [-5, 5],      g: function(x){ return 0.9 * x + 4; } },
       { z: 24, tone: ACCENT,      label: 'y = |x \u2212 2|', xs: [-3, 7],      g: function(x){ return 1.1 * Math.abs(x - 2); } },
-      { z: 34, tone: '255,255,255', label: 'y = 2\u02E3',     xs: [-6, 3.4],    g: function(x){ return 0.35 * Math.pow(2, x); } },
-      { z: 9,  tone: '255,255,255', label: 'y = \u2212x + 5', xs: [-5, 6],      g: function(x){ return 5.5 - 0.7 * x; } },
+      { z: 34, tone: INK, label: 'y = 2\u02E3',     xs: [-6, 3.4],    g: function(x){ return 0.35 * Math.pow(2, x); } },
+      { z: 9,  tone: AMBER, label: 'y = \u2212x + 5', xs: [-5, 6],      g: function(x){ return 5.5 - 0.7 * x; } },
       { z: 29, tone: ACCENT,      label: 'y = (x + 3)\u00B2',  xs: [-7.5, 1.5],  g: function(x){ return 0.5 * (x + 3) * (x + 3); } }
     ];
     function size(){
@@ -972,12 +982,40 @@ img{display:block;max-width:100%;}
       for (var i = 0; i < points.length; i++){ if (i) ctx.lineTo(points[i][0], points[i][1]); else ctx.moveTo(points[i][0], points[i][1]); }
       ctx.stroke();
     }
-    function draw(travel){
-      ctx.fillStyle = '#0f1b3d'; ctx.fillRect(0, 0, W, H);
-      /* a little light at the horizon */
-      var sky = ctx.createLinearGradient(0, horizon - H * 0.18, 0, horizon + H * 0.1);
-      sky.addColorStop(0, 'rgba(255,255,255,0)'); sky.addColorStop(0.75, 'rgba(255,255,255,0.06)'); sky.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = sky; ctx.fillRect(0, horizon - H * 0.18, W, H * 0.28);
+    /* clouds: a few, each a cluster of circles, drifting right at their own pace */
+    var clouds = [];
+    for (var ci = 0; ci < 6; ci++) clouds.push({ x: ci / 6, y: 0.08 + 0.2 * ((ci * 7) % 5) / 5, s: 0.7 + ((ci * 3) % 4) * 0.2, v: 0.006 + ((ci * 5) % 3) * 0.003 });
+    function cloudAt(x, y, r, alpha){
+      ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+      [[0, 0, 1], [-0.9, 0.25, 0.75], [0.95, 0.2, 0.8], [-0.35, -0.45, 0.72], [0.4, -0.5, 0.7], [1.7, 0.4, 0.55], [-1.6, 0.42, 0.5]].forEach(function(b){
+        ctx.beginPath(); ctx.arc(x + b[0] * r, y + b[1] * r, r * b[2], 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.beginPath(); ctx.rect(x - 1.9 * r, y + 0.2 * r, 3.8 * r, 0.6 * r); ctx.fill();
+    }
+    function draw(travel, time){
+      /* the sky, warmest at the horizon */
+      var sky = ctx.createLinearGradient(0, 0, 0, horizon + H * 0.08);
+      sky.addColorStop(0, '#9ccdfd'); sky.addColorStop(0.7, '#cfe6ff'); sky.addColorStop(1, '#fff3cf');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, horizon + H * 0.08);
+      /* the ground plane: the palest sky, so the grid reads as paper */
+      var ground = ctx.createLinearGradient(0, horizon, 0, H);
+      ground.addColorStop(0, '#e9f3ff'); ground.addColorStop(1, '#f3f8ff');
+      ctx.fillStyle = ground; ctx.fillRect(0, horizon, W, H - horizon);
+      /* the sun, top right, with a soft glow */
+      var sx = W * 0.82, sy = horizon * 0.42, sr = Math.max(34, Math.min(60, W * 0.04));
+      var glow = ctx.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 4);
+      glow.addColorStop(0, 'rgba(255,231,150,.75)'); glow.addColorStop(1, 'rgba(255,231,150,0)');
+      ctx.fillStyle = glow; ctx.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
+      ctx.fillStyle = '#f8c84a'; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+      /* clouds */
+      clouds.forEach(function(c){
+        var cx = ((c.x + time * c.v) % 1.3) * W * 1.3 - W * 0.15, cy = horizon * c.y + horizon * 0.1, r = sr * 0.75 * c.s;
+        cloudAt(cx, cy, r, 0.92);
+      });
+      /* haze at the horizon */
+      var haze = ctx.createLinearGradient(0, horizon - H * 0.06, 0, horizon + H * 0.06);
+      haze.addColorStop(0, 'rgba(255,255,255,0)'); haze.addColorStop(0.5, 'rgba(255,255,255,.7)'); haze.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = haze; ctx.fillRect(0, horizon - H * 0.06, W, H * 0.12);
       /* grid: lines across, flowing toward the camera */
       var off = ((travel % 1) + 1) % 1;
       ctx.lineCap = 'butt';
@@ -986,12 +1024,12 @@ img{display:block;max-width:100%;}
         if (z < 0.9) continue;
         var y = project(0, z)[1];
         var a = 0.02 + 0.16 * Math.pow(1 - i / 40, 1.6);
-        stroke([[0, y], [W, y]], '255,255,255', 1, a);
+        stroke([[0, y], [W, y]], INK, 1, a * 0.9);
       }
       /* grid: lines ahead, converging */
       for (var x = -16; x <= 16; x++){
         var near = project(x, 0.95), far = project(x, 80);
-        stroke([near, far], '255,255,255', 1, x === 0 ? 0.16 : 0.07);
+        stroke([near, far], INK, 1, x === 0 ? 0.16 : 0.07);
       }
       /* the curves and their equations, nearest last so they paint on top */
       var placed = curves.map(function(c){
@@ -1012,7 +1050,7 @@ img{display:block;max-width:100%;}
         var depth = Math.max(0, Math.min(1, 1 - (zc - 1.4) / PERIOD));
         var wgt = 0.8 + 2.2 * depth;
         var al = 0.25 + 0.7 * depth;
-        if (c.tone === ACCENT){ stroke(pts, c.tone, wgt * 5, al * 0.12); stroke(pts, c.tone, wgt * 2.2, al * 0.3); }
+        if (c.tone !== INK){ stroke(pts, c.tone, wgt * 5, al * 0.1); stroke(pts, c.tone, wgt * 2.2, al * 0.25); }
         stroke(pts, c.tone, wgt, al);
         /* the equation sits by the curve's near end */
         var tail = pts[pts.length - 1];
@@ -1030,8 +1068,9 @@ img{display:block;max-width:100%;}
       if (!last) last = now;
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (!reduceMotion) t += dt * 0.55;
+      /* the clouds keep moving while the hero is in view, scroll or not */
       var p = progress();
-      draw(t + p * 26);
+      draw(t + p * 26, t);
       /* the copy fades as the runway is consumed, the cue goes first */
       var fade = Math.max(0, Math.min(1, (p - 0.42) / 0.38));
       copy.style.opacity = String(1 - fade);
