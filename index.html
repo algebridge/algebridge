@@ -1153,6 +1153,8 @@ img{display:block;max-width:100%;}
     var W = 0, H = 0, CH = 0, S = 0, horizon = 0, winL = -1, winR = -1, winT = 1e9;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
     var BLUE = '37,99,235', AMBER = '245,158,11', INK = '27,42,82';
+    /* the equation is set in a darker shade of its curve's color, so the two read as one */
+    var BLUE_INK = '29,78,216', AMBER_INK = '180,83,9';
     /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
     var PERIOD = 44;
     var curves = [
@@ -1247,29 +1249,37 @@ img{display:block;max-width:100%;}
            pile up at the vanishing point, so a label comes in as its curve nears. */
         var la = Math.max(0, (depth - 0.5) / 0.3) * (W < 700 ? 0.7 : 1);
         if (la <= 0.02) return;
-        var fs = Math.round(11 + 8 * depth);
+        var fs = Math.round(12 + 9 * depth);
         ctx.font = '500 ' + fs + 'px ' + mono;
         var tw = ctx.measureText(c.label).width, best = null;
+        /* never up in the haze by the horizon, where every line is faint and bunched: the
+           marker goes on a part of the curve that is plainly a curve */
+        var near = Math.max(fs, Math.min(30, (winT - 6) * 0.45));
         for (var i = 0; i < pts.length; i++){
           var q2 = pts[i];
-          if (!q2 || q2[0] < 16 || q2[0] > W - 16 || q2[1] < fs || q2[1] > CH - 12) continue;
+          if (!q2 || q2[0] < 16 || q2[0] > W - 16 || q2[1] < near || q2[1] > CH - 12) continue;
           var level = q2[1] >= winT - 6;                                  /* level with the window */
           if (level && q2[0] > winL - 8 && q2[0] < winR + 8) continue;    /* behind it */
           /* beside the window the text goes away from it; in the band, to the right when there is room */
-          var right = level ? q2[0] > winR : q2[0] + 14 + tw < W - 10;
-          var lx = right ? q2[0] + 14 : q2[0] - 14 - tw;
+          var right = level ? q2[0] > winR : q2[0] + 20 + tw < W - 10;
+          var lx = right ? q2[0] + 20 : q2[0] - 20 - tw;
           if (lx < 6 || lx + tw > W - 6) continue;
           if (level && (right ? lx < winR + 4 : lx + tw > winL - 4)) continue;
-          if (!best || q2[1] > best.y + 1.5 || (Math.abs(q2[1] - best.y) <= 1.5 && q2[0] > best.x)) best = { x: q2[0], y: q2[1], lx: lx, right: right };
+          /* the text itself has to fit too: above the marker, or below it when the horizon is close,
+             and never across the window's top edge or off the canvas */
+          var ly = q2[1] - fs * 0.85;
+          if (ly < fs * 0.7) ly = q2[1] + fs * 1.1;
+          if (ly + fs * 0.6 > CH) continue;
+          if (ly + fs * 0.6 > winT - 4 && lx + tw > winL - 4 && lx < winR + 4) continue;
+          if (!best || q2[1] > best.y + 1.5 || (Math.abs(q2[1] - best.y) <= 1.5 && q2[0] > best.x)) best = { x: q2[0], y: q2[1], lx: lx, ly: ly, right: right };
         }
         if (!best) return;
-        var A = [best.x, best.y], lx = best.lx, right = best.right;
-        var ly = A[1] - fs * 0.85;
-        if (ly < fs * 0.7) ly = A[1] + fs * 1.1;
-        ctx.fillStyle = 'rgba(' + c.tone + ',' + la + ')';
-        ctx.beginPath(); ctx.arc(A[0], A[1], 2 + 1.5 * depth, 0, Math.PI * 2); ctx.fill();
-        stroke([[A[0], A[1]], [right ? lx - 5 : lx + tw + 5, ly]], c.tone, 1, la * 0.9);
-        ctx.fillStyle = 'rgba(' + INK + ',' + la + ')';
+        var A = [best.x, best.y], lx = best.lx, ly = best.ly, right = best.right;
+        stroke([[A[0], A[1]], [right ? lx - 6 : lx + tw + 6, ly]], c.tone, 1.4, la);
+        ctx.beginPath(); ctx.arc(A[0], A[1], 2.6 + 1.6 * depth, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(' + c.tone + ',' + la + ')'; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,' + la + ')'; ctx.stroke();
+        ctx.fillStyle = 'rgba(' + (c.tone === BLUE ? BLUE_INK : AMBER_INK) + ',' + la + ')';
         ctx.fillText(c.label, lx, ly);
         labels.push({ label: c.label, ax: Math.round(A[0]), ay: Math.round(A[1]), lx: Math.round(lx), ly: Math.round(ly), w: Math.round(tw), fs: fs });
       });
