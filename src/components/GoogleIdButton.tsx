@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 /** The public OAuth client "AlgeBridge web" in the Google Cloud project algebridge. Not a secret. */
 export const GOOGLE_CLIENT_ID = "132353866592-2d9sqqu7j9jt9coba9bbjb78qe4brq04.apps.googleusercontent.com";
 
+/** The addresses listed under Authorized JavaScript origins on that client. */
+export const GOOGLE_BUTTON_ORIGINS = new Set(["https://learn.algebridge.org"]);
+
 type GoogleId = {
   accounts: {
     id: {
@@ -58,14 +61,10 @@ export function GoogleIdButton({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // Google refuses its button on an address the client does not list, so
-      // keep the redirect button until Google says this one is allowed.
-      const allowed = await fetch("/api/google-origin")
-        .then((r) => r.json() as Promise<{ valid?: boolean }>)
-        .then((j) => j.valid === true)
-        .catch(() => false);
-      if (cancelled) return;
-      if (!allowed) return setState("failed");
+      // Google refuses its button on an address the client does not list.
+      // Only learn.algebridge.org is listed (Google Cloud, project AlgeBridge,
+      // client "AlgeBridge web"), so everywhere else keeps the redirect button.
+      if (!GOOGLE_BUTTON_ORIGINS.has(window.location.origin)) return setState("failed");
       const google = await loadGoogle();
       if (cancelled) return;
       if (!google || !host.current) return setState("failed");
