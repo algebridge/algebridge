@@ -5,12 +5,14 @@ import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { RinkGame } from "@/components/house/RinkGame";
 import { Veronica } from "@/components/house/Veronica";
 import { CourtGame } from "@/components/games/CourtGame";
+import { GameSetupBar } from "@/components/games/GameSetupBar";
 import { Player } from "@/components/games/Players";
 import { RinkDecor, RinkTray } from "@/components/games/RinkDecor";
 import { CourtScene, RinkScene } from "@/components/games/Scenes";
 import { pctX, pctY } from "@/lib/dollhouse";
 import { depthScale, GAME_CARDS, getCourtGame, getGameCard, isGameId, type CourtGameId, type GameCard, type GameId } from "@/lib/games";
 import { today } from "@/lib/path";
+import { DEFAULT_SETUP, PARTNERS, readSetup, saveSetup, topicLabel, type GameSetup } from "@/lib/game-session";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
@@ -47,7 +49,21 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
   const [playing, setPlaying] = useState(false);
   const [decorating, setDecorating] = useState(false);
   const [placing, setPlacing] = useState<string | null>(null);
+  /** What the questions are about, and one player or two. Remembered on this device, outside the demo. */
+  const [setup, setSetup] = useState<GameSetup>(DEFAULT_SETUP);
   const stage = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!inDemo) setSetup(readSetup());
+  }, [inDemo]);
+
+  function changeSetup(patch: Partial<GameSetup>) {
+    setSetup((cur) => {
+      const next = { ...cur, ...patch };
+      if (!inDemo) saveSetup(next);
+      return next;
+    });
+  }
 
   const demoRefresh = demo?.refresh;
   const refresh = useCallback(() => {
@@ -136,8 +152,8 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         {/* The demo sits under the heading algebridge.org gives it. */}
         {!inDemo && <h1 className="page-title">Games</h1>}
         <p className="page-subtitle">
-          Play with the team. Every game stops for a quick head-math question from the unit you are on, and every right answer pays
-          Bridgeys, up to {RINK_DAILY_CAP} a day across all five games.
+          Play with the team, alone or against a friend. Every game stops for a quick head-math question on the topic you pick, and every
+          right answer in a 1-player game pays Bridgeys, up to {RINK_DAILY_CAP} a day across all five games.
         </p>
       </header>
 
@@ -174,9 +190,10 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
               />
             )}
             {playing && progress ? (
-              <RinkGame key="rink" progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} />
+              <RinkGame key="rink" progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} setup={setup} />
             ) : (
               <RinkPreview
+                partner={setup.players === 2 ? PARTNERS.rink : null}
                 card={card}
                 decorating={decorating}
                 placing={placing}
@@ -194,9 +211,9 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
             )}
           </>
         ) : playing && progress ? (
-          <CourtGame key={picked} gameId={picked as CourtGameId} progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} />
+          <CourtGame key={picked} gameId={picked as CourtGameId} progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} setup={setup} />
         ) : (
-          <CourtPreview card={card} onPlay={play} />
+          <CourtPreview card={card} onPlay={play} partner={setup.players === 2 ? PARTNERS[picked] : null} />
         )}
       </div>
 
@@ -204,9 +221,21 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         <RinkTray progress={progress} placing={placing} onPick={(id) => setPlacing((cur) => (cur === id ? null : id))} />
       )}
 
+      {!decorating && (
+        <GameSetupBar
+          setup={setup}
+          onChange={changeSetup}
+          progress={progress}
+          disabled={playing}
+          host={card.player}
+          partner={getGameCard(PARTNERS[picked])?.player ?? "a teammate"}
+        />
+      )}
+
       <div className="space-y-2 text-sm text-slate-600">
         <p>
           <span className="font-semibold text-slate-900">{card.title}.</span> {card.blurb}
+          {progress && <> Questions: {topicLabel(progress, setup.topic)}.</>}
         </p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <span className="inline-flex items-center gap-1.5">
@@ -286,20 +315,29 @@ function PlayButton({ onPlay }: { onPlay: () => void }) {
   );
 }
 
-/** A court before play: the player waiting where they start, and the way in. */
-function CourtPreview({ card, onPlay }: { card: GameCard; onPlay: () => void }) {
+/** A court before play: the player waiting where they start (with their teammate, for a match), and the way in. */
+function CourtPreview({ card, onPlay, partner }: { card: GameCard; onPlay: () => void; partner: CourtGameId | null }) {
   const game = getCourtGame(card.id)!;
   const scale = depthScale(game.area, game.start.y);
+  const mate = partner ? getCourtGame(partner) : null;
   return (
     <>
       <CourtScene game={game.id} live={false} />
       {/* figures-still: before play the player is a picture, so their idle motion holds. */}
       <div
         className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-        style={{ left: pctX(game.start.x), top: pctY(game.start.y), width: pctX(((game.height * 100) / 160) * scale), zIndex: 340 }}
+        style={{ left: pctX(game.start.x - (mate ? 150 : 0)), top: pctY(game.start.y), width: pctX(((game.height * 100) / 160) * scale), zIndex: 340 }}
       >
         <Player game={game.id} pose="idle" className="w-full" />
       </div>
+      {mate && (
+        <div
+          className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+          style={{ left: pctX(game.start.x + 150), top: pctY(game.start.y), width: pctX(((mate.height * 100) / 160) * scale), zIndex: 340 }}
+        >
+          <Player game={mate.id} pose="idle" facing={-1} className="w-full" />
+        </div>
+      )}
       <StageChrome title={card.title}>
         <PlayButton onPlay={onPlay} />
       </StageChrome>
@@ -310,6 +348,7 @@ function CourtPreview({ card, onPlay }: { card: GameCard; onPlay: () => void }) 
 /** The rink before play: Veronica by the boards, the way in, and the way to decorate (none in the demo). */
 function RinkPreview({
   card,
+  partner,
   decorating,
   placing,
   onPlay,
@@ -317,6 +356,8 @@ function RinkPreview({
   onCancel,
 }: {
   card: GameCard;
+  /** The teammate who joins her for a match. */
+  partner: CourtGameId | null;
   decorating: boolean;
   placing: string | null;
   onPlay: () => void;
@@ -331,6 +372,14 @@ function RinkPreview({
       >
         <Veronica pose="idle" facing={-1} className="w-full" />
       </div>
+      {partner && !decorating && (
+        <div
+          className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+          style={{ left: pctX(RINK.cx - RINK.rx + 40), top: pctY(RINK.cy + 96), width: pctX(((getCourtGame(partner)?.height ?? 164) * 100) / 160), zIndex: 330 }}
+        >
+          <Player game={partner} pose="idle" className="w-full" />
+        </div>
+      )}
       <StageChrome title={decorating ? (placing ? "Tap a spot by the boards" : "Decorate the rink") : card.title}>
         {decorating ? (
           placing ? (

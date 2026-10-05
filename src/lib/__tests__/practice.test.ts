@@ -1764,6 +1764,61 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("titles: every tier has its plate, and the shine runs once, never on a loop", ["tp-common", "tp-rare", "tp-epic", "tp-legendary"].every((c) => css.includes(`.${c}`)) && /tp-sweep 1\.1s ease-out 1;/.test(css) && !/tp-sweep[^;]*infinite/.test(css));
 }
 
+// --- Game sessions: a topic, Jumbo, and two players ------------------------------------
+{
+  const S = await import("../game-session.ts");
+  const R2 = await import("../rink.ts");
+  const { normalizeProgress } = await import("../progress.ts");
+  const fresh = normalizeProgress({});
+  const topics = S.topicSkills();
+  ok("games: most skills can be a topic of their own", topics.length >= 40, String(topics.length));
+  ok("games: every topic has head-math problems", topics.every((t) => {
+    const sk = units.flatMap((u) => u.skills).find((x) => x.id === t.skillId)!;
+    return generateProblemBank(sk.id, sk.problems, 7).filter((q) => R2.isHeadMath(q)).length >= 6;
+  }));
+  const one = S.pickGameProblem(fresh, { kind: "skill", skillId: "slope" });
+  ok("games: an exact topic asks only about that skill", !!one && one.skillId === "slope" && R2.isHeadMath(one.problem));
+  const fromJumbo = new Set<number>();
+  for (let i = 0; i < 80; i++) {
+    const q = S.pickGameProblem(fresh, { kind: "jumbo" });
+    if (q) fromJumbo.add(q.unitNumber);
+  }
+  ok("games: Jumbo mixes the whole course", fromJumbo.size >= 8, [...fromJumbo].sort((a, b) => a - b).join(","));
+  const unitPick = S.pickGameProblem(fresh, { kind: "unit" });
+  ok("games: the default stays the unit you are on", !!unitPick && unitPick.unitNumber === R2.rinkSkillIds(fresh).unitNumber);
+  // A single topic keeps going after its pool runs dry, rather than stopping the game.
+  const avoid = new Set<string>();
+  let served = 0;
+  for (let i = 0; i < 120; i++) {
+    const q = S.pickGameProblem(fresh, { kind: "skill", skillId: "one-step-equations" }, avoid);
+    if (!q) break;
+    served++;
+    avoid.add(q.problem.prompt);
+  }
+  ok("games: a one-topic session never runs out", served === 120);
+  ok("games: an unknown topic falls back to your unit", S.topicSkillIds(fresh, { kind: "skill", skillId: "nope" }).join() === R2.rinkSkillIds(fresh).ids.join());
+  ok("games: labels", S.topicLabel(fresh, { kind: "jumbo" }).startsWith("Jumbo") && S.topicLabel(fresh, { kind: "skill", skillId: "slope" }) === "Unit 3: Slope");
+  // Scoring.
+  ok("games: only a right answer scores", S.scoreAfter([1, 2], 0, true).join() === "2,2" && S.scoreAfter([1, 2], 1, false).join() === "1,2");
+  ok("games: the first to the mark wins", S.matchWinner([5, 3], 5) === 0 && S.matchWinner([2, 3], 3) === 1 && S.matchWinner([2, 2], 3) === null);
+  ok("games: names default to Player 1 and 2", S.sideName({ ...S.DEFAULT_SETUP, names: ["", " Leo "] }, 0) === "Player 1" && S.sideName({ ...S.DEFAULT_SETUP, names: ["", " Leo "] }, 1) === "Leo");
+  ok("games: every game has a partner for a match", ["rink", "wrestling", "cheer", "volleyball", "soccer"].every((g) => !!S.PARTNERS[g as keyof typeof S.PARTNERS] && S.PARTNERS[g as keyof typeof S.PARTNERS] !== g));
+  // A fair spot: about as far from each player.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const area = { kind: "rect" as const, x0: 150, x1: 1050, y0: 575, y1: 765 };
+  let worst = 0;
+  for (let i = 0; i < 40; i++) {
+    const a = { x: 200 + rnd() * 800, y: 600 + rnd() * 150 };
+    const b = { x: 200 + rnd() * 800, y: 600 + rnd() * 150 };
+    const spot = S.spotFairFor(area, a, b, rnd);
+    const da = Math.hypot(spot.x - a.x, (spot.y - a.y) * 2.5);
+    const db = Math.hypot(spot.x - b.x, (spot.y - b.y) * 2.5);
+    worst = Math.max(worst, Math.abs(da - db) / Math.max(da, db));
+  }
+  ok("games: the next target is a fair race", worst < 0.25, worst.toFixed(2));
+}
+
 // --- Pictures of problems -----------------------------------------------------------
 {
   const Pic = await import("../pictures.ts");
