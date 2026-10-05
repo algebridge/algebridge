@@ -158,6 +158,17 @@ function poly(coeffs: number[]): string {
   return out || "0";
 }
 
+/** n whole numbers in [lo, hi], sorted; all different when `distinct`. */
+function sortedData(n: number, lo: number, hi: number, distinct = false): number[] {
+  const out: number[] = [];
+  while (out.length < n) {
+    const v = randInt(lo, hi);
+    if (distinct && out.includes(v)) continue;
+    out.push(v);
+  }
+  return out.sort((a, b) => a - b);
+}
+
 /** A radical k√f, with k = 1 written as √f. */
 function rad(k: number, f: number): string {
   return k === 1 ? `√${f}` : `${k}√${f}`;
@@ -6156,6 +6167,813 @@ const generators: Record<string, SkillGenerator> = {
           first ? trap(x, `−x with x = ${x} is −(${x}), which flips the sign.`) : null,
         ]),
         explanation: first ? `${x} < 0 → f(${x}) = −(${x}) = ${-x}` : `${x} ≥ 0 → f(${x}) = ${m}(${x}) = ${m * x}`,
+      };
+    }),
+
+  // ---- Unit 14: Data & Statistics ----
+
+  "center-spread": (seeds) =>
+    fillToCount("center-spread", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 6;
+      if (kind === 0) {
+        // A median, from data in the order it was collected.
+        const n = pick([7, 9, 8, 10]);
+        const sorted = sortedData(n, 4, 48);
+        const shown = seededShuffle(sorted);
+        const mid = n / 2;
+        const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[mid - 1] + sorted[mid]) / 2;
+        const whole = Number.isInteger(median);
+        const mean = sorted.reduce((s, v) => s + v, 0) / n;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Find the median of ${shown.join(", ")}.${whole ? "" : " Write your answer as a decimal."}`,
+          hint: n % 2 ? "Put the numbers in order first. The median is the one in the middle." : "Put the numbers in order first. With an even count, the median is halfway between the two middle numbers.",
+          answer: median,
+          traps: trapsFor(median, [
+            trap(shown[Math.floor(n / 2)], "That is the middle of the list as written. Sort the numbers first; the median is the middle of the sorted list."),
+            trap(Math.round(mean * 100) / 100, "That is the mean. The median is the middle value once the data is in order."),
+            n % 2 ? null : trap(sorted[mid - 1], "With an even count there are two middle numbers. The median is halfway between them."),
+          ]),
+          explanation: `In order: ${sorted.join(", ")} → ${n % 2 ? `the middle value is ${median}` : `the middle two are ${sorted[mid - 1]} and ${sorted[mid]} → (${sorted[mid - 1]} + ${sorted[mid]}) ÷ 2 = ${fmtNum(median)}`}`,
+        };
+      }
+      if (kind === 1) {
+        // A mean that comes out whole.
+        const n = randInt(4, 6);
+        const target = randInt(72, 92);
+        let vals = Array.from({ length: n - 1 }, () => randInt(65, 99));
+        let last = n * target - vals.reduce((s, v) => s + v, 0);
+        while (last < 55 || last > 100) {
+          vals = Array.from({ length: n - 1 }, () => randInt(65, 99));
+          last = n * target - vals.reduce((s, v) => s + v, 0);
+        }
+        vals = seededShuffle([...vals, last]);
+        const sum = n * target;
+        const sorted = [...vals].sort((a, b) => a - b);
+        const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${["Four", "Five", "Six"][n - 4]} quiz scores are ${listOf(vals.map(String))}. What is the mean score?`,
+          hint: `Add all ${n} scores, then divide by ${n}.`,
+          answer: target,
+          traps: trapsFor(target, [
+            trap(sum, `That is the total. Divide it by the ${n} scores.`),
+            trap(Math.round((sum / (n - 1)) * 100) / 100, `There are ${n} scores, so divide by ${n}.`),
+            trap(median, "That is the median, the middle score. The mean adds them all and shares the total equally."),
+          ]),
+          explanation: `${vals.join(" + ")} = ${sum} → ${sum} ÷ ${n} = ${target}`,
+        };
+      }
+      if (kind === 2 || kind === 5) {
+        // Quartiles with the middle value left out of both halves.
+        const n = pick([7, 11]);
+        const sorted = sortedData(n, 2, 60, true);
+        const shown = seededShuffle(sorted);
+        const q1 = n === 7 ? sorted[1] : sorted[2];
+        const q3 = n === 7 ? sorted[5] : sorted[8];
+        const median = sorted[(n - 1) / 2];
+        const iqr = q3 - q1;
+        if (kind === 2) {
+          return {
+            id: "",
+            type: "numeric",
+            prompt: `Find the interquartile range (IQR) of ${shown.join(", ")}.`,
+            hint: "Order the data and find the median. Q1 is the median of the lower half and Q3 of the upper half (the middle value belongs to neither). IQR = Q3 − Q1.",
+            answer: iqr,
+            traps: trapsFor(iqr, [
+              trap(sorted[n - 1] - sorted[0], "That is the range, the biggest minus the smallest. The IQR is the spread of the middle half: Q3 − Q1."),
+              trap(q3 - median, "That is Q3 minus the median. The IQR runs from Q1 to Q3."),
+              trap(q3, "That is Q3. Subtract Q1 from it."),
+            ]),
+            explanation: `In order: ${sorted.join(", ")} → median ${median} → Q1 = ${q1} and Q3 = ${q3} → IQR = ${q3} − ${q1} = ${iqr}`,
+          };
+        }
+        const fence = q3 + 1.5 * iqr;
+        const whole = Number.isInteger(fence);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `For the data ${shown.join(", ")}, what is the upper fence: Q3 plus 1.5 times the IQR? Values above it count as outliers.${whole ? "" : " Write your answer as a decimal."}`,
+          hint: "Find Q1 and Q3 first (the middle value belongs to neither half), then the IQR, then Q3 + 1.5 × IQR.",
+          answer: fence,
+          traps: trapsFor(fence, [
+            trap(q3 + iqr, "Multiply the IQR by 1.5 before adding it to Q3."),
+            trap(1.5 * iqr, "That is 1.5 × IQR. The fence starts at Q3, so add Q3."),
+            trap(median + 1.5 * iqr, "The fence is measured from Q3, the top of the middle half, not from the median."),
+          ]),
+          explanation: `Q1 = ${q1}, Q3 = ${q3} → IQR = ${iqr} → ${q3} + 1.5 × ${iqr} = ${fmtNum(fence)}`,
+        };
+      }
+      if (kind === 3) {
+        // How much an outlier pulls the mean.
+        let base = Array.from({ length: 6 }, () => randInt(10, 30));
+        while (base.reduce((s, v) => s + v, 0) % 6 !== 0) base = Array.from({ length: 6 }, () => randInt(10, 30));
+        const s6 = base.reduce((s, v) => s + v, 0);
+        let outlier = 3 * Math.max(...base) + randInt(0, 20);
+        while ((s6 + outlier) % 7 !== 0) outlier += 1;
+        const with7 = (s6 + outlier) / 7;
+        const without = s6 / 6;
+        const sorted = [...base, outlier].sort((a, b) => a - b);
+        const shown = seededShuffle([...base, outlier]);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `The data set is ${shown.join(", ")}. How much does the mean go down when the outlier, ${outlier}, is removed?`,
+          hint: "Find the mean with all 7 values, then the mean of the other 6. Subtract.",
+          answer: with7 - without,
+          traps: trapsFor(with7 - without, [
+            trap(with7, "That is the mean with the outlier. Find the mean without it too, then subtract."),
+            trap(without, "That is the mean without the outlier. Subtract it from the mean with it."),
+            trap(sorted[3] - (sorted[2] + sorted[3]) / 2, "That is how the median moves. The question is about the mean."),
+          ]),
+          explanation: `With it: ${s6 + outlier} ÷ 7 = ${with7} → without it: ${s6} ÷ 6 = ${without} → ${with7} − ${without} = ${with7 - without}`,
+        };
+      }
+      // The score needed for a target mean.
+      const target = randInt(78, 90);
+      let four = Array.from({ length: 4 }, () => randInt(70, 98));
+      let need = 5 * target - four.reduce((s, v) => s + v, 0);
+      while (need < 60 || need > 100) {
+        four = Array.from({ length: 4 }, () => randInt(70, 98));
+        need = 5 * target - four.reduce((s, v) => s + v, 0);
+      }
+      const sum4 = four.reduce((s, v) => s + v, 0);
+      return {
+        id: "",
+        type: "numeric",
+        prompt: `Four test scores are ${listOf(four.map(String))}. What score on the fifth test makes the mean exactly ${target}?`,
+        hint: `For a mean of ${target} over 5 tests, the five scores must add up to 5 × ${target}. Subtract what is already there.`,
+        answer: need,
+        traps: trapsFor(need, [
+          trap(target, "Scoring the target itself only works when the others already average it."),
+          trap(4 * target - sum4, "There are five tests, so the total has to be 5 times the target."),
+          trap(Math.round(((sum4 + target) / 5) * 100) / 100, "That is the mean if the fifth score were the target. Work backward from the total the five must reach."),
+        ]),
+        explanation: `5 × ${target} = ${5 * target} → ${four.join(" + ")} = ${sum4} → ${5 * target} − ${sum4} = ${need}`,
+      };
+    }),
+
+  "trend-lines": (seeds) =>
+    fillToCount("trend-lines", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 5;
+      // Each context: what x and y are, and lines of fit that read sensibly.
+      const ctx = pick([
+        { x: "hours studied", y: "test score", yn: "test score", xu: "hour", yu: "points", m: pick([4, 5, 6, 7, 8]), b: randInt(48, 62), xs: [1, 6] },
+        { x: "weeks since planting", y: "plant height in cm", yn: "plant's height", xu: "week", yu: "cm", m: pick([1.5, 2, 2.5, 3]), b: randInt(3, 12), xs: [2, 10] },
+        { x: "age of a car in years", y: "price in dollars", yn: "price", xu: "year", yu: "dollars", m: -pick([1200, 1500, 1800, 2000, 2500]), b: 1000 * randInt(18, 32), xs: [1, 7] },
+        { x: "outside temperature in °F", y: "cups of lemonade sold", yn: "number of cups sold", xu: "degree", yu: "cups", m: pick([2, 3, 4]), b: -randInt(80, 140), xs: [60, 95] },
+      ] as const);
+      const line = `y = ${lin(ctx.m, ctx.b)}`;
+      const setup = `A line of fit for ${ctx.x}, x, and ${ctx.y}, y, is ${line}.`;
+      if (kind === 0) {
+        const x = randInt(ctx.xs[0], ctx.xs[1]);
+        const y = ctx.m * x + ctx.b;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${setup} What does the line predict when x = ${x}?${Number.isInteger(y) ? "" : " Write your answer as a decimal."}`,
+          hint: `Put ${x} in for x and work out y.`,
+          answer: y,
+          traps: trapsFor(y, [
+            trap(ctx.m * x, `Add the intercept, ${ctx.b}, after multiplying.`),
+            trap(ctx.m + x + ctx.b, `${coef(ctx.m)} means ${ctx.m} times x.`),
+          ]),
+          explanation: `y = ${ctx.m}(${x})${plusTerm(ctx.b)} = ${fmtNum(ctx.m * x)}${plusTerm(ctx.b)} = ${fmtNum(y)}`,
+        };
+      }
+      if (kind === 1) {
+        // Working backward: which x gives this prediction?
+        const x = randInt(ctx.xs[0], ctx.xs[1]);
+        const y = ctx.m * x + ctx.b;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${setup} For what value of x does the line predict y = ${usNum(y)}?`,
+          hint: `Set ${lin(ctx.m, ctx.b)} equal to ${usNum(y)} and solve for x.`,
+          answer: x,
+          traps: trapsFor(x, [
+            trap(Math.round((y / ctx.m) * 100) / 100, `${ctx.b < 0 ? "Add" : "Subtract"} the intercept before dividing by the slope.`),
+            trap(ctx.m * y + ctx.b, `${usNum(y)} is the y-value. Solve for x rather than putting it in.`),
+          ]),
+          explanation: `${lin(ctx.m, ctx.b)} = ${usNum(y)} → ${coef(ctx.m)} = ${usNum(y - ctx.b)} → x = ${x}`,
+        };
+      }
+      if (kind === 2) {
+        // What the slope means in context.
+        const up = ctx.m > 0;
+        const size = usNum(Math.abs(ctx.m));
+        const answer = `The ${ctx.yn} goes ${up ? "up" : "down"} about ${size} ${ctx.yu} for each extra ${ctx.xu}.`;
+        const wrong = [
+          `The ${ctx.yn} goes ${up ? "down" : "up"} about ${size} ${ctx.yu} for each extra ${ctx.xu}.`,
+          `The ${ctx.yn} is about ${size} ${ctx.yu} when x is 0.`,
+          `The ${ctx.yn} goes ${up ? "up" : "down"} about ${usNum(Math.abs(ctx.b))} ${ctx.yu} for each extra ${ctx.xu}.`,
+        ];
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `${setup} What does the slope, ${usNum(ctx.m)}, mean?`,
+          hint: "The slope is the change in y for each 1 added to x. Its sign says whether y goes up or down.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, [
+            trap(wrong[0], `The slope is ${up ? "positive, so y goes up" : "negative, so y goes down"} as x grows.`),
+            trap(wrong[1], "The value of y when x is 0 is the intercept, not the slope."),
+            trap(wrong[2], `That number is the intercept. The slope is ${usNum(ctx.m)}.`),
+          ]),
+          explanation: `The slope is the change in y for each 1 added to x: ${usNum(ctx.m)}. ${answer}`,
+        };
+      }
+      if (kind === 3) {
+        // A residual: actual minus predicted.
+        const x = randInt(ctx.xs[0], ctx.xs[1]);
+        const predicted = ctx.m * x + ctx.b;
+        const step = Math.abs(ctx.m) >= 1000 ? 100 : 1;
+        const res = nonZero(-8, 8) * step;
+        const actual = predicted + res;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${setup} When x = ${x}, the actual value was ${usNum(actual)}. What is the residual, actual minus predicted?`,
+          hint: "Find the predicted y from the line first. Residual = actual − predicted.",
+          answer: res,
+          traps: trapsFor(res, [
+            trap(-res, "Subtract in the order actual minus predicted: the sign tells whether the point is above or below the line."),
+            trap(predicted, "That is the predicted value. Subtract it from the actual value."),
+          ]),
+          explanation: `predicted = ${ctx.m}(${x})${plusTerm(ctx.b)} = ${usNum(predicted)} → ${usNum(actual)} − ${usNum(predicted)} = ${usNum(res)}`,
+        };
+      }
+      // Correlation: strength, direction, and what it cannot show.
+      const variant = randInt(0, 2);
+      if (variant === 0) {
+        const rs = seededShuffle(pick([
+          [-0.91, 0.62, 0.18, -0.45],
+          [0.88, -0.35, 0.51, -0.07],
+          [-0.79, 0.4, -0.55, 0.12],
+          [0.95, -0.6, 0.3, -0.85],
+          [-0.97, 0.9, -0.2, 0.44],
+        ]));
+        const strongest = rs.reduce((best, r) => (Math.abs(r) > Math.abs(best) ? r : best));
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Which correlation coefficient shows the strongest linear relationship: ${listOf(rs.map((r) => `r = ${r}`))}?`,
+          hint: "Strength is how close r is to 1 or −1. The sign only gives the direction.",
+          answer: `r = ${strongest}`,
+          choices: mcChoices(`r = ${strongest}`, rs.map((r) => `r = ${r}`)),
+          traps: trapsFor(
+            `r = ${strongest}`,
+            rs.filter((r) => r !== strongest).map((r) => trap(`r = ${r}`, r > 0 && Math.abs(r) < Math.abs(strongest) ? "A positive r is not stronger than a negative one. Compare how far each is from 0." : "Compare how far each r is from 0: the farthest is the strongest."))
+          ),
+          explanation: `|${strongest}| = ${Math.abs(strongest)} is the farthest from 0, so r = ${strongest} is the strongest.`,
+        };
+      }
+      if (variant === 1) {
+        const r = Math.sign(ctx.m) * pick([0.92, 0.86, 0.89, 0.94, 0.28, 0.31, 0.15, 0.12]);
+        const strong = Math.abs(r) >= 0.7;
+        const answer = `A ${strong ? "strong" : "weak"} ${r > 0 ? "positive" : "negative"} linear relationship`;
+        const wrong = [
+          `A ${strong ? "strong" : "weak"} ${r > 0 ? "negative" : "positive"} linear relationship`,
+          `A ${strong ? "weak" : "strong"} ${r > 0 ? "positive" : "negative"} linear relationship`,
+          "Proof that one variable causes the other",
+        ];
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `The correlation coefficient between ${ctx.x} and ${ctx.y} in a data set is r = ${r}. What does it show?`,
+          hint: "The sign gives the direction. Close to 1 or −1 is strong; close to 0 is weak.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, [
+            trap(wrong[0], `The sign of r is the direction: ${r > 0 ? "positive" : "negative"}.`),
+            trap(wrong[1], `|r| = ${Math.abs(r)} is ${strong ? "close to 1, so the relationship is strong" : "close to 0, so the relationship is weak"}.`),
+            trap(wrong[2], "Correlation measures how well the points follow a line. A cause takes more than that to show."),
+          ]),
+          explanation: `r = ${r}: the sign is ${r > 0 ? "positive" : "negative"}, and |r| = ${Math.abs(r)} is ${strong ? "close to 1, so strong" : "close to 0, so weak"}.`,
+        };
+      }
+      const pair = pick([
+        { a: "ice cream sales", b: "sunburns", c: "hot, sunny weather" },
+        { a: "hours of sleep", b: "test scores", c: "students who plan their week" },
+        { a: "the number of firefighters at a fire", b: "the damage done", c: "the size of the fire" },
+        { a: "shoe size", b: "reading level among children", c: "age" },
+      ]);
+      const r = pick([0.78, 0.84, 0.81, 0.9]);
+      const answer = `They tend to rise together; something else, like ${pair.c}, may drive both.`;
+      const wrong = [`Raising ${pair.a} will raise ${pair.b}.`, `${pair.a.charAt(0).toUpperCase()}${pair.a.slice(1)} and ${pair.b} move in opposite directions.`, "The data are too weak to show any pattern."];
+      return {
+        id: "",
+        type: "multiple-choice",
+        prompt: `In a data set, ${pair.a} and ${pair.b} have r = ${r}. Which conclusion is sound?`,
+        hint: "A strong correlation shows the variables move together. Ask whether a third thing could explain both.",
+        answer,
+        choices: mcChoices(answer, wrong),
+        traps: trapsFor(answer, [
+          trap(wrong[0], "Correlation shows a pattern, not a cause. A third factor can move both."),
+          trap(wrong[1], `r is positive, so they move in the same direction.`),
+          trap(wrong[2], `r = ${r} is close to 1: a strong pattern.`),
+        ]),
+        explanation: `r = ${r} is a strong positive correlation, and a correlation alone cannot show a cause: ${pair.c} could drive both.`,
+      };
+    }),
+
+  "two-way-tables": (seeds) =>
+    fillToCount("two-way-tables", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 5;
+      const ctx = pick([
+        { g: ["9th graders", "10th graders"], q: "whether they walk to school or ride the bus", c: ["walk", "ride the bus"], ask: "walk to school" },
+        { g: ["juniors", "seniors"], q: "whether they prefer morning or evening practice", c: ["prefer morning practice", "prefer evening practice"], ask: "prefer morning practice" },
+        { g: ["6th graders", "7th graders"], q: "whether they picked pizza or tacos for the class party", c: ["picked pizza", "picked tacos"], ask: "picked pizza" },
+        { g: ["band members", "athletes"], q: "whether they read e-books or paper books", c: ["read e-books", "read paper books"], ask: "read e-books" },
+      ] as const);
+      // Counts chosen so the fractions asked for reduce cleanly but not always to the same thing.
+      let [a, b, c, d] = [randInt(8, 40), randInt(8, 40), randInt(8, 40), randInt(8, 40)];
+      if (kind === 4) {
+        // Make the raw counts and the rates disagree some of the time.
+        if (randInt(0, 1) === 0) {
+          a = 5 * randInt(6, 9);
+          b = 5 * randInt(8, 11);
+          c = 5 * randInt(3, 5);
+          d = 5 * randInt(1, 3);
+        }
+        if (a * (c + d) === c * (a + b)) d += 1;
+      }
+      const T = a + b + c + d;
+      const story = `A survey asked ${ctx.g[0]} and ${ctx.g[1]} ${ctx.q}. ${a} of the ${ctx.g[0]} ${ctx.c[0]} and ${b} ${ctx.c[1]}; ${c} of the ${ctx.g[1]} ${ctx.c[0]} and ${d} ${ctx.c[1]}.`;
+      if (kind === 0) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${story} What fraction of all the students surveyed are ${ctx.g[1]} who ${ctx.c[0]}? Give it as a fraction.`,
+          hint: "A joint relative frequency: one cell of the table divided by the grand total.",
+          answer: c / T,
+          traps: trapsFor(c / T, [
+            trap(c / (c + d), `That divides by the ${ctx.g[1]} only. The question asks about all the students surveyed.`),
+            trap(c / (a + c), `That divides by the students who ${ctx.c[0]}. The question asks about all the students surveyed.`),
+            trap(c, "That is the count. A relative frequency divides it by the total."),
+          ]),
+          explanation: `total = ${a} + ${b} + ${c} + ${d} = ${T} → ${c}/${T}${frac(c, T) === `${c}/${T}` ? "" : ` = ${frac(c, T)}`}`,
+        };
+      }
+      if (kind === 1) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${story} What fraction of all the students surveyed ${ctx.ask}? Give it as a fraction.`,
+          hint: "A marginal relative frequency: add the column, then divide by the grand total.",
+          answer: (a + c) / T,
+          traps: trapsFor((a + c) / T, [
+            trap(a / T, `That counts only the ${ctx.g[0]}. Add the ${ctx.g[1]} who ${ctx.c[0]} too.`),
+            trap((a + c) / (a + b), `Divide by everyone surveyed, ${ctx.g[1]} included.`),
+            trap(a + c, "That is the count. Divide it by the total."),
+          ]),
+          explanation: `${a} + ${c} = ${a + c} of ${T} → ${a + c}/${T}${frac(a + c, T) === `${a + c}/${T}` ? "" : ` = ${frac(a + c, T)}`}`,
+        };
+      }
+      if (kind === 2) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${story} What fraction of the ${ctx.g[0]} ${ctx.ask}? Give it as a fraction.`,
+          hint: `A conditional relative frequency: only the ${ctx.g[0]} count, so divide by their total.`,
+          answer: a / (a + b),
+          traps: trapsFor(a / (a + b), [
+            trap(a / T, `That divides by everyone. The question is only about the ${ctx.g[0]}.`),
+            trap(a / (a + c), `That divides by the students who ${ctx.c[0]}. The question asks about the ${ctx.g[0]}.`),
+            trap(a / b, `Divide by all the ${ctx.g[0]}, both answers together: ${a} + ${b}.`),
+          ]),
+          explanation: `${ctx.g[0]}: ${a} + ${b} = ${a + b} → ${a}/${a + b}${frac(a, a + b) === `${a}/${a + b}` ? "" : ` = ${frac(a, a + b)}`}`,
+        };
+      }
+      if (kind === 3) {
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${story} Of the students who ${ctx.ask}, what fraction are ${ctx.g[1]}? Give it as a fraction.`,
+          hint: `This time the group is the students who ${ctx.ask}: divide by their total.`,
+          answer: c / (a + c),
+          traps: trapsFor(c / (a + c), [
+            trap(c / (c + d), `That is the share of ${ctx.g[1]} who ${ctx.c[0]}. The question starts from the students who ${ctx.ask}.`),
+            trap(c / T, "That divides by everyone. Only the students who give that answer count."),
+          ]),
+          explanation: `who ${ctx.ask}: ${a} + ${c} = ${a + c} → ${c}/${a + c}${frac(c, a + c) === `${c}/${a + c}` ? "" : ` = ${frac(c, a + c)}`}`,
+        };
+      }
+      const r0 = a / (a + b);
+      const r1 = c / (c + d);
+      const answer = r0 > r1 ? `The ${ctx.g[0]}` : `The ${ctx.g[1]}`;
+      return {
+        id: "",
+        type: "multiple-choice",
+        prompt: `${story} Which group has the greater share of students who ${ctx.ask}?`,
+        hint: "Compare rates, not counts: divide each group's count by that group's own total.",
+        answer,
+        choices: mcChoices(answer, [`The ${ctx.g[0]}`, `The ${ctx.g[1]}`, "They have the same share"]),
+        traps: trapsFor(answer, [
+          trap(r0 > r1 ? `The ${ctx.g[1]}` : `The ${ctx.g[0]}`, "A bigger count can come from a bigger group. Compare each group's share of its own total."),
+          trap("They have the same share", `Work out both: ${a}/${a + b} and ${c}/${c + d} are different.`),
+        ]),
+        explanation: `${ctx.g[0]}: ${a}/${a + b} ≈ ${Math.round(r0 * 100)}% → ${ctx.g[1]}: ${c}/${c + d} ≈ ${Math.round(r1 * 100)}% → ${answer.toLowerCase()} have the greater share`,
+      };
+    }),
+
+  // ---- Unit 15: Modeling with Functions ----
+
+  "literal-equations": (seeds) =>
+    fillToCount("literal-equations", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 6;
+      if (kind === 0) {
+        // Volume, solved for the height.
+        const [l, w, h] = [randInt(3, 12), randInt(2, 9), randInt(2, 15)];
+        const V = l * w * h;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `The volume of a box is V = lwh. Solve for h, then find h when V = ${V}, l = ${l} and w = ${w}.`,
+          hint: "h is multiplied by both l and w, so divide both sides by lw.",
+          answer: h,
+          traps: trapsFor(h, [
+            trap(V - l * w, "lw multiplies h. Undo multiplying by dividing, not subtracting."),
+            trap(V / l, `Divide by w as well: h = V ÷ (l × w).`),
+            trap(V * l * w, "Undo multiplying by dividing both sides by lw."),
+          ]),
+          explanation: `V = lwh → h = V/(lw) → h = ${V} ÷ (${l} × ${w}) = ${V} ÷ ${l * w} = ${h}`,
+        };
+      }
+      if (kind === 1) {
+        // Which rearrangement is right?
+        const f = pick([
+          { prompt: "Solve P = 2l + 2w for w.", answer: "w = (P − 2l)/2", wrong: ["w = (P + 2l)/2", "w = P − 2l", "w = 2(P − l)"], why: ["Moving 2l across the equals sign changes its sign.", "After subtracting 2l, divide by 2: the 2 still multiplies w.", "Subtract 2l first, then divide by 2."] },
+          { prompt: "Solve y = mx + b for x.", answer: "x = (y − b)/m", wrong: ["x = (y + b)/m", "x = y − b − m", "x = m(y − b)"], why: ["Moving b across changes its sign.", "m multiplies x, so divide by m.", "To undo multiplying by m, divide by m."] },
+          { prompt: "Solve A = (1/2)bh for h.", answer: "h = 2A/b", wrong: ["h = A/(2b)", "h = 2Ab", "h = A − b/2"], why: ["Undo the 1/2 by multiplying by 2: the 2 goes on top.", "b multiplies h, so divide by b.", "The 1/2 and b multiply h, so undo them by multiplying and dividing."] },
+          { prompt: "Solve v = u + at for t.", answer: "t = (v − u)/a", wrong: ["t = (v + u)/a", "t = v − u − a", "t = a(v − u)"], why: ["Moving u across changes its sign.", "a multiplies t, so divide by a.", "To undo multiplying by a, divide by a."] },
+          { prompt: "Solve ax + by = c for y.", answer: "y = (c − ax)/b", wrong: ["y = (c + ax)/b", "y = c − ax − b", "y = b(c − ax)"], why: ["Moving ax across changes its sign.", "b multiplies y, so divide by b.", "To undo multiplying by b, divide by b."] },
+          { prompt: "Solve C = 5(F − 32)/9 for F.", answer: "F = 9C/5 + 32", wrong: ["F = 9C/5 − 32", "F = 5C/9 + 32", "F = 9(C + 32)/5"], why: ["Undo subtracting 32 by adding 32.", "Undo multiplying by 5/9 with its reciprocal, 9/5.", "Undo the fraction first, then add 32 on its own."] },
+        ]);
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: f.prompt,
+          hint: "Treat the other letters like numbers and undo what is done to the one you want, in reverse order.",
+          answer: f.answer,
+          choices: mcChoices(f.answer, f.wrong),
+          traps: trapsFor(f.answer, f.wrong.map((w, k) => trap(w, f.why[k]))),
+          explanation: `Undo each step in reverse order: ${f.answer}.`,
+        };
+      }
+      if (kind === 2) {
+        // Fahrenheit to Celsius, by solving the formula.
+        const C = 5 * randInt(-3, 9);
+        const F = (9 * C) / 5 + 32;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `F = 1.8C + 32 changes Celsius to Fahrenheit. Solve it for C, then find C when F = ${F}.`,
+          hint: "Subtract 32 from both sides first, then divide by 1.8.",
+          answer: C,
+          traps: trapsFor(C, [
+            trap(Math.round(((F + 32) / 1.8) * 100) / 100, "Undo adding 32 by subtracting 32."),
+            trap(Math.round((F / 1.8 - 32) * 100) / 100, "Subtract 32 before dividing by 1.8."),
+            trap(F - 32, "That is 1.8C. Divide by 1.8 to finish."),
+          ]),
+          explanation: `C = (F − 32)/1.8 → C = (${F} − 32)/1.8 = ${F - 32}/1.8 = ${C}`,
+        };
+      }
+      if (kind === 3) {
+        // Simple interest, solved for the time.
+        const P = pick([500, 800, 1000, 1200, 1500, 2000, 2500]);
+        const r = pick([2, 3, 4, 5, 6]);
+        const t = randInt(2, 6);
+        const I = (P * r * t) / 100;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Simple interest is I = Prt. Solve for t, then find how many years $${usNum(P)} takes to earn $${usNum(I)} at ${r}% simple interest.`,
+          hint: `t = I/(Pr). Write the rate as a decimal: ${r}% = ${fmtNum(r / 100)}.`,
+          answer: t,
+          traps: trapsFor(t, [
+            trap(I / (P * r), `Use the rate as a decimal: ${r}% is ${fmtNum(r / 100)}, not ${r}.`),
+            trap(I / P, "Divide by the rate too: t = I ÷ (P × r)."),
+          ]),
+          explanation: `t = I/(Pr) → t = ${usNum(I)} ÷ (${usNum(P)} × ${fmtNum(r / 100)}) = ${usNum(I)} ÷ ${fmtNum((P * r) / 100)} = ${t} years`,
+        };
+      }
+      if (kind === 4) {
+        // Speed from distance and time.
+        const r = pick([40, 45, 48, 50, 55, 60, 64, 70]);
+        const t = pick([1.5, 2, 2.5, 3, 3.5, 4]);
+        const d = r * t;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Distance is d = rt. Solve for r, then find the average speed in miles per hour for ${fmtNum(d)} miles in ${fmtNum(t)} hours.`,
+          hint: "r is multiplied by t, so divide both sides by t: r = d/t.",
+          answer: r,
+          traps: trapsFor(r, [
+            trap(d * t, "Undo multiplying by t by dividing, not multiplying."),
+            trap(Math.round((t / d) * 1000) / 1000, "That is hours per mile, upside down. Speed is distance ÷ time."),
+            trap(d - t, "r is multiplied by t: divide by t."),
+          ]),
+          explanation: `r = d/t → r = ${fmtNum(d)} ÷ ${fmtNum(t)} = ${r} miles per hour`,
+        };
+      }
+      // Perimeter, solved for the width.
+      const l = randInt(5, 30);
+      const w = randInt(2, 25);
+      const P = 2 * l + 2 * w;
+      return {
+        id: "",
+        type: "numeric",
+        prompt: `A rectangle's perimeter is P = 2l + 2w. Solve for w, then find w when P = ${P} and l = ${l}.`,
+        hint: "Subtract 2l from both sides, then divide by 2.",
+        answer: w,
+        traps: trapsFor(w, [
+          trap(P - 2 * l, "That is 2w. Divide by 2 to finish."),
+          trap(P / 2 + l, "Subtract the lengths: w = (P − 2l)/2."),
+          trap((P - l) / 2, "Both lengths come off: subtract 2l, not l."),
+        ]),
+        explanation: `w = (P − 2l)/2 → w = (${P} − 2 × ${l})/2 = ${P - 2 * l}/2 = ${w}`,
+      };
+    }),
+
+  "function-transformations": (seeds) =>
+    fillToCount("function-transformations", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 6;
+      const square = randInt(0, 1) === 0;
+      const parent = square ? "y = x²" : "y = |x|";
+      const shape = (inside: string) => (square ? `(${inside})²` : `|${inside}|`);
+      const h = nonZero(-6, 6);
+      const k = nonZero(-8, 8);
+      const units1 = (n: number) => `${Math.abs(n)} ${Math.abs(n) === 1 ? "unit" : "units"}`;
+      const moveWords = `${h > 0 ? "right" : "left"} ${units1(h)} and ${k > 0 ? "up" : "down"} ${units1(k)}`;
+      if (kind === 0) {
+        const answer = `y = ${shape(shift("x", h))}${plusTerm(k)}`;
+        const wrong = [`y = ${shape(shift("x", -h))}${plusTerm(k)}`, `y = ${shape(shift("x", h))}${plusTerm(-k)}`, `y = ${shape(shift("x", k))}${plusTerm(h)}`];
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Move ${parent} ${moveWords}. Which equation is the result?`,
+          hint: "A move right or left goes inside, with the opposite sign: right h is x − h. A move up or down is added at the end.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, [
+            trap(wrong[0], `Inside, the sign is the opposite of the move: ${h > 0 ? "right" : "left"} ${Math.abs(h)} is ${shift("x", h)}.`),
+            trap(wrong[1], `Up adds and down subtracts at the end: ${k > 0 ? "up" : "down"} ${Math.abs(k)} is ${plusTerm(k).trim()}.`),
+            trap(wrong[2], "The left-right move goes inside the function; the up-down move goes at the end."),
+          ]),
+          explanation: `${h > 0 ? "right" : "left"} ${Math.abs(h)} → x becomes ${shift("x", h)} → ${k > 0 ? "up" : "down"} ${Math.abs(k)} → add ${k} → ${answer}`,
+        };
+      }
+      if (kind === 1) {
+        // The turning point after the moves.
+        const askX = randInt(0, 1) === 0;
+        const eq = `y = ${shape(shift("x", h))}${plusTerm(k)}`;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `${eq} is ${parent} moved. Where is its ${square ? "vertex" : "corner point"}? Type its ${askX ? "x" : "y"}-coordinate.`,
+          hint: `${parent} turns at (0, 0). Read the moves from the rule: inside the ${square ? "brackets" : "bars"} is left or right, at the end is up or down.`,
+          answer: askX ? h : k,
+          traps: trapsFor(askX ? h : k, [
+            askX ? trap(-h, `Inside, ${shift("x", h)} is zero when x = ${h}: the opposite sign of the number shown.`) : trap(-k, "The number at the end is the up-down move, sign and all."),
+            askX ? trap(k, "That is the y-coordinate, the number at the end.") : trap(h, "That is the x-coordinate, from inside."),
+          ]),
+          explanation: `${shift("x", h)} = 0 at x = ${h}, and the rule adds ${k} → the turning point is (${h}, ${k})`,
+        };
+      }
+      if (kind === 2) {
+        // Describe a reflection and two moves.
+        const answer = `Flipped over the x-axis, moved ${moveWords}`;
+        const other = `${h > 0 ? "left" : "right"} ${units1(h)} and ${k > 0 ? "up" : "down"} ${units1(k)}`;
+        const swapped = `${k > 0 ? "right" : "left"} ${units1(k)} and ${h > 0 ? "up" : "down"} ${units1(h)}`;
+        const wrong = [`Flipped over the x-axis, moved ${other}`, `Moved ${moveWords}, the same way up as ${parent}`, `Flipped over the x-axis, moved ${swapped}`];
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `How does y = -${shape(shift("x", h))}${plusTerm(k)} compare with ${parent}?`,
+          hint: "A minus in front flips it over the x-axis. Then read the left-right move inside and the up-down move at the end.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, [
+            trap(wrong[0], `Inside, ${shift("x", h)} means a move ${h > 0 ? "right" : "left"}: the opposite sign of the number shown.`),
+            trap(wrong[1], "The minus in front of the function turns it upside down."),
+            trap(wrong[2], "The number inside moves it left or right; the number at the end moves it up or down."),
+          ]),
+          explanation: `-(...) flips it over the x-axis → ${shift("x", h)} inside moves it ${h > 0 ? "right" : "left"} ${Math.abs(h)} → ${plusTerm(k).trim()} moves it ${k > 0 ? "up" : "down"} ${Math.abs(k)}`,
+        };
+      }
+      if (kind === 3) {
+        // Evaluate a moved function at a point.
+        const c = randInt(-5, 5);
+        const f = (x: number) => (square ? x * x : Math.abs(x)) + c;
+        const fRule = square ? quad(1, 0, c) : `|x|${plusTerm(c)}`;
+        const s = nonZero(-4, 4);
+        const t = nonZero(-6, 6);
+        const x = randInt(-4, 4);
+        const value = f(x + s) + t;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `f(x) = ${fRule}. If g(x) = f(${shift("x", -s)})${plusTerm(t)}, find g(${x}).`,
+          hint: `g(${x}) = f(${x} ${s > 0 ? "+" : "−"} ${Math.abs(s)})${plusTerm(t)}. Work out the input first, then f, then the ${t > 0 ? "addition" : "subtraction"}.`,
+          answer: value,
+          traps: trapsFor(value, [
+            trap(f(x - s) + t, `g uses f(${shift("x", -s)}): at x = ${x} the input is ${x + s}.`),
+            trap(f(x) + t, `The input to f is ${x + s}, not ${x}.`),
+            trap(f(x + s), `Then ${t > 0 ? "add" : "subtract"} ${Math.abs(t)} at the end.`),
+          ]),
+          explanation: `g(${x}) = f(${x + s})${plusTerm(t)} → f(${x + s}) = ${f(x + s)} → ${f(x + s)}${plusTerm(t)} = ${value}`,
+        };
+      }
+      if (kind === 4) {
+        // A stretch and a move.
+        const a = randInt(2, 5);
+        const base = square ? "x²" : "|x|";
+        const answer = `y = ${a}${base}${plusTerm(-Math.abs(k))}`;
+        const wrong = [`y = ${a}${base}${plusTerm(Math.abs(k))}`, `y = ${square ? `(x − ${Math.abs(k)})²` : `|x − ${Math.abs(k)}|`}${a === 1 ? "" : ` + ${a}`}`, `y = (1/${a})${base}${plusTerm(-Math.abs(k))}`, `y = ${base}${plusTerm(a - Math.abs(k))}`];
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Which function is ${parent} stretched by a factor of ${a} and then moved down ${units1(k)}?`,
+          hint: "A stretch multiplies the whole function by the factor. Down moves subtract at the end.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, [
+            trap(wrong[0], "Down subtracts at the end."),
+            trap(wrong[1], "A stretch multiplies the function, and a move down subtracts outside it."),
+            trap(wrong[2], `A stretch by ${a} multiplies by ${a}; 1/${a} would squash it.`),
+            trap(wrong[3], `The ${a} multiplies; it is not added.`),
+          ]),
+          explanation: `stretch: ${a}${base} → down ${Math.abs(k)}: ${answer}`,
+        };
+      }
+      // Where a point lands after the moves.
+      const p = randInt(-3, 3);
+      const yAt = square ? p * p : Math.abs(p);
+      const askY = randInt(0, 1) === 0;
+      return {
+        id: "",
+        type: "numeric",
+        prompt: `The point (${p}, ${yAt}) is on ${parent}. Where does it land on y = ${shape(shift("x", h))}${plusTerm(k)}? Type its new ${askY ? "y" : "x"}-coordinate.`,
+        hint: `Every point moves ${moveWords}: add ${h} to x and ${k} to y.`,
+        answer: askY ? yAt + k : p + h,
+        traps: trapsFor(askY ? yAt + k : p + h, [
+          askY ? trap(yAt - k, `The rule adds ${k} at the end, so every y changes by ${k}.`) : trap(p - h, `${shift("x", h)} inside moves points ${h > 0 ? "right" : "left"}: add ${h} to x.`),
+          askY ? trap(yAt + h, "The left-right move changes x; y changes by the number at the end.") : trap(p + k, "The up-down move changes y; x changes by the number inside."),
+        ]),
+        explanation: `(${p}, ${yAt}) → x: ${p} ${h > 0 ? "+" : "−"} ${Math.abs(h)} = ${p + h} → y: ${yAt} ${k > 0 ? "+" : "−"} ${Math.abs(k)} = ${yAt + k} → (${p + h}, ${yAt + k})`,
+      };
+    }),
+
+  "linear-vs-exponential": (seeds) =>
+    fillToCount("linear-vs-exponential", seeds, PROBLEMS_PER_SKILL, (i) => {
+      const kind = i % 6;
+      if (kind === 0) {
+        // A table: equal differences, equal ratios, or neither.
+        const type = pick(["Linear", "Exponential", "Neither"] as const);
+        const start = randInt(2, 9);
+        const step = randInt(2, 6);
+        const ys =
+          type === "Linear"
+            ? [0, 1, 2, 3].map((x) => start + step * x)
+            : type === "Exponential"
+              ? [0, 1, 2, 3].map((x) => start * Math.min(step, 4) ** x)
+              : [0, 1, 2, 3].map((x) => start + x * x * step);
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `When x is 0, 1, 2, 3, y is ${ys.join(", ")}. Is the relationship linear, exponential, or neither?`,
+          hint: "Check the differences between y-values, then the ratios. Equal differences mean linear; equal ratios mean exponential.",
+          answer: type,
+          choices: mcChoices(type, ["Linear", "Exponential", "Neither"]),
+          traps: trapsFor(type, [
+            trap("Linear", "Linear needs the same difference every step. Subtract each y from the next and compare."),
+            trap("Exponential", "Exponential needs the same ratio every step. Divide each y by the one before and compare."),
+            trap("Neither", type === "Linear" ? "The differences are all the same, which is linear." : "The ratios are all the same, which is exponential."),
+          ]),
+          explanation:
+            type === "Linear"
+              ? `differences: ${ys.slice(1).map((y, k) => y - ys[k]).join(", ")} → all the same → linear`
+              : type === "Exponential"
+                ? `ratios: ${ys.slice(1).map((y, k) => fmtNum(y / ys[k])).join(", ")} → all the same → exponential`
+                : `differences: ${ys.slice(1).map((y, k) => y - ys[k]).join(", ")} and ratios differ too → neither`,
+        };
+      }
+      if (kind === 1) {
+        // Continue a table past what is shown.
+        const exp = randInt(0, 1) === 0;
+        const start = randInt(2, 6);
+        const step = exp ? randInt(2, 3) : randInt(3, 9);
+        const ys = [0, 1, 2, 3].map((x) => (exp ? start * step ** x : start + step * x));
+        const at = randInt(5, exp ? 6 : 12);
+        const want = exp ? start * step ** at : start + step * at;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `When x is 0, 1, 2, 3, y is ${ys.join(", ")}. If the pattern continues, what is y when x = ${at}?`,
+          hint: "Decide first: the same difference (add) or the same ratio (multiply). Then continue to x = " + at + ".",
+          answer: want,
+          traps: trapsFor(want, [
+            exp ? trap(ys[3] + (ys[3] - ys[2]) * (at - 3), "The differences grow, so the table multiplies: check the ratios.") : trap(Math.round(ys[3] * (ys[3] / ys[2]) ** (at - 3)), "The differences are equal, so the table adds the same amount each step."),
+            exp ? trap(start * step * at, `It multiplies by ${step} once per step: ${step}^${at}, not ${step} × ${at}.`) : trap(start * at, `Start at ${start} and add ${step} for each step.`),
+          ]),
+          explanation: exp ? `ratio ${step} → y = ${start} × ${step}^${at} = ${usNum(want)}` : `difference ${step} → y = ${start} + ${step} × ${at} = ${want}`,
+        };
+      }
+      if (kind === 2) {
+        // Which story is exponential (or linear)?
+        const wantExp = randInt(0, 1) === 0;
+        const linear = seededShuffle([
+          "A phone plan adds $15 to the bill each month.",
+          "A pool fills by 40 gallons every minute.",
+          "A taxi fare rises $2 for every mile.",
+          "A candle burns down 3 cm every hour.",
+          "A savings jar gets $10 every week.",
+        ]);
+        const expo = seededShuffle([
+          "A town's population grows 4% each year.",
+          "A colony of bacteria doubles every hour.",
+          "A car loses 15% of its value each year.",
+          "A video's views triple every day.",
+          "A medicine's amount halves every 6 hours.",
+        ]);
+        const answer = wantExp ? expo[0] : linear[0];
+        const wrong = wantExp ? linear.slice(0, 3) : expo.slice(0, 3);
+        return {
+          id: "",
+          type: "multiple-choice",
+          prompt: `Which situation is modeled by ${wantExp ? "an exponential" : "a linear"} function?`,
+          hint: "Linear changes by the same amount each step. Exponential changes by the same factor, or the same percent, each step.",
+          answer,
+          choices: mcChoices(answer, wrong),
+          traps: trapsFor(answer, wrong.map((w) => trap(w, wantExp ? "That changes by the same amount each step, which is linear." : "That changes by the same percent or factor each step, which is exponential."))),
+          explanation: `${answer} ${wantExp ? "It changes by the same factor each step." : "It changes by the same amount each step."}`,
+        };
+      }
+      if (kind === 3) {
+        // When does doubling pass a steady amount?
+        const daily = pick([50, 100, 200, 300, 500, 1000]);
+        let day = 1;
+        while (2 ** (day - 1) <= daily) day += 1;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Job A pays $${usNum(daily)} a day. Job B pays $1 on day 1 and doubles its pay each day. On which day does Job B first pay more than Job A?`,
+          hint: "Job B pays 2^(n − 1) dollars on day n. Keep doubling until it passes Job A.",
+          answer: day,
+          traps: trapsFor(day, [
+            trap(day - 1, `On day ${day - 1} Job B pays $${usNum(2 ** (day - 2))}, which is still not more.`),
+            trap(Math.ceil(Math.log2(daily)), "Count day 1 as $1, day 2 as $2, and so on: day n pays 2^(n − 1)."),
+            trap(daily, "Job B is not adding a dollar a day; it doubles."),
+          ]),
+          explanation: `day ${day - 1}: $${usNum(2 ** (day - 2))} (not more than $${usNum(daily)}) → day ${day}: $${usNum(2 ** (day - 1))} (more)`,
+        };
+      }
+      if (kind === 4) {
+        // The same two points, two models.
+        const start = 2 * randInt(1, 3);
+        const r = randInt(2, 4);
+        const y2 = start * r * r;
+        const exp = randInt(0, 1) === 0;
+        const want = exp ? start * r ** 3 : start + ((y2 - start) / 2) * 3;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `y is ${start} when x = 0 and ${y2} when x = 2. If y grows ${exp ? "exponentially" : "linearly"}, what is y when x = 3?`,
+          hint: exp ? `Exponential: two steps multiply by ${y2 / start} in all, so each step multiplies by its square root.` : `Linear: two steps add ${y2 - start} in all, so each step adds half of that.`,
+          answer: want,
+          traps: trapsFor(want, [
+            exp ? trap(start + ((y2 - start) / 2) * 3, "That treats it as linear. Exponential growth multiplies by the same factor each step.") : trap(start * r ** 3, "That treats it as exponential. Linear growth adds the same amount each step."),
+            exp ? trap(y2 * (y2 / start), `The factor ${y2 / start} covers two steps. One step multiplies by ${r}.`) : trap(y2 + (y2 - start), `${y2 - start} is the change over two steps. One step adds ${(y2 - start) / 2}.`),
+          ]),
+          explanation: exp ? `factor per step: √(${y2} ÷ ${start}) = ${r} → y(3) = ${start} × ${r}³ = ${want}` : `change per step: (${y2} − ${start}) ÷ 2 = ${(y2 - start) / 2} → y(3) = ${start} + 3 × ${(y2 - start) / 2} = ${want}`,
+        };
+      }
+      // A steady gain against a percent gain.
+      const P = 1000 * randInt(8, 20);
+      const pct = pick([4, 5, 6, 8, 10]);
+      const add = Math.round((P * pct) / 100);
+      // Same first-year gain; compounding pulls ahead after that.
+      const years = randInt(3, 5);
+      const num = P * (100 + pct) ** years;
+      const den = 100 ** years;
+      const townB = Math.floor((2 * num + den) / (2 * den));
+      const townA = P + add * years;
+      return {
+        id: "",
+        type: "numeric",
+        prompt: `Two towns each have ${usNum(P)} people. Town A gains ${usNum(add)} people a year. Town B grows ${pct}% a year. How many more people does Town B have after ${years} years? (round to the nearest whole number)`,
+        hint: `Town A is linear: ${usNum(P)} + ${usNum(add)}t. Town B is exponential: ${usNum(P)} × (1.${pct < 10 ? `0${pct}` : pct})^t. Work out both at t = ${years}.`,
+        answer: townB - townA,
+        decimalPlaces: 0,
+        traps: trapsFor(townB - townA, [
+          trap(0, `Both gain ${usNum(add)} in the first year, but Town B's ${pct}% is then taken of a bigger number each year.`),
+          trap(townB, "That is Town B's population. Subtract Town A's."),
+          trap(townA, "That is Town A's population. The question asks for the difference."),
+        ]),
+        explanation: `A: ${usNum(P)} + ${usNum(add)} × ${years} = ${usNum(townA)} → B: ${usNum(P)} × ${fmtNum((100 + pct) / 100)}^${years} ≈ ${usNum(townB)} → ${usNum(townB)} − ${usNum(townA)} = ${townB - townA}`,
       };
     }),
 };

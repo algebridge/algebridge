@@ -555,6 +555,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   // Pay grows with the unit.
   ok("unit 1 skills pay 10", G.bridgeysForSkill(units[0].skills[0].id) === 10);
   ok("unit 13 skills pay 34", G.bridgeysForSkill(units[12].skills[0].id) === 34);
+  ok("unit 15 skills pay 38", G.bridgeysForSkill(units[14].skills[0].id) === 38);
   // A prize is granted once, on the unit's completion, and backfilled for old saves.
   const done = normalizeProgress({});
   for (const s of units[0].skills) done.skills[s.id] = { skillId: s.id, level: "proficient", problemsAttempted: 5, problemsCorrect: 5, videoWatched: true };
@@ -1437,7 +1438,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const done = (level: string) => ({ level }) as unknown as (typeof fresh.skills)[string];
   const fresh = Pr.normalizeProgress(null);
   const g0 = Gd.gardenState(fresh, "2026-09-24");
-  ok("a new student's garden is thirteen beds of soil and a sapling", g0.beds.length === 13 && g0.beds.every((b) => b.stage === "seed") && g0.tree === 0 && g0.blooms === 0 && !g0.swing && !g0.treehouse && !g0.watered && g0.total === 46);
+  ok("a new student's garden is a bed of soil for every unit and a sapling", g0.beds.length === units.length && g0.beds.every((b) => b.stage === "seed") && g0.tree === 0 && g0.blooms === 0 && !g0.swing && !g0.treehouse && !g0.watered && g0.total === units.reduce((n, u) => n + u.skills.length, 0));
   ok("each bed carries its unit's number, name and colour", g0.beds.every((b, i) => b.number === i + 1 && b.title === units[i].title && b.hue.solid.startsWith("#")));
   const one = Pr.normalizeProgress(null);
   for (const sk of units[0].skills) one.skills[sk.id] = done("mastered");
@@ -1449,7 +1450,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const all = Pr.normalizeProgress(null);
   for (const u of units) for (const sk of u.skills) all.skills[sk.id] = done("proficient");
   const gAll = Gd.gardenState(all, "2026-09-24");
-  ok("a finished course is every flower open, the swing, the birdhouse and the treehouse", gAll.blooms === 13 && gAll.tree === 5 && gAll.swing && gAll.birdhouse && gAll.treehouse && gAll.fraction === 1);
+  ok("a finished course is every flower open, the swing, the birdhouse and the treehouse", gAll.blooms === units.length && gAll.tree === 5 && gAll.swing && gAll.birdhouse && gAll.treehouse && gAll.fraction === 1);
   const wet = Pr.normalizeProgress(null);
   wet.daily = { day: "2026-09-24", right: 1, paid: false };
   ok("a right answer today waters the garden, and only today", Gd.gardenState(wet, "2026-09-24").watered && !Gd.gardenState(wet, "2026-09-25").watered && !Gd.gardenState(wet).watered);

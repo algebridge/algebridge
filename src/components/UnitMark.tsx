@@ -106,6 +106,22 @@ const MARKS: Record<string, React.ReactNode> = {
       <path d="M4 20h16" />
     </>
   ),
+  // A box plot: whiskers, the box, and the median line inside it.
+  "data-statistics": (
+    <>
+      <path d="M3 12h4M17 12h4M3 9v6M21 9v6" />
+      <rect x="7" y="7" width="10" height="10" rx="1" />
+      <path d="M11 7v10" />
+    </>
+  ),
+  // A curve and the same curve moved: a function transformed.
+  "modeling-functions": (
+    <>
+      <path d="M3 18c3-1 5-4 6-10" />
+      <path d="M11 18c3-1 5-4 6-10" strokeDasharray="2 2.5" />
+      <path d="M15 5h5M18 3l2 2-2 2" />
+    </>
+  ),
 };
 
 export function UnitMark({ unitId, size = 22, className = "" }: { unitId: string; size?: number; className?: string }) {

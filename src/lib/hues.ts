@@ -82,6 +82,8 @@ const RAMPS = {
   fuchsia: { 50: "#fdf4ff", 100: "#fae8ff", 200: "#f5d0fe", 400: "#e879f9", 500: "#d946ef", 600: "#c026d3", 700: "#a21caf", 800: "#86198f", 950: "#4a044e" },
   blue: { 50: "#eff6ff", 100: "#dbeafe", 200: "#bfdbfe", 400: "#60a5fa", 500: "#3b82f6", 600: "#2563eb", 700: "#1d4ed8", 800: "#1e40af", 950: "#172554" },
   pink: { 50: "#fdf2f8", 100: "#fce7f3", 200: "#fbcfe8", 400: "#f472b6", 500: "#ec4899", 600: "#db2777", 700: "#be185d", 800: "#9d174d", 950: "#500724" },
+  yellow: { 50: "#fefce8", 100: "#fef9c3", 200: "#fef08a", 400: "#facc15", 500: "#eab308", 600: "#ca8a04", 700: "#a16207", 800: "#854d0e", 950: "#422006" },
+  red: { 50: "#fef2f2", 100: "#fee2e2", 200: "#fecaca", 400: "#f87171", 500: "#ef4444", 600: "#dc2626", 700: "#b91c1c", 800: "#991b1b", 950: "#450a0a" },
 } satisfies Record<string, Ramp>;
 
 export type HueName = keyof typeof RAMPS;
@@ -101,6 +103,8 @@ export const HUES: Record<HueName, Hue> = {
   fuchsia: deepHue("fuchsia", RAMPS.fuchsia, 600),
   blue: deepHue("blue", RAMPS.blue, 600),
   pink: deepHue("pink", RAMPS.pink, 600),
+  yellow: brightHue("yellow", RAMPS.yellow),
+  red: deepHue("red", RAMPS.red, 600),
 };
 
 /**
@@ -121,6 +125,8 @@ const UNIT_HUES: Record<string, HueName> = {
   "quadratics-factoring": "fuchsia",
   "quadratic-functions": "blue",
   "absolute-value-piecewise": "pink",
+  "data-statistics": "yellow",
+  "modeling-functions": "red",
 };
 
 export function unitHue(unitId: string): Hue {

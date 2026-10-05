@@ -918,6 +918,28 @@ const ART: Record<string, () => string> = {
   "prize-zigzag": () =>
     block(10, 30, 80, 40, C.ink, { rx: 6, depth: 4, right: 3 }) +
     neon(stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tube(C.pink), 4) + stroke("M18 40 L34 60 L50 40 L66 60 L82 40", tube(tint(C.pink, 0.5)), 1.5)),
+  // Books standing in a histogram: short at the ends, tallest in the middle.
+  "prize-histogram": () =>
+    block(10, 14, 80, 76, C.wood, { rx: 3, depth: 4, right: 3 }) +
+    rect(16, 20, 66, 63, shade(C.wood, 0.45), 2) +
+    repeat(6, (i) => {
+      const h = [14, 30, 50, 58, 36, 18][i];
+      const spine = [C.yellow, C.gold, C.orange, C.red, C.blue, C.teal][i];
+      return block(18 + i * 10.6, 83 - h, 9, h, spine, { rx: 1, right: 1.5 }) + rect(20 + i * 10.6, 86 - h, 5, 2, tint(spine, 0.45), 1);
+    }) +
+    rect(14, 83, 72, 3, shade(C.wood, 0.25)) +
+    ball(84, 11, 4, C.gold),
+  // A rocket on its pad, with the arc a launch function would draw.
+  "prize-rocket": () =>
+    stroke("M66 70 Q80 46 90 12", tint(C.gold, 0.25), 2) +
+    block(26, 84, 48, 6, C.steel, { rx: 2, depth: 2, right: 2 }) +
+    poly([[40, 66], [29, 84], [43, 80]], shade(C.red, 0.1)) +
+    poly([[60, 66], [71, 84], [57, 80]], shade(C.red, 0.1)) +
+    block(40, 32, 20, 50, C.paper, { rx: 8, right: 3 }) +
+    path("M40 37 Q50 4 60 37 Z", C.red) +
+    ring(50, 48, 5, 2.5, C.steel) +
+    disc(50, 48, 4, C.sky) +
+    rect(41, 64, 16, 4, C.red, 1),
 };
 
 /**
@@ -1065,7 +1087,7 @@ export const PRIMARY: Record<string, ColorKey> = {
   "prize-ruler": "gold", "prize-scale": "brass", "prize-graph": "walnut", "prize-neon-line": "gold",
   "prize-lasers": "rose", "prize-half-rug": "teal", "prize-machine": "indigo", "prize-stairs": "orange",
   "prize-bonsai": "teal", "prize-vine": "cream", "prize-area-table": "walnut", "prize-arch": "blue",
-  "prize-zigzag": "pink",
+  "prize-zigzag": "pink", "prize-histogram": "wood", "prize-rocket": "red",
   "rink-cones": "orange", "rink-bench": "wood", "rink-planter": "teal", "rink-lamp": "ink", "rink-banner": "rose",
   "rink-arch": "ink", "rink-snacks": "gold", "rink-scoreboard": "ink", "rink-speakers": "ink", "rink-ramp": "sky",
   "rink-booth": "pink", "rink-dj": "ink", "rink-disco": "chrome", "rink-neon": "pink",

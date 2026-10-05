@@ -83,6 +83,8 @@ const DOMAINS: Record<string, string> = {
   "7.EE": "Expressions and Equations",
   "8.EE": "Expressions and Equations",
   "8.F": "Functions",
+  "HSS-ID": "Interpreting Categorical and Quantitative Data",
+  "6.SP": "Statistics and Probability",
 };
 
 function domainPrefix(code: string): string {
@@ -128,8 +130,20 @@ const STANDARD_LIST: Standard[] = [
   std("HSF-IF.B.6", "Calculate and interpret the average rate of change of a function over an interval."),
   std("HSF-IF.C.8.b", "Use the properties of exponents to read exponential functions, such as their percent rate of change, and classify them as growth or decay."),
   std("HSF-BF.A.2", "Write arithmetic and geometric sequences with a recursive and an explicit formula, and move between the two."),
+  std("HSF-LE.A.1.a", "Show that linear functions grow by equal differences over equal intervals, and exponential functions by equal factors."),
+  std("HSF-LE.A.1.b", "Recognize situations where one quantity changes at a constant rate per unit interval relative to another."),
   std("HSF-LE.A.1.c", "Recognize situations where a quantity grows or decays by a constant percent rate."),
   std("HSF-LE.A.2", "Build linear and exponential functions, including arithmetic and geometric sequences, from a graph, a description or two input-output pairs."),
+  std("HSF-LE.A.3", "See from tables (or graphs) that a quantity growing exponentially eventually passes one growing linearly."),
+
+  // ---- High school: Statistics and Probability ----
+  std("HSS-ID.A.2", "Compare the center (median, mean) and spread (interquartile range, standard deviation) of data sets, using the statistics that suit their shape."),
+  std("HSS-ID.A.3", "Interpret differences in shape, center and spread in context, accounting for the effect of outliers."),
+  std("HSS-ID.B.5", "Summarize two categories in a two-way frequency table and interpret joint, marginal and conditional relative frequencies."),
+  std("HSS-ID.B.6.a", "Use a function fitted to data, a given one or one the context suggests, to solve problems in context."),
+  std("HSS-ID.C.7", "Interpret the slope and the intercept of a linear model in the context of the data."),
+  std("HSS-ID.C.8", "Compute and interpret the correlation coefficient of a linear fit."),
+  std("HSS-ID.C.9", "Distinguish between correlation and causation."),
 
   // ---- High school: Geometry ----
   std("HSG-GPE.B.5", "Prove the slope rules for parallel and perpendicular lines and use them, for example to write the equation of a parallel or perpendicular line."),
@@ -140,6 +154,7 @@ const STANDARD_LIST: Standard[] = [
   std("6.NS.C.6.b", "Read the signs in an ordered pair as the quadrant of the coordinate plane the point lies in."),
   std("6.NS.C.7.c", "Understand the absolute value of a number as its distance from 0 on the number line."),
   std("6.EE.B.7", "Solve equations of the form x + p = q and px = q."),
+  std("6.SP.B.5.c", "Give measures of center (median, mean) and variability (interquartile range) for a data set, and note values that stand apart from its pattern."),
   std("7.EE.B.4.a", "Solve equations of the form px + q = r and p(x + q) = r fluently."),
   std("8.EE.A.1", "Know and apply the properties of integer exponents."),
   std("8.EE.A.2", "Use square root and cube root symbols; evaluate square roots of small perfect squares and cube roots of small perfect cubes."),
@@ -291,6 +306,31 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
   "absolute-value-inequalities": ["HSA-REI.B.3", "6.NS.C.7.c"],
   // Evaluating a piecewise function at an input.
   "piecewise-functions": ["HSF-IF.A.2"],
+
+  // ---- Unit 14: Data & Statistics ----
+  // Mean, median, quartiles and IQR from lists, and what an outlier does to
+  // each. Computing the measures is grade 6 (6.SP.B.5.c); comparing them and
+  // weighing outliers is HSS-ID.A.2 and A.3.
+  "center-spread": ["HSS-ID.A.2", "HSS-ID.A.3", "6.SP.B.5.c"],
+  // Predictions and residuals from a given line of fit (HSS-ID.B.6.a, in
+  // part: the line is given, not fitted), slope and intercept in context,
+  // reading r, and correlation against causation.
+  "trend-lines": ["HSS-ID.B.6.a", "HSS-ID.C.7", "HSS-ID.C.8", "HSS-ID.C.9"],
+  // Joint, marginal and conditional relative frequencies from survey counts,
+  // and comparing groups by rate.
+  "two-way-tables": ["HSS-ID.B.5"],
+
+  // ---- Unit 15: Modeling with Functions ----
+  // Solving a formula for one of its letters, then using it.
+  "literal-equations": ["HSA-CED.A.4"],
+  // Practice reads and applies the changes from the rule, and evaluates
+  // g(x) = f(x + s) + t. The graph standard for transformations is in
+  // NOT_CLAIMED until items show graphs.
+  "function-transformations": ["HSF-IF.A.2"],
+  // Equal differences against equal factors in tables, constant-rate and
+  // percent-rate stories, building either model from two points, and a
+  // doubling quantity passing a steady one.
+  "linear-vs-exponential": ["HSF-LE.A.1.a", "HSF-LE.A.1.b", "HSF-LE.A.1.c", "HSF-LE.A.2", "HSF-LE.A.3"],
 };
 
 export interface NotClaimed {
@@ -304,7 +344,7 @@ export interface NotClaimed {
  * The standards whose point is drawing or reading a graph. None can be
  * claimed until practice has items that show a graph or ask for one.
  */
-export const GRAPHING_STANDARDS = ["6.NS.C.6.c", "HSA-REI.D.10", "HSA-REI.D.11", "HSA-REI.D.12", "HSF-IF.C.7.a", "HSF-IF.C.7.b"];
+export const GRAPHING_STANDARDS = ["6.NS.C.6.c", "HSA-REI.D.10", "HSA-REI.D.11", "HSA-REI.D.12", "HSF-IF.C.7.a", "HSF-IF.C.7.b", "HSS-ID.A.1", "HSF-BF.B.3"];
 
 /**
  * Standards that look like a match from a skill's title but that the skill
@@ -357,6 +397,16 @@ export const NOT_CLAIMED: NotClaimed[] = [
     skillId: "piecewise-functions",
     code: "HSF-IF.C.7.b",
     reason: "That standard asks students to graph piecewise functions. AlgeBridge practice evaluates them but does not ask for a graph.",
+  },
+  {
+    skillId: "center-spread",
+    code: "HSS-ID.A.1",
+    reason: "That standard represents data with dot plots, histograms and box plots. Practice works the measures out from lists of numbers, and no plot is drawn or read.",
+  },
+  {
+    skillId: "function-transformations",
+    code: "HSF-BF.B.3",
+    reason: "That standard is about the effect of a change on a function's graph, and reading k from graphs. Practice works from the rule, describing the moves and tracking points, with no graph shown.",
   },
   {
     skillId: "elimination",

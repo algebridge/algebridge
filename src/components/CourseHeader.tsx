@@ -38,7 +38,7 @@ export function CourseHeader() {
           cr={1}
           className="fill-white/15 [mask-image:radial-gradient(420px_circle_at_15%_20%,white,transparent)]"
         />
-        {/* The course's thirteen units as tiles, beside the text on wide
+        {/* The course's fifteen units as tiles, beside the text on wide
             screens and as a strip under it on phones. */}
         <div className="pointer-events-none absolute inset-y-0 right-8 hidden items-center md:flex lg:right-12">
           <UnitTiles variant="mosaic" />

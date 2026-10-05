@@ -71,7 +71,7 @@ export function PhoneFold({ summary, children }: { summary: string; children: Re
 }
 
 /**
- * One unit's skills and standards. On a phone, where thirteen tables made
+ * One unit's skills and standards. On a phone, where fifteen tables made
  * this page about 20,000px tall, each unit folds to its name and opens on a
  * tap. Everywhere else, in print, and before the page's script runs, it is
  * the plain open block, so the handout and a desktop reader see every row.

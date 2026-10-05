@@ -674,6 +674,91 @@ export const units: Unit[] = [
       },
     ],
   },
+  {
+    id: "data-statistics",
+    number: 14,
+    title: "Data & Statistics",
+    description: "Summarize data with center and spread, predict with trend lines, and compare groups in two-way tables.",
+    icon: "x̄",
+    skills: [
+      {
+        id: "center-spread",
+        title: "Center & Spread",
+        description: "Find the mean, median and interquartile range, and see how an outlier pulls on each.",
+        learningGoal: "Compute and compare the mean, median and IQR of a data set, and judge the effect of an outlier.",
+        keyIdea: "The median and IQR hold steady when an outlier appears; the mean is pulled toward it.",
+        video: SKILL_VIDEOS["center-spread"],
+        problems: [
+          { id: "ds1-p1", type: "numeric", prompt: "Find the median of 12, 7, 19, 7, 25, 15, 10.", hint: "Put the numbers in order first. The median is the one in the middle.", answer: 12, explanation: "In order: 7, 7, 10, 12, 15, 19, 25 → the middle value is 12" },
+          { id: "ds1-p2", type: "numeric", prompt: "Find the interquartile range (IQR) of 3, 5, 8, 10, 13, 15, 21.", hint: "Q1 is the median of the lower half and Q3 of the upper half. IQR = Q3 − Q1.", answer: 10, explanation: "median 10 → Q1 = 5 and Q3 = 15 → IQR = 15 − 5 = 10" },
+        ],
+      },
+      {
+        id: "trend-lines",
+        title: "Trend Lines & Correlation",
+        description: "Predict with a line of fit, read its slope and intercept, and judge a correlation.",
+        learningGoal: "Use a linear model to predict, interpret its slope and intercept in context, and read a correlation coefficient.",
+        keyIdea: "A trend line's slope is the change in y for each 1 added to x. An r near 1 or −1 is a strong linear pattern, and a cause takes more than a correlation to show.",
+        video: SKILL_VIDEOS["trend-lines"],
+        problems: [
+          { id: "ds2-p1", type: "numeric", prompt: "A line of fit for hours studied, x, and test score, y, is y = 6x + 55. What does the line predict when x = 4?", hint: "Put 4 in for x and work out y.", answer: 79, explanation: "y = 6(4) + 55 = 24 + 55 = 79" },
+        ],
+      },
+      {
+        id: "two-way-tables",
+        title: "Two-Way Tables",
+        description: "Find joint, marginal and conditional relative frequencies from survey counts, and compare groups.",
+        learningGoal: "Interpret relative frequencies from a two-way table, including conditional ones, and compare groups by rate.",
+        keyIdea: "A conditional relative frequency divides by the total of the group you are given, not the grand total.",
+        video: SKILL_VIDEOS["two-way-tables"],
+        problems: [
+          { id: "ds3-p1", type: "numeric", prompt: "A survey asked 9th graders and 10th graders whether they walk to school or ride the bus. 24 of the 9th graders walk and 36 ride the bus; 30 of the 10th graders walk and 20 ride the bus. What fraction of the 9th graders walk to school? Give it as a fraction.", hint: "Only the 9th graders count: divide by their total.", answer: 0.4, explanation: "24 + 36 = 60 → 24/60 = 2/5" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "modeling-functions",
+    number: 15,
+    title: "Modeling with Functions",
+    description: "Rearrange formulas, transform functions, and choose between linear and exponential models.",
+    icon: "↦",
+    skills: [
+      {
+        id: "literal-equations",
+        title: "Literal Equations",
+        description: "Solve a formula for any one of its letters, then use it.",
+        learningGoal: "Rearrange a formula to isolate a chosen variable, then evaluate it.",
+        keyIdea: "Solve for a letter the way you solve for x: undo each operation in reverse order.",
+        video: SKILL_VIDEOS["literal-equations"],
+        problems: [
+          { id: "mf1-p1", type: "numeric", prompt: "A rectangle's area is A = lw. Solve for w, then find w when A = 72 and l = 9.", hint: "w is multiplied by l, so divide both sides by l.", answer: 8, explanation: "w = A/l → w = 72 ÷ 9 = 8" },
+        ],
+      },
+      {
+        id: "function-transformations",
+        title: "Transforming Functions",
+        description: "Shift, stretch and reflect a function by changing its rule.",
+        learningGoal: "Describe and apply shifts, stretches and reflections of a function from its rule.",
+        keyIdea: "f(x) + k moves it up k. f(x − h) moves it right h. −f(x) flips it over the x-axis. a·f(x) stretches it by a.",
+        video: SKILL_VIDEOS["function-transformations"],
+        problems: [
+          { id: "mf2-p1", type: "multiple-choice", prompt: "Move y = x² right 2 units and up 3 units. Which equation is the result?", hint: "A move right goes inside with a minus. A move up is added at the end.", answer: "y = (x − 2)² + 3", choices: ["y = (x − 2)² + 3", "y = (x + 2)² + 3", "y = (x − 2)² − 3", "y = (x − 3)² + 2"], explanation: "right 2 → x becomes x − 2 → up 3 → add 3 → y = (x − 2)² + 3" },
+        ],
+      },
+      {
+        id: "linear-vs-exponential",
+        title: "Linear vs. Exponential Models",
+        description: "Tell linear change from exponential change, and continue each from a table or a story.",
+        learningGoal: "Distinguish linear from exponential relationships and use either model to predict.",
+        keyIdea: "Linear change adds the same amount each step; exponential change multiplies by the same factor.",
+        video: SKILL_VIDEOS["linear-vs-exponential"],
+        problems: [
+          { id: "mf3-p1", type: "multiple-choice", prompt: "When x is 0, 1, 2, 3, y is 3, 6, 12, 24. Is the relationship linear, exponential, or neither?", hint: "Check the differences between y-values, then the ratios.", answer: "Exponential", choices: ["Linear", "Exponential", "Neither"], explanation: "ratios: 2, 2, 2 → all the same → exponential" },
+        ],
+      },
+    ],
+  },
 ];
 
 export function getUnit(id: string): Unit | undefined {

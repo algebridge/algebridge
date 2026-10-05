@@ -357,6 +357,52 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     duration: "4:23",
     youtubeId: "hg2HR9zJFq4",
   },
+
+  // Unit 14, Data & Statistics (checked live October 5, 2026)
+  "center-spread": {
+    id: "sv-center-spread",
+    title: "Mean and standard deviation versus median and IQR",
+    channel: "Khan Academy",
+    duration: "7:58",
+    youtubeId: "qNKOi08NxHs",
+  },
+  "trend-lines": {
+    id: "sv-trend-lines",
+    title: "Interpreting slope of regression line",
+    channel: "Khan Academy",
+    duration: "2:57",
+    youtubeId: "PplggM0KtJ8",
+  },
+  "two-way-tables": {
+    id: "sv-two-way-tables",
+    title: "Two-way relative frequency tables",
+    channel: "Khan Academy",
+    duration: "4:27",
+    youtubeId: "_ETPMszULXc",
+  },
+
+  // Unit 15, Modeling with Functions (checked live October 5, 2026)
+  "literal-equations": {
+    id: "sv-literal-equations",
+    title: "Literal Equations (Solving for a Variable)",
+    channel: "Mario's Math Tutoring",
+    duration: "4:55",
+    youtubeId: "GgCk-1C-EQI",
+  },
+  "function-transformations": {
+    id: "sv-function-transformations",
+    title: "Shifting functions introduction",
+    channel: "Khan Academy",
+    duration: "5:38",
+    youtubeId: "RttvubuBhAE",
+  },
+  "linear-vs-exponential": {
+    id: "sv-linear-vs-exponential",
+    title: "Linear vs. exponential growth: from data",
+    channel: "Khan Academy",
+    duration: "5:56",
+    youtubeId: "721RrH6auoU",
+  },
 };
 
 export const BACKUP_VIDEOS: Record<string, Video> = {

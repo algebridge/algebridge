@@ -16,7 +16,7 @@ interface UnitCardProps {
 /**
  * A unit on the course outline. Each unit has its own color, carried from
  * here to its page and its lessons, so the outline reads as a map of places
- * rather than a list of the same card thirteen times.
+ * rather than a list of the same card fifteen times.
  */
 export function UnitCard({ unit }: UnitCardProps) {
   const { mounted } = useProgress();
@@ -37,7 +37,7 @@ export function UnitCard({ unit }: UnitCardProps) {
       className="card-link group relative block overflow-hidden"
     >
       {/* The unit's color is on its icon tile, a locked unit's too (muted),
-          so the outline still reads as thirteen colored places. A band down
+          so the outline still reads as fifteen colored places. A band down
           the side, clipped by the card's corner, drew a crescent. */}
       <div className="flex items-start gap-4">
         <span

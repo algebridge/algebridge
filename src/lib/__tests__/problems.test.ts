@@ -1308,6 +1308,229 @@ const checks: Record<string, Check> = {
     const [first, b, second, x] = [m[1], +m[2], m[3], +m[4]];
     return expectAnswer(p, evaluate(x < b ? first : second, { x }));
   },
+  "center-spread": (p) => {
+    let m;
+    const nums = (t: string) => (t.match(/-?\d+/g) ?? []).map(Number);
+    const sorted = (a: number[]) => [...a].sort((x, y) => x - y);
+    const median = (a: number[]) => {
+      const s = sorted(a);
+      const n = s.length;
+      return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+    };
+    // Quartiles with the median left out of both halves.
+    const quartiles = (a: number[]) => {
+      const s = sorted(a);
+      return [median(s.slice(0, Math.floor(s.length / 2))), median(s.slice(Math.ceil(s.length / 2)))];
+    };
+    const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+    if ((m = p.prompt.match(/^Find the median of ([\d, ]+)\.( Write your answer as a decimal\.)?$/))) {
+      const v = median(nums(m[1]));
+      if (!Number.isInteger(v) && !m[2]) return "a decimal answer with no instruction";
+      return expectAnswer(p, v);
+    }
+    if ((m = p.prompt.match(/^(Four|Five|Six) quiz scores are (.*)\. What is the mean score\?$/))) {
+      const v = nums(m[2]);
+      if (v.length !== { Four: 4, Five: 5, Six: 6 }[m[1] as "Four"]) return "the count in words does not match the scores";
+      return expectAnswer(p, mean(v));
+    }
+    if ((m = p.prompt.match(/^Find the interquartile range \(IQR\) of ([\d, ]+)\.$/))) {
+      const [q1, q3] = quartiles(nums(m[1]));
+      return expectAnswer(p, q3 - q1);
+    }
+    if ((m = p.prompt.match(/^For the data ([\d, ]+), what is the upper fence: Q3 plus 1\.5 times the IQR\? Values above it count as outliers\.( Write your answer as a decimal\.)?$/))) {
+      const [q1, q3] = quartiles(nums(m[1]));
+      const fence = q3 + 1.5 * (q3 - q1);
+      if (!Number.isInteger(fence) && !m[2]) return "a decimal answer with no instruction";
+      return expectAnswer(p, fence);
+    }
+    if ((m = p.prompt.match(/^The data set is ([\d, ]+)\. How much does the mean go down when the outlier, (\d+), is removed\?$/))) {
+      const v = nums(m[1]);
+      const at = v.indexOf(+m[2]);
+      if (at < 0 || +m[2] !== Math.max(...v)) return "the outlier named is not the data's largest value";
+      return expectAnswer(p, mean(v) - mean(v.filter((_, k) => k !== at)));
+    }
+    if ((m = p.prompt.match(/^Four test scores are (.*)\. What score on the fifth test makes the mean exactly (\d+)\?$/))) {
+      const v = nums(m[1]);
+      return expectAnswer(p, 5 * +m[2] - v.reduce((x, y) => x + y, 0));
+    }
+    return "unread";
+  },
+  "trend-lines": (p) => {
+    let m;
+    const n = (t: string) => +t.replace(/,/g, "");
+    if ((m = p.prompt.match(/^A line of fit for .+, x, and .+, y, is y = (.*)\. What does the line predict when x = (-?\d+)\?( Write your answer as a decimal\.)?$/))) {
+      const y = evaluate(m[1], { x: +m[2] });
+      if (!Number.isInteger(Math.round(y * 1e9) / 1e9) && !m[3]) return "a decimal answer with no instruction";
+      return expectAnswer(p, y);
+    }
+    if ((m = p.prompt.match(/^A line of fit for .+, x, and .+, y, is y = (.*)\. For what value of x does the line predict y = (-?[\d,.]+)\?$/))) return expectAnswer(p, solveLinear(m[1], String(n(m[2]))));
+    if ((m = p.prompt.match(/^A line of fit for .+, x, and .+, y, is y = (.*)\. What does the slope, (-?[\d,.]+), mean\?$/))) {
+      const slope = lineOf(`y = ${m[1]}`)!.m;
+      if (!close(slope, n(m[2]))) return "the slope named is not the line's";
+      return onlyRight(p, (c) => {
+        const f = c.match(/goes (up|down) about ([\d,.]+) .+ for each extra/);
+        return !!f && (f[1] === "up") === slope > 0 && close(n(f[2]), Math.abs(slope));
+      });
+    }
+    if ((m = p.prompt.match(/^A line of fit for .+, x, and .+, y, is y = (.*)\. When x = (-?\d+), the actual value was (-?[\d,.]+)\. What is the residual, actual minus predicted\?$/))) return expectAnswer(p, n(m[3]) - evaluate(m[1], { x: +m[2] }));
+    if ((m = p.prompt.match(/^Which correlation coefficient shows the strongest linear relationship: (.*)\?$/))) {
+      const rs = (m[1].match(/-?\d*\.\d+/g) ?? []).map(Number);
+      const best = rs.reduce((b, r) => (Math.abs(r) > Math.abs(b) ? r : b));
+      if (rs.filter((r) => Math.abs(r) === Math.abs(best)).length !== 1) return "two coefficients tie for strongest";
+      return onlyRight(p, (c) => c === `r = ${best}`);
+    }
+    if ((m = p.prompt.match(/^The correlation coefficient between .+ is r = (-?[\d.]+)\. What does it show\?$/))) {
+      const r = +m[1];
+      const want = `A ${Math.abs(r) >= 0.7 ? "strong" : "weak"} ${r > 0 ? "positive" : "negative"} linear relationship`;
+      return onlyRight(p, (c) => c === want);
+    }
+    if ((m = p.prompt.match(/^In a data set, .+ and .+ have r = ([\d.]+)\. Which conclusion is sound\?$/))) return onlyRight(p, (c) => /may drive both/.test(c));
+    return "unread";
+  },
+  "two-way-tables": (p) => {
+    const m = p.prompt.match(/^A survey asked (.+?) and (.+?) whether .+?\. (\d+) of the \1 (.+?) and (\d+) (.+?); (\d+) of the \2 \4 and (\d+) \6\. (.*)$/);
+    if (!m) return "unread";
+    const [g0, g1, a, , b, , c, d, q] = [m[1], m[2], +m[3], m[4], +m[5], m[6], +m[7], +m[8], m[9]];
+    const T = a + b + c + d;
+    let k;
+    if ((k = q.match(new RegExp(`^What fraction of all the students surveyed are ${g1} who .+\\? Give it as a fraction\\.$`)))) return expectAnswer(p, c / T);
+    if ((k = q.match(/^What fraction of all the students surveyed .+\? Give it as a fraction\.$/))) return expectAnswer(p, (a + c) / T);
+    if ((k = q.match(new RegExp(`^What fraction of the ${g0} .+\\? Give it as a fraction\\.$`)))) return expectAnswer(p, a / (a + b));
+    if ((k = q.match(new RegExp(`^Of the students who .+, what fraction are ${g1}\\? Give it as a fraction\\.$`)))) return expectAnswer(p, c / (a + c));
+    if ((k = q.match(/^Which group has the greater share of students who .+\?$/))) {
+      const [r0, r1] = [a / (a + b), c / (c + d)];
+      if (close(r0, r1)) return "the shares are equal";
+      return onlyRight(p, (ch) => ch === `The ${r0 > r1 ? g0 : g1}`);
+    }
+    return "unread";
+  },
+  "literal-equations": (p) => {
+    let m;
+    const n = (t: string) => +t.replace(/,/g, "");
+    if ((m = p.prompt.match(/^The volume of a box is V = lwh\. Solve for h, then find h when V = (\d+), l = (\d+) and w = (\d+)\.$/))) return expectAnswer(p, +m[1] / (+m[2] * +m[3]));
+    if ((m = p.prompt.match(/^F = 1\.8C \+ 32 changes Celsius to Fahrenheit\. Solve it for C, then find C when F = (-?\d+)\.$/))) return expectAnswer(p, (+m[1] - 32) / 1.8);
+    if ((m = p.prompt.match(/^Simple interest is I = Prt\. Solve for t, then find how many years \$([\d,]+) takes to earn \$([\d,]+) at (\d+)% simple interest\.$/))) return expectAnswer(p, n(m[2]) / ((n(m[1]) * +m[3]) / 100));
+    if ((m = p.prompt.match(/^Distance is d = rt\. Solve for r, then find the average speed in miles per hour for ([\d.]+) miles in ([\d.]+) hours\.$/))) return expectAnswer(p, +m[1] / +m[2]);
+    if ((m = p.prompt.match(/^A rectangle's perimeter is P = 2l \+ 2w\. Solve for w, then find w when P = (\d+) and l = (\d+)\.$/))) return expectAnswer(p, (+m[1] - 2 * +m[2]) / 2);
+    if ((m = p.prompt.match(/^Solve (.+) for ([a-zA-Z])\.$/))) {
+      // Any rearrangement is right if, with the other letters set, it makes the original formula true.
+      const eq = m[1].toLowerCase();
+      const v = m[2].toLowerCase();
+      const [L, R] = eq.split("=");
+      const letters = [...new Set(eq.match(/[a-z]/g) ?? [])].filter((l) => l !== v);
+      return onlyRight(p, (c) => {
+        const f = c.toLowerCase().match(/^([a-z]) = (.*)$/);
+        if (!f || f[1] !== v) return false;
+        return [1, 2, 3].every((t) => {
+          const env: Record<string, number> = Object.fromEntries(letters.map((l, j) => [l, 1.3 + t * 0.7 + j * 0.9]));
+          env[v] = evaluate(f[2], env);
+          return close(evaluate(L, env), evaluate(R, env));
+        });
+      });
+    }
+    return "unread";
+  },
+  "function-transformations": (p) => {
+    let m;
+    const base = (s: string) => (s === "x²" ? (x: number) => x * x : (x: number) => Math.abs(x));
+    const same = (c: string, g: (x: number) => number) => {
+      const f = c.match(/^y = (.*)$/);
+      // Wide on both sides of any corner: |x − 5| + 6 and |x − 6| + 5 agree everywhere left of 5.
+      return !!f && [-13, -7.5, -3.5, -1, 0, 0.5, 2, 4.25, 7.5, 9, 13.5].every((x) => close(evaluate(f[1], { x }), g(x)));
+    };
+    // The turning point of an upward (or, with min = false, downward) V or U, found by sweeping.
+    const turn = (e: string, min = true) => {
+      let best = { x: 0, y: min ? Infinity : -Infinity };
+      for (let x = -30; x <= 30; x += 0.5) {
+        const y = evaluate(e, { x });
+        if (min ? y < best.y : y > best.y) best = { x, y };
+      }
+      return best;
+    };
+    const dir = (v: number, pos: string, neg: string) => `${v > 0 ? pos : neg} ${Math.abs(v)} ${Math.abs(v) === 1 ? "unit" : "units"}`;
+    if ((m = p.prompt.match(/^Move y = (x²|\|x\|) (right|left) (\d+) units? and (up|down) (\d+) units?\. Which equation is the result\?$/))) {
+      const S = base(m[1]);
+      const h = m[2] === "right" ? +m[3] : -m[3];
+      const k = m[4] === "up" ? +m[5] : -m[5];
+      return onlyRight(p, (c) => same(c, (x) => S(x - h) + k));
+    }
+    if ((m = p.prompt.match(/^y = (.*) is y = (x²|\|x\|) moved\. Where is its (?:vertex|corner point)\? Type its (x|y)-coordinate\.$/))) {
+      const t = turn(m[1]);
+      return expectAnswer(p, m[3] === "x" ? t.x : t.y);
+    }
+    if ((m = p.prompt.match(/^How does y = -(.*) compare with y = (x²|\|x\|)\?$/))) {
+      const t = turn(`-(${m[1].replace(/ ([+−]) (\d+)$/, "")})`, false);
+      const k = (() => {
+        const f = m![1].match(/ ([+−]) (\d+)$/);
+        return f ? (f[1] === "+" ? +f[2] : -f[2]) : 0;
+      })();
+      const want = `Flipped over the x-axis, moved ${dir(t.x, "right", "left")} and ${dir(k, "up", "down")}`;
+      return onlyRight(p, (c) => c === want);
+    }
+    if ((m = p.prompt.match(/^f\(x\) = (.*)\. If g\(x\) = f\(([^)]*)\)((?: [+−] \d+)?), find g\((-?\d+)\)\.$/))) {
+      const x = +m[4];
+      const inner = evaluate(m[2], { x });
+      const outer = m[3] ? evaluate(`0${m[3]}`) : 0;
+      return expectAnswer(p, evaluate(m[1], { x: inner }) + outer);
+    }
+    if ((m = p.prompt.match(/^Which function is y = (x²|\|x\|) stretched by a factor of (\d+) and then moved down (\d+) units?\?$/))) {
+      const S = base(m[1]);
+      return onlyRight(p, (c) => same(c, (x) => +m![2] * S(x) - +m![3]));
+    }
+    if ((m = p.prompt.match(/^The point \((-?\d+), (\d+)\) is on y = (x²|\|x\|)\. Where does it land on y = (.*)\? Type its new (x|y)-coordinate\.$/))) {
+      const [px, py] = [+m[1], +m[2]];
+      if (base(m[3])(px) !== py) return "the point is not on the parent function";
+      const t = turn(m[4]);
+      if (!close(evaluate(m[4], { x: px + t.x }), py + t.y)) return "the moved point is not on the new function";
+      return expectAnswer(p, m[5] === "x" ? px + t.x : py + t.y);
+    }
+    return "unread";
+  },
+  "linear-vs-exponential": (p) => {
+    let m;
+    const n = (t: string) => +t.replace(/,/g, "");
+    const kindOf = (ys: number[]) => {
+      const diffs = ys.slice(1).map((y, k) => y - ys[k]);
+      const ratios = ys.slice(1).map((y, k) => y / ys[k]);
+      if (diffs.every((d) => close(d, diffs[0]))) return "Linear";
+      if (ratios.every((r) => close(r, ratios[0]))) return "Exponential";
+      return "Neither";
+    };
+    if ((m = p.prompt.match(/^When x is 0, 1, 2, 3, y is (.*)\. Is the relationship linear, exponential, or neither\?$/))) {
+      const want = kindOf(m[1].split(", ").map(n));
+      return onlyRight(p, (c) => c === want);
+    }
+    if ((m = p.prompt.match(/^When x is 0, 1, 2, 3, y is (.*)\. If the pattern continues, what is y when x = (\d+)\?$/))) {
+      const ys = m[1].split(", ").map(n);
+      const at = +m[2];
+      const kind = kindOf(ys);
+      if (kind === "Neither") return "the table follows neither pattern";
+      return expectAnswer(p, kind === "Linear" ? ys[0] + (ys[1] - ys[0]) * at : ys[0] * (ys[1] / ys[0]) ** at);
+    }
+    if ((m = p.prompt.match(/^Which situation is modeled by (an exponential|a linear) function\?$/))) {
+      const wantExp = m[1] === "an exponential";
+      const isExp = (c: string) => /%|double|triple|halve/.test(c);
+      return onlyRight(p, (c) => isExp(c) === wantExp);
+    }
+    if ((m = p.prompt.match(/^Job A pays \$([\d,]+) a day\. Job B pays \$1 on day 1 and doubles its pay each day\. On which day does Job B first pay more than Job A\?$/))) {
+      let day = 1;
+      while (2 ** (day - 1) <= n(m[1])) day++;
+      return expectAnswer(p, day);
+    }
+    if ((m = p.prompt.match(/^y is (\d+) when x = 0 and (\d+) when x = 2\. If y grows (exponentially|linearly), what is y when x = 3\?$/))) {
+      const [y0, y2] = [+m[1], +m[2]];
+      return expectAnswer(p, m[3] === "linearly" ? y0 + ((y2 - y0) / 2) * 3 : y0 * Math.sqrt(y2 / y0) ** 3);
+    }
+    if ((m = p.prompt.match(/^Two towns each have ([\d,]+) people\. Town A gains ([\d,]+) people a year\. Town B grows (\d+)% a year\. How many more people does Town B have after (\d+) years\? \(round to the nearest whole number\)$/))) {
+      const [P, add, r, y] = [BigInt(n(m[1])), n(m[2]), BigInt(m[3]), Number(m[4])];
+      let v = P;
+      for (let k = 0; k < y; k++) v = v * (100n + r);
+      const den = 100n ** BigInt(y);
+      const townB = Number((v * 2n + den) / (2n * den));
+      return expectAnswer(p, townB - (Number(P) + add * y));
+    }
+    return "unread";
+  },
 };
 
 /** Word problems that are one equation in disguise: worked out from the story's numbers. Null when the prompt is not one. */
