@@ -3,7 +3,7 @@ import { UnitMark } from "@/components/UnitMark";
 import { unitHue } from "@/lib/hues";
 
 /**
- * The thirteen units as colored tiles, each with its mark: the whole course
+ * The fifteen units as colored tiles, each with its mark: the whole course
  * at a glance, in the colors a student will meet unit by unit. "mosaic" is
  * three staggered columns for beside the hero text; "row" wraps for phones.
  */

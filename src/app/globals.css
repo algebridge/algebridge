@@ -178,7 +178,7 @@ body {
   /* ---- Hues -------------------------------------------------------
      A unit or an interest sets the --hue-* variables on a wrapper (see
      src/lib/hues.ts); these classes read them, so one set of styles
-     serves all thirteen colors. Every pairing is contrast-tested. */
+     serves all fifteen colors. Every pairing is contrast-tested. */
   .hue-banner {
     background-image: linear-gradient(135deg, var(--hue-solid), var(--hue-deep));
     color: var(--hue-on-solid);

@@ -175,6 +175,8 @@ export const FURNITURE_ITEMS: FurnitureItem[] = [
   { id: "prize-area-table", name: "Area Model Table", price: 0, earnedBy: "quadratics-factoring", slot: "mid-center", prestige: 160, rarity: "legendary", displayWidth: 96, blurb: "Four products, one table." },
   { id: "prize-arch", name: "Parabola Arch", price: 0, earnedBy: "quadratic-functions", slot: "back-center", prestige: 170, rarity: "legendary", displayWidth: 104, blurb: "It opens up. So do you." },
   { id: "prize-zigzag", name: "Piecewise Neon", price: 0, earnedBy: "absolute-value-piecewise", slot: "back-center", prestige: 180, rarity: "legendary", displayWidth: 90, blurb: "A different rule on every stretch." },
+  { id: "prize-histogram", name: "Histogram Bookcase", price: 0, earnedBy: "data-statistics", slot: "back-right", prestige: 190, rarity: "legendary", displayWidth: 84, blurb: "Read the tallest shelf first." },
+  { id: "prize-rocket", name: "Model Rocket", price: 0, earnedBy: "modeling-functions", slot: "mid-left", prestige: 200, rarity: "legendary", displayWidth: 70, blurb: "Built from a model. Launched by a function." },
 ];
 
 /**

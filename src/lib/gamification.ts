@@ -45,7 +45,7 @@ export const BRIDGEY_REWARDS = {
  */
 export const DAILY_GOAL = 10;
 
-/** What finishing a skill pays: 10 in Unit 1, 34 by Unit 13. */
+/** What finishing a skill pays: 10 in Unit 1, 34 by Unit 13, 38 by Unit 15. */
 export function bridgeysForSkill(skillId: string): number {
   const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
   return BRIDGEY_REWARDS.skillComplete + BRIDGEY_REWARDS.perUnitStep * Math.max(0, (unit?.number ?? 1) - 1);

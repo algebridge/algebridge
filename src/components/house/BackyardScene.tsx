@@ -138,17 +138,24 @@ const SOIL = { base: "#5e4233", light: "#74553f", dark: "#4a3327" } as const;
 const STONE = { base: "#a8a29e", light: "#c7c2bd", dark: "#78716c" } as const;
 const LEAF = { base: "#3f9a4a", light: "#66c26f", dark: "#2f7a3a" } as const;
 
-/** Where each unit's plant stands: the odd units in the back row, the even ones in front. */
-function bedSpots(): { x: number; y: number; scale: number }[] {
-  return Array.from({ length: 13 }, (_, i) => {
+/**
+ * Where each unit's plant stands: the odd units in the back row, the even
+ * ones in front. The spacing (and the plants with it) shrinks to fit when the
+ * course has more units than the 13 the bed was first laid out for.
+ */
+function bedSpots(count: number): { x: number; y: number; scale: number }[] {
+  const back = Math.ceil(count / 2);
+  const step = Math.min(115, (1032 - 338) / Math.max(1, back - 1));
+  const size = step / 115;
+  return Array.from({ length: count }, (_, i) => {
     const backRow = i % 2 === 0;
     const k = backRow ? i / 2 : (i - 1) / 2;
-    return backRow ? { x: 338 + k * 115, y: 614, scale: 1.04 } : { x: 396 + k * 115, y: 670, scale: 1.2 };
+    return backRow ? { x: 338 + k * step, y: 614, scale: 1.04 * size } : { x: 338 + step / 2 + k * step, y: 670, scale: 1.2 * size };
   });
 }
 
 function Bed({ garden, night }: { garden: GardenState; night: boolean }) {
-  const spots = bedSpots();
+  const spots = bedSpots(garden.beds.length);
   const rx = 70;
   return (
     <g>
