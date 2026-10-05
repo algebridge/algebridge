@@ -44,6 +44,7 @@ interface AuthContextValue {
   ) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: (next?: string) => Promise<string | null>;
+  signInWithGoogleIdToken: (token: string, nonce: string, next?: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   syncProgress: () => Promise<void>;
   switchRole: (role: UserRole, code?: string) => Promise<string | null>;
@@ -527,6 +528,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  /**
+   * Google's own button hands back a signed ID token; Supabase turns it into a
+   * session. The popup runs on learn.algebridge.org, so Google says "to
+   * continue to learn.algebridge.org" instead of the Supabase address.
+   */
+  async function signInWithGoogleIdToken(token: string, nonce: string, next?: string): Promise<string | null> {
+    const supabase = createClient();
+    if (!supabase) return "Cloud login is not configured yet.";
+    try {
+      window.sessionStorage.setItem(OAUTH_PENDING_KEY, next ?? "");
+    } catch {}
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token, nonce });
+    if (error) {
+      try {
+        window.sessionStorage.removeItem(OAUTH_PENDING_KEY);
+      } catch {}
+      return error.message;
+    }
+    if (data.session) {
+      tokenRef.current = data.session.access_token;
+      setUser(data.session.user);
+      void ensureCloudProgress(data.session.user.id);
+      await refreshProfile(data.session.user.id);
+    }
+    return null;
+  }
+
   async function deleteAccount(): Promise<string | null> {
     const supabase = createClient();
     if (!supabase) return "Cloud accounts are not configured.";
@@ -634,7 +662,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, configured, needsRealName, progressLoaded, signUp, signIn, signInWithGoogle, signOut, syncProgress, switchRole, refreshProfile, saveRealName, deleteAccount }}
+      value={{ user, profile, loading, configured, needsRealName, progressLoaded, signUp, signIn, signInWithGoogle, signInWithGoogleIdToken, signOut, syncProgress, switchRole, refreshProfile, saveRealName, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>
