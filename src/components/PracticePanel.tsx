@@ -43,6 +43,8 @@ import type { PadLine } from "@/components/helper/types";
 import { checkWork, workContext } from "@/lib/work-check";
 import { SignKeys } from "@/components/SignKeys";
 import { MathKeyboard, MathKeysOpen, MathKeysToggle } from "@/components/MathKeyboard";
+import { CourseCelebration } from "@/components/CourseCelebration";
+import { useCertificateName } from "@/components/CertificateView";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
 import {
@@ -243,6 +245,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   /** "Show me how" was pressed: the worked answer is on screen and this problem is over. */
   const [revealed, setRevealed] = useState(false);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
+  /** The last unit of the course was just finished: the whole screen celebrates. */
+  const [courseParty, setCourseParty] = useState(false);
+  const [certificateName] = useCertificateName();
   const daily = useDaily();
   const answerRef = useRef<HTMLInputElement>(null);
   const unitOfSkill = useMemo(() => units.find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
@@ -747,6 +752,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           unitBonus: result.unitJustCompleted ? BRIDGEY_REWARDS.unitComplete : 0,
           prizeName: prize?.name ?? null,
         });
+        if (result.courseJustCompleted) {
+          setCourseParty(true);
+          window.setTimeout(() => fireConfetti("big"), 900);
+        }
       }
       for (const badge of result.newBadges) {
         showToast({
@@ -1048,6 +1057,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   return (
     <div className="space-y-4">
+      {courseParty && <CourseCelebration progress={getProgress()} name={certificateName.trim()} onClose={() => setCourseParty(false)} />}
       {celebration && (
         <div
           style={hueVars(unitHue(unitOfSkill?.id ?? units[0].id))}
@@ -1072,6 +1082,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </p>
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              {celebration.unitNumber && unitOfSkill && (
+                <Link
+                  href={`/certificate/${unitOfSkill.id}`}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10"
+                >
+                  <Icon name="printer" size={15} />
+                  Your certificate
+                </Link>
+              )}
               {celebration.prizeName && (
                 <Link href="/house" className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10">
                   Place it

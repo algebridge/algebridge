@@ -1764,5 +1764,37 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("titles: every tier has its plate, and the shine runs once, never on a loop", ["tp-common", "tp-rare", "tp-epic", "tp-legendary"].every((c) => css.includes(`.${c}`)) && /tp-sweep 1\.1s ease-out 1;/.test(css) && !/tp-sweep[^;]*infinite/.test(css));
 }
 
+// --- Certificates and the end of the course ---------------------------------------
+{
+  const C = await import("../certificates.ts");
+  const Pg = await import("../progress.ts");
+  const all = units.flatMap((u) => u.skills);
+  const finished = (id: string) => ({ skillId: id, level: "proficient" as const, problemsAttempted: 5, problemsCorrect: 5, solved: 5, videoWatched: false, lastPracticed: "2026-09-30T12:00:00.000Z" });
+
+  // Everything finished but the last skill of the course, which sits at four of five.
+  const last = all[all.length - 1];
+  const lastUnit = units[units.length - 1];
+  const start = Pg.normalizeProgress({});
+  for (const s of all) start.skills[s.id] = finished(s.id);
+  start.skills[last.id] = { ...finished(last.id), level: "familiar", solved: 4, problemsAttempted: 4, problemsCorrect: 4 };
+  Pg.saveProgress(start);
+  ok("certificates: an unfinished unit has none", C.unitCertificateDate(Pg.getProgress(), lastUnit) === null && C.courseCertificateDate(Pg.getProgress()) === null);
+  ok("certificates: a unit finished before certificates existed is dated by its last practice", C.unitCertificateDate(Pg.getProgress(), units[0]) === "2026-09-30T12:00:00.000Z");
+
+  const r = Pg.recordProblemAttempt(last.id, true, { firstTry: true });
+  const after = Pg.getProgress();
+  ok("certificates: the last answer finishes the unit and the course", r.unitJustCompleted && r.courseJustCompleted);
+  ok("certificates: the unit's date is kept", !!after.certificates?.[lastUnit.id] && C.unitCertificateDate(after, lastUnit) === after.certificates?.[lastUnit.id]);
+  ok("certificates: the course is dated the moment it was finished", !!after.courseCompletedAt && C.courseCertificateDate(after) === after.courseCompletedAt);
+  ok("certificates: one per unit and one for the course, all earned", C.certificateList(after).length === units.length + 1 && C.certificateList(after).every((c) => !!c.earnedAt));
+
+  const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });
+  ok("certificates: the course finishes once", !again.courseJustCompleted && Pg.getProgress().courseCompletedAt === after.courseCompletedAt);
+  ok("certificates: dates read as a person writes them", C.certificateDateText("2026-10-05T15:00:00.000Z").endsWith("2026") && /^[A-Z][a-z]+ \d{1,2}, 2026$/.test(C.certificateDateText("2026-10-05T15:00:00.000Z")));
+  const facts = C.courseFacts(after);
+  ok("certificates: the course facts are the student's own", facts.units === units.length && facts.skills === all.length && facts.problemsSolved === after.totalProblemsSolved);
+  Pg.saveProgress(Pg.normalizeProgress({}));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

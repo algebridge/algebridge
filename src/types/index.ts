@@ -139,6 +139,10 @@ export interface UserProgress {
   bridgeyEconomyMigratedV1?: boolean;
   /** One-time migration: slot furniture → free-position coords. */
   housePlacementMigratedV2?: boolean;
+  /** When each unit was finished (unit id → ISO time), the date on its certificate. */
+  certificates?: Record<string, string>;
+  /** When the last unit of the course was finished, the date on the course certificate. */
+  courseCompletedAt?: string;
   /** What the student is into; practice problems are set in these. */
   interests?: InterestProfile;
   /** Garden ornaments the student owns. */
