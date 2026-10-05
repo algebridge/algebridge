@@ -1231,6 +1231,7 @@ img{display:block;max-width:100%;}
       }).sort(function(a, b){ return b.zc - a.zc; });
       ctx.textBaseline = 'middle';
       labels.length = 0;
+      var drawn = [];
       placed.forEach(function(pl){
         var c = pl.c, zc = pl.zc + 1.4, pts = [], run = [], runs = [];
         for (var q = 0; q <= 48; q++){
@@ -1243,6 +1244,11 @@ img{display:block;max-width:100%;}
         var depth = Math.max(0, Math.min(1, 1 - (zc - 1.4) / PERIOD));
         var wgt = 1.3 + 2.8 * depth, al = 0.4 + 0.6 * depth;
         runs.forEach(function(r){ if (r.length > 1){ stroke(r, c.tone, wgt * 3, al * 0.2); stroke(r, c.tone, wgt, al); } });
+        drawn.push({ c: c, pts: pts, depth: depth });
+      });
+      /* labels go on nearest first, so a near equation keeps its place and a far one makes way */
+      for (var di = drawn.length - 1; di >= 0; di--){ (function(d){
+        var c = d.c, pts = d.pts, depth = d.depth;
         /* the equation hangs off a point of its own curve: the lowest point still in
            the open band of paper (on the canvas, clear of the window), marked with a
            dot and a short leader, so the two read as one. Far off, six labels would
@@ -1271,6 +1277,10 @@ img{display:block;max-width:100%;}
           if (ly < fs * 0.7) ly = q2[1] + fs * 1.1;
           if (ly + fs * 0.6 > CH) continue;
           if (ly + fs * 0.6 > winT - 4 && lx + tw > winL - 4 && lx < winR + 4) continue;
+          /* clear of every label already placed this frame */
+          var clash = false;
+          for (var j = 0; j < labels.length && !clash; j++){ var o = labels[j]; clash = lx < o.lx + o.w + 10 && lx + tw + 10 > o.lx && ly - fs * 0.6 < o.ly + o.fs * 0.6 + 4 && ly + fs * 0.6 + 4 > o.ly - o.fs * 0.6; }
+          if (clash) continue;
           if (!best || q2[1] > best.y + 1.5 || (Math.abs(q2[1] - best.y) <= 1.5 && q2[0] > best.x)) best = { x: q2[0], y: q2[1], lx: lx, ly: ly, right: right };
         }
         if (!best) return;
@@ -1282,7 +1292,7 @@ img{display:block;max-width:100%;}
         ctx.fillStyle = 'rgba(' + (c.tone === BLUE ? BLUE_INK : AMBER_INK) + ',' + la + ')';
         ctx.fillText(c.label, lx, ly);
         labels.push({ label: c.label, ax: Math.round(A[0]), ay: Math.round(A[1]), lx: Math.round(lx), ly: Math.round(ly), w: Math.round(tw), fs: fs });
-      });
+      })(drawn[di]); }
     }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
     /* what a frame costs, for anyone checking: window.__heroStats.ms / window.__heroStats.n */
