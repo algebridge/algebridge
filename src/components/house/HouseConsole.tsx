@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HouseRoom } from "@/components/HouseRoom";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
@@ -25,13 +25,11 @@ import {
   buyFurniture,
   buyHouseStyle,
   buyOrnament,
-  buyTitle,
-  equipTitle,
   buyRinkItem,
   setItemColor,
 } from "@/lib/bridgeys";
 import { showToast } from "@/lib/notify";
-import { TitleMark } from "@/components/RewardMark";
+import { TitlesPanel } from "@/components/house/TitlesPanel";
 import type { FurnitureItem, UserProgress } from "@/types";
 
 type Tab = "house" | "shop" | "titles";
@@ -68,6 +66,11 @@ export interface HouseConsoleProps {
  */
 export function HouseConsole({ progress, onUpdate, unlimited = false, school = false, embedded = false }: HouseConsoleProps) {
   const [tab, setTab] = useState<Tab>("house");
+  // A link can open a tab: /house?tab=titles from the account menu and the profile.
+  useEffect(() => {
+    const asked = new URLSearchParams(window.location.search).get("tab");
+    if (asked === "titles" || asked === "shop") setTab(asked);
+  }, []);
   /** Colours tried on pieces not yet bought; a piece is bought in the colour it was tried in. */
   const [preview, setPreview] = useState<Record<string, string | null>>({});
   /** Links that leave the house open the whole window when the house is framed. */
@@ -651,84 +654,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
         </div>
       )}
 
-      {tab === "titles" && (
-        <section>
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2 className="section-title">Display titles</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {school ? "One shows next to your name on your profile." : "One shows next to your name on your profile and the leaderboard."}
-              </p>
-            </div>
-            <p className="text-sm text-slate-500 tabular-nums">
-              {stats.titles} of {DISPLAY_TITLES.length} owned
-            </p>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {DISPLAY_TITLES.map((title) => {
-              const owned = progress.ownedTitles.includes(title.id);
-              const equipped = progress.equippedTitleId === title.id;
-              const affordable = balance >= title.price;
-              return (
-                <article
-                  key={title.id}
-                  className={`card flex flex-col p-4 ${equipped ? "ring-2 ring-bridge-500" : ""}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <TitleMark id={title.id} name={title.name} />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-slate-900">{title.name}</h3>
-                      <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
-                        {title.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                    <BridgeyPrice
-                      amount={title.price}
-                      size="sm"
-                      muted={!owned && !affordable}
-                    />
-                    {equipped ? (
-                      <span className="badge-brand">Equipped</span>
-                    ) : owned ? (
-                      <button
-                        type="button"
-                        onClick={() => handlePurchase(() => equipTitle(title.id))}
-                        className="btn-secondary btn-sm"
-                      >
-                        Equip
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(() => buyTitle(title.id))}
-                        className="btn-primary btn-sm"
-                        title={
-                          affordable
-                            ? undefined
-                            : `${(title.price - balance).toLocaleString()} more Bridgeys needed`
-                        }
-                      >
-                        Buy
-                      </button>
-                    )}
-                  </div>
-
-                  {!owned && !affordable && (
-                    <p className="mt-2 text-[11px] font-medium text-slate-400 tabular-nums">
-                      {(title.price - balance).toLocaleString()} more to go
-                    </p>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {tab === "titles" && <TitlesPanel progress={progress} balance={balance} school={school} onUpdate={onUpdate} />}
     </div>
   );
 }

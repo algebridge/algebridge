@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Icon } from "@/components/Icon";
-import { withoutEmoji } from "@/components/RewardMark";
+import { StoredTitlePlate } from "@/components/TitlePlate";
 import { useAuth } from "@/lib/auth";
 import { setLeaderboardOptIn } from "@/lib/bridgeys";
 import { fetchMyStanding, fetchNationwideLeaderboard, type LeaderboardSort } from "@/lib/leaderboard";
@@ -229,7 +229,7 @@ export default function LeaderboardPage() {
                       {entry.displayName}
                       {isMe && <span className="ml-1.5 text-xs font-medium text-bridge-600">you</span>}
                     </p>
-                    <p className="truncate text-xs text-slate-500">{entry.equippedTitle ? withoutEmoji(entry.equippedTitle) : "Student"}</p>
+                    <div className="mt-1 flex min-w-0"><StoredTitlePlate stored={entry.equippedTitle} size="xs" fallback={<span className="truncate text-xs text-slate-500">Student</span>} /></div>
                     <p className="mt-3 flex items-baseline gap-1.5">
                       <span className="font-display text-3xl leading-none tracking-tight text-slate-900 tabular-nums">
                         {valueFor(entry, sort).toLocaleString()}
@@ -279,7 +279,7 @@ export default function LeaderboardPage() {
                           {entry.displayName}
                           {isMe && <span className="ml-2 text-xs text-bridge-600">you</span>}
                         </td>
-                        <td className="px-4 py-2.5 hidden text-slate-600 sm:table-cell">{entry.equippedTitle ? withoutEmoji(entry.equippedTitle) : "-"}</td>
+                        <td className="px-4 py-2.5 hidden text-slate-600 sm:table-cell"><StoredTitlePlate stored={entry.equippedTitle} size="xs" fallback="-" /></td>
                         <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{valueFor(entry, sort).toLocaleString()}</td>
                       </tr>
                     );

@@ -391,7 +391,7 @@ export function buyTitle(titleId: string): PurchaseResult {
   progress.ownedTitles.push(titleId);
   progress.equippedTitleId = titleId;
   store.save(progress);
-  return { ok: true, message: `Unlocked & equipped: ${title.emoji} ${title.name}!` };
+  return { ok: true, message: `${title.name} is yours, and you are wearing it.` };
 }
 
 export function equipTitle(titleId: string): PurchaseResult {
@@ -406,7 +406,7 @@ export function equipTitle(titleId: string): PurchaseResult {
 
   progress.equippedTitleId = titleId;
   store.save(progress);
-  return { ok: true, message: `Now showing: ${title.emoji} ${title.name}` };
+  return { ok: true, message: `Now wearing ${title.name}.` };
 }
 
 export function setLeaderboardOptIn(optIn: boolean): void {
@@ -416,10 +416,19 @@ export function setLeaderboardOptIn(optIn: boolean): void {
   store.save(progress);
 }
 
+/** Takes the worn title off; it stays owned and can be worn again any time. */
+export function unequipTitle(): PurchaseResult {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  progress.equippedTitleId = undefined;
+  store.save(progress);
+  return { ok: true, message: "Title off. It stays in your collection." };
+}
+
 export function getEquippedTitleLabel(progress: UserProgress): string | null {
   if (!progress.equippedTitleId) return null;
   const title = getDisplayTitle(progress.equippedTitleId);
-  return title ? `${title.emoji} ${title.name}` : null;
+  return title ? title.name : null;
 }
 
 export function getLeaderboardSnapshot(progress: UserProgress) {

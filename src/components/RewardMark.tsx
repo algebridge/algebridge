@@ -45,21 +45,6 @@ export function monogram(name: string): string {
   return one.slice(0, 2).toUpperCase();
 }
 
-/** A display title's mark: its monogram on a tile in a color of its own. */
-export function TitleMark({ id, name, size = 44 }: { id: string; name: string; size?: number }) {
-  return (
-    <span
-      aria-hidden
-      style={{ ...hueVars(topicHue(id)), width: size, height: size }}
-      className="hue-wash flex shrink-0 items-center justify-center rounded-xl font-display tracking-[0.04em]"
-    >
-      <span style={{ fontSize: Math.round(size * 0.42) }} className="leading-none">
-        {monogram(name)}
-      </span>
-    </span>
-  );
-}
-
 /**
  * Text without emoji, for labels that were written with one built in (an
  * equipped title reads "<emoji> Graph Guru" in saved progress and on the

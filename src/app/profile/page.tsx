@@ -12,9 +12,12 @@ import { InterestsPicker } from "@/components/InterestsPicker";
 import { getInterests } from "@/lib/progress";
 import type { InterestProfile } from "@/lib/interests";
 import { Icon } from "@/components/Icon";
+import { TitlePlate } from "@/components/TitlePlate";
+import { useWornTitle } from "@/lib/use-worn-title";
 
 export default function ProfilePage() {
   const { user, profile, loading, configured, refreshProfile } = useAuth();
+  const worn = useWornTitle();
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -119,6 +122,23 @@ export default function ProfilePage() {
             </button>
             <p className="mt-1 text-xs text-slate-500">JPG or PNG, up to 5 MB.</p>
           </div>
+        </div>
+
+        {/* The title worn next to the name. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-700">Your title</p>
+            {worn ? (
+              <div className="mt-1.5 flex">
+                <TitlePlate title={worn} size="md" />
+              </div>
+            ) : (
+              <p className="mt-0.5 text-xs text-slate-500">Pick one in the Bridgey House to wear next to your name.</p>
+            )}
+          </div>
+          <Link href="/house?tab=titles" className="btn-secondary btn-sm">
+            {worn ? "Change" : "See titles"}
+          </Link>
         </div>
 
         {/* Display name */}

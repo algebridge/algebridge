@@ -14,6 +14,8 @@ import { isActivePath } from "@/lib/nav";
 import { withSchoolsLink } from "@/components/SideNav";
 import { useSchoolMode } from "@/components/SchoolModePanel";
 import { initialsOf } from "@/lib/name";
+import { TitlePlate } from "@/components/TitlePlate";
+import { useWornTitle } from "@/lib/use-worn-title";
 
 const ROLE_LABEL: Record<string, string> = {
   student: "Student",
@@ -32,6 +34,8 @@ export function Header() {
   const gamePending = loading || (!!user && !profile) || (gameLayer && !mounted);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  /** The title the student wears, shown under their name in the account menu. */
+  const worn = useWornTitle();
   const accountRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -198,6 +202,11 @@ export function Header() {
                       {profile?.displayName ?? "Your account"}
                     </p>
                     <p className="truncate text-xs text-slate-500">{user.email}</p>
+                    {worn && (
+                      <Link href="/house?tab=titles" onClick={() => setAccountOpen(false)} className="mt-2 flex max-w-full" title="Change your title">
+                        <TitlePlate title={worn} size="sm" />
+                      </Link>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <span className="badge-neutral">
                         {ROLE_LABEL[profile?.role ?? "student"]}

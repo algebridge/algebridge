@@ -242,7 +242,7 @@ export type FurnitureSlot =
 export interface DisplayTitle {
   id: string;
   name: string;
-  emoji: string;
+  /** Bridgeys; also sets the tier (src/lib/titles.ts). */
   price: number;
   description: string;
 }

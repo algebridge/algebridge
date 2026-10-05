@@ -1668,5 +1668,41 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("each sport has its own pace: the wrestler slowest, the footballer fastest", G.getCourtGame("wrestling")!.maxSpeed < G.getCourtGame("cheer")!.maxSpeed && G.getCourtGame("soccer")!.maxSpeed > G.getCourtGame("volleyball")!.maxSpeed);
 }
 
+// --- Display titles: drawn emblems, tiers by price, plates that read old labels ---
+{
+  const { DISPLAY_TITLES } = await import("../../data/titles-catalog.ts");
+  const T = await import("../titles.ts");
+  const B = await import("../bridgeys.ts");
+  const { normalizeProgress } = await import("../progress.ts");
+  const emblemSrc = readFileSync(new URL("../../components/TitleEmblem.tsx", import.meta.url), "utf8");
+  const missing = DISPLAY_TITLES.filter((t) => !new RegExp(`"${t.id}":|\\b${t.id.replace(/-/g, "\\-")}:`).test(emblemSrc) && !emblemSrc.includes(`"${t.id}"`));
+  ok("titles: every title has a drawn emblem", missing.length === 0, missing.map((t) => t.id).join());
+  const pict = /\p{Extended_Pictographic}/u;
+  ok("titles: no emoji in any name or description", DISPLAY_TITLES.every((t) => !pict.test(t.name) && !pict.test(t.description) && !("emoji" in t)));
+  const tiers = T.titlesByTier();
+  ok("titles: every tier has titles, cheapest first", tiers.every((g) => g.titles.length > 0 && g.titles.every((t, i) => i === 0 || g.titles[i - 1].price <= t.price)));
+  ok("titles: the tier follows the price", T.tierOf(80) === "common" && T.tierOf(150) === "rare" && T.tierOf(300) === "epic" && T.tierOf(700) === "legendary" && T.tierOf(2000) === "legendary");
+  ok("titles: every title is in exactly one tier", tiers.reduce((n, g) => n + g.titles.length, 0) === DISPLAY_TITLES.length);
+  ok("titles: a label finds its title by id, by name, and as an old emoji label", T.resolveTitle("algebra-ninja")?.id === "algebra-ninja" && T.resolveTitle("Graph Guru")?.id === "graph-guru" && T.resolveTitle("\u{1F977} Algebra Ninja")?.id === "algebra-ninja" && T.resolveTitle("\u{1F4C8} Graph Guru")?.id === "graph-guru");
+  ok("titles: anything else is no title", T.resolveTitle("Student") === null && T.resolveTitle("") === null && T.resolveTitle(null) === null);
+  // Buy, wear, take off: through the real functions on a progress in memory.
+  let mem = normalizeProgress({ bridgeys: 500 });
+  B.setProgressStore({ get: () => mem, save: (p) => { mem = p; } });
+  try {
+    const bought = B.buyTitle("graph-guru");
+    ok("titles: buying one puts it on", bought.ok && mem.equippedTitleId === "graph-guru" && mem.ownedTitles.includes("graph-guru") && mem.bridgeys === 500 - 180);
+    ok("titles: the messages carry no emoji", !pict.test(bought.message) && !pict.test(B.equipTitle("graph-guru").message));
+    ok("titles: the worn label is the plain name", B.getEquippedTitleLabel(mem) === "Graph Guru");
+    const off = B.unequipTitle();
+    ok("titles: taking it off keeps it in the collection", off.ok && !mem.equippedTitleId && mem.ownedTitles.includes("graph-guru"));
+    ok("titles: and it can go back on for free", B.equipTitle("graph-guru").ok && mem.equippedTitleId === "graph-guru" && mem.bridgeys === 320);
+    ok("titles: one out of reach is refused", !B.buyTitle("bridgey-billionaire").ok && !mem.ownedTitles.includes("bridgey-billionaire"));
+  } finally {
+    B.setProgressStore(null);
+  }
+  const css = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+  ok("titles: every tier has its plate, and the shine runs once, never on a loop", ["tp-common", "tp-rare", "tp-epic", "tp-legendary"].every((c) => css.includes(`.${c}`)) && /tp-sweep 1\.1s ease-out 1;/.test(css) && !/tp-sweep[^;]*infinite/.test(css));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
