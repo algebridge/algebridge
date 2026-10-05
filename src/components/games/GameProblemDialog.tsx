@@ -20,6 +20,19 @@ export interface GameVerdict {
   right: boolean;
   paid: number;
   given?: string;
+  /** In a match, what a right answer means: "Point to Maya. 3 to 2." */
+  note?: string;
+}
+
+/** In a two-player match: whose question it is, in their color, and whether it is a steal. */
+export interface GameTurn {
+  name: string;
+  color: string;
+  steal: boolean;
+  /** Who missed it, for the steal line. */
+  missedBy?: string;
+  /** The choice they missed with, crossed out for the steal. */
+  missedChoice?: string;
 }
 
 /**
@@ -37,6 +50,7 @@ export function GameProblemDialog({
   continueLabel,
   note,
   label,
+  turn,
 }: {
   open: RinkProblem;
   verdict: GameVerdict | null;
@@ -47,6 +61,8 @@ export function GameProblemDialog({
   continueLabel: string;
   note: string;
   label: string;
+  /** A match: the question belongs to one side, and pays nothing. */
+  turn?: GameTurn;
 }) {
   const answerRef = useRef<HTMLInputElement>(null);
   // Keyboard: the card takes the focus (the answer box, or the first choice), Tab stays in it, and the
@@ -63,11 +79,24 @@ export function GameProblemDialog({
           <p className="text-xs font-semibold uppercase tracking-wide">
             Unit {open.unitNumber} · {open.skillTitle}
           </p>
-          <div className="flex items-center gap-1 text-xs font-semibold">
-            <BridgeysLogo size={13} />+{rinkPayFor(open.skillId)}
-          </div>
+          {!turn && (
+            <div className="flex items-center gap-1 text-xs font-semibold">
+              <BridgeysLogo size={13} />+{rinkPayFor(open.skillId)}
+            </div>
+          )}
         </div>
         <div className="p-4">
+          {turn && !verdict && (
+            <p
+              key={`turn-${turn.name}-${turn.steal}`}
+              className="animate-pop-in mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
+              style={{ background: turn.color }}
+              role="status"
+            >
+              <Icon name={turn.steal ? "flame" : "versus"} size={16} />
+              {turn.steal ? `${turn.missedBy ?? "That"} missed. ${turn.name}, steal it!` : `${turn.name}'s question`}
+            </p>
+          )}
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-slate-500">{note}</p>
             <ScratchpadButton />
@@ -76,13 +105,17 @@ export function GameProblemDialog({
           {!verdict ? (
             problem.type === "multiple-choice" && problem.choices ? (
               <div className="mt-4 grid gap-2">
-                {problem.choices.map((choice, i) => (
+                {problem.choices.map((choice, i) => {
+                  // In a steal, the choice already missed is crossed out.
+                  const out = !!turn?.steal && choice === turn.missedChoice;
+                  return (
                   <button
-                    key={choice}
+                    key={`${choice}-${turn?.steal ? "steal" : ""}`}
                     type="button"
-                    data-autofocus={i === 0 ? "" : undefined}
+                    disabled={out}
+                    data-autofocus={i === (turn?.steal && problem.choices?.[0] === turn.missedChoice ? 1 : 0) ? "" : undefined}
                     onClick={() => onCheck(choice)}
-                    className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
+                    className={`flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 ${out ? "pointer-events-none text-slate-400 line-through opacity-60" : ""}`}
                   >
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
                       {/* Numbered like practice, where the 1-4 keys pick a choice. */}
@@ -90,10 +123,12 @@ export function GameProblemDialog({
                     </span>
                     <MathText text={choice} />
                   </button>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <form
+                key={turn ? `answer-${turn.name}-${turn.steal}` : "answer"}
                 className="mt-4 flex gap-2"
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -124,7 +159,9 @@ export function GameProblemDialog({
                 <Icon name={verdict.right ? "check" : "review"} size={18} className="shrink-0" />
                 <p>
                   {verdict.right ? (
-                    verdict.paid > 0 ? (
+                    verdict.note ? (
+                      verdict.note
+                    ) : verdict.paid > 0 ? (
                       `Right. +${verdict.paid} Bridgeys.`
                     ) : (
                       "Right. The games have paid today's cap, so this one is for practice."

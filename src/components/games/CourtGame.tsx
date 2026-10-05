@@ -4,98 +4,41 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
-import { GameChip, GameHowTo, GameProblemDialog, type GameVerdict } from "@/components/games/GameProblemDialog";
+import { GameChip, GameHowTo, GameProblemDialog, type GameTurn, type GameVerdict } from "@/components/games/GameProblemDialog";
+import { MatchEnd, MatchScore, SideMarks } from "@/components/games/Match";
 import { Player } from "@/components/games/Players";
+import { jointsOf, writePose, type Joints } from "@/components/games/rig";
 import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
 import { awardRinkBridgeys, recordGameRun } from "@/lib/bridgeys";
 import { pctX, pctY, SCENE_H, SCENE_W } from "@/lib/dollhouse";
 import { clampToArea, depthScale, getCourtGame, GOAL, inArea, spotAwayFrom, type CourtGameId } from "@/lib/games";
-import { approach, gaitPose, GAITS, strideLength, type Pose } from "@/lib/gait";
+import { approach, gaitPose, GAITS, strideLength } from "@/lib/gait";
 import { DAILY_GOAL } from "@/lib/gamification";
+import { DEFAULT_SETUP, matchWinner, PARTNERS, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
 import { answerIsRight } from "@/lib/grading";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
-import { pickRinkProblem, RINK_DAILY_CAP, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
+import { RINK_DAILY_CAP, rinkRemainingToday, type RinkProblem } from "@/lib/rink";
 import type { UserProgress } from "@/types";
 
 /**
  * A team game on its court: the same loop as the rink, with footing instead
  * of ice. Move with the arrows or WASD (drag on a phone) to the target; a
- * head-math problem from the unit you are on comes up; a right answer pays,
+ * head-math problem from the topic picked comes up; a right answer pays,
  * within the day's cap the games share, and the player does their move:
  * Shaurya's shot, Jo's jump, Jordyn's spike, Rayla's strike.
  *
- * The loop runs on requestAnimationFrame and writes the player's position
+ * With two players a teammate from another sport joins on the same court:
+ * Player 1 on WASD (or the left half of a touch screen), Player 2 on the
+ * arrows (or the right half). Both run for the same target; the first there
+ * answers, a miss can be stolen, and the first to the agreed score wins.
+ *
+ * The loop runs on requestAnimationFrame and writes each player's position
  * straight to the DOM; React only hears about what happens once.
  */
 
 const MARGIN = 22;
-
-/** The joints the game loop poses while a player moves, found once per drawing. */
-interface Joints {
-  svg: SVGSVGElement;
-  flip: SVGElement | null;
-  all: SVGElement | null;
-  legF: SVGElement | null;
-  legB: SVGElement | null;
-  shinF: SVGElement | null;
-  shinB: SVGElement | null;
-  armF: SVGElement | null;
-  armB: SVGElement | null;
-  foreF: SVGElement | null;
-  foreB: SVGElement | null;
-  bodies: SVGElement[];
-}
-
-function jointsOf(svg: SVGSVGElement): Joints {
-  const q = (sel: string) => svg.querySelector<SVGElement>(sel);
-  return {
-    svg,
-    flip: q(".p-flip"),
-    all: q(".p-all"),
-    legF: q(".p-leg-front"),
-    legB: q(".p-leg-back"),
-    shinF: q(".p-shin-front"),
-    shinB: q(".p-shin-back"),
-    armF: q(".p-arm-front"),
-    armB: q(".p-arm-back"),
-    foreF: q(".p-fore-front"),
-    foreB: q(".p-fore-back"),
-    bodies: [...svg.querySelectorAll<SVGElement>(".p-body, .p-skirt")],
-  };
-}
-
-/**
- * Writes a running pose onto the joints, or hands them back to the CSS
- * stance (which they ease into) when `pose` is null. The facing turns
- * through `fx` either way, so a turn reads as a turn rather than a snap.
- */
-function writePose(j: Joints, pose: Pose | null, fx: number): void {
-  if (j.flip) j.flip.style.transform = `scale(${Math.abs(fx) > 0.995 ? Math.sign(fx) : fx.toFixed(3)}, 1)`;
-  const parts = [j.all, j.legF, j.legB, j.shinF, j.shinB, j.armF, j.armB, j.foreF, j.foreB, ...j.bodies];
-  if (!pose) {
-    if (j.svg.classList.contains("player-gait")) {
-      j.svg.classList.remove("player-gait");
-      for (const el of parts) if (el) el.style.transform = "";
-    }
-    return;
-  }
-  j.svg.classList.add("player-gait");
-  const set = (el: SVGElement | null, t: string) => {
-    if (el) el.style.transform = t;
-  };
-  set(j.all, `translateY(${pose.bob}px)`);
-  set(j.legF, `rotate(${pose.thighF}deg) scale(1, ${pose.liftF})`);
-  set(j.legB, `rotate(${pose.thighB}deg) scale(1, ${pose.liftB})`);
-  set(j.shinF, `rotate(${pose.shinF}deg)`);
-  set(j.shinB, `rotate(${pose.shinB}deg)`);
-  set(j.armF, `rotate(${pose.armF}deg)`);
-  set(j.armB, `rotate(${pose.armB}deg)`);
-  set(j.foreF, `rotate(${pose.foreF}deg)`);
-  set(j.foreB, `rotate(${pose.foreB}deg)`);
-  for (const b of j.bodies) b.style.transform = `rotate(${pose.body}deg)`;
-}
 const REACH = 52;
 const ACTION_MS = 950;
 /** When, into the move, the ball leaves: the hand at the top of the spike, the foot through the ball. */
@@ -103,10 +46,34 @@ const CONTACT_MS: Partial<Record<CourtGameId, number>> = { volleyball: 430, socc
 /** Where each target's spot on the floor sits in its picture, from the top. */
 const ANCHOR: Record<CourtGameId, number> = { wrestling: 62 / 90, cheer: 62 / 90, volleyball: 120 / 150, soccer: 66 / 90 };
 
+/** Which keys move which side. Alone, a player has both sets. */
+const KEYS = {
+  solo: { left: ["arrowleft", "a"], right: ["arrowright", "d"], up: ["arrowup", "w"], down: ["arrowdown", "s"] },
+  0: { left: ["a"], right: ["d"], up: ["w"], down: ["s"] },
+  1: { left: ["arrowleft"], right: ["arrowright"], up: ["arrowup"], down: ["arrowdown"] },
+} as const;
+
 interface Target {
   x: number;
   y: number;
   item: RinkProblem;
+}
+
+/** One player on the court, as the loop sees them. */
+interface Mover {
+  side: 0 | 1;
+  figure: CourtGameId;
+  height: number;
+  pos: { x: number; y: number };
+  vel: { x: number; y: number };
+  facing: 1 | -1;
+  /** The stride: where it is (0..1), how much of the motion is across the court, the drive, the turn. */
+  gait: { phase: number; side: number; push: number; fx: number; speed: number; last: { x: number; y: number } };
+  joints: Joints | null;
+}
+
+function makeMover(side: 0 | 1, figure: CourtGameId, height: number, at: { x: number; y: number }, facing: 1 | -1): Mover {
+  return { side, figure, height, pos: { ...at }, vel: { x: 0, y: 0 }, facing, gait: { phase: 0, side: 1, push: 0, fx: facing, speed: 0, last: { ...at } }, joints: null };
 }
 
 export function CourtGame({
@@ -115,6 +82,7 @@ export function CourtGame({
   onExit,
   onUpdate,
   demo = false,
+  setup = DEFAULT_SETUP,
 }: {
   gameId: CourtGameId;
   progress: UserProgress;
@@ -126,60 +94,75 @@ export function CourtGame({
    * pays already goes through the progress store (lib/progress-sandbox.ts).
    */
   demo?: boolean;
+  /** The topic, and one player or two. */
+  setup?: GameSetup;
 }) {
   const game = getCourtGame(gameId)!;
+  const two = setup.players === 2;
+  const names: [string, string] = [sideName(setup, 0), sideName(setup, 1)];
   const day = useRef(today()).current;
   const { playCorrect, playWrong } = useSound({ muted: demo });
 
   const stage = useRef<HTMLDivElement>(null);
-  const body = useRef<HTMLDivElement>(null);
   const flyer = useRef<HTMLDivElement>(null);
-  const pos = useRef({ ...game.start });
-  const vel = useRef({ x: 0, y: 0 });
-  const facing = useRef<1 | -1>(1);
-  // The stride: where it is (0..1), how much of the motion is across the court, the drive, the turn.
-  const gait = useRef({ phase: 0, side: 1, push: 0, fx: 1, speed: 0, last: { ...game.start } });
-  const joints = useRef<Joints | null>(null);
+  const bodies = useRef<(HTMLDivElement | null)[]>([]);
+  const movers = useRef<Mover[]>(
+    two
+      ? (() => {
+          const partner = getCourtGame(PARTNERS[gameId])!;
+          const left = clampToArea(game.area, game.start.x - 150, game.start.y, MARGIN);
+          const right = clampToArea(game.area, game.start.x + 150, game.start.y, MARGIN);
+          return [makeMover(0, gameId, game.height, left, 1), makeMover(1, partner.id, partner.height, right, -1)];
+        })()
+      : [makeMover(0, gameId, game.height, game.start, 1)]
+  );
   const keys = useRef(new Set<string>());
-  const pointer = useRef<{ x: number; y: number } | null>(null);
+  /** Fingers or the mouse, each steering one side: in a match, the half of the court it went down on. */
+  const pointers = useRef(new Map<number, { side: 0 | 1; x: number; y: number }>());
   const paused = useRef(false);
   const seen = useRef(new Set<string>());
+  /** Who scored the last point in a match, for their move; null after a miss nobody stole. */
+  const scorer = useRef<0 | 1 | null>(null);
 
   const [target, setTarget] = useState<Target | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
   const [verdict, setVerdict] = useState<GameVerdict | null>(null);
-  const [move, setMove] = useState(0);
-  const [acting, setActing] = useState(false);
-  const [pop, setPop] = useState<{ text: string; key: number; x: number; y: number } | null>(null);
+  const [turn, setTurn] = useState<{ side: 0 | 1; steal: boolean; missedChoice?: string } | null>(null);
+  const [moves, setMoves] = useState<[number, number]>([0, 0]);
+  const [acting, setActing] = useState<[boolean, boolean]>([false, false]);
+  const [pop, setPop] = useState<{ text: string; key: number; x: number; y: number; color: string } | null>(null);
   const [netHit, setNetHit] = useState(false);
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
+  const [score, setScore] = useState<[number, number]>([0, 0]);
+  const [winner, setWinner] = useState<0 | 1 | null>(null);
   const [remaining, setRemaining] = useState(() => rinkRemainingToday(progress, day));
-  const source = rinkSkillIds(progress);
+  const topic = topicLabel(progress, setup.topic);
   useScratchpadSurface(open ? `${open.skillId}:${open.problem.id}` : `court-${gameId}`);
 
   const spawnTarget = useCallback(() => {
-    const item = pickRinkProblem(progress, seen.current);
+    const item = pickGameProblem(progress, setup.topic, seen.current);
     if (!item) {
       setTarget(null);
       return;
     }
     seen.current.add(item.problem.prompt);
     if (seen.current.size > 40) seen.current = new Set([...seen.current].slice(-20));
-    const spot = spotAwayFrom(game.area, pos.current);
+    const [a, b] = movers.current;
+    const spot = b ? spotFairFor(game.area, a.pos, b.pos) : spotAwayFrom(game.area, a.pos);
     setTarget({ ...spot, item });
-  }, [progress, game.area]);
+  }, [progress, game.area, setup.topic]);
 
   useEffect(() => {
     spawnTarget();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Their move, for a right answer or just for fun on the space bar. */
-  const doMove = useCallback(() => {
-    setMove((n) => n + 1);
-    setActing(true);
-    window.setTimeout(() => setActing(false), ACTION_MS - 60);
+  /** A side's move, for a right answer or just for fun on the space bar. */
+  const doMove = useCallback((side: 0 | 1) => {
+    setMoves((m) => (side === 0 ? [m[0] + 1, m[1]] : [m[0], m[1] + 1]));
+    setActing((a) => (side === 0 ? [true, a[1]] : [a[0], true]));
+    window.setTimeout(() => setActing((a) => (side === 0 ? [false, a[1]] : [a[0], false])), ACTION_MS - 60);
   }, []);
 
   // --- Input -----------------------------------------------------------------
@@ -194,7 +177,7 @@ export function CourtGame({
       if (!isGameKey(e.key)) return;
       e.preventDefault();
       if (e.key === " ") {
-        if (!e.repeat) doMove();
+        if (!e.repeat) movers.current.forEach((m) => doMove(m.side));
         return;
       }
       keys.current.add(e.key.toLowerCase());
@@ -225,99 +208,126 @@ export function CourtGame({
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
-      const p = pos.current;
-      const v = vel.current;
-      if (!paused.current) {
-        let ax = 0;
-        let ay = 0;
-        const k = keys.current;
-        if (k.has("arrowleft") || k.has("a")) ax -= 1;
-        if (k.has("arrowright") || k.has("d")) ax += 1;
-        if (k.has("arrowup") || k.has("w")) ay -= 1;
-        if (k.has("arrowdown") || k.has("s")) ay += 1;
-        if (pointer.current) {
-          const dx = pointer.current.x - p.x;
-          const dy = pointer.current.y - p.y;
-          const d = Math.hypot(dx, dy);
-          if (d > 20) {
-            ax = dx / d;
-            ay = dy / d;
+      for (const m of movers.current) {
+        const p = m.pos;
+        const v = m.vel;
+        if (!paused.current) {
+          let ax = 0;
+          let ay = 0;
+          const k = keys.current;
+          const set = two ? KEYS[m.side] : KEYS.solo;
+          if (set.left.some((x) => k.has(x))) ax -= 1;
+          if (set.right.some((x) => k.has(x))) ax += 1;
+          if (set.up.some((x) => k.has(x))) ay -= 1;
+          if (set.down.some((x) => k.has(x))) ay += 1;
+          for (const ptr of pointers.current.values()) {
+            if (ptr.side !== m.side) continue;
+            const dx = ptr.x - p.x;
+            const dy = ptr.y - p.y;
+            const d = Math.hypot(dx, dy);
+            if (d > 20) {
+              ax = dx / d;
+              ay = dy / d;
+            }
+          }
+          const len = Math.hypot(ax, ay) || 1;
+          // The floor is seen at an angle, so up and down are foreshortened.
+          v.x += (ax / len) * game.accel * dt;
+          v.y += (ay / len) * game.accel * 0.62 * dt;
+          const drag = Math.exp(-game.drag * dt);
+          v.x *= drag;
+          v.y *= drag;
+          const speed = Math.hypot(v.x, v.y * 1.6);
+          if (speed > game.maxSpeed) {
+            v.x *= game.maxSpeed / speed;
+            v.y *= game.maxSpeed / speed;
+          }
+          p.x += v.x * dt;
+          p.y += v.y * dt;
+          if (!inArea(game.area, p.x, p.y, MARGIN)) {
+            const back = clampToArea(game.area, p.x, p.y, MARGIN);
+            if (Math.abs(back.x - p.x) > 0.01) v.x = 0;
+            if (Math.abs(back.y - p.y) > 0.01) v.y = 0;
+            p.x = back.x;
+            p.y = back.y;
+          }
+          if (Math.abs(v.x) > 30) m.facing = v.x < 0 ? -1 : 1;
+        } else {
+          v.x = 0;
+          v.y = 0;
+        }
+
+        const el = bodies.current[m.side];
+        if (el) {
+          const scale = depthScale(game.area, p.y);
+          el.style.left = pctX(p.x);
+          el.style.top = pctY(p.y);
+          el.style.width = pctX(((m.height * 100) / 160) * scale);
+          el.style.zIndex = String(300 + Math.round((p.y / SCENE_H) * 100));
+          const svg = el.firstElementChild as SVGSVGElement | null;
+          if (svg) {
+            const speed = Math.hypot(v.x, v.y * 1.6);
+            const s = Math.min(1, speed / game.maxSpeed);
+            const g = m.gait;
+            // The ground covered this frame is what turns the stride, so a planted foot stays planted.
+            const covered = Math.hypot(p.x - g.last.x, (p.y - g.last.y) * 1.6);
+            g.last = { x: p.x, y: p.y };
+            const G = GAITS[m.figure];
+            g.phase = (g.phase + covered / strideLength(G, s, m.height, scale)) % 1;
+            if (speed > 1) g.side = approach(g.side, Math.abs(v.x) / (Math.abs(v.x) + Math.abs(v.y * 1.6)), 10, dt);
+            const drive = Math.max(-1, Math.min(1, (speed - g.speed) / Math.max(dt, 1e-3) / game.accel));
+            g.push = approach(g.push, drive, 8, dt);
+            g.speed = speed;
+            g.fx = approach(g.fx, m.facing, 16, dt);
+            svg.classList.toggle("player-moving", s > 0.08);
+            svg.classList.toggle("player-left", m.facing === -1);
+            if (m.joints?.svg !== svg) m.joints = jointsOf(svg);
+            writePose(m.joints, s > 0.05 && !paused.current ? gaitPose(G, g.phase, s, g.side, g.push) : null, g.fx);
           }
         }
-        const len = Math.hypot(ax, ay) || 1;
-        // The floor is seen at an angle, so up and down are foreshortened.
-        v.x += (ax / len) * game.accel * dt;
-        v.y += (ay / len) * game.accel * 0.62 * dt;
-        const drag = Math.exp(-game.drag * dt);
-        v.x *= drag;
-        v.y *= drag;
-        const speed = Math.hypot(v.x, v.y * 1.6);
-        if (speed > game.maxSpeed) {
-          v.x *= game.maxSpeed / speed;
-          v.y *= game.maxSpeed / speed;
-        }
-        p.x += v.x * dt;
-        p.y += v.y * dt;
-        if (!inArea(game.area, p.x, p.y, MARGIN)) {
-          const back = clampToArea(game.area, p.x, p.y, MARGIN);
-          if (Math.abs(back.x - p.x) > 0.01) v.x = 0;
-          if (Math.abs(back.y - p.y) > 0.01) v.y = 0;
-          p.x = back.x;
-          p.y = back.y;
-        }
-        if (Math.abs(v.x) > 30) facing.current = v.x < 0 ? -1 : 1;
-      } else {
-        v.x = 0;
-        v.y = 0;
       }
 
-      const el = body.current;
-      if (el) {
-        const scale = depthScale(game.area, p.y);
-        el.style.left = pctX(p.x);
-        el.style.top = pctY(p.y);
-        el.style.width = pctX(((game.height * 100) / 160) * scale);
-        el.style.zIndex = String(300 + Math.round((p.y / SCENE_H) * 100));
-        const svg = el.firstElementChild as SVGSVGElement | null;
-        if (svg) {
-          const speed = Math.hypot(v.x, v.y * 1.6);
-          const s = Math.min(1, speed / game.maxSpeed);
-          const g = gait.current;
-          // The ground covered this frame is what turns the stride, so a planted foot stays planted.
-          const covered = Math.hypot(p.x - g.last.x, (p.y - g.last.y) * 1.6);
-          g.last = { x: p.x, y: p.y };
-          const G = GAITS[gameId];
-          g.phase = (g.phase + covered / strideLength(G, s, game.height, scale)) % 1;
-          if (speed > 1) g.side = approach(g.side, Math.abs(v.x) / (Math.abs(v.x) + Math.abs(v.y * 1.6)), 10, dt);
-          const drive = Math.max(-1, Math.min(1, (speed - g.speed) / Math.max(dt, 1e-3) / game.accel));
-          g.push = approach(g.push, drive, 8, dt);
-          g.speed = speed;
-          g.fx = approach(g.fx, facing.current, 16, dt);
-          svg.classList.toggle("player-moving", s > 0.08);
-          svg.classList.toggle("player-left", facing.current === -1);
-          if (joints.current?.svg !== svg) joints.current = jointsOf(svg);
-          writePose(joints.current, s > 0.05 && !paused.current ? gaitPose(G, g.phase, s, g.side, g.push) : null, g.fx);
+      // At the target? The first one there takes the question.
+      if (target && !paused.current) {
+        const there = movers.current.find((m) => Math.hypot(m.pos.x - target.x, (m.pos.y - target.y) * 1.6) < REACH);
+        if (there) {
+          paused.current = true;
+          keys.current.clear();
+          pointers.current.clear();
+          setOpen(target.item);
+          setAnswer("");
+          setVerdict(null);
+          setTurn(two ? { side: there.side, steal: false } : null);
         }
-      }
-
-      // At the target?
-      if (target && !paused.current && Math.hypot(p.x - target.x, (p.y - target.y) * 1.6) < REACH) {
-        paused.current = true;
-        keys.current.clear();
-        pointer.current = null;
-        setOpen(target.item);
-        setAnswer("");
-        setVerdict(null);
       }
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [target, game]);
+  }, [target, game, two]);
 
   // --- Answering -------------------------------------------------------------
   function check(given: string) {
     if (!open || verdict || !given.trim()) return;
     const right = answerIsRight(open.problem, given);
+    if (two && turn) {
+      // A match: a point for a right answer, a steal for the other side after a miss.
+      if (right) {
+        playCorrect();
+        const next = scoreAfter(score, turn.side, true);
+        setScore(next);
+        scorer.current = turn.side;
+        setVerdict({ right: true, paid: 0, note: `${turn.steal ? "Stolen! " : ""}Point to ${names[turn.side]}. ${next[0]} to ${next[1]}.` });
+      } else if (!turn.steal) {
+        playWrong();
+        setTurn({ side: turn.side === 0 ? 1 : 0, steal: true, missedChoice: open.problem.type === "multiple-choice" ? given : undefined });
+        setAnswer("");
+      } else {
+        playWrong();
+        scorer.current = null;
+        setVerdict({ right: false, paid: 0, given });
+      }
+      return;
+    }
     if (right) {
       playCorrect();
       const { paid, remaining: left, dailyBonus } = awardRinkBridgeys(open.skillId, day);
@@ -344,19 +354,19 @@ export function CourtGame({
   }
 
   /**
-   * Volleyball and soccer: the ball leaves her hand, or her foot, and goes
-   * over the net or into the goal. Positions are in her picture's units
-   * (100 by 160, feet at the bottom middle), scaled to the court.
+   * Volleyball and soccer: the ball leaves the scorer's hand, or foot, and
+   * goes over the net or into the goal. Positions are in their picture's
+   * units (100 by 160, feet at the bottom middle), scaled to the court.
    */
-  function launch() {
+  function launch(m: Mover) {
     const el = flyer.current;
     if (!el || (gameId !== "volleyball" && gameId !== "soccer")) return;
-    const p = pos.current;
-    const unit = (game.height * depthScale(game.area, p.y)) / 160;
+    const p = m.pos;
+    const unit = (m.height * depthScale(game.area, p.y)) / 160;
     const from =
       gameId === "volleyball"
-        ? { x: p.x + 34 * unit * facing.current, y: p.y - 173 * unit }
-        : { x: p.x + 24 * unit * facing.current, y: p.y - 14 * unit };
+        ? { x: p.x + 34 * unit * m.facing, y: p.y - 173 * unit }
+        : { x: p.x + 24 * unit * m.facing, y: p.y - 14 * unit };
     const to =
       gameId === "volleyball"
         ? { x: 380 + Math.random() * 440, y: 432 }
@@ -386,29 +396,67 @@ export function CourtGame({
     run.onfinish = scored;
   }
 
+  /** A right answer: the scorer's move, a cheer over their head, then the next target. */
+  function celebrate(side: 0 | 1) {
+    const m = movers.current.find((x) => x.side === side) ?? movers.current[0];
+    doMove(side);
+    const p = m.pos;
+    setPop({
+      text: game.cheers[Math.floor(Math.random() * game.cheers.length)],
+      key: Date.now(),
+      x: p.x,
+      y: p.y - m.height * depthScale(game.area, p.y),
+      color: two ? SIDE_COLORS[side] : game.accent,
+    });
+    const contact = CONTACT_MS[gameId];
+    if (contact) window.setTimeout(() => launch(m), contact);
+  }
+
   function carryOn() {
     const wasRight = !!verdict?.right;
     setOpen(null);
     setVerdict(null);
+    setTurn(null);
     setTarget(null);
+    if (two) {
+      const won = matchWinner(score, setup.toWin);
+      if (wasRight && scorer.current !== null) celebrate(scorer.current);
+      if (won !== null) {
+        window.setTimeout(() => {
+          setWinner(won);
+          fireConfetti("big");
+        }, wasRight ? ACTION_MS : 200);
+        return;
+      }
+      window.setTimeout(() => {
+        paused.current = false;
+        spawnTarget();
+      }, wasRight ? ACTION_MS : 350);
+      return;
+    }
     if (!wasRight) {
       paused.current = false;
       window.setTimeout(spawnTarget, 350);
       return;
     }
-    // The move, a cheer over their head, then the next target.
-    doMove();
-    const p = pos.current;
-    setPop({ text: game.cheers[Math.floor(Math.random() * game.cheers.length)], key: Date.now(), x: p.x, y: p.y - game.height * depthScale(game.area, p.y) });
-    const contact = CONTACT_MS[gameId];
-    if (contact) window.setTimeout(launch, contact);
+    celebrate(0);
     window.setTimeout(() => {
       paused.current = false;
       spawnTarget();
     }, ACTION_MS);
   }
 
+  function rematch() {
+    setScore([0, 0]);
+    setWinner(null);
+    scorer.current = null;
+    paused.current = false;
+    spawnTarget();
+  }
+
   const scaleAtTarget = target ? depthScale(game.area, target.y) : 1;
+  const dialogTurn: GameTurn | undefined =
+    two && turn ? { name: names[turn.side], color: SIDE_COLORS[turn.side], steal: turn.steal, missedBy: names[turn.side === 0 ? 1 : 0], missedChoice: turn.missedChoice } : undefined;
 
   return (
     <>
@@ -418,7 +466,11 @@ export function CourtGame({
         className="absolute inset-0 touch-none"
         // A named group, so its name (the game and its keys) is read; a plain div's aria-label is not.
         role="group"
-        aria-label={`${game.sport} with ${game.player}. Arrow keys or WASD move ${game.player}.`}
+        aria-label={
+          two
+            ? `${game.sport}, ${names[0]} against ${names[1]}. ${names[0]} moves with W A S D, ${names[1]} with the arrow keys.`
+            : `${game.sport} with ${game.player}. Arrow keys or WASD move ${game.player}.`
+        }
         onPointerDown={(e) => {
           if (paused.current) return;
           try {
@@ -426,16 +478,21 @@ export function CourtGame({
           } catch {
             /* a pointer the browser will not capture still steers */
           }
-          pointer.current = scenePoint(e.clientX, e.clientY);
+          const at = scenePoint(e.clientX, e.clientY);
+          if (!at) return;
+          // In a match, each player steers on their own half.
+          pointers.current.set(e.pointerId, { side: two && at.x > SCENE_W / 2 ? 1 : 0, ...at });
         }}
         onPointerMove={(e) => {
-          if (pointer.current) pointer.current = scenePoint(e.clientX, e.clientY);
+          const ptr = pointers.current.get(e.pointerId);
+          const at = ptr && scenePoint(e.clientX, e.clientY);
+          if (ptr && at) pointers.current.set(e.pointerId, { side: ptr.side, ...at });
         }}
-        onPointerUp={() => {
-          pointer.current = null;
+        onPointerUp={(e) => {
+          pointers.current.delete(e.pointerId);
         }}
-        onPointerCancel={() => {
-          pointer.current = null;
+        onPointerCancel={(e) => {
+          pointers.current.delete(e.pointerId);
         }}
       >
         {target && (
@@ -464,13 +521,19 @@ export function CourtGame({
           {gameId === "volleyball" ? <Volleyball /> : <SoccerBall />}
         </div>
 
-        <div
-          ref={body}
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: pctX(pos.current.x), top: pctY(pos.current.y), width: pctX(((game.height * 100) / 160) * depthScale(game.area, pos.current.y)), zIndex: 340 }}
-        >
-          <Player key={move} game={gameId} pose={acting ? "action" : "idle"} className="w-full" />
-        </div>
+        {movers.current.map((m) => (
+          <div
+            key={m.side}
+            ref={(el) => {
+              bodies.current[m.side] = el;
+            }}
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+            style={{ left: pctX(m.pos.x), top: pctY(m.pos.y), width: pctX(((m.height * 100) / 160) * depthScale(game.area, m.pos.y)), zIndex: 340 }}
+          >
+            <Player key={moves[m.side]} game={m.figure} pose={acting[m.side] ? "action" : "idle"} facing={m.facing} className="w-full" />
+            {two && <SideMarks side={m.side} name={names[m.side]} />}
+          </div>
+        ))}
 
         {pop && (
           <p
@@ -480,44 +543,66 @@ export function CourtGame({
             style={{ left: pctX(pop.x), top: pctY(pop.y - 40), zIndex: 900 }}
           >
             <span
-              className="court-pop block whitespace-nowrap rounded-full px-3 py-1 text-base font-black tracking-tight text-slate-900 shadow-lg ring-2 ring-white sm:px-4 sm:text-2xl"
-              style={{ background: game.accent }}
+              className={`court-pop block whitespace-nowrap rounded-full px-3 py-1 text-base font-black tracking-tight shadow-lg ring-2 ring-white sm:px-4 sm:text-2xl ${two ? "text-white" : "text-slate-900"}`}
+              style={{ background: pop.color }}
             >
               {pop.text}
             </span>
           </p>
         )}
 
-        {/* HUD: two chips, and the way out. */}
+        {/* HUD: the score or the take, and the way out. */}
         <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1.5 sm:left-3 sm:top-3 sm:gap-2">
-          <GameChip>
-            <BridgeysLogo size={13} />
-            <span className="tabular-nums">+{session.earned}</span>
-            <span aria-hidden className="text-slate-300">·</span>
-            <span className="tabular-nums">{session.solved}</span>
-            <span className="text-slate-500">solved</span>
-            {session.run >= 2 && (
-              <>
-                <span aria-hidden className="text-slate-300">·</span>
-                <Icon name="flame" size={12} className="text-amber-600" />
-                <span className="tabular-nums">{session.run}</span>
-              </>
-            )}
-          </GameChip>
-          <GameChip>
-            <span className="tabular-nums">{remaining}</span>
-            <span className="text-slate-500">of {RINK_DAILY_CAP} today</span>
-          </GameChip>
+          {two ? (
+            <MatchScore names={names} score={score} toWin={setup.toWin} />
+          ) : (
+            <>
+              <GameChip>
+                <BridgeysLogo size={13} />
+                <span className="tabular-nums">+{session.earned}</span>
+                <span aria-hidden className="text-slate-300">
+                  ·
+                </span>
+                <span className="tabular-nums">{session.solved}</span>
+                <span className="text-slate-500">solved</span>
+                {session.run >= 2 && (
+                  <>
+                    <span aria-hidden className="text-slate-300">
+                      ·
+                    </span>
+                    <Icon name="flame" size={12} className="text-amber-600" />
+                    <span className="tabular-nums">{session.run}</span>
+                  </>
+                )}
+              </GameChip>
+              <GameChip>
+                <span className="tabular-nums">{remaining}</span>
+                <span className="text-slate-500">of {RINK_DAILY_CAP} today</span>
+              </GameChip>
+            </>
+          )}
         </div>
         <button type="button" onClick={onExit} className="btn-secondary btn-sm absolute right-2 top-2 sm:right-3 sm:top-3">
           Leave
         </button>
-        <GameHowTo id={`court-${gameId}`} demo={demo}>
-          <span className="sm:hidden">Drag to move. Get to {game.target}.</span>
-          <span className="hidden sm:inline">
-            Arrows or WASD to move, drag on a phone. Get to {game.target}. Space for a move. Unit {source.unitNumber} problems, in your head.
-          </span>
+        <GameHowTo id={two ? `court-match-${gameId}` : `court-${gameId}`} demo={demo}>
+          {two ? (
+            <>
+              <span className="sm:hidden">Each player drags on their own half. First to {game.target} answers.</span>
+              <span className="hidden sm:inline">
+                {names[0]}: W A S D. {names[1]}: arrow keys. First to {game.target} answers. {topic}.
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="sm:hidden">Drag to move. Get to {game.target}.</span>
+              <span className="hidden sm:inline">
+                Arrows or WASD to move, drag on a phone. Get to {game.target}. Space for a move. {topic}, in your head.
+              </span>
+            </>
+          )}
         </GameHowTo>
+        {winner !== null && <MatchEnd winner={winner} names={names} score={score} onRematch={rematch} onLeave={onExit} />}
       </div>
 
       {open && (
@@ -528,9 +613,10 @@ export function CourtGame({
           setAnswer={setAnswer}
           onCheck={check}
           onContinue={carryOn}
-          continueLabel={game.continueLabel}
+          continueLabel={two ? "Play on" : game.continueLabel}
           note={game.note}
           label={`${game.sport} problem`}
+          turn={dialogTurn}
         />
       )}
     </>
