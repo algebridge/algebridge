@@ -40,7 +40,9 @@ export const metadata: Metadata = {
 
 /** The version printed at the foot of the handout. Change it when the page changes. */
 const VERSION = "October 2026";
-const CONTACT = "support@algebridge.org";
+const CONTACT = "info@algebridge.org";
+const PHONE = "302-345-7448";
+const PHONE_HREF = "tel:+13023457448";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 const CITED = citedStandards();
@@ -334,9 +336,13 @@ export default function SchoolsPage() {
         </p>
         <div className="schools-actions mt-5 flex flex-wrap gap-3 print:hidden">
           <PrintButton />
-          <a href="mailto:support@algebridge.org" className="btn-secondary">
+          <a href={`mailto:${CONTACT}`} className="btn-secondary">
             <SchoolIcon name="mail" size={16} />
-            support@algebridge.org
+            {CONTACT}
+          </a>
+          <a href={PHONE_HREF} className="btn-secondary">
+            <Icon name="phone" size={16} />
+            {PHONE}
           </a>
         </div>
 
@@ -737,15 +743,24 @@ export default function SchoolsPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-bridge-700">Contact</p>
               <p className="mt-1 text-lg font-semibold text-slate-900">Questions, or ready to try it with a class?</p>
               <p className="mt-1 text-sm leading-relaxed text-slate-700">
-                Email us about teacher accounts, data and privacy questions, or anything on this page.
+                Email or call us about teacher accounts, data and privacy questions, or anything on this page.
               </p>
-              <a
-                href="mailto:support@algebridge.org"
-                className="mt-3 inline-flex items-center gap-2 text-base font-semibold text-bridge-700 underline decoration-bridge-300 underline-offset-4 hover:decoration-bridge-600"
-              >
-                <SchoolIcon name="mail" size={18} />
-                support@algebridge.org
-              </a>
+              <div className="mt-3 flex flex-col items-start gap-2">
+                <a
+                  href={`mailto:${CONTACT}`}
+                  className="inline-flex items-center gap-2 text-base font-semibold text-bridge-700 underline decoration-bridge-300 underline-offset-4 hover:decoration-bridge-600"
+                >
+                  <SchoolIcon name="mail" size={18} />
+                  {CONTACT}
+                </a>
+                <a
+                  href={PHONE_HREF}
+                  className="inline-flex items-center gap-2 text-base font-semibold text-bridge-700 underline decoration-bridge-300 underline-offset-4 hover:decoration-bridge-600"
+                >
+                  <Icon name="phone" size={18} />
+                  {PHONE}
+                </a>
+              </div>
             </div>
           </div>
         </Section>
@@ -753,7 +768,7 @@ export default function SchoolsPage() {
 
       {/* Printed at the foot of the handout too: which version this is, and who to write to. */}
       <p className="schools-stamp mt-6 text-xs text-slate-500">
-        Version: {VERSION}. Checked against the code as it runs today. Contact: {CONTACT}. learn.algebridge.org/schools
+        Version: {VERSION}. Checked against the code as it runs today. Contact: {CONTACT}, {PHONE}. learn.algebridge.org/schools
       </p>
     </article>
   );
