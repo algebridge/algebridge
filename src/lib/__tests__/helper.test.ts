@@ -405,6 +405,50 @@ ok("start line from a simplify problem", W.startingLine("Simplify 3(x + 2) - x."
 ok("no start line for a unit conversion", W.startingLine("Convert 5 miles to feet. (1 mile = 5280 ft)") === "");
 ok("no start line for plain words", W.startingLine("Which quadrant is the point in?") === "");
 
+// on the practice card: work that is right is never flagged
+const withCtx = (name: string, problem: string, lines: string[], want: string, choices?: string[]) => {
+  const got = W.checkWork(lines, W.workContext(problem, choices)).map((m) => m.kind).join(",");
+  ok(name, got === want, `-> ${got}, wanted ${want}`);
+};
+withCtx(
+  "a system, worked by substitution",
+  "Solve: y = x + 2 and x + y = 8. What is x?",
+  ["y = x + 2", "x + y = 8", "x + (x + 2) = 8", "2x + 2 = 8", "2x = 6", "x = 3"],
+  "start,start,start,same,same,final"
+);
+withCtx("a system, worked by elimination", "Solve: x + y = 10 and x − y = 4. What is x?", ["x + y = 10", "x - y = 4", "2x = 14", "x = 7"], "start,start,start,final");
+withCtx("a system set up from words", "Tickets cost $8 (adult) and $5 (child). 12 tickets sold for $78. How many adult tickets?", ["a + c = 12", "8a + 5c = 78", "8a + 5(12 - a) = 78", "3a + 60 = 78"], "start,start,start,same");
+withCtx("a formula filled in", "Find b for the line through (2, 7) with slope 3.", ["y = mx + b", "7 = 3(2) + b", "7 = 6 + b"], "start,start,same");
+withCtx("a value put in", "For y = 2x + 1, what is y when x = 3?", ["y = 2x + 1", "y = 2(3) + 1", "y = 7"], "start,final,final");
+withCtx("an intercept, x set to zero", "Find the y-intercept of 3x − 2y = 12.", ["3x - 2y = 12", "3(0) - 2y = 12", "-2y = 12"], "start,start,same");
+ok("function notation is never flagged", !W.checkWork(["f(x) = 2x + 3", "f(4) = 2(4) + 3", "f(4) = 11"], W.workContext("If f(x) = 2x + 3, find f(4).")).some((m) => m.kind === "changed"));
+withCtx("one line, rearranged wrong, is still caught", "Write y − 3 = 2(x − 1) in slope-intercept form.", ["y - 3 = 2(x - 1)", "y = 2x - 1"], "start,changed");
+withCtx("one equation, a slip is still caught", "Solve for x: 3(x − 4) + 2x = 2x + 9", ["3(x - 4) + 2x = 2x + 9", "3x - 4 + 2x = 2x + 9"], "start,changed");
+withCtx(
+  "a choice typed into the pad is left for the card",
+  "Expand (x + 3)(x + 5)",
+  ["(x + 3)(x + 5)", "x^2 + 5x + 3x + 15", "x^2 + 8x + 15", "x^2 + 8x + 8"],
+  "start,same,final,final",
+  ["x² + 8x + 15", "x² + 8x + 8", "x² + 15x + 8", "x² + 2x + 15"]
+);
+// cases: splitting an absolute value or a product into one equation per line is sound work
+expect("an absolute value split into its two cases", ["|2x - 3| = 7", "2x - 3 = 7", "x = 5", "2x - 3 = -7", "x = -2"], "start,case,final,case,final");
+expect("a product set to zero, one factor per line", ["(x - 2)(x + 3) = 0", "x - 2 = 0", "x = 2", "x + 3 = 0"], "start,case,final,case");
+expect("a square set to a number, one root per line", ["(x - 3)^2 = 16", "x - 3 = 4", "x - 3 = -4"], "start,case,case");
+expect("an absolute value under a number, one half per line", ["|x - 2| < 3", "x - 2 < 3", "x - 2 > -3"], "start,case,case");
+expect("a wrong case is still caught", ["|2x - 3| = 7", "2x - 3 = 8"], "start,changed");
+expect("a case of a line with no split is still caught", ["x^2 = 5x", "x = 5 + 0x"], "start,changed");
+expect("values of a function are left unjudged", ["f(-5) = 3(-5) - 3", "f(3) = 11 - 3", "f(x) = 2x + 1"], "empty,empty,empty");
+expect("x times a bracket is still algebra", ["x(x - 2) = 0", "x^2 - 2x = 0"], "start,same");
+ok("a case note is house style", !/—/.test(W.NOTES.case) && W.NOTES.case.length > 10);
+ok("both equations of a system are given", W.givensOf("Solve: y = x + 2 and x + y = 8. What is x?").join(" | ") === "y = x + 2 | x + y = 8", W.givensOf("Solve: y = x + 2 and x + y = 8. What is x?").join(" | "));
+ok("an or compound stays one line", W.givensOf("Solve: 3x + 10 < 7 OR 3x + 10 > 25").length === 1, W.givensOf("Solve: 3x + 10 < 7 OR 3x + 10 > 25").join(" | "));
+ok("a name like x = k is left out", W.givensOf("The axis of symmetry of y = x² − 4x − 5 is the line x = k. What is k?").length === 1);
+ok("a condition like x = 3 is left out", W.givensOf("For y = 2x + 1, what is y when x = 3?").join() === "y = 2x + 1");
+ok("a raised root index is no start line", W.startingLine("Rewrite ³√x as an exponent.") === "", W.startingLine("Rewrite ³√x as an exponent."));
+ok("one stated equation is checked strictly", W.workContext("Solve for x: 2x + 3 = 11").system === false);
+ok("two stated equations are a system", W.workContext("Solve: y = 2x and x + y = 9. What is y?").system === true);
+
 // ===========================================================================
 // The route: actions shape the prompt, never the gates
 // ===========================================================================

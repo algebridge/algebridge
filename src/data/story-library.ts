@@ -8,19 +8,10 @@
  * add more.
  */
 export const STORY_LIBRARY: Record<string, { template: string; topic: string }[]> = {
-  "v3::Convert {1} days to hours.::minecraft": [{"template":"You plan to farm crops for {1} days to stock your base. How many hours do you figure that is to fit in your build?","topic":"Minecraft"}],
-  "v3::Convert {1} days to hours.::music": [{"template":"A new album drops in {1} days. How many hours of countdown do you think you have to make the most of it?","topic":"Music"}],
-  "v3::Convert {1} days to hours.::soccer": [{"template":"The next league match is in {1} days. How many hours do you figure you have to rest and recover?","topic":"Soccer"}],
-  "v3::Convert {1} days to hours.::youtube & tiktok": [{"template":"Your next big video uploads in {1} days. How many hours of promotion do you think you have?","topic":"YouTube & TikTok"}],
   "v3::Convert {1} inches to feet. (round to the hundredths place)::minecraft": [{"template":"You dig a tunnel {1} inches wide, and your build log wants the width in feet. How wide is the tunnel in feet? (round to the hundredths place)","topic":"Minecraft"}],
   "v3::Convert {1} inches to feet. (round to the hundredths place)::youtube & tiktok": [{"template":"Your studio wall is {1} inches wide, and the sponsor wants the banner length in feet. How many feet wide is the wall? (round to the hundredths place)","topic":"YouTube & TikTok"}],
   "v3::Convert {1} inches to feet.::music": [{"template":"Your studio arm is {1} inches long and the software needs the value in feet for the mix. How many feet do you figure that is?","topic":"Music"}],
   "v3::Convert {1} inches to feet.::youtube & tiktok": [{"template":"Your new tripod is {1} inches tall, and the video description lists gear in feet. How tall is the tripod in feet?","topic":"YouTube & TikTok"}],
-  "v3::Convert {1} kilograms to grams.::basketball": [{"template":"Your new basketball gear case weighs {1} kilograms, but the carrier asks for grams. How many grams do you figure the case weighs for the label?","topic":"Basketball"}],
-  "v3::Convert {1} kilograms to grams.::minecraft": [{"template":"Your iron ore haul weighs {1} kilograms, and the shop charges by grams. How many grams of ore do you figure you have to exchange for ingots?","topic":"Minecraft"}],
-  "v3::Convert {1} kilograms to grams.::music": [{"template":"Your bass guitar case weighs {1} kilograms, and the shipping box needs grams. How many grams do you think you need to write on the label?","topic":"Music"}],
-  "v3::Convert {1} kilograms to grams.::soccer": [{"template":"The gear crate is {1} kg. What do you figure that is in grams?","topic":"Soccer"}],
-  "v3::Convert {1} kilograms to grams.::youtube & tiktok": [{"template":"Your editing rig tips the scale at {1} kg, and the shipping label wants grams. How many grams does the rig weigh?","topic":"YouTube & TikTok"}],
   "v3::Convert {1} miles to feet. ({2} mile = {3} ft)::basketball": [{"template":"The gym is {1} miles from the school, and you need the feet for the walk-up time. With {2} mile = {3} ft in the math book, how many feet do you think that is?","topic":"Basketball"}],
   "v3::Convert {1} miles to feet. ({2} mile = {3} ft)::minecraft": [{"template":"Your base is {1} miles from the spawn, and the build plan measures in feet. Using {2} mile = {3} ft, how many feet of rail would reach your base?","topic":"Minecraft"}],
   "v3::Convert {1} miles to feet. ({2} mile = {3} ft)::music": [{"template":"The festival stage is {1} miles from the gate, and you need the feet for the sound check. Use {2} mile = {3} ft. What do you think the distance is in feet?","topic":"Music"}],
