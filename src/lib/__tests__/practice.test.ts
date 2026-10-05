@@ -1629,5 +1629,44 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("the first question of the next session is a new one", !seen.has(canonicalPrompt(next[0].prompt)));
 }
 
+// --- Movement: strides driven by distance, a gait per sport, push-and-glide skating ---
+{
+  const Gt = await import("../gait.ts");
+  const G = await import("../games.ts");
+  // A planted foot keeps pace with the ground: the thigh's fastest swing times the leg's length
+  // should match the speed the player covers ground at, from a jog to a sprint, in every sport.
+  const slips: string[] = [];
+  for (const game of G.COURT_GAMES) {
+    const gait = Gt.GAITS[game.id];
+    for (const s of [0.3, 0.6, 1]) {
+      const v = s * game.maxSpeed;
+      const stride = Gt.strideLength(gait, s, game.height, 1);
+      const cyclesPerSecond = v / stride;
+      const amp = gait.thigh * (0.35 + 0.65 * s) * (Math.PI / 180);
+      const footSpeed = amp * 2 * Math.PI * cyclesPerSecond * (0.47 * game.height);
+      const ratio = footSpeed / v;
+      if (ratio < 0.55 || ratio > 1.6) slips.push(`${game.id} at ${s}: foot ${Math.round(footSpeed)} vs ground ${Math.round(v)}`);
+    }
+  }
+  ok("gait: a planted foot keeps pace with the ground in every sport, jog to sprint", slips.length === 0, slips.join(" | "));
+  ok("gait: a faster run takes longer strides", Gt.strideLength(Gt.GAITS.soccer, 1, 170, 1) > Gt.strideLength(Gt.GAITS.soccer, 0.3, 170, 1));
+  const run = Gt.gaitPose(Gt.GAITS.soccer, 0, 1, 1, 0);
+  ok("gait: the legs swing opposite each other, the arms opposite the legs", run.thighF < 0 && run.thighB > 0 && run.armF > 0 && run.armB < 0);
+  ok("gait: lowest as a foot lands, highest between steps", Gt.gaitPose(Gt.GAITS.soccer, 0, 1, 1, 0).bob === 0 && Gt.gaitPose(Gt.GAITS.soccer, 0.25, 1, 1, 0).bob < -2);
+  ok("gait: a sprint leans further than a jog", Gt.gaitPose(Gt.GAITS.soccer, 0.1, 1, 1, 0).body > Gt.gaitPose(Gt.GAITS.soccer, 0.1, 0.3, 1, 0).body);
+  const toward = Gt.gaitPose(Gt.GAITS.volleyball, 0, 1, 0, 0);
+  const across = Gt.gaitPose(Gt.GAITS.volleyball, 0, 1, 1, 0);
+  ok("gait: running toward the camera swings less and lifts the knee", Math.abs(toward.thighF) < Math.abs(across.thighF) && toward.liftF < 1 && across.liftF === 1);
+  const shuffle = Gt.gaitPose(Gt.GAITS.wrestling, 0.3, 1, 1, 0);
+  ok("gait: the wrestler shuffles in a guard, steps small", Math.abs(shuffle.thighF + 3) <= 13 && shuffle.foreF === -74 && shuffle.armF < -15);
+  const glideA = Gt.skatePose(0.1, 0.8, 0);
+  const glideB = Gt.skatePose(0.6, 0.8, 0);
+  ok("skating: no push, the same glide pose whatever the phase", JSON.stringify({ ...glideA, armF: 0, armB: 0 }) === JSON.stringify({ ...glideB, armF: 0, armB: 0 }));
+  ok("skating: a push strokes the legs in turn", Gt.skatePose(0, 0.5, 1).thighF < 0 && Gt.skatePose(0, 0.5, 1).thighB > 0 && Gt.skatePose(0.5, 0.5, 1).thighF > 0);
+  ok("skating: strokes quicken with speed", Gt.strokePeriod(1) < Gt.strokePeriod(0.2));
+  ok("gait: smoothing never overshoots", Gt.approach(0, 1, 16, 0.05) > 0 && Gt.approach(0, 1, 16, 0.05) < 1 && Gt.approach(0, 1, 16, 10) <= 1);
+  ok("each sport has its own pace: the wrestler slowest, the footballer fastest", G.getCourtGame("wrestling")!.maxSpeed < G.getCourtGame("cheer")!.maxSpeed && G.getCourtGame("soccer")!.maxSpeed > G.getCourtGame("volleyball")!.maxSpeed);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
