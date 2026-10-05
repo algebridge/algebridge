@@ -16,12 +16,13 @@ import {
   unlockSkill,
   getSkillPracticeStats,
   getUnitCompletion,
+  recordSkillCheck,
 } from "@/lib/progress";
 import { getBackupVideoForSkill, getVideoForSkill } from "@/data/videos";
 import { useProgress } from "@/hooks/useProgress";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { hueVars, unitHue } from "@/lib/hues";
-import { canTryCheck, CHECK_LENGTH } from "@/lib/path";
+import { canTryCheck, CHECK_LENGTH, today } from "@/lib/path";
 import { bridgeysForSkill } from "@/lib/gamification";
 import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";
@@ -283,6 +284,17 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   onMasteryChange={handleMasteryChange}
                   practiceOnly={looking}
                   onPracticeRight={setPracticeRight}
+                  onOpenSkill={() => {
+                    // A fast run opens the skill the way passing "Show what you know" does.
+                    recordSkillCheck(skill.id, true, today());
+                    setPracticeOnly(false);
+                    showToast({
+                      icon: "check",
+                      tone: "reward",
+                      title: `${skill.title} is open`,
+                      description: "Your answers count from here.",
+                    });
+                  }}
                   next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
                 />
               </section>

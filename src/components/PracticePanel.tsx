@@ -33,7 +33,7 @@ import { diagnoseMistake, type Attempt } from "@/lib/diagnose";
 import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
 import { setCalculatorAccess } from "@/lib/calculator-access";
-import { answerIsRight } from "@/lib/grading";
+import { answerIsRight, gradeAnswer } from "@/lib/grading";
 import { announcePractice } from "@/lib/sidebar";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
@@ -42,6 +42,7 @@ import { WorkPad } from "@/components/helper/WorkPad";
 import type { PadLine } from "@/components/helper/types";
 import { checkWork, workContext } from "@/lib/work-check";
 import { SignKeys } from "@/components/SignKeys";
+import { MathKeyboard, MathKeysOpen, MathKeysToggle } from "@/components/MathKeyboard";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
 import {
@@ -64,6 +65,12 @@ interface PracticePanelProps {
   practiceOnly?: boolean;
   /** In practice-only mode: how many they have got right this session. */
   onPracticeRight?: (count: number) => void;
+  /**
+   * In practice-only mode, after a fast run (FAST_RUN first tries right in a
+   * row, each inside FAST_SECONDS): opens the skill for real, the way passing
+   * "Show what you know" does. Without it, no offer is made.
+   */
+  onOpenSkill?: () => void;
   /** Where the path goes after this skill, for the moment it is finished. */
   next?: { href: string; title: string } | null;
 }
@@ -111,8 +118,19 @@ interface Scene {
 /** Wrong answers in one visit before the AI helper is offered. */
 const MISSES_BEFORE_NUDGE = 3;
 
+/**
+ * A run in practice-only mode that shows a student already knows a skill:
+ * this many first tries right in a row, each answered inside FAST_SECONDS of
+ * the problem appearing. Stronger evidence than "Show what you know" (three
+ * in a row, untimed), so it earns the same thing: the skill opens.
+ */
+export const FAST_RUN = 4;
+export const FAST_SECONDS = 45;
+
 /** Where this device remembers that the student tucked the work pad away. */
 const PAD_PREF_KEY = "ab-work-pad";
+/** Where this device remembers that the student keeps the math keys open. */
+const KEYS_PREF_KEY = "ab-math-keys";
 
 /**
  * How the student's work on a problem went: the lines they wrote (the
@@ -200,8 +218,12 @@ function useInterestTopics() {
   return state;
 }
 
-export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, onPracticeRight, next = null }: PracticePanelProps) {
+export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, onPracticeRight, onOpenSkill, next = null }: PracticePanelProps) {
   const [problemIndex, setProblemIndex] = useState(0);
+  /** Practice-only: fast first tries in a row, when the problem on screen appeared, and the offer it earns. */
+  const fastRunRef = useRef(0);
+  const shownAtRef = useRef(0);
+  const [fastOffer, setFastOffer] = useState<number | null>(null);
   /** Right answers this session, only kept in practice-only mode. */
   const [sessionRight, setSessionRight] = useState(0);
   // The screen is paper on every problem; a new problem is clean paper.
@@ -225,6 +247,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const answerRef = useRef<HTMLInputElement>(null);
   const unitOfSkill = useMemo(() => units.find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
+  // Unfinished arithmetic or a typo, said gently, with no try spent on it.
+  const [nudge, setNudge] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -251,6 +275,26 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       /* remembered for this visit only */
     }
   }, []);
+  /** The on-screen math keys, open or closed as this device last left them. */
+  const [keysOpen, setKeysOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(KEYS_PREF_KEY) === "open") setKeysOpen(true);
+    } catch {
+      /* storage blocked: the keys start closed */
+    }
+  }, []);
+  const toggleKeys = useCallback((open: boolean) => {
+    setKeysOpen(open);
+    try {
+      if (open) localStorage.setItem(KEYS_PREF_KEY, "open");
+      else localStorage.removeItem(KEYS_PREF_KEY);
+    } catch {
+      /* remembered for this visit only */
+    }
+  }, []);
+  /** The problem card: the math keys type into the boxes inside it. */
+  const cardRef = useRef<HTMLDivElement>(null);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
@@ -555,6 +599,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         : []
     );
     setFeedback(null);
+    setNudge(null);
     setShowHint(false);
     setShowExplanation(false);
     setAttempts(0);
@@ -565,6 +610,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     stopSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemIndex, problem]);
+
+  // The clock for a fast run starts when the problem can be read, after any story is written.
+  useEffect(() => {
+    if (problem && !pending) shownAtRef.current = Date.now();
+  }, [problemIndex, problem, pending]);
 
   // A new skill is a new page: last skill's finish card goes with it.
   useEffect(() => setCelebration(null), [skill.id]);
@@ -601,8 +651,22 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     } else if (problem.type === "multiple-choice") {
       correct = answerIsRight(problem, selectedChoice ?? "");
     } else {
-      correct = answerIsRight(problem, userAnswer);
+      // Typed arithmetic counts where the calculator is offered, since that
+      // is where the arithmetic is bookkeeping. Elsewhere, and for the
+      // problem's own expression typed back, the student is asked to finish
+      // it, and the try is not spent.
+      const verdict = gradeAnswer({ ...problem, prompt: displayPrompt }, userAnswer, { expressions: calculatorAllowed });
+      if (verdict === "simplify" || verdict === "unreadable") {
+        setNudge(
+          verdict === "simplify"
+            ? "Finish the arithmetic, then type one number, like 12, -3 or 2/3."
+            : "Type your answer as a number, like 12, -3, 2/3 or 0.75."
+        );
+        return;
+      }
+      correct = verdict === "right";
     }
+    setNudge(null);
 
     setLastTry({
       given: problem.type === "multiple-choice" ? (selectedChoice ?? "") : userAnswer,
@@ -625,6 +689,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         sessionRightRef.current += 1;
         setSessionRight(sessionRightRef.current);
         onPracticeRight?.(sessionRightRef.current);
+        // A quick first try keeps the run going; a slow one or a second try starts it over.
+        const quick = firstTry && Date.now() - shownAtRef.current <= FAST_SECONDS * 1000;
+        fastRunRef.current = quick ? fastRunRef.current + 1 : 0;
+        if (fastRunRef.current >= FAST_RUN && onOpenSkill) setFastOffer(fastRunRef.current);
         return;
       }
 
@@ -689,6 +757,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         });
       }
     } else {
+      fastRunRef.current = 0;
       // The wrong pick is crossed out, so the next try is a new answer
       // rather than the same click again.
       if (problem.type === "multiple-choice" && selectedChoice !== null) {
@@ -722,9 +791,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     onMasteryChange,
     practiceOnly,
     onPracticeRight,
+    onOpenSkill,
     playCorrect,
     playWrong,
     playLevelUp,
+    displayPrompt,
+    calculatorAllowed,
   ]);
 
   /** What had the focus when the student moved on (Next problem, Skip this one): the new problem takes it over. */
@@ -897,16 +969,36 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             : "That looks like your answer. Type it in the answer box to check it."
         }
         headerAction={
-          <button
-            type="button"
-            onClick={() => togglePad(false)}
-            onKeyDown={ignoreSpaceKey}
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-          >
-            Hide
-          </button>
+          <span className="flex items-center gap-1">
+            {problem.type === "multiple-choice" && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => toggleKeys(!keysOpen)}
+                onKeyDown={ignoreSpaceKey}
+                aria-pressed={keysOpen}
+                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
+                  keysOpen ? "bg-bridge-50 text-bridge-700" : "text-slate-500 hover:bg-white hover:text-slate-700"
+                }`}
+              >
+                <Icon name="keyboard" size={15} />
+                Math keys
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => togglePad(false)}
+              onKeyDown={ignoreSpaceKey}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+            >
+              Hide
+            </button>
+          </span>
         }
       />
+      {problem.type === "multiple-choice" && keysOpen && (
+        <MathKeyboard scope={cardRef} onClose={() => toggleKeys(false)} className="m-2 mt-0 max-w-md" />
+      )}
     </div>
   ) : (
     <button
@@ -1119,7 +1211,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       {/* Problem card. A story takes the color of the interest it is set in,
           so a Minecraft problem and a basketball one look like different
           places; a plain problem keeps the page's neutral card. */}
+      <MathKeysOpen.Provider value={keysOpen}>
       <div
+        ref={cardRef}
         style={hueVars(scene?.topic ? topicHue(scene.topic) : HUES.blue)}
         className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-panel sm:p-6 ${scene?.topic ? "hue-line" : "border-slate-200"}`}
       >
@@ -1179,12 +1273,17 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             <input
               ref={answerRef}
               type="text"
-              inputMode="decimal"
+              // With the math keys open they are the keyboard, so a phone keeps its own away.
+              inputMode={keysOpen ? "none" : "decimal"}
+              data-math-keys="answer"
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
               value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
+              onChange={(e) => {
+                setUserAnswer(e.target.value);
+                setNudge(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key !== "Enter" || feedback === "correct") return;
                 // preventDefault stops the same key press from also landing on Next
@@ -1209,8 +1308,17 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                       : "border-slate-300 focus:border-bridge-500 focus:ring-bridge-200"
               }`}
             />
-            <SignKeys value={userAnswer} onChange={setUserAnswer} inputRef={answerRef} disabled={over} />
+            {!keysOpen && <SignKeys value={userAnswer} onChange={setUserAnswer} inputRef={answerRef} disabled={over} />}
+            {!over && <MathKeysToggle open={keysOpen} onToggle={() => toggleKeys(!keysOpen)} />}
           </div>
+        )}
+        {!pending && problem.type === "numeric" && nudge && !over && (
+          <p role="status" className="animate-pop-in mt-2 max-w-sm text-sm font-medium text-slate-600">
+            {nudge}
+          </p>
+        )}
+        {!pending && problem.type === "numeric" && keysOpen && !over && (
+          <MathKeyboard scope={cardRef} onClose={() => toggleKeys(false)} className="mt-3 max-w-md" />
         )}
 
         {/* Multiple choice */}
@@ -1397,6 +1505,42 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 <WorkedSteps text={problem.explanation} />
               </div>
             )}
+            {practiceOnly && fastOffer !== null && onOpenSkill && (
+              <div className="hue-tint animate-pop-in mt-4 rounded-xl border px-4 py-3" role="status">
+                <p className="flex items-center gap-2 font-semibold text-slate-900">
+                  <Icon name="flame" size={17} className="hue-ink" />
+                  {fastOffer} in a row, each in under {FAST_SECONDS} seconds
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  You already know {skill.title}. Open it now and your answers start counting toward it, right where you are.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFastOffer(null);
+                      onOpenSkill();
+                    }}
+                    onKeyDown={ignoreSpaceKey}
+                    className="hue-solid inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-semibold shadow-sm transition hover:brightness-110"
+                  >
+                    Open this skill
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // A fresh run earns the offer again.
+                      fastRunRef.current = 0;
+                      setFastOffer(null);
+                    }}
+                    onKeyDown={ignoreSpaceKey}
+                    className="btn-ghost btn-sm"
+                  >
+                    Keep practicing
+                  </button>
+                </div>
+              </div>
+            )}
             {feedback === "wrong" && attempts === 1 && !ps.isComplete && !practiceOnly && (
               <p className="mt-2 px-1 text-xs text-slate-500">
                 Fix it for practice, or skip it. Your next first try counts toward the {ps.required}.
@@ -1544,6 +1688,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </Link>
         </div>
       </div>
+      </MathKeysOpen.Provider>
 
     </div>
   );
