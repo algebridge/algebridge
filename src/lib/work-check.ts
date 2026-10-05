@@ -38,7 +38,7 @@ import {
   type RelOp,
 } from "@/lib/mathexpr";
 
-export type StepKind = "start" | "same" | "changed" | "final" | "unreadable" | "mismatch" | "empty";
+export type StepKind = "start" | "same" | "case" | "changed" | "final" | "unreadable" | "mismatch" | "empty";
 
 export interface StepMark {
   kind: StepKind;
@@ -48,15 +48,34 @@ export interface StepMark {
 
 export const NOTES = {
   sameRelation: "Same answer as the line above. Nice step.",
+  case: "That case checks out. Work through each case.",
   sameExpr: "This equals the line above. Nice step.",
   changed: "This line changes the answer. Look at what you did to get here from the line above.",
   changedSign: "This line changes the answer. Check which way the inequality sign points.",
-  changedExpr: "This line is not equal to the line above. Look at what you did to get here from the line above.",
+  changedExpr: "This line has a different value from the line above. Look at what you did to get here from the line above.",
   final: "That looks like your answer. Put it in the answer box to check it.",
   // No-break spaces keep the example equation on one line.
-  unreadable: "I can't read this line. Try writing it like 2x\u00a0+\u00a03\u00a0=\u00a011.",
-  mismatch: "I can't compare this with the line above. Keep equations with equations and expressions with expressions.",
+  unreadable: "Write this line in math, like 2x\u00a0+\u00a03\u00a0=\u00a011, and it gets checked.",
+  mismatch: "Keep equations with equations and expressions with expressions, and this line gets checked against the one above.",
 } as const;
+
+/**
+ * What the pad knows about the problem it sits under.
+ *
+ * `system`: the problem states other than exactly one equation or
+ * inequality (two equations, or a word problem with none written out), so a
+ * student may well write two different equations in x and y one under the
+ * other. Two such lines are two equations of a system, and the second is a
+ * fresh start rather than a slip.
+ *
+ * `choices`: a multiple-choice card's choices. A line that is one of them is
+ * the student's answer, left for the card to check, so typing each choice
+ * into the pad tells them nothing.
+ */
+export interface WorkContext {
+  system?: boolean;
+  choices?: string[];
+}
 
 // ---------------------------------------------------------------------------
 // Reading a line
@@ -163,8 +182,12 @@ export function looksFinal(text: string): boolean {
   const s = clean(text);
   if (!s) return false;
   let answer = null;
+  // "x(x − 2) = 0" is x times a bracket, which the answer reader takes for a
+  // label like f(x) and reads as "0". A letter against a bracket that holds
+  // more than one number or letter is algebra: judge it as a line.
+  const product = /[a-z]\s*\(/.test(s) && !CALL.test(s);
   try {
-    answer = parseAnswerSet(s);
+    answer = product ? null : parseAnswerSet(s);
   } catch {
     answer = null;
   }
@@ -262,6 +285,103 @@ function rootSet(clauses: Clause[], v: string): number[] | "all" {
 }
 
 /**
+ * How two one-letter lines' solutions sit together: the same set, b's
+ * solutions all inside a's (b is one case of a), or a's all inside b's (b is
+ * one half of an "and"). Equations compare their solutions directly;
+ * anything with an inequality is tested at the places either line can change
+ * and between them, like sameSolutions.
+ */
+function solutionFit(a: Clause[], b: Clause[], v: string): "same" | "inside" | "around" | "other" {
+  const near = (x: number, y: number) => Math.abs(x - y) <= 1e-6 * Math.max(1, Math.abs(x));
+  if (allEqual(a) && allEqual(b)) {
+    const ra = rootSet(a, v);
+    const rb = rootSet(b, v);
+    if (ra === "all" || rb === "all") return ra === rb ? "same" : ra === "all" && rb !== "all" && rb.length ? "inside" : "other";
+    if (ra.length === rb.length && ra.every((x, k) => near(x, rb[k]))) return "same";
+    if (rb.length && rb.every((x) => ra.some((y) => near(x, y)))) return "inside";
+    return "other";
+  }
+  const crit = [...criticalPoints(a, v), ...criticalPoints(b, v)].sort((x, y) => x - y);
+  const unique: number[] = [];
+  for (const c of crit) if (!unique.some((u) => Math.abs(u - c) <= 1e-9 * Math.max(1, Math.abs(c)))) unique.push(c);
+  const tests = [...PROBES];
+  for (let k = 0; k < unique.length; k += 1) {
+    const c = unique[k];
+    const step = Math.max(1e-3, Math.abs(c) * 1e-6);
+    tests.push(c, c - step, c + step);
+    if (k + 1 < unique.length) tests.push((c + unique[k + 1]) / 2);
+  }
+  if (unique.length) tests.push(unique[0] - 1, unique[0] - 50.5, unique[unique.length - 1] + 1, unique[unique.length - 1] + 50.5);
+  let same = true;
+  let inside = true;
+  let around = true;
+  let someA = false;
+  let someB = false;
+  let compared = 0;
+  for (const t of tests) {
+    const ta = truth(a, { [v]: t });
+    const tb = truth(b, { [v]: t });
+    if (ta === null || tb === null) continue;
+    compared += 1;
+    if (ta) someA = true;
+    if (tb) someB = true;
+    if (ta !== tb) same = false;
+    if (tb && !ta) inside = false;
+    if (ta && !tb) around = false;
+  }
+  if (compared < 3) return "other";
+  if (same) return "same";
+  if (inside && someB) return "inside";
+  if (around && someA) return "around";
+  return "other";
+}
+
+/** Does a node hold an absolute value anywhere in it? */
+function hasAbs(n: Node): boolean {
+  switch (n.t) {
+    case "fn":
+      return n.name === "abs" || hasAbs(n.a);
+    case "neg":
+      return hasAbs(n.a);
+    case "bin":
+      return hasAbs(n.a) || hasAbs(n.b);
+    case "root":
+      return hasAbs(n.a);
+    case "logb":
+      return hasAbs(n.a);
+    default:
+      return false;
+  }
+}
+
+const isZero = (n: Node) => n.t === "num" && n.v === 0;
+const isProduct = (n: Node): boolean => (n.t === "bin" && n.op === "*") || (n.t === "neg" && isProduct(n.a));
+const isSquare = (n: Node) => n.t === "bin" && n.op === "^" && n.b.t === "num" && n.b.v === 2;
+
+/**
+ * A line a student may split into cases, one per line: an absolute value
+ * equal to or greater than a number, a product set to zero, a square set to
+ * a number, or an "or". Each case has some of the line's solutions, none of
+ * its own, so it is sound even though it is not the same answer.
+ */
+function splitsIntoCases(clauses: Clause[]): boolean {
+  if (clauses.length > 1) return true;
+  return clauses.some((c) =>
+    c.some(
+      (r) =>
+        ((hasAbs(r.lhs) || hasAbs(r.rhs)) && (r.op === "=" || r.op === ">" || r.op === ">=" || r.op === "!=")) ||
+        (r.op === "=" && ((isZero(r.rhs) && isProduct(r.lhs)) || (isZero(r.lhs) && isProduct(r.rhs)))) ||
+        (r.op === "=" && ((isSquare(r.lhs) && isConstant(r.rhs)) || (isSquare(r.rhs) && isConstant(r.lhs))))
+    )
+  );
+}
+
+/** An absolute value kept under a number: |E| < c means E < c and E > −c, two halves a student may write apart. */
+function splitsIntoHalves(clauses: Clause[]): boolean {
+  return clauses.length === 1 && clauses[0].some((r) => (hasAbs(r.lhs) || hasAbs(r.rhs)) && (r.op === "<" || r.op === "<="));
+}
+
+/**
  * Do two one-letter lines hold at exactly the same values of v? Equations
  * compare their solutions directly. Anything with an inequality is tested
  * at every place either line can change (where its sides meet or break),
@@ -351,13 +471,18 @@ const FLIP: Partial<Record<RelOp, RelOp>> = { "<": ">", ">": "<", "<=": ">=", ">
 // ---------------------------------------------------------------------------
 
 /** How `next` follows from `prev`. Both are lines the student typed. */
-export function compareLines(prev: string, next: string): StepMark {
+export function compareLines(prev: string, next: string, ctx: WorkContext = {}): StepMark {
   if (!clean(next)) return { kind: "empty", note: "" };
   if (looksFinal(next)) return { kind: "final", note: NOTES.final };
   const b = parseLine(next);
   if (!b) return { kind: "unreadable", note: NOTES.unreadable };
   const a = parseLine(prev);
   if (!a || looksFinal(prev)) return { kind: "start", note: "" };
+  // Different letters: a value put in for one of them ("y = 2x + 1", then
+  // "7 = 2x + 1"), a formula filled in ("y = mx + b", then "5 = 2(3) + b"),
+  // or one equation of a system put into the other. Each is a new start
+  // rather than a step that can keep or change the answer.
+  if (a.vars.join(",") !== b.vars.join(",")) return { kind: "start", note: "" };
   if (a.kind !== b.kind) return { kind: "mismatch", note: NOTES.mismatch };
 
   if (a.kind === "expr" && b.kind === "expr") {
@@ -369,6 +494,8 @@ export function compareLines(prev: string, next: string): StepMark {
 
   const vars = Array.from(new Set([...a.vars, ...b.vars])).sort();
   if (sameRelation(a.clauses, b.clauses, vars)) return { kind: "same", note: NOTES.sameRelation };
+  // Two equations in x and y, one under the other, while solving a system.
+  if (ctx.system && vars.length >= 2) return { kind: "start", note: "" };
 
   // One inequality to another: if turning the sign around would have made it
   // right, say so. That is the classic slip when dividing by a negative.
@@ -388,15 +515,24 @@ export function compareLines(prev: string, next: string): StepMark {
  * Unreadable lines and answers are skipped as a reference, so one typo does
  * not turn every line under it grey.
  */
-export function checkWork(lines: string[]): StepMark[] {
+export function checkWork(lines: string[], ctx: WorkContext = {}): StepMark[] {
   const marks: StepMark[] = [];
+  const picks = new Set((ctx.choices ?? []).map(asTyped));
   let reference: string | null = null;
+  /** Every line used as a reference so far: a case may come from any of them. */
+  const earlier: string[] = [];
   for (const line of lines) {
     if (!clean(line)) {
       marks.push({ kind: "empty", note: "" });
       continue;
     }
-    if (looksFinal(line)) {
+    // f(3) = 11 − 3 reads as f times 3. Values of a function are left
+    // unjudged rather than compared as something they are not.
+    if (hasFunctionNotation(line)) {
+      marks.push({ kind: "empty", note: "" });
+      continue;
+    }
+    if (looksFinal(line) || picks.has(asTyped(line))) {
       marks.push({ kind: "final", note: NOTES.final });
       continue;
     }
@@ -404,35 +540,118 @@ export function checkWork(lines: string[]): StepMark[] {
       marks.push({ kind: "unreadable", note: NOTES.unreadable });
       continue;
     }
-    marks.push(reference === null ? { kind: "start", note: "" } : compareLines(reference, line));
+    let mark: StepMark = reference === null ? { kind: "start", note: "" } : compareLines(reference, line, ctx);
+    if (mark.kind === "changed") {
+      // One case of a split (|2x − 3| = 7 into 2x − 3 = 7, then 2x − 3 = −7),
+      // or a line that matches one further up: sound work, not a slip.
+      for (let k = earlier.length - 1; k >= 0; k -= 1) {
+        const fit = caseFit(earlier[k], line);
+        if (fit) {
+          mark = fit;
+          break;
+        }
+      }
+    }
+    marks.push(mark);
     reference = line;
+    earlier.push(line);
   }
   return marks;
 }
 
+/** "f(3)", "g(x)", "C(n)": a single letter naming a function, with a number or a letter as its input. */
+const CALL = /(?<![a-z])[a-z]\(\s*(?:-?\d+(?:\.\d+)?|[a-z])\s*\)/;
+
+/** Does a line use function notation? */
+export function hasFunctionNotation(text: string): boolean {
+  return CALL.test(clean(text));
+}
+
+/** How a line sits under an earlier one, when it is not a plain next step: the same answer again, or one case of a split. */
+function caseFit(prev: string, next: string): StepMark | null {
+  const a = parseLine(prev);
+  const b = parseLine(next);
+  if (!a || !b || a.kind !== "relation" || b.kind !== "relation" || looksFinal(prev)) return null;
+  if (a.vars.length !== 1 || a.vars.join() !== b.vars.join()) return null;
+  const fit = solutionFit(a.clauses, b.clauses, a.vars[0]);
+  if (fit === "same") return { kind: "same", note: NOTES.sameRelation };
+  if (fit === "inside" && splitsIntoCases(a.clauses)) return { kind: "case", note: NOTES.case };
+  if (fit === "around" && splitsIntoHalves(a.clauses)) return { kind: "case", note: NOTES.case };
+  return null;
+}
+
+/** A line as typed, for matching a choice: one spelling, no spaces. */
+function asTyped(text: string): string {
+  return clean(text).replace(/\s+/g, "");
+}
+
+/** Does a line have a letter in it? A line of plain numbers is arithmetic, which the pad leaves unmarked. */
+export function hasLetters(text: string): boolean {
+  return /[a-z]/i.test(clean(text));
+}
+
+/** A root written with a raised index ("³√x") reads back as "^3√x", which is no line to start from. */
+const MANGLED = /^\^|\^\d*√/;
+
 /**
- * The line a student starts the pad from: the equation or inequality in the
- * problem, or the expression to simplify. Empty when the problem has neither
- * (a unit conversion, a word problem with no equation written out).
+ * The equations and inequalities a problem states, as lines a student could
+ * start from: "Solve: y = x + 2 and x + y = 8" gives both. A condition such
+ * as "x = 3" or "x = k" is left out, and the two halves of an "or" compound
+ * stay together as one line.
  */
-export function startingLine(problem: string): string {
+export function givensOf(problem: string): string[] {
   const text = String(problem ?? "");
-  if (!text.trim()) return "";
+  if (!text.trim()) return [];
   let math;
   try {
     math = extractMath(text);
   } catch {
-    return "";
+    return [];
   }
+  const out: { text: string; vars: string[] }[] = [];
   for (const { chain, text: t } of math.chains) {
-    const vars = new Set(chain.exprs.flatMap((e) => variablesOf(e)));
-    if (vars.size >= 1 && vars.size <= 2 && t.length <= 60 && !looksFinal(t)) return t;
+    const vars = Array.from(new Set(chain.exprs.flatMap((e) => variablesOf(e)))).sort();
+    if (vars.length < 1 || vars.length > 2 || t.length > 60 || looksFinal(t) || MANGLED.test(t)) continue;
+    // "the line x = k": a name, not something to work from.
+    if (chain.exprs.length === 2 && chain.exprs.every((e) => e.t === "var")) continue;
+    out.push({ text: t, vars });
   }
-  if (/\b(simplify|expand|factor|distribute|combine|rewrite|multiply|evaluate)\b/i.test(text)) {
-    for (const { node, text: t } of math.exprs) {
-      const vars = variablesOf(node);
-      if (vars.length >= 1 && vars.length <= 2 && t.length <= 60) return t;
-    }
+  // "3x + 10 < 7 OR 3x + 10 > 25" is one compound, in one letter.
+  if (math.hasOr && out.length === 2 && out[0].vars.join() === out[1].vars.join() && out[0].vars.length === 1) {
+    return [`${out[0].text} or ${out[1].text}`];
   }
-  return "";
+  return out.map((g) => g.text);
+}
+
+/**
+ * The lines a student starts the pad from: what the problem states (see
+ * givensOf), or the expression to simplify. Empty when the problem has
+ * neither (a unit conversion, a word problem with no equation written out).
+ */
+export function startingLines(problem: string): string[] {
+  const givens = givensOf(problem);
+  if (givens.length) return givens.slice(0, 3);
+  const text = String(problem ?? "");
+  if (!/\b(simplify|expand|factor|distribute|combine|rewrite|multiply|evaluate)\b/i.test(text)) return [];
+  let math;
+  try {
+    math = extractMath(text);
+  } catch {
+    return [];
+  }
+  for (const { node, text: t } of math.exprs) {
+    const vars = variablesOf(node);
+    if (vars.length >= 1 && vars.length <= 2 && t.length <= 60 && !MANGLED.test(t)) return [t];
+  }
+  return [];
+}
+
+/** The first of the starting lines, or empty. */
+export function startingLine(problem: string): string {
+  return startingLines(problem)[0] ?? "";
+}
+
+/** How the pad reads this problem's work (see WorkContext). */
+export function workContext(problem: string, choices?: string[]): WorkContext {
+  return { system: givensOf(problem).length !== 1, choices };
 }

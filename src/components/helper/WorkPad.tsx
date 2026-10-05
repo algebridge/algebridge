@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { checkWork, startingLine, type StepMark } from "@/lib/work-check";
+import { checkWork, hasLetters, startingLines, workContext, type StepMark } from "@/lib/work-check";
 import type { PadLine } from "./types";
 
 /**
@@ -14,17 +14,27 @@ import type { PadLine } from "./types";
  */
 
 let nextLineId = 1;
-const newLine = (text = "", entered: string | null = null): PadLine => ({ id: nextLineId++, text, entered });
+const newLine = (text = "", entered: string | null = null, given?: string): PadLine => ({ id: nextLineId++, text, entered, given });
 
-export function initialPad(problem?: string): PadLine[] {
-  const start = startingLine(problem ?? "");
-  return [newLine(start, start || null), newLine()];
+/** A line read back from the problem, written the way the problem writes it: x² and (x + 1)², × for times, a real minus between terms. */
+function asPrinted(text: string): string {
+  return text
+    .replace(/([a-z)])\^2(?![\d.])/g, "$1²")
+    .replace(/([a-z)])\^3(?![\d.])/g, "$1³")
+    .replace(/ \* /g, " × ")
+    .replace(/ - /g, " − ");
 }
 
-function Mark({ mark }: { mark: StepMark }) {
+/** What the problem states, one line each, then a line to start writing on. */
+export function initialPad(problem?: string): PadLine[] {
+  return [...startingLines(problem ?? "").map((t) => asPrinted(t)).map((t) => newLine(t, t, t)), newLine()];
+}
+
+function Mark({ mark, given }: { mark: StepMark; given: boolean }) {
   const base = "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold";
   switch (mark.kind) {
     case "same":
+    case "case":
       return (
         <span className={`${base} bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200`} title={mark.note}>
           <Icon name="check" size={15} />
@@ -50,7 +60,11 @@ function Mark({ mark }: { mark: StepMark }) {
         </span>
       );
     case "start":
-      return <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Start</span>;
+      return (
+        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          {given ? "Given" : "Start"}
+        </span>
+      );
     default:
       return <span className="h-6 w-6 shrink-0" />;
   }
@@ -68,11 +82,31 @@ export function WorkPad({
   lines: given,
   onChange,
   onBack,
+  heading = "Check my work",
+  intro = "One step per line, then Enter. I check that each line keeps the same answer as the line above, without saying what the answer is.",
+  autoFocus = true,
+  inline = false,
+  choices,
+  finalNote,
+  headerAction,
 }: {
   problem?: string;
   lines?: PadLine[];
   onChange: (lines: PadLine[]) => void;
-  onBack: () => void;
+  /** Archie's panel shows "Back to chat"; the practice card has nowhere to go back to. */
+  onBack?: () => void;
+  heading?: string;
+  intro?: string;
+  /** Focus the first empty line on open. Off on the practice card, where the answer box keeps it. */
+  autoFocus?: boolean;
+  /** On the practice card: natural height, no scrolling list of its own. */
+  inline?: boolean;
+  /** A multiple-choice card's choices: a line that is one of them is the answer, left for the card. */
+  choices?: string[];
+  /** What to say under a line that looks like the answer, where the answer goes. */
+  finalNote?: string;
+  /** Something for the header's right side in place of "Back to chat". */
+  headerAction?: React.ReactNode;
 }) {
   const [fallback] = useState(() => initialPad(problem));
   const lines = given ?? fallback;
@@ -87,6 +121,7 @@ export function WorkPad({
 
   // Focus the first empty line on open, so typing can start at once.
   useEffect(() => {
+    if (!autoFocus) return;
     const target = lines.find((l) => !l.text) ?? lines[lines.length - 1];
     inputs.current.get(target.id)?.focus();
     // Only on open.
@@ -100,8 +135,10 @@ export function WorkPad({
   });
 
   const enteredKey = lines.map((l) => l.entered ?? "").join("\n");
-  const marks = useMemo(() => checkWork(enteredKey.split("\n")), [enteredKey]);
-  const start = useMemo(() => startingLine(problem ?? ""), [problem]);
+  const choiceKey = (choices ?? []).join("\n");
+  const ctx = useMemo(() => workContext(problem ?? "", choiceKey ? choiceKey.split("\n") : undefined), [problem, choiceKey]);
+  const marks = useMemo(() => checkWork(enteredKey.split("\n"), ctx), [enteredKey, ctx]);
+  const start = useMemo(() => asPrinted(startingLines(problem ?? "")[0] ?? ""), [problem]);
 
   function setText(id: number, text: string) {
     onChange(lines.map((l) => (l.id === id ? { ...l, text } : l)));
@@ -115,7 +152,7 @@ export function WorkPad({
     if (after) next = after(next);
     if (next !== lines) onChange(next);
     if (entered && entered !== line.entered) {
-      const mark = checkWork(next.map((l) => l.entered ?? ""))[index];
+      const mark = shown(checkWork(next.map((l) => l.entered ?? ""), ctx)[index], entered, index);
       setAnnounce(mark.note ? `Line ${index + 1}: ${mark.note}` : `Line ${index + 1} entered.`);
     }
   }
@@ -152,6 +189,18 @@ export function WorkPad({
     onChange([...lines, added]);
   }
 
+  /**
+   * A mark as the pad shows it. A line of plain numbers is arithmetic, kept
+   * unmarked; a fresh start partway down is unmarked too, since only the top
+   * line and the problem's own lines are labeled.
+   */
+  function shown(mark: StepMark, text: string, index: number): StepMark {
+    if (mark.kind === "final" && !hasLetters(text)) return { kind: "empty", note: "" };
+    if (mark.kind === "final" && finalNote) return { kind: "final", note: finalNote };
+    if (mark.kind === "start" && index > 0 && !lines[index]?.given) return { kind: "empty", note: "" };
+    return mark;
+  }
+
   function startOver() {
     const fresh = initialPad(problem);
     focusNext.current = fresh[fresh.length - 1].id;
@@ -160,27 +209,31 @@ export function WorkPad({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={inline ? "flex flex-col" : "flex min-h-0 flex-1 flex-col"}>
       <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-2">
-        <h3 className="text-sm font-semibold text-slate-900">Check my work</h3>
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg px-2 py-1 text-xs font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-        >
-          Back to chat
-        </button>
+        <h3 className="text-sm font-semibold text-slate-900">{heading}</h3>
+        {headerAction}
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+          >
+            Back to chat
+          </button>
+        )}
       </div>
-      <p className="px-3 text-[13px] leading-snug text-slate-500">
-        One step per line, then Enter. I check that each line keeps the same answer as the line above, without
-        saying what the answer is.
-      </p>
+      <p className="px-3 text-[13px] leading-snug text-slate-500">{intro}</p>
 
-      <ol className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-2" aria-label="Your steps">
+      <ol className={inline ? "mt-2 space-y-1.5 px-3 pb-2" : "mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-2"} aria-label="Your steps">
         {lines.map((line, i) => {
-          const mark: StepMark = line.entered !== null && line.text.trim() === line.entered ? marks[i] : { kind: "empty", note: "" };
+          const mark: StepMark =
+            line.entered !== null && line.text.trim() === line.entered ? shown(marks[i], line.entered, i) : { kind: "empty", note: "" };
+          const given = !!line.given && line.text.trim() === line.given;
           const noteId = `pad-note-${line.id}`;
-          const showNote = mark.note && mark.kind !== "same";
+          // A check speaks for itself; its words are for screen readers.
+          const passed = mark.kind === "same" || mark.kind === "case";
+          const showNote = mark.note && !passed;
           return (
             <li key={line.id}>
               <div className="flex items-center gap-2">
@@ -204,14 +257,14 @@ export function WorkPad({
                   className={`min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-[14px] font-medium tabular-nums tracking-wide text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
                     mark.kind === "changed"
                       ? "border-amber-300 focus:border-amber-400 focus:ring-amber-100"
-                      : mark.kind === "same"
+                      : passed
                         ? "border-emerald-200 focus:border-bridge-500 focus:ring-bridge-100"
                         : "border-slate-300 focus:border-bridge-500 focus:ring-bridge-100"
                   }`}
                 />
                 {/* One column wide enough for "Start", so every box lines up. */}
                 <span className="flex w-11 shrink-0 justify-end">
-                  <Mark mark={mark} />
+                  <Mark mark={mark} given={given} />
                 </span>
               </div>
               {showNote && (
@@ -219,7 +272,7 @@ export function WorkPad({
                   {mark.note}
                 </p>
               )}
-              {mark.kind === "same" && (
+              {passed && (
                 <p className="sr-only" id={noteId}>
                   {mark.note}
                 </p>

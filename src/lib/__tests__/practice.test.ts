@@ -1346,10 +1346,11 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("−x² and -x² are the same card", U.canonicalPrompt("Does y = −x² + 4 open up or down?") === U.canonicalPrompt("Does y = -x² + 4 open up or down?"));
   ok("a copy tag is the same card", U.canonicalPrompt("Simplify √27 (Set 5)") === U.canonicalPrompt("Simplify √27"));
   ok("fractions read as fractions", U.fractionText(0.125) === "1/8" && U.fractionText(-2 / 3) === "-2/3" && U.fractionText(4) === null && U.fractionText(Math.PI) === null);
-  // Both kinds of question on a two-kind skill: the old builder only ever saw one parity.
+  // Every kind of question on a many-kind skill, about equally: the old builder only ever saw one parity.
   const bank = generateProblemBank("coordinate-plane", [], 99);
   const quadrant = bank.filter((p) => /quadrant/.test(p.prompt)).length;
-  ok(`a two-kind skill serves both kinds evenly (${quadrant} of ${bank.length} quadrant)`, quadrant >= 20 && quadrant <= 30, String(quadrant));
+  const kinds = ["quadrant", "How far apart", "midpoint", "Reflect", "Start at", "area", "fourth corner"].map((k) => bank.filter((p) => p.prompt.includes(k)).length);
+  ok(`a seven-kind skill serves every kind about evenly (${kinds.join(", ")} of ${bank.length})`, kinds.every((n) => n >= 4 && n <= 11) && quadrant <= 11, kinds.join());
   const decay = generateProblemBank("exponential-decay", [], 5).find((p) => /\$25,000 loses 15%.*2 years/.test(p.prompt));
   ok("the half-dollar car rounds up", !decay || decay.answer === 18063, String(decay?.answer));
 }

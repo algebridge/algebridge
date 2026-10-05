@@ -64,6 +64,8 @@ export interface PadLine {
   id: number;
   text: string;
   entered: string | null;
+  /** Copied from the problem when the pad opened. Shown as given while it reads the same. */
+  given?: string;
 }
 
 /** One conversation: per problem in Tutor mode, one each for Formulas and Book a tutor. */

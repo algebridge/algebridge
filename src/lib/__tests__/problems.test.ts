@@ -40,7 +40,8 @@ function evaluate(source: string, env: Env = {}): number {
     .replace(/⁴√/g, "@4")
     .replace(/⁵√/g, "@5")
     .replace(/²/g, "^2")
-    .replace(/³/g, "^3");
+    .replace(/³/g, "^3")
+    .replace(/⁴/g, "^4");
   let i = 0;
   let absDepth = 0;
   const peek = () => {
@@ -252,6 +253,14 @@ const UNITS_ABBR: Record<string, string> = { pounds: "lb", ounces: "oz", feet: "
 const checks: Record<string, Check> = {
   "unit-basics": (p) => {
     let m;
+    if ((m = p.prompt.match(/^A hiking trail is ([\d.]+) miles long\. You have walked ([\d,]+) feet of it\. How many feet are left\? \(1 mile = 5,280 ft\)$/))) return expectAnswer(p, +m[1] * 5280 - +m[2].replace(/,/g, ""));
+    if ((m = p.prompt.match(/^A rug is (\d+) feet long and (\d+) feet wide\. What is its area in square yards\? \(1 yard = 3 feet\)$/))) return expectAnswer(p, (+m[1] * +m[2]) / 9);
+    if ((m = p.prompt.match(/^One lap of a running track is 400 meters\. You run (\d+) laps\. How many kilometers is that\? Write your answer as a decimal\.$/))) return expectAnswer(p, (+m[1] * 400) / 1000);
+    if ((m = p.prompt.match(/^A cyclist rides at (\d+) miles per hour\. How many feet per minute is that\? \(1 mile = 5,280 ft\)$/))) return expectAnswer(p, (+m[1] * 5280) / 60);
+    if ((m = p.prompt.match(/^A cooler holds (\d+) liters of water\. How many (\d+)-milliliter bottles can you fill from it\? \(1 L = 1,000 mL\)$/))) {
+      const n = (+m[1] * 1000) / +m[2];
+      return Number.isInteger(n) ? expectAnswer(p, n) : "the bottles do not come out whole";
+    }
     if ((m = p.prompt.match(/^Convert (\d+) miles to feet/))) return expectAnswer(p, +m[1] * 5280);
     if ((m = p.prompt.match(/^Convert (\d+) inches to feet/))) return expectAnswer(p, +m[1] / 12);
     if ((m = p.prompt.match(/^Convert (\d+) kilometers to meters/))) return expectAnswer(p, +m[1] * 1000);
@@ -272,6 +281,21 @@ const checks: Record<string, Check> = {
     let m;
     if ((m = p.prompt.match(/^Convert ([\d.]+) hours to seconds/))) return expectAnswer(p, +m[1] * 3600);
     if ((m = p.prompt.match(/^Convert (\d+) days to hours/))) return expectAnswer(p, +m[1] * 24);
+    if ((m = p.prompt.match(/^Convert (\d+) days to minutes\.$/))) return expectAnswer(p, +m[1] * 24 * 60);
+    if ((m = p.prompt.match(/^A (\d+)-kilogram sack of rice is split evenly into (\d+) bags\. How many grams go in each bag\?$/))) {
+      const g = (+m[1] * 1000) / +m[2];
+      return Number.isInteger(g) ? expectAnswer(p, g) : "grams per bag are not whole";
+    }
+    if ((m = p.prompt.match(/^A box holds (\d+) cans of beans, and each can weighs (\d+) grams\. How many kilograms of beans are in the box\?( Write your answer as a decimal\.)?$/))) {
+      const kg = (+m[1] * +m[2]) / 1000;
+      if (!Number.isInteger(kg) && !m[3]) return "a decimal answer with no instruction";
+      return expectAnswer(p, kg);
+    }
+    if ((m = p.prompt.match(/^A toy car rolls (\d+) centimeters per second\. How many meters per minute is that\?$/))) return expectAnswer(p, (+m[1] * 60) / 100);
+    if ((m = p.prompt.match(/^Every song on a playlist is (\d+) seconds long\. How many songs fit in (\d+) hours?\?$/))) {
+      const n = (+m[2] * 3600) / +m[1];
+      return Number.isInteger(n) ? expectAnswer(p, n) : "the songs do not come out whole";
+    }
     if ((m = p.prompt.match(/^Convert (\d+) kilograms to grams/))) return expectAnswer(p, +m[1] * 1000);
     if ((m = p.prompt.match(/^Convert (\d+) minutes to milliseconds/))) return expectAnswer(p, +m[1] * 60000);
     if ((m = p.prompt.match(/^Convert ([\d,]+) grams to kilograms\.( Write your answer as a decimal\.)?$/))) {
@@ -303,6 +327,12 @@ const checks: Record<string, Check> = {
   },
   "unit-word-problems": (p) => {
     let m;
+    if ((m = p.prompt.match(/^A recipe makes (\d+) cookies with (\d+) cups of flour\. How many cups of flour do you need for (\d+) cookies\?$/))) return expectAnswer(p, (+m[2] * +m[3]) / +m[1]);
+    if ((m = p.prompt.match(/^You drive (\d+) miles in a car that gets (\d+) miles per gallon\. Gas costs \$([\d.]+) a gallon\. How much does the gas for the trip cost\? \(round to the nearest cent\)$/))) return expectAnswer(p, (+m[1] / +m[2]) * +m[3]);
+    if ((m = p.prompt.match(/^A train travels at (\d+) miles per hour\. How many minutes does it take to go (\d+) miles\?$/))) return expectAnswer(p, (+m[2] / +m[1]) * 60);
+    if ((m = p.prompt.match(/^A runner finishes (\d+) kilometers in (\d+) minutes\. At the same pace, how many minutes would (\d+) kilometers take\?$/))) return expectAnswer(p, (+m[2] / +m[1]) * +m[3]);
+    if ((m = p.prompt.match(/^A (\d+)-ounce bag of trail mix costs \$([\d.]+)\. A (\d+)-ounce bag costs \$([\d.]+)\. How many cents more per ounce does the small bag cost\?$/))) return expectAnswer(p, Math.round((+m[2] / +m[1] - +m[4] / +m[3]) * 100 * 1e6) / 1e6);
+    if ((m = p.prompt.match(/^A leaky faucet drips (\d+) milliliters every minute\. How many liters does it waste in one week\? Write your answer as a decimal\.$/))) return expectAnswer(p, (+m[1] * 60 * 24 * 7) / 1000);
     if ((m = p.prompt.match(/^A recipe needs (\d+) mL/))) return expectAnswer(p, +m[1] / 1000);
     if ((m = p.prompt.match(/^You drive (\d+) miles using (\d+) gallons/))) {
       if ((+m[1] / +m[2]) % 1 !== 0) return "miles per gallon is not whole";
@@ -311,9 +341,9 @@ const checks: Record<string, Check> = {
     if ((m = p.prompt.match(/^A train travels (\d+) mph for (\d+) hours/))) return expectAnswer(p, +m[1] * +m[2]);
     return "unread";
   },
-  "one-step-equations": (p) => linearOrError(p),
-  "two-step-equations": (p) => linearOrError(p),
-  "multi-step-equations": (p) => linearOrError(p),
+  "one-step-equations": (p) => wordOrLinear(p),
+  "two-step-equations": (p) => wordOrLinear(p),
+  "multi-step-equations": (p) => wordOrLinear(p),
   "equations-with-fractions": (p) => {
     const m = p.prompt.match(/^What is the least common denominator of (.*)\?$/);
     if (m) {
@@ -333,10 +363,11 @@ const checks: Record<string, Check> = {
       if (dir !== m[4]) return `the prompt says ${m[4]}, the solution is ${dir}`;
       return expectAnswer(p, boundary);
     }
-    if ((m = p.prompt.match(/^Solve: (.*) (>|<|≥|≤) (-?\d+)$/))) {
-      const [left, op, c] = [m[1], m[2], +m[3]];
+    if ((m = p.prompt.match(/^Solve: (.*) (>|<|≥|≤) (.*)$/))) {
+      const [left, op, right] = [m[1], m[2], m[3]];
       const holds = (x: number) => {
         const v = evaluate(left, { x });
+        const c = evaluate(right, { x });
         return op === ">" ? v > c : op === "<" ? v < c : op === "≥" ? v >= c : v <= c;
       };
       return onlyRight(p, (choice) => {
@@ -344,10 +375,55 @@ const checks: Record<string, Check> = {
         return !!f && sameSet(f, holds);
       });
     }
+    if ((m = p.prompt.match(/^\w+ has \$(\d+) to spend on a \$(\d+) shirt and some pairs of socks at \$(\d+) a pair\. What is the greatest number of pairs of socks \w+ can buy\?$/))) return expectAnswer(p, Math.floor((+m[1] - +m[2]) / +m[3]));
+    if ((m = p.prompt.match(/^A streaming plan costs \$(\d+) a month plus \$(\d+) for each movie rental\. \w+ can spend at most \$(\d+) a month\. What is the greatest number of movies \w+ can rent in a month\?$/))) return expectAnswer(p, Math.floor((+m[3] - +m[1]) / +m[2]));
     return "unread";
   },
   "coordinate-plane": (p) => {
     let m;
+    const P = String.raw`\((-?\d+), (-?\d+)\)`;
+    if ((m = p.prompt.match(new RegExp(`^How far apart are the points ${P} and ${P}\\?$`)))) {
+      const [x1, y1, x2, y2] = m.slice(1, 5).map(Number);
+      if (x1 !== x2 && y1 !== y2) return "the points are not on one grid line";
+      return expectAnswer(p, Math.abs(x2 - x1) + Math.abs(y2 - y1));
+    }
+    if ((m = p.prompt.match(new RegExp(`^What is the midpoint of ${P} and ${P}\\?$`)))) {
+      const [x1, y1, x2, y2] = m.slice(1, 5).map(Number);
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && close(q.x, (x1 + x2) / 2) && close(q.y, (y1 + y2) / 2);
+      });
+    }
+    if ((m = p.prompt.match(new RegExp(`^Reflect the point ${P} across the (x|y)-axis\\. Where does it land\\?$`)))) {
+      const [x, y] = [+m[1], +m[2]];
+      const want = m[3] === "y" ? { x: -x, y } : { x, y: -y };
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && q.x === want.x && q.y === want.y;
+      });
+    }
+    if ((m = p.prompt.match(new RegExp(`^Start at ${P}\\. Move (\\d+) units? (right|left) and (\\d+) units? (up|down)\\. Where do you land\\?$`)))) {
+      const x = +m[1] + (m[4] === "right" ? +m[3] : -m[3]);
+      const y = +m[2] + (m[6] === "up" ? +m[5] : -m[5]);
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && q.x === x && q.y === y;
+      });
+    }
+    if ((m = p.prompt.match(new RegExp(`^Three corners of a rectangle are ${P}, ${P}, and ${P}\\. What is the (rectangle's area|fourth corner)\\?$`)))) {
+      const pts = [0, 1, 2].map((k) => ({ x: +m[1 + 2 * k], y: +m[2 + 2 * k] }));
+      const once = (vals: number[]) => vals.find((v) => vals.filter((w) => w === v).length === 1);
+      const xs = pts.map((q) => q.x);
+      const ys = pts.map((q) => q.y);
+      if (new Set(xs).size !== 2 || new Set(ys).size !== 2) return "the three corners are not a grid rectangle's";
+      if (m[7] === "rectangle's area") return expectAnswer(p, (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)));
+      const fx = once(xs)!;
+      const fy = once(ys)!;
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && q.x === fx && q.y === fy;
+      });
+    }
     if ((m = p.prompt.match(/^In which quadrant is the point \((-?\d+), (-?\d+)\)\?$/))) {
       const [x, y] = [+m[1], +m[2]];
       const q = x > 0 && y > 0 ? "Quadrant I" : x < 0 && y > 0 ? "Quadrant II" : x < 0 && y < 0 ? "Quadrant III" : x > 0 && y < 0 ? "Quadrant IV" : "axis";
@@ -358,6 +434,21 @@ const checks: Record<string, Check> = {
   },
   slope: (p) => {
     let m;
+    if ((m = p.prompt.match(/^A table lists points on a line\. When x is (.*), y is (.*)\. What is the slope\? Give it as a whole number or a fraction\.$/))) {
+      const xs = m[1].split(", ").map(Number);
+      const ys = m[2].split(", ").map(Number);
+      const slope = (ys[1] - ys[0]) / (xs[1] - xs[0]);
+      if (!xs.every((x, k) => close(ys[k], ys[0] + slope * (x - xs[0])))) return "the table is not a line";
+      return expectAnswer(p, slope);
+    }
+    if ((m = p.prompt.match(/^A plant was ([\d.]+) cm tall on day (\d+) and ([\d.]+) cm tall on day (\d+)\. How many centimeters did it grow per day\?( Write your answer as a decimal\.)?$/))) {
+      const rate = (+m[3] - +m[1]) / (+m[4] - +m[2]);
+      if (!Number.isInteger(rate) && !m[5]) return "a decimal answer with no instruction";
+      return expectAnswer(p, rate);
+    }
+    if ((m = p.prompt.match(/^The line through \((-?\d+), (-?\d+)\) and \((-?\d+), k\) has slope (-?[\d/]+)\. What is k\?$/))) return expectAnswer(p, +m[2] + val(m[4]) * (+m[3] - +m[1]));
+    if ((m = p.prompt.match(/^The line through \((-?\d+), (-?\d+)\) and \(k, (-?\d+)\) has slope (-?\d+)\. What is k\?$/))) return expectAnswer(p, +m[1] + (+m[3] - +m[2]) / +m[4]);
+    if ((m = p.prompt.match(/^A car's gas tank held (\d+) gallons at mile (\d+) and (\d+) gallons at mile (\d+)\. What is the rate of change of the gas, in gallons per mile\? Give it as a fraction\.$/))) return expectAnswer(p, (+m[3] - +m[1]) / (+m[4] - +m[2]));
     if ((m = p.prompt.match(/^Find the slope between \((-?\d+), (-?\d+)\) and \((-?\d+), (-?\d+)\)/))) {
       const [x1, y1, x2, y2] = m.slice(1, 5).map(Number);
       return expectAnswer(p, (y2 - y1) / (x2 - x1));
@@ -371,6 +462,30 @@ const checks: Record<string, Check> = {
   },
   "graphing-lines": (p) => {
     let m;
+    if ((m = p.prompt.match(/^The point \(a, (-?\d+)\) is on the line (y = .*)\. What is a\?$/))) {
+      const line = lineOf(m[2])!;
+      return expectAnswer(p, (+m[1] - line.b) / line.m);
+    }
+    if ((m = p.prompt.match(/^Where does the line (y = .*) cross the x-axis\? Type the x-value\.$/))) {
+      const line = lineOf(m[1])!;
+      return expectAnswer(p, -line.b / line.m);
+    }
+    if ((m = p.prompt.match(/^Start at the y-intercept of (y = .*)\. Use the slope twice: each time, run (\d+) right and (rise|fall) (\d+)\. Where do you land\?$/))) {
+      const line = lineOf(m[1])!;
+      const rise = m[3] === "rise" ? +m[4] : -m[4];
+      if (!close(line.m, rise / +m[2])) return "the steps described are not the line's slope";
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && close(q.x, 2 * +m[2]) && close(q.y, line.b + 2 * rise);
+      });
+    }
+    if ((m = p.prompt.match(/^Which point is on the line (y = .*)\?$/))) {
+      const line = lineOf(m[1])!;
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && close(q.y, line.m * q.x + line.b);
+      });
+    }
     if ((m = p.prompt.match(/^What is the y-intercept of (y = .*)\?$/))) {
       const line = lineOf(m[1])!;
       return onlyRight(p, (c) => close(val(c), line.b));
@@ -383,6 +498,12 @@ const checks: Record<string, Check> = {
   },
   intercepts: (p) => {
     let m;
+    if ((m = p.prompt.match(/^The line (.*) = (-?\d+) makes a triangle with the x-axis and the y-axis\. What is the triangle's area\?$/))) {
+      const xi = solveLinear(m[1].replace(/y/g, "(0)"), m[2]);
+      const yi = solveLinear(m[1].replace(/x/g, "(0)").replace(/y/g, "x"), m[2]);
+      return expectAnswer(p, Math.abs(xi * yi) / 2);
+    }
+    if ((m = p.prompt.match(/^A line crosses the x-axis at \((-?\d+), 0\) and the y-axis at \(0, (-?\d+)\)\. What is its slope\? Give it as a whole number or a fraction\.$/))) return expectAnswer(p, (+m[2] - 0) / (0 - +m[1]));
     if ((m = p.prompt.match(/^Find the (x|y)-intercept of (.*) = (-?\d+)\. Type its/))) {
       const [which, left, c] = [m[1], m[2], +m[3]];
       const want = which === "x" ? solveLinear(left.replace(/y/g, "(0)"), String(c)) : solveLinear(left.replace(/x/g, "(0)").replace(/y/g, "x"), String(c));
@@ -392,6 +513,30 @@ const checks: Record<string, Check> = {
   },
   "slope-intercept": (p) => {
     let m;
+    if ((m = p.prompt.match(/^A line has slope (-?\d+) and passes through \((-?\d+), (-?\d+)\)\. What is its y-intercept\?$/))) return expectAnswer(p, +m[3] - +m[1] * +m[2]);
+    if ((m = p.prompt.match(/^A line passes through \((-?\d+), (-?\d+)\) and \((-?\d+), (-?\d+)\)\. Which equation is it\?$/))) {
+      const [x1, y1, x2, y2] = m.slice(1, 5).map(Number);
+      const slope = (y2 - y1) / (x2 - x1);
+      return onlyRight(p, (c) => sameLine(lineOf(c), { m: slope, b: y1 - slope * x1 }));
+    }
+    if ((m = p.prompt.match(/^Rewrite (.* = -?\d+) in slope-intercept form\. What is the slope\? Give it as a whole number or a fraction\.$/))) return expectAnswer(p, lineOf(m[1])!.m);
+    if ((m = p.prompt.match(/^A pool holds ([\d,]+) gallons of water and drains (\d+) gallons each minute\. Which equation gives g, the gallons left after t minutes\?$/))) {
+      const [start, rate] = [+m[1].replace(/,/g, ""), +m[2]];
+      return onlyRight(p, (c) => {
+        const f = c.match(/^g = (.*)$/);
+        return !!f && [0, 1, 5].every((t) => close(evaluate(f[1], { t }), start - rate * t));
+      });
+    }
+    if ((m = p.prompt.match(/^A ride-share charges a flat fee plus a price per mile\. A (\d+)-mile ride costs \$(\d+), and a (\d+)-mile ride costs \$(\d+)\. What is the flat fee, in dollars\?$/))) {
+      const [d1, c1, d2, c2] = m.slice(1, 5).map(Number);
+      const per = (c2 - c1) / (d2 - d1);
+      return expectAnswer(p, c1 - per * d1);
+    }
+    if ((m = p.prompt.match(/^Which line has the same y-intercept as (y = .*) and passes through \((-?\d+), (-?\d+)\)\?$/))) {
+      const b = lineOf(m[1])!.b;
+      const slope = (+m[3] - b) / +m[2];
+      return onlyRight(p, (c) => sameLine(lineOf(c), { m: slope, b }));
+    }
     if ((m = p.prompt.match(/^Which equation has slope (-?\d+) and y-intercept (-?\d+)\?$/))) {
       const target = { m: +m[1], b: +m[2] };
       return onlyRight(p, (c) => sameLine(lineOf(c), target));
@@ -403,6 +548,18 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "point-slope": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Which equation is the line through \((-?\d+), (-?\d+)\) and \((-?\d+), (-?\d+)\), in point-slope form with the first point\?$/))) {
+      const [x1, y1, x2, y2] = n.slice(1, 5).map(Number);
+      const slope = (y2 - y1) / (x2 - x1);
+      return onlyRight(p, (c) => sameLine(lineOf(c), { m: slope, b: y1 - slope * x1 }));
+    }
+    if ((n = p.prompt.match(/^A line is written (.*)\. What is its y-intercept\?$/))) return expectAnswer(p, lineOf(n[1])!.b);
+    if ((n = p.prompt.match(/^A line is written (.*)\. What is y when x = (-?\d+)\?$/))) {
+      const line = lineOf(n[1])!;
+      return expectAnswer(p, line.m * +n[2] + line.b);
+    }
+    if ((n = p.prompt.match(/^A line passes through \((-?\d+), (-?\d+)\) with slope (-?\d+)\. Where does it cross the x-axis\? Type the x-value\.$/))) return expectAnswer(p, +n[1] - +n[2] / +n[3]);
     const m = p.prompt.match(/^Which equation is the line through \((-?\d+), (-?\d+)\) with slope (-?\d+), written in point-slope form\?$/);
     if (!m) return "unread";
     const [x1, y1, s] = [+m[1], +m[2], +m[3]];
@@ -410,6 +567,21 @@ const checks: Record<string, Check> = {
     return onlyRight(p, (c) => sameLine(lineOf(c), target));
   },
   "standard-form": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^What is the slope of the line (.* = -?\d+)\? Give it as a whole number or a fraction\.$/))) return expectAnswer(p, lineOf(n[1])!.m);
+    if ((n = p.prompt.match(/^Adult tickets cost \$(\d+) and student tickets cost \$(\d+)\. Ticket sales came to \$(\d+), so (\d+)a \+ (\d+)s = \3\. If (\d+) adult tickets were sold, how many student tickets were sold\?$/))) {
+      if (n[4] !== n[1] || n[5] !== n[2]) return "the equation does not match the prices";
+      const s = (+n[3] - +n[1] * +n[6]) / +n[2];
+      return Number.isInteger(s) && s >= 0 ? expectAnswer(p, s) : "no whole number of student tickets";
+    }
+    if ((n = p.prompt.match(/^Write (y = .*) in standard form, Ax \+ By = C, with whole numbers and A positive\.$/))) {
+      const target = lineOf(n[1]);
+      return onlyRight(p, (c) => /^\d*x [+−] \d*y = -?\d+$/.test(c) && sameLine(lineOf(c), target));
+    }
+    if ((n = p.prompt.match(/^The point \((-?\d+), k\) is on the line (.*) = (-?\d+)\. What is k\?$/))) {
+      const left = n[2].replace(/x/g, `(${n[1]})`).replace(/y/g, "x");
+      return expectAnswer(p, solveLinear(left, n[3]));
+    }
     const m = p.prompt.match(/^Convert (.* = -?\d+) to slope-intercept form\.$/);
     if (!m) return "unread";
     const target = lineOf(m[1]);
@@ -417,6 +589,20 @@ const checks: Record<string, Check> = {
   },
   "parallel-perpendicular": (p) => {
     let m;
+    if ((m = p.prompt.match(/^Which line is parallel to (.* = -?\d+) and passes through \((-?\d+), (-?\d+)\)\?$/))) {
+      const slope = lineOf(m[1])!.m;
+      return onlyRight(p, (c) => sameLine(lineOf(c), { m: slope, b: +m[3] - slope * +m[2] }));
+    }
+    if ((m = p.prompt.match(/^A line passes through \((-?\d+), (-?\d+)\) and is perpendicular to (y = .*)\. What is its y-intercept\?$/))) {
+      const slope = -1 / lineOf(m[3])!.m;
+      return expectAnswer(p, +m[2] - slope * +m[1]);
+    }
+    if ((m = p.prompt.match(/^Are the lines (y = .*) and (.* = -?\d+) parallel, perpendicular, or neither\?$/))) {
+      const [a, b] = [lineOf(m[1])!, lineOf(m[2])!];
+      const want = sameLine(a, b) ? "The same line" : close(a.m, b.m) ? "Parallel" : close(a.m * b.m, -1) ? "Perpendicular" : "Neither";
+      return onlyRight(p, (c) => c === want);
+    }
+    if ((m = p.prompt.match(/^For what value of k is the line y = kx.* perpendicular to (y = .*)\? Give it as a whole number or a fraction\.$/))) return expectAnswer(p, -1 / lineOf(m[1])!.m);
     if ((m = p.prompt.match(/^Line A has slope (-?[\d/]+)\. What is the slope of a line perpendicular/))) return expectAnswer(p, -1 / val(m[1]));
     if ((m = p.prompt.match(/^Which line is parallel to (y = .*)\?$/))) {
       const given = lineOf(m[1])!;
@@ -432,6 +618,18 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "graphing-systems": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Candle A is (\d+) cm tall and burns down (\d+) cm an hour\. Candle B is (\d+) cm tall and burns down (\d+) cm an hour\. After how many hours are they the same height\?$/))) {
+      const [h1, r1, h2, r2] = n.slice(1, 5).map(Number);
+      const t = (h1 - h2) / (r1 - r2);
+      if (h1 - r1 * t <= 0) return "the candles are gone before they match";
+      return expectAnswer(p, t);
+    }
+    if ((n = p.prompt.match(/^How many solutions does the system (y = .*) and (.* = -?\d+) have\?$/))) {
+      const [a, b] = [lineOf(n[1])!, lineOf(n[2])];
+      const want = !b ? "One" : sameLine(a, b) ? "Infinitely many" : close(a.m, b.m) ? "None" : "One";
+      return onlyRight(p, (c) => c === want);
+    }
     const m = p.prompt.match(/^Where do (y = .*) and (y = .*) intersect\?$/);
     if (!m) return "unread";
     const [a, b] = [lineOf(m[1])!, lineOf(m[2])!];
@@ -442,7 +640,15 @@ const checks: Record<string, Check> = {
       return !!q && close(q.x, x) && close(q.y, y);
     });
   },
-  substitution: (p) => systemCheck(p),
+  substitution: (p) => {
+    const m = p.prompt.match(/^(\w+) is (\d+) times as old as (\w+)\. In (\d+) years, their ages will add up to (\d+)\. How old is \1 now\?$/);
+    if (m) {
+      const [k, later, sum] = [+m[2], +m[4], +m[5]];
+      const young = (sum - 2 * later) / (k + 1);
+      return Number.isInteger(young) ? expectAnswer(p, k * young) : "the ages do not come out whole";
+    }
+    return systemCheck(p);
+  },
   elimination: (p) => {
     if (p.type === "step-order") {
       const m = p.prompt.match(/x \+ y = (-?\d+) and x − y = (-?\d+)/);
@@ -452,10 +658,27 @@ const checks: Record<string, Check> = {
       const ok = p.steps[0] === `Add the equations: 2x = ${2 * x}` && p.steps[1] === `Solve: x = ${x}` && p.steps[3] === `Solve for y: y = ${y}`;
       return ok && JSON.stringify(p.correctOrder) === "[0,1,2,3]" ? null : "step-order steps do not solve the system";
     }
+    const m = p.prompt.match(/^(\d+) pens and (\d+) notebooks cost \$(\d+)\. (\d+) pens? and \2 notebooks cost \$(\d+)\. How many dollars does one (notebook|pen) cost\?$/);
+    if (m) {
+      const [p1, n, t1, p2, t2] = m.slice(1, 6).map(Number);
+      const pen = (t1 - t2) / (p1 - p2);
+      const book = (t1 - p1 * pen) / n;
+      return expectAnswer(p, m[6] === "pen" ? pen : book);
+    }
     return systemCheck(p);
   },
   "systems-word-problems": (p) => {
     let m;
+    if ((m = p.prompt.match(/^A coffee shop mixes beans that cost \$(\d+) a pound with beans that cost \$(\d+) a pound\. It makes (\d+) pounds of a blend worth \$([\d.]+) a pound\. How many pounds of the \$\1 beans go in\?$/))) {
+      const [cheap, dear, pounds, price] = m.slice(1, 5).map(Number);
+      const a = (pounds * (dear - price)) / (dear - cheap);
+      return Number.isInteger(Math.round(a * 1e6) / 1e6) ? expectAnswer(p, a) : "the pounds do not come out whole";
+    }
+    if ((m = p.prompt.match(/^A boat travels (\d+) miles downstream in (\d+) hours? and the same \1 miles back upstream in (\d+) hours\. What is the speed of the (current|boat in still water), in miles per hour\?$/))) {
+      const [d, t1, t2] = m.slice(1, 4).map(Number);
+      const [down, up] = [d / t1, d / t2];
+      return expectAnswer(p, m[4] === "current" ? (down - up) / 2 : (down + up) / 2);
+    }
     if ((m = p.prompt.match(/^Tickets cost \$(\d+) \(adult\) and \$(\d+) \(child\)\. (\d+) tickets sold for \$(\d+)\. How many adult/))) {
       const [a, c, n, total] = m.slice(1, 5).map(Number);
       const adults = (total - c * n) / (a - c);
@@ -478,6 +701,39 @@ const checks: Record<string, Check> = {
   },
   "graphing-inequalities": (p) => {
     let m;
+    const test = (op: string, a: number, b: number) => (op === "<" ? a < b : op === ">" ? a > b : op === "≤" ? a <= b : a >= b);
+    if ((m = p.prompt.match(/^How do you graph y (<|>|≤|≥) (.*)\?$/))) {
+      const want = `${m[1] === "<" || m[1] === ">" ? "Dashed" : "Solid"} line, shade ${m[1] === ">" || m[1] === "≥" ? "above" : "below"}`;
+      return onlyRight(p, (c) => c === want);
+    }
+    if ((m = p.prompt.match(/^Which point is a solution of y (<|>|≤|≥) (.*)\?$/))) {
+      const [op, e] = [m[1], m[2]];
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && test(op, q.y, evaluate(e, { x: q.x }));
+      });
+    }
+    if ((m = p.prompt.match(/^Which inequality is (.*) (<|>|≤|≥) (-?\d+) solved for y\?$/))) {
+      const [left, op, C] = [m[1], m[2], +m[3]];
+      return onlyRight(p, (c) => {
+        const f = c.match(/^y (<|>|≤|≥) (.*)$/);
+        if (!f) return false;
+        for (let x = -6; x <= 6; x += 1.5)
+          for (let y = -9; y <= 9; y += 0.75) if (test(op, evaluate(left, { x, y }), C) !== test(f[1], y, evaluate(f[2], { x }))) return false;
+        return true;
+      });
+    }
+    if ((m = p.prompt.match(/^\w+ can spend at most \$(\d+) on snacks\. Chips cost \$(\d+) a bag and drinks cost \$(\d+) each\. Which inequality shows/))) {
+      const [budget, chip, drink] = m.slice(1, 4).map(Number);
+      return onlyRight(p, (c) => {
+        const f = c.match(/^(\d+)x \+ (\d+)y (≤|<|≥|>) (\d+)$/);
+        return !!f && +f[1] === chip && +f[2] === drink && f[3] === "≤" && +f[4] === budget;
+      });
+    }
+    if ((m = p.prompt.match(/^\w+ can spend at most \$(\d+) on snacks\. Chips cost \$(\d+) a bag and drinks cost \$(\d+) each\. \w+ buys (\d+) bags of chips\. What is the greatest number of drinks/))) {
+      const [budget, chip, drink, bags] = m.slice(1, 5).map(Number);
+      return expectAnswer(p, Math.floor((budget - chip * bags) / drink));
+    }
     if ((m = p.prompt.match(/^y (<|>|≤|≥) .*: solid or dashed boundary line\?$/))) return onlyRight(p, (c) => c === (m[1] === "<" || m[1] === ">" ? "Dashed" : "Solid"));
     if ((m = p.prompt.match(/^To graph y (<|>|≤|≥) .*, which side of the line do you shade\?$/))) return onlyRight(p, (c) => c === (m[1] === ">" || m[1] === "≥" ? "Above the line" : "Below the line"));
     return "unread";
@@ -489,9 +745,23 @@ const checks: Record<string, Check> = {
         const f = setOf(c);
         return !!f && sameSet(f, holds);
       });
-    if ((m = p.prompt.match(/^Solve: (-?\d+) < (.*) < (-?\d+)$/))) {
-      const [lo, e, hi] = [+m[1], m[2], +m[3]];
-      return pick((x) => lo < evaluate(e, { x }) && evaluate(e, { x }) < hi);
+    if ((m = p.prompt.match(/^Solve: (-?\d+) (<|≤) (.*) (<|≤) (-?\d+)$/))) {
+      const [lo, o1, e, o2, hi] = [+m[1], m[2], m[3], m[4], +m[5]];
+      return pick((x) => {
+        const v = evaluate(e, { x });
+        return (o1 === "<" ? lo < v : lo <= v) && (o2 === "<" ? v < hi : v <= hi);
+      });
+    }
+    if ((m = p.prompt.match(/^To earn a B, the average of three test scores must be at least (\d+) and less than (\d+)\. You scored (\d+) and (\d+) on the first two tests\. Which scores x on the third test earn a B\?$/))) {
+      const [lo, hi, s1, s2] = m.slice(1, 5).map(Number);
+      const holds = (x: number) => lo <= (s1 + s2 + x) / 3 && (s1 + s2 + x) / 3 < hi;
+      // Scores run past the usual -40..40 sweep, so sweep 0..300.
+      return onlyRight(p, (c) => {
+        const f = setOf(c);
+        if (!f) return false;
+        for (let x = 0; x <= 300; x += 0.25) if (f(x) !== holds(x)) return false;
+        return true;
+      });
     }
     if ((m = p.prompt.match(/^Solve: (.*) < (-?\d+) OR (.*) > (-?\d+)$/))) {
       const [e1, a, e2, b] = [m[1], +m[2], m[3], +m[4]];
@@ -504,6 +774,21 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "systems-inequalities": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Which point satisfies x \+ y < (\d+) AND y ≥ (.*)\?$/))) {
+      const [s, e] = [+n[1], n[2]];
+      return onlyRight(p, (c) => {
+        const q = point(c);
+        return !!q && q.x + q.y < s && q.y >= evaluate(e, { x: q.x });
+      });
+    }
+    if ((n = p.prompt.match(/^A club sells cookies for \$(\d+) and brownies for \$(\d+)\. It wants to raise at least \$(\d+) and can bake at most (\d+) treats\. Which plan works\?$/))) {
+      const [cookie, brownie, goal, most] = n.slice(1, 5).map(Number);
+      return onlyRight(p, (c) => {
+        const f = c.match(/^(\d+) cookies and (\d+) brownies$/);
+        return !!f && +f[1] + +f[2] <= most && cookie * +f[1] + brownie * +f[2] >= goal;
+      });
+    }
     const m = p.prompt.match(/^Which point satisfies y ≤ (.*) AND y > (-?\d+)\?$/);
     if (!m) return "unread";
     return onlyRight(p, (c) => {
@@ -512,12 +797,35 @@ const checks: Record<string, Check> = {
     });
   },
   "function-notation": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^If h\(x\) = (.*), find h\((-?\d+)\)\.$/))) return expectAnswer(p, evaluate(n[1], { x: +n[2] }));
+    if ((n = p.prompt.match(/^If f\(x\) = (.*), find f\((-?\d+)\) \+ f\((-?\d+)\)\.$/))) return expectAnswer(p, evaluate(n[1], { x: +n[2] }) + evaluate(n[1], { x: +n[3] }));
+    if ((n = p.prompt.match(/^If f\(x\) = (.*), for what value of x is f\(x\) = (-?\d+)\?$/))) return expectAnswer(p, solveLinear(n[1], n[2]));
+    if ((n = p.prompt.match(/^Concert tickets cost \$(\d+) each, plus a \$(\d+) fee for the whole order, so C\(n\) = \1n \+ \2\. For how many tickets is C\(n\) = (\d+)\?$/))) {
+      const tickets = (+n[3] - +n[2]) / +n[1];
+      return Number.isInteger(tickets) ? expectAnswer(p, tickets) : "no whole number of tickets";
+    }
     const m = p.prompt.match(/^If ([fg])\(x\) = (.*), find [fg]\((-?\d+)\)\.$/);
     if (!m) return "unread";
     return expectAnswer(p, evaluate(m[2], { x: +m[3] }));
   },
   "domain-range": (p) => {
     let m;
+    if ((m = p.prompt.match(/^f\(x\) = (.*) for (-?\d+) ≤ x ≤ (-?\d+)\. What is the range\?$/))) {
+      const [e, lo, hi] = [m[1], +m[2], +m[3]];
+      const ys = [evaluate(e, { x: lo }), evaluate(e, { x: hi })];
+      return onlyRight(p, (c) => c === `${Math.min(...ys)} ≤ y ≤ ${Math.max(...ys)}`);
+    }
+    if ((m = p.prompt.match(/^f\(x\) = (.*) has the domain \{-2, -1, 0, 1, 2\}\. What is its range\?$/))) {
+      const e = m[1];
+      const want = Array.from(new Set([-2, -1, 0, 1, 2].map((x) => evaluate(e, { x })))).sort((a, b) => a - b);
+      return onlyRight(p, (c) => c === `{${want.join(", ")}}`);
+    }
+    if ((m = p.prompt.match(/^A phone's battery starts at 100% and drops (\d+)% each hour, so B\(t\) = 100 − \1t\. The model makes sense until the battery is empty\. What is the greatest t in its domain, in hours\?( Write it as a decimal\.)?$/))) {
+      const t = 100 / +m[1];
+      if (!Number.isInteger(t) && !m[2]) return "a decimal answer with no instruction";
+      return expectAnswer(p, t);
+    }
     if ((m = p.prompt.match(/^What is the domain of f\(x\) = 1\/\(x (−|\+) (\d+)\)\?$/))) {
       const bad = m[1] === "−" ? +m[2] : -m[2];
       return onlyRight(p, (c) => c === `All real numbers except ${bad}`);
@@ -527,6 +835,22 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "function-graphs": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^f\(x\) = (.*)\. What is the average rate of change of f from x = (-?\d+) to x = (-?\d+)\?$/))) {
+      const [e, a, b] = [n[1], +n[2], +n[3]];
+      return expectAnswer(p, (evaluate(e, { x: b }) - evaluate(e, { x: a })) / (b - a));
+    }
+    if ((n = p.prompt.match(/^A ball's height is h\(t\) = (.*) feet after t seconds\. What is its average rate of change from t = (\d+) to t = (\d+), in feet per second\?$/))) {
+      const [e, a, b] = [n[1], +n[2], +n[3]];
+      return expectAnswer(p, (evaluate(e, { t: b }) - evaluate(e, { t: a })) / (b - a));
+    }
+    if ((n = p.prompt.match(/^Which function has the greater average rate of change from x = (-?\d+) to x = (-?\d+): f\(x\) = (.*) or g\(x\) = x²\?$/))) {
+      const [a, b, e] = [+n[1], +n[2], n[3]];
+      const rf = (evaluate(e, { x: b }) - evaluate(e, { x: a })) / (b - a);
+      const rg = (b * b - a * a) / (b - a);
+      const want = close(rf, rg) ? "They are equal" : rf > rg ? "f" : "g";
+      return onlyRight(p, (c) => c === want);
+    }
     const m = p.prompt.match(/passes through \((-?\d+), (-?\d+)\) and \((-?\d+), (-?\d+)\)\. What is its average rate of change/);
     if (!m) return "unread";
     const [x1, y1, x2, y2] = m.slice(1, 5).map(Number);
@@ -534,6 +858,19 @@ const checks: Record<string, Check> = {
   },
   "arithmetic-sequences": (p) => {
     let m;
+    const subNum = (t: string) => +[...t].map((ch) => "₀₁₂₃₄₅₆₇₈₉".indexOf(ch)).join("");
+    if ((m = p.prompt.match(/^An arithmetic sequence has a₁ = (-?\d+) and d = (-?\d+)\. What is a([₀-₉]+)\?$/))) return expectAnswer(p, +m[1] + (subNum(m[3]) - 1) * +m[2]);
+    if ((m = p.prompt.match(/^In an arithmetic sequence, the (\d+)(?:st|nd|rd|th) term is (-?\d+) and the (\d+)(?:st|nd|rd|th) term is (-?\d+)\. What is the (common difference|first term)\?$/))) {
+      const [pp, tp, q, tq] = m.slice(1, 5).map(Number);
+      const d = (tq - tp) / (q - pp);
+      return expectAnswer(p, m[5] === "common difference" ? d : tp - (pp - 1) * d);
+    }
+    if ((m = p.prompt.match(/^Which term of (-?\d+), (-?\d+), (-?\d+), (-?\d+), \.\.\. is (-?\d+)\? Type its position n\.$/))) {
+      const [a, b, , , t] = m.slice(1, 6).map(Number);
+      const n = (t - a) / (b - a) + 1;
+      return Number.isInteger(n) && n > 0 ? expectAnswer(p, n) : "that number is not in the sequence";
+    }
+    if ((m = p.prompt.match(/^Row 1 of a theater has (\d+) seats, and each row has (\d+) more seats than the row in front of it\. How many seats are in row (\d+)\?$/))) return expectAnswer(p, +m[1] + (+m[3] - 1) * +m[2]);
     if ((m = p.prompt.match(/^Sequence: (-?\d+), (-?\d+), (-?\d+), (-?\d+), \.\.\. What is the (\d+)(st|nd|rd|th) term\?$/))) {
       const [a, b, c, d, n] = m.slice(1, 6).map(Number);
       if (b - a !== c - b || c - b !== d - c) return "not arithmetic";
@@ -545,6 +882,18 @@ const checks: Record<string, Check> = {
   },
   "geometric-sequences": (p) => {
     let m;
+    if ((m = p.prompt.match(/^Sequence: (-?\d+), (-?\d+), (-?\d+), (-?\d+), \.\.\. What is the (\d+)(?:st|nd|rd|th) term\?$/))) {
+      const t = m.slice(1, 5).map(Number);
+      const r = t[1] / t[0];
+      if (!t.every((v, k) => k === 0 || close(v / t[k - 1], r))) return "not geometric";
+      return expectAnswer(p, t[0] * r ** (+m[5] - 1));
+    }
+    if ((m = p.prompt.match(/^A geometric sequence has a₁ = (\d+) and r = (\d+)\. Which term is ([\d,]+)\? Type its position n\.$/))) {
+      const [a, r, t] = [+m[1], +m[2], +m[3].replace(/,/g, "")];
+      const n = Math.round(Math.log(t / a) / Math.log(r)) + 1;
+      return close(a * r ** (n - 1), t) ? expectAnswer(p, n) : "that number is not in the sequence";
+    }
+    if ((m = p.prompt.match(/^A ball is dropped from (\d+) feet\. Each bounce reaches (\d+)\/(\d+) of the height before it\. How high, in feet, does it go on bounce (\d+)\?$/))) return expectAnswer(p, +m[1] * (+m[2] / +m[3]) ** +m[4]);
     if ((m = p.prompt.match(/^Sequence: ([\d, ]+?),? \.\.\. What is the common ratio\?/))) {
       const t = m[1].split(",").map((s) => +s.trim());
       const r = t[1] / t[0];
@@ -562,6 +911,14 @@ const checks: Record<string, Check> = {
   },
   "exponent-rules": (p) => {
     let m;
+    if (p.type === "multiple-choice" && (m = p.prompt.match(/^Simplify: (.*[xy].*)$/)) && !/\^0/.test(m[1])) {
+      const e = m[1].replace(/·/g, "*");
+      const pts = [{ x: 1.3, y: 0.7 }, { x: 2, y: 1.5 }, { x: 0.6, y: 2.2 }];
+      return onlyRight(p, (c) => pts.every((env) => close(evaluate(c, env), evaluate(e, env))));
+    }
+    if ((m = p.prompt.match(/^Simplify \((\d+)\^(\d+) × \1\^(\d+)\) ÷ \1\^(\d+), then write the answer as a number\.$/))) return expectAnswer(p, (+m[1]) ** (+m[2] + +m[3] - +m[4]));
+    if ((m = p.prompt.match(/^\(x\^(\d+)\)\^(\d+) ÷ x\^(\d+) = x\^n\. What is n\?$/))) return expectAnswer(p, +m[1] * +m[2] - +m[3]);
+    if ((m = p.prompt.match(/^Simplify (\d+)x\^0 \+ \(\1x\)\^0, for any x other than 0\.$/))) return expectAnswer(p, +m[1] + 1);
     if ((m = p.prompt.match(/^(\d+)\^(\d+) × \1\^(\d+) = \1\^n\. What is n\?$/))) return expectAnswer(p, +m[2] + +m[3]);
     if ((m = p.prompt.match(/^(\d+)\^(\d+) ÷ \1\^(\d+) = \1\^n\. What is n\?$/))) return expectAnswer(p, +m[2] - +m[3]);
     if ((m = p.prompt.match(/^Simplify: \(x\^(\d+)\)\^(\d+)$/))) return onlyRight(p, (c) => c === `x^${+m[1] * +m[2]}`);
@@ -571,6 +928,8 @@ const checks: Record<string, Check> = {
   },
   "negative-fractional-exponents": (p) => {
     let m;
+    if ((m = p.prompt.match(/^Evaluate \(1\/(\d+)\)\^\(-(\d+)\)\.$/))) return expectAnswer(p, (+m[1]) ** +m[2]);
+    if ((m = p.prompt.match(/^x\^\((\d+)\/(\d+)\) · x\^\((\d+)\/\2\) = x\^n\. What is n\?$/))) return expectAnswer(p, (+m[1] + +m[3]) / +m[2]);
     if ((m = p.prompt.match(/^Evaluate (\d+)\^\((-?\d+(?:\/\d+)?)\)\./))) return expectAnswer(p, (+m[1]) ** val(m[2]));
     if ((m = p.prompt.match(/^Rewrite (√x|³√x|⁴√x|⁵√x) using a fractional exponent\.$/))) {
       const n = { "√x": 2, "³√x": 3, "⁴√x": 4, "⁵√x": 5 }[m[1]]!;
@@ -596,10 +955,27 @@ const checks: Record<string, Check> = {
       });
     }
     if ((m = p.prompt.match(/^Write ([\d.]+) × 10\^(\d+) as a regular number\.$/))) return expectAnswer(p, Math.round(+m[1] * 10 ** +m[2]));
+    const proper = (value: number) =>
+      onlyRight(p, (c) => {
+        const s = sci(c);
+        return !!s && s.coeff >= 1 && s.coeff < 10 && close(s.value, value);
+      });
+    if ((m = p.prompt.match(/^Multiply: \(([\d.]+) × 10\^(-?\d+)\)\(([\d.]+) × 10\^(-?\d+)\)\. Write the answer in scientific notation\.$/))) return proper(+m[1] * 10 ** +m[2] * +m[3] * 10 ** +m[4]);
+    if ((m = p.prompt.match(/^Divide: \(([\d.]+) × 10\^(-?\d+)\) ÷ \(([\d.]+) × 10\^(-?\d+)\)\. Write the answer in scientific notation\.$/))) return proper((+m[1] * 10 ** +m[2]) / (+m[3] * 10 ** +m[4]));
+    if ((m = p.prompt.match(/^Light travels about ([\d.]+) × 10\^(\d+) meters per second\. How far does it travel in ([\d,]+) seconds\?$/))) return proper(+m[1] * 10 ** +m[2] * +m[3].replace(/,/g, ""));
     return "unread";
   },
   "simplifying-radicals": (p) => {
     let m;
+    const byValue = (want: number, env: Record<string, number> = {}) => onlyRight(p, (c) => close(evaluate(c, env), want));
+    if ((m = p.prompt.match(/^Simplify (\d+)√(\d+)$/))) return byValue(+m[1] * Math.sqrt(+m[2]));
+    if ((m = p.prompt.match(/^Simplify √(\d+) \+ √(\d+)$/))) return byValue(Math.sqrt(+m[1]) + Math.sqrt(+m[2]));
+    if ((m = p.prompt.match(/^Simplify √(\d+) · √(\d+)$/))) return byValue(Math.sqrt(+m[1] * +m[2]));
+    if ((m = p.prompt.match(/^Simplify √\((\d+)x²\), for x > 0$/))) {
+      const n = +m[1];
+      return onlyRight(p, (c) => [2, 3.5].every((x) => close(evaluate(c, { x }), Math.sqrt(n * x * x))));
+    }
+    if ((m = p.prompt.match(/^A square has an area of (\d+) square inches\. How long is each side, in inches\? Give it in simplest radical form\.$/))) return byValue(Math.sqrt(+m[1]));
     if ((m = p.prompt.match(/^Write √(\d+) in simplest radical form\.$/))) {
       const n = +m[1];
       return onlyRight(p, (c) => close(evaluate(c), Math.sqrt(n)));
@@ -609,6 +985,22 @@ const checks: Record<string, Check> = {
   },
   "exponential-functions": (p) => {
     let m;
+    if ((m = p.prompt.match(/^Which exponential function passes through \(0, (\d+)\) and \(1, (\d+)\)\?$/))) {
+      const [y0, y1] = [+m[1], +m[2]];
+      return onlyRight(p, (c) => {
+        const f = (x: number) => evaluate(c.replace(/^y = /, ""), { x });
+        return close(f(0), y0) && close(f(1), y1);
+      });
+    }
+    if ((m = p.prompt.match(/^For y = (\d+)\((\d+)\)\^x, what value of x gives y = ([\d,]+)\?$/))) {
+      const [a, b, y] = [+m[1], +m[2], +m[3].replace(/,/g, "")];
+      const x = Math.round(Math.log(y / a) / Math.log(b));
+      return close(a * b ** x, y) ? expectAnswer(p, x) : "no whole x gives that y";
+    }
+    if ((m = p.prompt.match(/^f\(x\) = (\d+)\((\d+)\)\^x\. How many times bigger is f\((\d+)\) than f\((\d+)\)\?$/))) {
+      const f = (x: number) => +m![1] * (+m![2]) ** x;
+      return expectAnswer(p, f(+m[3]) / f(+m[4]));
+    }
     if ((m = p.prompt.match(/^Which function starts at (\d+) and multiplies by (\d+) each time x goes up by 1\?$/))) {
       const [a, b] = [+m[1], +m[2]];
       return onlyRight(p, (c) => {
@@ -622,6 +1014,27 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "exponential-growth": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^A colony of (\d+) bacteria doubles every (\d+) minutes\. How many bacteria are there after (\d+) hours?\?$/))) {
+      const doublings = (+n[3] * 60) / +n[2];
+      return Number.isInteger(doublings) ? expectAnswer(p, +n[1] * 2 ** doublings) : "the doublings do not come out whole";
+    }
+    if ((n = p.prompt.match(/^A town of ([\d,]+) people grows by (\d+)% each year\. About how many people live there after (\d+) years\? \(round to the nearest whole number\)$/))) {
+      const [P, r, y] = [BigInt(n[1].replace(/,/g, "")), BigInt(n[2]), Number(n[3])];
+      let v = P;
+      for (let k = 0; k < y; k++) v = v * (100n + r);
+      const den = 100n ** BigInt(y);
+      const people = (v * 2n + den) / (2n * den);
+      return Number(p.answer) === Number(people) ? null : `key ${p.answer}, should be ${people}`;
+    }
+    if ((n = p.prompt.match(/^\$(\d+) is invested at (\d+)% annual interest compounded annually\. How much interest does it earn in (\d+) years\?/))) {
+      const [P, r, y] = [BigInt(n[1]), BigInt(n[2]), Number(n[3])];
+      let v = P * 100n;
+      for (let k = 0; k < y; k++) v = v * (100n + r);
+      const den = 100n ** BigInt(y);
+      const cents = (v * 2n + den) / (2n * den) - P * 100n;
+      return close(Number(p.answer), Number(cents) / 100) ? null : `key ${p.answer}, should be ${Number(cents) / 100}`;
+    }
     const m = p.prompt.match(/^\$(\d+) invested at (\d+)% annual interest compounded annually\. Value after (\d+) years\?/);
     if (!m) return "unread";
     const [P, r, y] = [BigInt(m[1]), BigInt(m[2]), Number(m[3])];
@@ -633,6 +1046,33 @@ const checks: Record<string, Check> = {
     return close(Number(p.answer), Number(cents) / 100) ? null : `key ${p.answer}, should be ${Number(cents) / 100}`;
   },
   "exponential-decay": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^A (\d+) mg dose of medicine is half gone every (\d+) hours\. How many mg are left after (\d+) hours\?( Write your answer as a decimal\.)?$/))) {
+      const left = +n[1] / 2 ** (+n[3] / +n[2]);
+      if (!Number.isInteger(left) && !n[4]) return "a decimal answer with no instruction";
+      return expectAnswer(p, left);
+    }
+    if ((n = p.prompt.match(/^A phone worth \$([\d,]+) loses (\d+)% of its value each year\. How much value has it lost after (\d+) years\? \(round to the nearest whole dollar\)$/))) {
+      const [V, r, y] = [BigInt(n[1].replace(/,/g, "")), BigInt(n[2]), Number(n[3])];
+      let kept = V;
+      for (let k = 0; k < y; k++) kept = kept * (100n - r);
+      const den = 100n ** BigInt(y);
+      const lostNum = V * den - kept;
+      const lost = (lostNum * 2n + den) / (2n * den);
+      return Number(p.answer) === Number(lost) ? null : `key ${p.answer}, should be ${lost}`;
+    }
+    if ((n = p.prompt.match(/^A car that cost \$([\d,]+) loses (\d+)% of its value each year\. After how many full years is it first worth less than half of what it cost\?$/))) {
+      const keep = 100n - BigInt(n[2]);
+      let years = 0;
+      let num = 1n;
+      let den = 1n;
+      while (2n * num >= den) {
+        years++;
+        num *= keep;
+        den *= 100n;
+      }
+      return expectAnswer(p, years);
+    }
     const m = p.prompt.replace(/,/g, "").match(/^A car worth \$(\d+) loses (\d+)% of its value each year\. What is it worth after (\d+) years?\?/);
     if (!m) return "unread";
     const [V, r, y] = [BigInt(m[1]), BigInt(m[2]), Number(m[3])];
@@ -643,12 +1083,51 @@ const checks: Record<string, Check> = {
     if ((y === 1) !== / year\?/.test(p.prompt)) return "year/years does not match the count";
     return Number(p.answer) === Number(dollars) ? null : `key ${p.answer}, should be ${dollars}`;
   },
-  "multiplying-binomials": (p) => expandCheck(p),
-  "special-products": (p) => expandCheck(p),
-  "factoring-trinomials": (p) => factorCheck(p),
+  "multiplying-binomials": (p) => {
+    let m;
+    if ((m = p.prompt.match(/^When (.*) is multiplied out, what is the coefficient of x\?$/))) {
+      const [, b] = quadCoeffs(m[1]);
+      return expectAnswer(p, b);
+    }
+    if ((m = p.prompt.match(/^A garden is (\(.*\)) feet long and (\(.*\)) feet wide\. Which expression gives its area, in square feet\?$/))) {
+      const area = `${m[1]}${m[2]}`;
+      return onlyRight(p, (c) => samePoly(c, area));
+    }
+    return expandCheck(p);
+  },
+  "special-products": (p) => {
+    let m;
+    if ((m = p.prompt.match(/^Use \(a − b\)\(a \+ b\) = a² − b² to work out (\d+) × (\d+) without a calculator\.$/))) return expectAnswer(p, +m[1] * +m[2]);
+    if ((m = p.prompt.match(/^Use \(a [+−] b\)² = a² [+−] 2ab \+ b² to work out (\d+)² without a calculator\.$/))) return expectAnswer(p, +m[1] * +m[1]);
+    return expandCheck(p);
+  },
+  "factoring-trinomials": (p) => {
+    const m = p.prompt.match(/^A rectangle has area (.*) and width (\(x [+−] \d+\))\. Which expression is its length\?$/);
+    if (m) return onlyRight(p, (c) => samePoly(`${m[2]}${c}`, m[1]));
+    return factorCheck(p);
+  },
   "factoring-special": (p) => factorCheck(p),
   "graphing-parabolas": (p) => {
     let m;
+    if ((m = p.prompt.match(/^What is the vertex of y = (.*)\?$/))) {
+      const [a, b, c] = quadCoeffs(m[1]);
+      const h = -b / (2 * a);
+      return onlyRight(p, (ch) => {
+        const q = point(ch);
+        return !!q && close(q.x, h) && close(q.y, a * h * h + b * h + c);
+      });
+    }
+    if ((m = p.prompt.match(/^The parabola y = (.*) crosses the x-axis twice\. What is the (larger|smaller) x-intercept\?$/))) {
+      const roots: number[] = [];
+      for (let x = -60; x <= 60; x++) if (close(evaluate(m[1], { x }), 0)) roots.push(x);
+      if (roots.length !== 2) return `${roots.length} whole x-intercepts`;
+      return expectAnswer(p, m[2] === "larger" ? Math.max(...roots) : Math.min(...roots));
+    }
+    if ((m = p.prompt.match(/^A ball's height is h = (.*) feet after t seconds\. What is its greatest height, in feet\?$/))) {
+      const [a, b, c] = quadCoeffs(m[1].replace(/t/g, "x"));
+      const t = -b / (2 * a);
+      return expectAnswer(p, a * t * t + b * t + c);
+    }
     if ((m = p.prompt.match(/^Does y = (.*) open up or down\?$/))) {
       const [a] = quadCoeffs(m[1]);
       return onlyRight(p, (c) => c === (a > 0 ? "Up" : "Down"));
@@ -664,14 +1143,72 @@ const checks: Record<string, Check> = {
     }
     return "unread";
   },
-  "solving-by-factoring": (p) => rootCheck(p),
+  "solving-by-factoring": (p) => {
+    let m;
+    if ((m = p.prompt.match(/^Solve (.*) = (-?\d+x?)\. What is the (positive|nonzero) root\?$/))) {
+      const [l, r] = [m[1], m[2]];
+      const roots: number[] = [];
+      for (let x = -60; x <= 60; x++) if (close(evaluate(l, { x }), evaluate(r, { x }))) roots.push(x);
+      const want = m[3] === "positive" ? roots.filter((x) => x > 0) : roots.filter((x) => x !== 0);
+      if (want.length !== 1) return `${want.length} ${m[3]} roots`;
+      return expectAnswer(p, want[0]);
+    }
+    if ((m = p.prompt.match(/^Solve (.*) = 0\. One root is a fraction\. What is that root\? Give it as a fraction\.$/))) {
+      const [a, b, c] = quadCoeffs(m[1]);
+      const d = Math.sqrt(b * b - 4 * a * c);
+      const roots = [(-b + d) / (2 * a), (-b - d) / (2 * a)];
+      const fracs = roots.filter((x) => !close(x, Math.round(x)));
+      if (fracs.length !== 1) return `${fracs.length} fraction roots`;
+      return expectAnswer(p, fracs[0]);
+    }
+    if ((m = p.prompt.match(/^A rectangle's length is (\d+) meters more than its width\. Its area is (\d+) square meters\. What is its width, in meters\?$/))) {
+      const [d, area] = [+m[1], +m[2]];
+      const w = (-d + Math.sqrt(d * d + 4 * area)) / 2;
+      return Number.isInteger(w) ? expectAnswer(p, w) : "the width is not whole";
+    }
+    return rootCheck(p);
+  },
   "completing-square": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Solve (.*) = 0 by completing the square\. What is the (larger|smaller) root\?$/))) {
+      const roots: number[] = [];
+      for (let x = -60; x <= 60; x++) if (close(evaluate(n[1], { x }), 0)) roots.push(x);
+      if (roots.length !== 2) return `${roots.length} whole roots`;
+      return expectAnswer(p, n[2] === "larger" ? Math.max(...roots) : Math.min(...roots));
+    }
+    if ((n = p.prompt.match(/^Write (.*) in the form \(x − h\)² \+ k\. What is k\?$/)) || (n = p.prompt.match(/^What is the minimum value of y = (.*)\?$/))) {
+      const [a, b, c] = quadCoeffs(n[1]);
+      if (a <= 0) return "no minimum";
+      const h = -b / (2 * a);
+      return expectAnswer(p, a * h * h + b * h + c);
+    }
+    if ((n = p.prompt.match(/^Which is (.*) written in vertex form\?$/))) {
+      const target = n[1];
+      return onlyRight(p, (c) => /^\(x [+−] \d+\)²( [+−] \d+)?$/.test(c) && samePoly(c, target));
+    }
     const m = p.prompt.match(/^Complete the square: x² (\+|−) (\d+)x \+ ___ = \(x (\+|−) (\d+)\)²$/);
     if (!m) return "unread";
     if (+m[4] * 2 !== +m[2] || m[1] !== m[3]) return "the square shown does not match";
     return onlyRight(p, (c) => close(val(c), (+m[2] / 2) ** 2));
   },
   "quadratic-formula": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Solve (.*) = 0 with the quadratic formula\. What is the (larger|smaller) root\? \(round to the hundredths place\)$/))) {
+      const [a, b, c] = quadCoeffs(n[1]);
+      const d = Math.sqrt(b * b - 4 * a * c);
+      const roots = [(-b + d) / (2 * a), (-b - d) / (2 * a)];
+      return expectAnswer(p, n[2] === "larger" ? Math.max(...roots) : Math.min(...roots));
+    }
+    if ((n = p.prompt.match(/^What is the discriminant of (.*) = 0\?$/))) {
+      const [a, b, c] = quadCoeffs(n[1]);
+      return expectAnswer(p, b * b - 4 * a * c);
+    }
+    if ((n = p.prompt.match(/^A ball is thrown upward from (\d+) feet with a speed of (\d+) feet per second, so its height is h = (.*)\. After how many seconds does it hit the ground\? \(round to the hundredths place\)$/))) {
+      const [a, b, c] = quadCoeffs(n[3].replace(/t/g, "x"));
+      if (c !== +n[1] || b !== +n[2]) return "the equation does not match the story";
+      const d = Math.sqrt(b * b - 4 * a * c);
+      return expectAnswer(p, Math.max((-b + d) / (2 * a), (-b - d) / (2 * a)));
+    }
     const m = p.prompt.match(/^For (.*) = 0, how many real solutions\?$/);
     if (m) {
       const [a, b, c] = quadCoeffs(m[1]);
@@ -682,6 +1219,27 @@ const checks: Record<string, Check> = {
   },
   "absolute-value": (p) => {
     let m;
+    const absRoots = (inside: string, target: number) => {
+      const out: number[] = [];
+      for (let x = -60; x <= 60; x += 0.25) if (close(Math.abs(evaluate(inside, { x })), target)) out.push(x);
+      return out;
+    };
+    if ((m = p.prompt.match(/^Solve (-?\d+)\|(.*)\| ([+−]) (\d+) = (-?\d+)\. What is the (larger|smaller) solution\?$/))) {
+      const [k, inside, sign, mm, n] = [+m[1], m[2], m[3], +m[4], +m[5]];
+      const A = (n - (sign === "+" ? mm : -mm)) / k;
+      const sols = absRoots(inside, A);
+      if (sols.length !== 2) return `${sols.length} solutions`;
+      return expectAnswer(p, m[6] === "larger" ? Math.max(...sols) : Math.min(...sols));
+    }
+    if ((m = p.prompt.match(/^Solve \|(.*)\| = (\d+)\. What is the (smaller|larger) solution\? Give it as a whole number or a fraction\.$/))) {
+      const sols = [solveLinear(m[1], m[2]), solveLinear(m[1], String(-m[2]))];
+      return expectAnswer(p, m[3] === "larger" ? Math.max(...sols) : Math.min(...sols));
+    }
+    if ((m = p.prompt.match(/^How many solutions does (\d+)\|(.*)\| \+ (\d+) = (-?\d+) have\?$/))) {
+      const A = (+m[4] - +m[3]) / +m[1];
+      const count = A < 0 ? 0 : A === 0 ? 1 : 2;
+      return onlyRight(p, (c) => c === String(count));
+    }
     if ((m = p.prompt.match(/^Solve \|(.*)\| = (\d+)\. What is the (positive|negative|larger|smaller) solution\?$/))) {
       const sols: number[] = [];
       for (let x = -60; x <= 60; x++) if (close(Math.abs(evaluate(m[1], { x })), +m[2])) sols.push(x);
@@ -699,6 +1257,29 @@ const checks: Record<string, Check> = {
     return "unread";
   },
   "absolute-value-inequalities": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^Solve (\d+)\|(.*)\| − (\d+) > (-?\d+)$/))) {
+      const [k, e, mm, rhs] = [+n[1], n[2], +n[3], +n[4]];
+      const holds = (x: number) => k * Math.abs(evaluate(e, { x })) - mm > rhs;
+      return onlyRight(p, (c) => {
+        const f = setOf(c);
+        return !!f && sameSet(f, holds);
+      });
+    }
+    if ((n = p.prompt.match(/^A machine fills bags with (\d+) grams of rice, give or take (\d+) grams\. Which inequality shows the weights w that pass\?$/))) {
+      const [t, tol] = [+n[1], +n[2]];
+      return onlyRight(p, (c) => {
+        const f = c.match(/^\|w ([+−]) (\d+)\| (≤|≥|<|>) (\d+)$/);
+        if (!f) return false;
+        const shiftBy = (f[1] === "+" ? -1 : 1) * +f[2];
+        const test = (w: number) => {
+          const d = Math.abs(w - shiftBy);
+          return f[3] === "≤" ? d <= +f[4] : f[3] === "≥" ? d >= +f[4] : f[3] === "<" ? d < +f[4] : d > +f[4];
+        };
+        for (let w = 0; w <= 2000; w += 0.5) if (test(w) !== (Math.abs(w - t) <= tol)) return false;
+        return true;
+      });
+    }
     const m = p.prompt.match(/^Solve \|(.*)\| (<|>|≤|≥) (\d+)$/);
     if (!m) return "unread";
     const [e, op, a] = [m[1], m[2], +m[3]];
@@ -712,12 +1293,51 @@ const checks: Record<string, Check> = {
     });
   },
   "piecewise-functions": (p) => {
+    let n;
+    if ((n = p.prompt.match(/^f\(x\) = \{ (.*) if x < (-?\d+); (.*) if \2 ≤ x ≤ (-?\d+); (.*) if x > \4 \}\. Find f\((-?\d+)\)\.$/))) {
+      const [p1, lo, p2, hi, p3, x] = [n[1], +n[2], n[3], +n[4], n[5], +n[6]];
+      return expectAnswer(p, evaluate(x < lo ? p1 : x <= hi ? p2 : p3, { x }));
+    }
+    if ((n = p.prompt.match(/^f\(x\) = \{ (.*) if x < (-?\d+); (.*) if x ≥ \2 \}\. Find f\((-?\d+)\) \+ f\((-?\d+)\)\.$/))) {
+      const [p1, b, p2] = [n[1], +n[2], n[3]];
+      const f = (x: number) => evaluate(x < b ? p1 : p2, { x });
+      return expectAnswer(p, f(+n[4]) + f(+n[5]));
+    }
     const m = p.prompt.match(/^f\(x\) = \{ (.*) if x < (-?\d+); (.*) if x ≥ \2 \}\. Find f\((-?\d+)\)\.$/);
     if (!m) return "unread";
     const [first, b, second, x] = [m[1], +m[2], m[3], +m[4]];
     return expectAnswer(p, evaluate(x < b ? first : second, { x }));
   },
 };
+
+/** Word problems that are one equation in disguise: worked out from the story's numbers. Null when the prompt is not one. */
+function wordEquation(p: any): string | null | "unread" | undefined {
+  let m;
+  if ((m = p.prompt.match(/^(\w+) bought a video game for \$(\d+) and snacks for \$(\d+), and has \$(\d+) left\. How many dollars did \1 have before shopping\?$/))) return expectAnswer(p, +m[2] + +m[3] + +m[4]);
+  if ((m = p.prompt.match(/^(\d+) friends split a dinner bill evenly\. Each of them paid \$(\d+)\. How many dollars was the whole bill\?$/))) return expectAnswer(p, +m[1] * +m[2]);
+  if ((m = p.prompt.match(/^A gym charges a \$(\d+) sign-up fee plus \$(\d+) a month\. (\w+) has paid \$(\d+) in all\. How many months has \3 been a member\?$/))) {
+    const months = (+m[4] - +m[1]) / +m[2];
+    return Number.isInteger(months) ? expectAnswer(p, months) : "the months do not come out whole";
+  }
+  if ((m = p.prompt.match(/^A taxi charges \$(\d+) to start plus \$(\d+) for each mile\. A ride cost \$(\d+)\. How many miles long was the ride\?$/))) {
+    const miles = (+m[3] - +m[1]) / +m[2];
+    return Number.isInteger(miles) ? expectAnswer(p, miles) : "the miles do not come out whole";
+  }
+  if ((m = p.prompt.match(/^A rectangle's length is (\d+) cm more than twice its width\. Its perimeter is (\d+) cm\. What is its width, in cm\?$/))) return expectAnswer(p, (+m[2] / 2 - +m[1]) / 3);
+  if ((m = p.prompt.match(/^The sum of three consecutive integers is (-?\d+)\. What is the (smallest|largest) of the three\?$/))) {
+    const n = (+m[1] - 3) / 3;
+    if (!Number.isInteger(n)) return "no three consecutive integers have that sum";
+    return expectAnswer(p, m[2] === "smallest" ? n : n + 2);
+  }
+  if ((m = p.prompt.match(/^Phone plan A costs \$(\d+) a month plus \$(\d+) per GB of data\. Plan B costs \$(\d+) a month plus \$(\d+) per GB\. For how many GB do the plans cost the same\?$/))) return expectAnswer(p, (+m[3] - +m[1]) / (+m[2] - +m[4]));
+  return undefined;
+}
+
+/** A word problem if it is one, else an equation or an error to find. (wordEquation's null means right, so ?? will not do.) */
+function wordOrLinear(p: any): string | null | "unread" {
+  const w = wordEquation(p);
+  return w === undefined ? linearOrError(p) : w;
+}
 
 function linearOrError(p: any): string | null | "unread" {
   if (p.type === "error-analysis") {
@@ -772,7 +1392,7 @@ function expandCheck(p: any): string | null | "unread" {
 }
 
 function factorCheck(p: any): string | null | "unread" {
-  const m = p.prompt.match(/^Factor (.*)$/);
+  const m = p.prompt.match(/^Factor (?:completely: )?(.*)$/);
   if (!m) return "unread";
   return onlyRight(p, (c) => c !== "Cannot factor" && samePoly(c, m[1]));
 }

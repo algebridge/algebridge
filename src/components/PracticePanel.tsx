@@ -38,6 +38,9 @@ import { announcePractice } from "@/lib/sidebar";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
+import { WorkPad } from "@/components/helper/WorkPad";
+import type { PadLine } from "@/components/helper/types";
+import { checkWork, workContext } from "@/lib/work-check";
 import { SignKeys } from "@/components/SignKeys";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
@@ -107,6 +110,29 @@ interface Scene {
 
 /** Wrong answers in one visit before the AI helper is offered. */
 const MISSES_BEFORE_NUDGE = 3;
+
+/** Where this device remembers that the student tucked the work pad away. */
+const PAD_PREF_KEY = "ab-work-pad";
+
+/**
+ * How the student's work on a problem went: the lines they wrote (the
+ * problem's own lines aside), how many of those the checker passed, and
+ * which ones changed the answer.
+ */
+function workTally(lines: PadLine[], problem: string, choices?: string[]) {
+  const marks = checkWork(lines.map((l) => l.entered ?? ""), workContext(problem, choices));
+  let written = 0;
+  let checked = 0;
+  const changed: number[] = [];
+  lines.forEach((l, i) => {
+    const text = l.text.trim();
+    if (!l.entered || text !== l.entered || (l.given && text === l.given)) return;
+    written += 1;
+    if (marks[i].kind === "same" || marks[i].kind === "case") checked += 1;
+    if (marks[i].kind === "changed") changed.push(i + 1);
+  });
+  return { written, checked, changed };
+}
 
 /**
  * How long a problem waits for its story before it is shown as it is. The
@@ -205,6 +231,26 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   /** What was tried last, read for where it went wrong once it is marked. */
   const [lastTry, setLastTry] = useState<Attempt | null>(null);
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
+  /** The student's typed work, for the problem it was written on: a new problem gets a clean pad. */
+  const [pad, setPad] = useState<{ key: string; lines: PadLine[] } | null>(null);
+  /** The work pad open on the card, or tucked away. Open unless this device was told otherwise. */
+  const [padOpen, setPadOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(PAD_PREF_KEY) === "closed") setPadOpen(false);
+    } catch {
+      /* storage blocked: the pad stays open */
+    }
+  }, []);
+  const togglePad = useCallback((open: boolean) => {
+    setPadOpen(open);
+    try {
+      if (open) localStorage.removeItem(PAD_PREF_KEY);
+      else localStorage.setItem(PAD_PREF_KEY, "closed");
+    } catch {
+      /* remembered for this visit only */
+    }
+  }, []);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
@@ -331,6 +377,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const problem = allProblems[problemIndex % allProblems.length];
   const problemIndexRef = useRef(0);
   problemIndexRef.current = problemIndex;
+  // The bank's ids repeat from session to session, so the seed is part of the key.
+  const padKey = `${seed ?? "-"}:${problemIndex}:${problem?.id ?? ""}`;
+  const padKeyRef = useRef(padKey);
+  padKeyRef.current = padKey;
+  const savePad = useCallback((lines: PadLine[]) => setPad({ key: padKeyRef.current, lines }), []);
 
   useEffect(() => {
     setMastery(getSkillProgress(skill.id).level);
@@ -821,6 +872,54 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   const showNudge = misses - nudgeDismissedAt >= MISSES_BEFORE_NUDGE;
 
+  // Space to write the work, on every problem worked out by hand. Error
+  // analysis and step order bring their own steps.
+  const padLines = pad?.key === padKey ? pad.lines : undefined;
+  const padChoices = problem.type === "multiple-choice" ? problem.choices : undefined;
+  const padHere = !pending && (problem.type === "numeric" || problem.type === "multiple-choice");
+  // Counted once the answer is right, the only time the count is shown.
+  const tally = feedback === "correct" && padHere && padLines ? workTally(padLines, displayPrompt, padChoices) : null;
+  const workPad = !padHere ? null : padOpen ? (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70">
+      <WorkPad
+        key={padKey}
+        problem={displayPrompt}
+        lines={padLines}
+        onChange={savePad}
+        heading="Your work"
+        intro="Write one step per line and press Enter. Each step gets checked against the line above."
+        autoFocus={false}
+        inline
+        choices={padChoices}
+        finalNote={
+          problem.type === "multiple-choice"
+            ? "That looks like your answer. Pick it from the choices to check it."
+            : "That looks like your answer. Type it in the answer box to check it."
+        }
+        headerAction={
+          <button
+            type="button"
+            onClick={() => togglePad(false)}
+            onKeyDown={ignoreSpaceKey}
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+          >
+            Hide
+          </button>
+        }
+      />
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => togglePad(true)}
+      onKeyDown={ignoreSpaceKey}
+      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+    >
+      <Icon name="pen" size={15} />
+      Show your work
+    </button>
+  );
+
   const over = feedback === "correct" || revealed;
 
   // A wrong answer, read for where it went wrong: shown under the retry
@@ -1071,6 +1170,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           <PromptText text={displayPrompt} className="mt-3 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
         )}
 
+        {/* The work, between the problem and the answer, the way a worksheet has it. */}
+        {problem.type === "numeric" && workPad}
+
         {/* Numeric input */}
         {!pending && problem.type === "numeric" && (
           <div className="mt-4 flex max-w-sm items-center gap-1.5">
@@ -1161,6 +1263,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             <p className="hidden text-xs text-slate-400 sm:block [@media(hover:none)]:hidden">Tip: press 1-{problem.choices.length} to pick an answer.</p>
           </div>
         )}
+
+        {/* On a choice card the choices stay under the question, and the work goes after them. */}
+        {problem.type === "multiple-choice" && workPad}
 
         {/* Error analysis */}
         {!pending && problem.type === "error-analysis" && getProblemSteps(problem) && (
@@ -1274,6 +1379,18 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </div>
             ) : (
               <AnswerFeedback state={feedback} seed={feedbackSeed} />
+            )}
+            {/* The work that got them there, counted. */}
+            {feedback === "correct" && tally && tally.changed.length === 0 && tally.checked > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-800">
+                <Icon name="check" size={15} className="shrink-0 text-emerald-600" />
+                {tally.checked} {tally.checked === 1 ? "step" : "steps"} of your work checked out.
+              </p>
+            )}
+            {feedback === "correct" && tally && tally.changed.length > 0 && (
+              <p className="mt-2 px-1 text-sm text-amber-800">
+                Line {tally.changed[0]} of your work changes the answer. Give it a second look.
+              </p>
             )}
             {feedback === "correct" && showExplanation && (
               <div className="mt-2 px-1 text-sm text-slate-600">

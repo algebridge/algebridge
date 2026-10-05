@@ -17,9 +17,20 @@
 
 import { canonicalPrompt } from "@/lib/problem-utils";
 
-/** A problem's kind: its prompt with every number taken out. "Convert 18 kilograms to grams." -> "convert # kilograms to grams." */
+/**
+ * A problem's kind: its prompt with every number taken out, and with the
+ * things that only follow from the numbers evened out: a number's sign, a
+ * fraction against a whole number, plus against minus between terms.
+ * "Convert 18 kilograms to grams." -> "convert # kilograms to grams.", and
+ * "y = -(2/3)x + 8" reads the same as "y = (1/5)x − 2", so one kind of
+ * question cannot crowd a session by coming in several signs.
+ */
 export function shapeKey(prompt: string): string {
-  return canonicalPrompt(prompt).replace(/\d[\d,]*(?:\.\d+)?/g, "#");
+  return canonicalPrompt(prompt)
+    .replace(/\d[\d,]*(?:\.\d+)?/g, "#")
+    .replace(/-(?=[#(])/g, "")
+    .replace(/\(#\/#\)|#\/#/g, "#")
+    .replace(/ [+-] /g, " ± ");
 }
 
 /**
