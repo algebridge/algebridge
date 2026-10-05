@@ -1179,9 +1179,15 @@ img{display:block;max-width:100%;}
       hero.style.setProperty('--glow-y', Math.round(horizon - S * 0.42) + 'px');
       hero.style.setProperty('--glow-r', Math.round(S * (W < 700 ? 0.44 : 0.58)) + 'px');
       heroTop = hero.offsetTop;
-      /* where the lesson window covers the paper, in canvas coordinates: a label belongs in the open band above it */
+      /* where the lesson window covers the paper, in canvas coordinates: a label belongs in
+         the open band above it. Offset geometry, not the bounding rect: while the window's
+         entrance plays it is translated down, and the rect would place it 36px low */
       var fr = document.getElementById('heroDemo');
-      if (fr){ var hb = hero.getBoundingClientRect(), fb = fr.getBoundingClientRect(); winL = fb.left - hb.left; winR = fb.right - hb.left; winT = fb.top - hb.top - horizon; }
+      if (fr){
+        var ox = 0, oy = 0, el = fr;
+        while (el && el !== hero){ ox += el.offsetLeft; oy += el.offsetTop; el = el.offsetParent; }
+        winL = ox; winR = ox + fr.offsetWidth; winT = oy - horizon;
+      }
     }
     /* how far the hero has scrolled past the top of the window, 0 to 1 (no layout read: the place is cached) */
     function progress(){
