@@ -401,3 +401,49 @@ table.sbc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .sbc-day { min-height: 78px; }
   .sbc-cal-head span { font-size: 8px; padding: 6px 2px; }
 }
+
+/* ---- Traffic: visitors by day, two bars per day ------------------------ */
+.sbc-pairs { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.sbc-pair { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 1px; height: 100%; }
+.sbc-pair i { flex: 1; display: block; min-height: 2px; background: var(--ink); }
+.sbc-pair i.is-app { background: var(--blue); }
+.sbc-pair.is-empty i { background: var(--paper-deep); }
+.sbc-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+.sbc-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  background: var(--ink);
+}
+.sbc-legend span.is-app::before { background: var(--blue); }
+
+/* Panels side by side where there is room. */
+.sbc-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; align-items: start; }
+.sbc-grid2 > .sbc-panel { margin: 0; }
+
+/* A labelled count with a thin bar under it. */
+.sbc-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.sbc-bars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 13px; }
+.sbc-bars li span { overflow-wrap: anywhere; }
+.sbc-bars li b { font-family: var(--font-console-mono), "Courier New", monospace; font-size: 12px; font-weight: 500; }
+.sbc-bars li i { grid-column: 1 / -1; position: relative; display: block; height: 4px; background: var(--paper-deep); }
+.sbc-bars li i em { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+
+/* Filter chips: one kind of feedback at a time. */
+.sbc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.sbc-chips button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper-bright);
+  color: var(--ink);
+  cursor: pointer;
+}
+.sbc-chips button:hover { background: var(--acid); }
+.sbc-chips button.is-active { background: var(--ink); color: var(--paper-bright); }
+.sbc-chips button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

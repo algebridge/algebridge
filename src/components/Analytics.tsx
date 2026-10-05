@@ -1,9 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
-import { GA_ID, GA_CONFIG, GA_SCRIPT_ORIGIN, analyticsAllowed } from "@/lib/analytics";
+import {
+  GA_ID,
+  GA_CONFIG,
+  GA_SCRIPT_ORIGIN,
+  analyticsAllowed,
+  countingAllowed,
+  type AnalyticsContext,
+} from "@/lib/analytics";
+import {
+  VISITOR_KEY,
+  dailyVisitorId,
+  deviceClass,
+  localDay,
+  normalizePath,
+  randomId,
+  referrerHost,
+} from "@/lib/traffic";
 
 declare global {
   interface Window {
@@ -30,28 +47,78 @@ function load(): void {
   window.gtag("config", GA_ID, GA_CONFIG);
 }
 
+/** One beacon to /api/traffic. sendBeacon survives the page closing; fetch is the fallback. */
+function sendBeacon(body: Record<string, unknown>): void {
+  const json = JSON.stringify(body);
+  try {
+    if (navigator.sendBeacon?.("/api/traffic", new Blob([json], { type: "text/plain" }))) return;
+  } catch {
+    /* fall through to fetch */
+  }
+  void fetch("/api/traffic", { method: "POST", body: json, keepalive: true, headers: { "Content-Type": "text/plain" } }).catch(
+    () => {},
+  );
+}
+
+function visitorId(): string {
+  return dailyVisitorId(
+    () => window.localStorage.getItem(VISITOR_KEY),
+    (value) => window.localStorage.setItem(VISITOR_KEY, value),
+    localDay(new Date()),
+    randomId,
+  );
+}
+
 /**
- * Counts page views in Google Analytics 4 when NEXT_PUBLIC_GA_ID is set.
- * Renders nothing. Each client-side navigation sends its own page_view, so
- * the first load is counted once (the config sends none of its own).
+ * Counts each page view twice over: once in AlgeBridge's own daily totals for
+ * the admin console, and once in Google Analytics 4 when a measurement ID is
+ * set. Renders nothing.
+ *
+ * Both get the page with ids taken out (/messages/:id), never the full URL.
+ * Admins are left out: the component waits for a signed-in account's profile
+ * before counting, so the team's own visits never reach either count.
  */
 export function Analytics() {
   const pathname = usePathname();
+  const { user, profile, loading } = useAuth();
+  const counted = useRef<string | null>(null);
+  const isAdmin = profile?.isAdmin ?? false;
+  const waiting = loading || (Boolean(user) && !profile);
+
   useEffect(() => {
+    if (waiting || !pathname || counted.current === pathname) return;
+    counted.current = pathname;
+    if (isAdmin) return;
+
     const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
-    const allowed = analyticsAllowed(GA_ID, {
+    const ctx: AnalyticsContext = {
       framed: window.top !== window.self,
       bareRoute: isBareRoute(pathname),
       hostname: window.location.hostname,
       globalPrivacyControl: nav.globalPrivacyControl === true,
+    };
+    if (!countingAllowed(ctx)) return;
+
+    const path = normalizePath(pathname);
+    const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+    sendBeacon({
+      t: "view",
+      s: "app",
+      v: visitorId(),
+      p: path,
+      r: referrerHost(document.referrer, window.location.hostname),
+      d: deviceClass(coarse, Math.min(window.screen.width, window.screen.height)),
     });
-    if (!allowed) return;
-    load();
-    window.gtag?.("event", "page_view", {
-      page_path: pathname,
-      page_location: window.location.href,
-      page_title: document.title,
-    });
-  }, [pathname]);
+
+    if (analyticsAllowed(GA_ID, ctx)) {
+      load();
+      // "set" first, so Google's own events on this page (scrolls, outbound
+      // clicks) carry the cleaned page too, not the address bar.
+      const page_location = window.location.origin + path;
+      window.gtag?.("set", { page_location, page_path: path });
+      window.gtag?.("event", "page_view", { page_location, page_path: path, page_title: document.title });
+    }
+  }, [pathname, waiting, isAdmin]);
+
   return null;
 }
