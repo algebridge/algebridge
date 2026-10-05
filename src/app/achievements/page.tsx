@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BADGES, getLevelInfo, getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
-import { getEquippedTitleLabel } from "@/lib/bridgeys";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Icon } from "@/components/Icon";
-import { BadgeMark, withoutEmoji } from "@/components/RewardMark";
+import { BadgeMark } from "@/components/RewardMark";
+import { StoredTitlePlate } from "@/components/TitlePlate";
 
 export default function AchievementsPage() {
   const [mounted, setMounted] = useState(false);
@@ -23,8 +23,7 @@ export default function AchievementsPage() {
       setXp(progress.xp);
       setStreak(progress.streak);
       setBridgeys(progress.bridgeys ?? 0);
-      const title = getEquippedTitleLabel(progress);
-      setEquippedTitle(title ? withoutEmoji(title) : null);
+      setEquippedTitle(progress.equippedTitleId ?? null);
       setEarnedBadges(progress.badges);
       setMounted(true);
     }
@@ -96,7 +95,9 @@ export default function AchievementsPage() {
             </p>
             <p className="mt-1.5 text-sm text-slate-600">
               {equippedTitle ? (
-                `Title: ${equippedTitle}`
+                <span className="flex flex-wrap items-center gap-1.5">
+                  Wearing <StoredTitlePlate stored={equippedTitle} size="sm" />
+                </span>
               ) : (
                 <>
                   Decorate your house and unlock titles
