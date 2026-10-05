@@ -219,7 +219,7 @@ img{display:block;max-width:100%;}
 .hero-cta .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.9);}
 .hero-note{margin:1.125rem auto 0;font-size:.875rem;color:var(--label);animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .6s both;}
 @keyframes rise-in{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
-.hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(2.5rem,6vh,4.5rem);}
+.hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(6rem,13vh,9.5rem);}
 .hero-window .frame{--fr:16px;box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);
   animation:window-in 1s cubic-bezier(.2,.8,.2,1) .55s both;}
 @keyframes window-in{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:none;}}
@@ -562,7 +562,7 @@ img{display:block;max-width:100%;}
   .hero-sub{margin-top:1.25rem;font-size:1rem;}
   .hero-cta{margin-top:1.5rem;flex-direction:column;align-items:stretch;max-width:360px;margin-left:auto;margin-right:auto;}
   .hero-note{margin-top:.875rem;font-size:.8125rem;}
-  .hero-window{margin-top:1.5rem;}
+  .hero-window{margin-top:4rem;}
   .hero-window .frame{--fr:12px;}
   .demo-cap{font-size:.8125rem;}
   .statement{padding:4rem 0 2rem;}
@@ -1150,7 +1150,7 @@ img{display:block;max-width:100%;}
   if (hero && scene && scene.getContext){
     var ctx = scene.getContext('2d');
     /* S is the scene's scale: the hero's height, up to about a screen's worth */
-    var W = 0, H = 0, CH = 0, S = 0, horizon = 0;
+    var W = 0, H = 0, CH = 0, S = 0, horizon = 0, winL = -1, winR = -1, winT = 1e9;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
     var BLUE = '37,99,235', AMBER = '245,158,11', INK = '27,42,82';
     /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
@@ -1175,8 +1175,11 @@ img{display:block;max-width:100%;}
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       hero.style.setProperty('--horizon', horizon + 'px');
       hero.style.setProperty('--glow-y', Math.round(horizon - S * 0.42) + 'px');
-      hero.style.setProperty('--glow-r', Math.round(S * 0.58) + 'px');
+      hero.style.setProperty('--glow-r', Math.round(S * (W < 700 ? 0.44 : 0.58)) + 'px');
       heroTop = hero.offsetTop;
+      /* where the lesson window covers the paper, in canvas coordinates: a label belongs in the open band above it */
+      var fr = document.getElementById('heroDemo');
+      if (fr){ var hb = hero.getBoundingClientRect(), fb = fr.getBoundingClientRect(); winL = fb.left - hb.left; winR = fb.right - hb.left; winT = fb.top - hb.top - horizon; }
     }
     /* how far the hero has scrolled past the top of the window, 0 to 1 (no layout read: the place is cached) */
     function progress(){
@@ -1185,6 +1188,8 @@ img{display:block;max-width:100%;}
     /* a point on the ground plane (x across, z ahead), seen from a camera one unit up;
        hor is this frame's horizon and vx the vanishing point's drift under the pointer */
     var hor = 0, vx = 0, vxTarget = 0;
+    /* the labels drawn in the last frame, for anyone checking they sit on their curves */
+    var labels = window.__heroLabels = [];
     function project(x, z){
       var F = S * 0.8;
       return [W / 2 + vx + x * F / z, hor + F / z];
@@ -1210,39 +1215,63 @@ img{display:block;max-width:100%;}
         if (z < 0.9) continue;
         var y = project(0, z)[1];
         if (y > CH + 2) continue;
-        var a = 0.06 + 0.26 * Math.pow(1 - k / 26, 1.4);
+        var a = 0.09 + 0.33 * Math.pow(1 - k / 26, 1.4);
         if (z < 1.6) a *= (z - 0.9) / 0.7;
         stroke([[0, y], [W, y]], BLUE, z < 3 ? 1 + (3 - z) * 0.5 : 1, a);
       }
       /* grid: lines ahead, converging */
       for (var x = -18; x <= 18; x++){
-        stroke([project(x, 0.95), project(x, 60)], BLUE, 1, x === 0 ? 0.2 : 0.11);
+        stroke([project(x, 0.95), project(x, 60)], BLUE, 1, x === 0 ? 0.26 : 0.16);
       }
       /* the curves and their equations, nearest last so they paint on top */
       var placed = curves.map(function(c){
         return { c: c, zc: (((c.z - travel) % PERIOD) + PERIOD) % PERIOD };
       }).sort(function(a, b){ return b.zc - a.zc; });
       ctx.textBaseline = 'middle';
+      labels.length = 0;
       placed.forEach(function(pl){
-        var c = pl.c, zc = pl.zc + 1.4, pts = [];
+        var c = pl.c, zc = pl.zc + 1.4, pts = [], run = [], runs = [];
         for (var q = 0; q <= 48; q++){
           var xx = c.xs[0] + (c.xs[1] - c.xs[0]) * q / 48, zz = zc + c.g(xx);
-          if (zz < 0.95 || zz > 90) continue;
-          pts.push(project(xx, zz));
+          var pt = (zz < 0.95 || zz > 90) ? null : project(xx, zz);
+          pts.push(pt);
+          if (pt) run.push(pt); else if (run.length){ runs.push(run); run = []; }
         }
-        if (pts.length < 2) return;
+        if (run.length) runs.push(run);
         var depth = Math.max(0, Math.min(1, 1 - (zc - 1.4) / PERIOD));
-        var wgt = 1.1 + 2.6 * depth, al = 0.35 + 0.65 * depth;
-        stroke(pts, c.tone, wgt * 3, al * 0.14);
-        stroke(pts, c.tone, wgt, al);
-        /* the equation sits by the curve's near end, and only once the curve is near:
-           far off, six labels would pile up at the vanishing point */
-        var la = Math.max(0, (depth - 0.75) / 0.25) * (W < 700 ? 0.5 : 0.9);
+        var wgt = 1.3 + 2.8 * depth, al = 0.4 + 0.6 * depth;
+        runs.forEach(function(r){ if (r.length > 1){ stroke(r, c.tone, wgt * 3, al * 0.2); stroke(r, c.tone, wgt, al); } });
+        /* the equation hangs off a point of its own curve: the lowest point still in
+           the open band of paper (on the canvas, clear of the window), marked with a
+           dot and a short leader, so the two read as one. Far off, six labels would
+           pile up at the vanishing point, so a label comes in as its curve nears. */
+        var la = Math.max(0, (depth - 0.5) / 0.3) * (W < 700 ? 0.7 : 1);
         if (la <= 0.02) return;
-        var tail = pts[pts.length - 1], fs = Math.round(11 + 8 * depth);
+        var fs = Math.round(11 + 8 * depth);
         ctx.font = '500 ' + fs + 'px ' + mono;
+        var tw = ctx.measureText(c.label).width, best = null;
+        for (var i = 0; i < pts.length; i++){
+          var q2 = pts[i];
+          if (!q2 || q2[0] < 16 || q2[0] > W - 16 || q2[1] < fs || q2[1] > CH - 12) continue;
+          var level = q2[1] >= winT - 6;                                  /* level with the window */
+          if (level && q2[0] > winL - 8 && q2[0] < winR + 8) continue;    /* behind it */
+          /* beside the window the text goes away from it; in the band, to the right when there is room */
+          var right = level ? q2[0] > winR : q2[0] + 14 + tw < W - 10;
+          var lx = right ? q2[0] + 14 : q2[0] - 14 - tw;
+          if (lx < 6 || lx + tw > W - 6) continue;
+          if (level && (right ? lx < winR + 4 : lx + tw > winL - 4)) continue;
+          if (!best || q2[1] > best.y + 1.5 || (Math.abs(q2[1] - best.y) <= 1.5 && q2[0] > best.x)) best = { x: q2[0], y: q2[1], lx: lx, right: right };
+        }
+        if (!best) return;
+        var A = [best.x, best.y], lx = best.lx, right = best.right;
+        var ly = A[1] - fs * 0.85;
+        if (ly < fs * 0.7) ly = A[1] + fs * 1.1;
+        ctx.fillStyle = 'rgba(' + c.tone + ',' + la + ')';
+        ctx.beginPath(); ctx.arc(A[0], A[1], 2 + 1.5 * depth, 0, Math.PI * 2); ctx.fill();
+        stroke([[A[0], A[1]], [right ? lx - 5 : lx + tw + 5, ly]], c.tone, 1, la * 0.9);
         ctx.fillStyle = 'rgba(' + INK + ',' + la + ')';
-        ctx.fillText(c.label, Math.min(W - 130, tail[0] + 12), tail[1] - fs * 0.9);
+        ctx.fillText(c.label, lx, ly);
+        labels.push({ label: c.label, ax: Math.round(A[0]), ay: Math.round(A[1]), lx: Math.round(lx), ly: Math.round(ly), w: Math.round(tw), fs: fs });
       });
     }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
