@@ -219,8 +219,7 @@ img{display:block;max-width:100%;}
 .hero-cta .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.9);}
 .hero-note{margin:1.125rem auto 0;font-size:.875rem;color:var(--label);animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .6s both;}
 @keyframes rise-in{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
-.hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(2.5rem,6vh,4.5rem);perspective:1600px;}
-.hero-window .tilt{transform-origin:50% 0;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(2.5rem,6vh,4.5rem);}
 .hero-window .frame{--fr:16px;box-shadow:0 1px 2px rgba(27,42,82,.08),0 40px 80px -36px rgba(27,42,82,.35);
   animation:window-in 1s cubic-bezier(.2,.8,.2,1) .55s both;}
 @keyframes window-in{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:none;}}
@@ -664,10 +663,8 @@ img{display:block;max-width:100%;}
     <p class="hero-note">Free and ad-free. The first skill is open right here, live from the platform.</p>
   </div>
   <div class="wrap hero-window" aria-label="The first skill, live from the platform">
-    <div class="tilt" id="heroTilt">
-      <div class="frame" id="heroDemo">
+    <div class="frame" id="heroDemo">
         <div class="demo" data-eager data-demo="/demo/lesson" data-title="The first skill on AlgeBridge: the key idea and three practice problems" style="--h:400px;--hp:720px"><div class="demo-wait" aria-hidden="true"><span>Loading from learn.algebridge.org</span></div><a class="demo-open" href="https://learn.algebridge.org/demo/lesson" target="_blank" rel="noopener">Open the first skill on the platform</a></div>
-      </div>
     </div>
     <div class="demo-cap">
       <span>Unit 1, Skill 1, live from learn.algebridge.org. Progress saves once you make an account.</span>
@@ -1149,7 +1146,6 @@ img{display:block;max-width:100%;}
   var hero  = document.querySelector('.hero');
   var scene = document.getElementById('heroScene');
   var copy  = document.getElementById('heroCopy');
-  var tiltBox = document.getElementById('heroTilt');
   var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (hero && scene && scene.getContext){
     var ctx = scene.getContext('2d');
@@ -1249,22 +1245,6 @@ img{display:block;max-width:100%;}
         ctx.fillText(c.label, Math.min(W - 130, tail[0] + 12), tail[1] - fs * 0.9);
       });
     }
-    /* the window lies back seven degrees at the top of the page and comes flat as
-       the page scrolls; once flat the transform goes, so the page inside renders crisp */
-    var lastTilt = null;
-    function paintTilt(){
-      if (!tiltBox) return;
-      var next = '';
-      if (finePointer && !reduce){
-        var k = Math.max(0, 1 - window.scrollY / 360);
-        if (k > 0.004) next = 'rotateX(' + (7 * k).toFixed(2) + 'deg) scale(' + (1 - 0.025 * k).toFixed(4) + ')';
-      }
-      /* written only when it changes: a style write every frame would cost a style pass every frame */
-      if (next === lastTilt) return;
-      lastTilt = next;
-      tiltBox.style.transform = next;
-      tiltBox.style.willChange = next ? 'transform' : '';
-    }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
     /* what a frame costs, for anyone checking: window.__heroStats.ms / window.__heroStats.n */
     var stats = window.__heroStats = { ms: 0, n: 0 };
@@ -1280,7 +1260,6 @@ img{display:block;max-width:100%;}
       vx += (vxTarget - vx) * 0.06;
       scrollTravel += (progress() * 4 - scrollTravel) * 0.08;
       draw(t + scrollTravel);
-      paintTilt();
       stats.ms += performance.now() - t0; stats.n++;
       if (!reduceMotion && inView && !document.hidden) raf = requestAnimationFrame(frame);
     }
