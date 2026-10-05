@@ -8,6 +8,9 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { Icon } from "@/components/Icon";
 import { BadgeMark } from "@/components/RewardMark";
 import { StoredTitlePlate } from "@/components/TitlePlate";
+import { UnitMark } from "@/components/UnitMark";
+import { certificateDateText, certificateList, type CertificateEntry } from "@/lib/certificates";
+import { unitHue } from "@/lib/hues";
 
 export default function AchievementsPage() {
   const [mounted, setMounted] = useState(false);
@@ -16,6 +19,7 @@ export default function AchievementsPage() {
   const [bridgeys, setBridgeys] = useState(0);
   const [equippedTitle, setEquippedTitle] = useState<string | null>(null);
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
+  const [certificates, setCertificates] = useState<CertificateEntry[]>([]);
 
   useEffect(() => {
     function refresh() {
@@ -25,6 +29,7 @@ export default function AchievementsPage() {
       setBridgeys(progress.bridgeys ?? 0);
       setEquippedTitle(progress.equippedTitleId ?? null);
       setEarnedBadges(progress.badges);
+      setCertificates(certificateList(progress));
       setMounted(true);
     }
     refresh();
@@ -140,6 +145,62 @@ export default function AchievementsPage() {
                     <Icon name="lock" size={15} />
                   </span>
                 )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section id="certificates" className="scroll-mt-24">
+        <h2 className="section-title">
+          Certificates{" "}
+          {mounted && (
+            <span className="text-sm font-normal text-slate-500">
+              ({certificates.filter((c) => c.earnedAt).length} of {certificates.length} earned)
+            </span>
+          )}
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">One for each unit you finish, and one for the whole course. Print them or save them as pictures.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {certificates.map((c) => {
+            const hue = c.unit ? unitHue(c.unit.id) : null;
+            const label = c.unit ? `Unit ${c.unit.number}: ${c.unit.title}` : "Algebra 1, the whole course";
+            const seal = (
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                style={c.earnedAt ? { background: hue?.solid ?? "#b7862c", color: hue?.onSolid ?? "#ffffff" } : undefined}
+              >
+                {c.unit ? <UnitMark unitId={c.unit.id} size={20} /> : <Icon name="trophy" size={19} />}
+              </span>
+            );
+            return c.earnedAt ? (
+              <Link
+                key={c.id}
+                href={`/certificate/${c.id}`}
+                className={`flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-raised ${c.unit ? "border-slate-200" : "border-amber-300 sm:col-span-2 lg:col-span-3"}`}
+              >
+                {seal}
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-900">{label}</span>
+                  <span className="block text-xs text-slate-500">Earned {certificateDateText(c.earnedAt)}</span>
+                </span>
+                <Icon name="arrow-right" size={16} className="ml-auto shrink-0 text-slate-400" />
+              </Link>
+            ) : (
+              <div
+                key={c.id}
+                className={`flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4 text-slate-400 ${c.unit ? "" : "sm:col-span-2 lg:col-span-3"}`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                  {c.unit ? <UnitMark unitId={c.unit.id} size={20} /> : <Icon name="trophy" size={19} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-600">{label}</span>
+                  <span className="block text-xs text-slate-500">
+                    {c.unit ? `Finish all ${c.unit.skills.length} skills to earn it` : "Finish every unit to earn it"}
+                  </span>
+                </span>
+                <Icon name="lock" size={15} className="ml-auto shrink-0" />
               </div>
             );
           })}

@@ -124,8 +124,13 @@ const MARKS: Record<string, React.ReactNode> = {
   ),
 };
 
+/** A unit's mark as bare paths on the 24-grid, to draw inside a larger SVG (a certificate's seal). */
+export function unitMarkPaths(unitId: string): React.ReactNode {
+  return MARKS[unitId] ?? <circle cx="12" cy="12" r="6" />;
+}
+
 export function UnitMark({ unitId, size = 22, className = "" }: { unitId: string; size?: number; className?: string }) {
-  const mark = MARKS[unitId] ?? <circle cx="12" cy="12" r="6" />;
+  const mark = unitMarkPaths(unitId);
   return (
     <svg
       width={size}

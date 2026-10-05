@@ -96,6 +96,8 @@ export interface AttemptResult {
   newLevel: MasteryLevel;
   skillJustCompleted: boolean;
   unitJustCompleted: boolean;
+  /** This answer finished the last unit of the course. */
+  courseJustCompleted: boolean;
   /** The furniture prize just earned by finishing a unit, if any. */
   unitPrizeId: string | null;
   xpGained: number;
@@ -384,6 +386,7 @@ export function recordProblemAttempt(
   progress.xp += xpGained;
 
   let unitJustCompleted = false;
+  let courseJustCompleted = false;
   let unitPrizeId: string | null = null;
   if (skillJustCompleted) {
     const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
@@ -397,6 +400,20 @@ export function recordProblemAttempt(
         progress.xp += XP_REWARDS.unitComplete;
         bridgeysGained += tryAwardUnitCompleteBridgeys(progress, unit.id);
         unitPrizeId = grantUnitPrize(progress, unit.id);
+        // The date on the unit's certificate: the first finish, kept for good.
+        const now = new Date().toISOString();
+        progress.certificates = { ...(progress.certificates ?? {}) };
+        progress.certificates[unit.id] ??= now;
+        const courseDone = units.every((u) =>
+          u.skills.every((s) => {
+            const lvl = s.id === skillId ? level : progress.skills[s.id]?.level ?? "locked";
+            return lvl === "proficient" || lvl === "mastered";
+          })
+        );
+        if (courseDone && !progress.courseCompletedAt) {
+          progress.courseCompletedAt = now;
+          courseJustCompleted = true;
+        }
       }
     }
   }
@@ -412,6 +429,7 @@ export function recordProblemAttempt(
     newLevel: level,
     skillJustCompleted,
     unitJustCompleted,
+    courseJustCompleted,
     unitPrizeId,
     xpGained,
     bridgeysGained,
