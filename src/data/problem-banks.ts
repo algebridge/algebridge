@@ -1,5 +1,6 @@
 import type { PracticeProblem } from "@/types";
-import { shuffleArray, withUniqueChoices } from "@/lib/problem-utils";
+import { canonicalPrompt, shuffleArray, withUniqueChoices } from "@/lib/problem-utils";
+import { interleaveByShape, shapeKey } from "@/lib/problem-order";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { problemAllowsCalculator } from "@/lib/calculator-access";
 
@@ -50,13 +51,24 @@ export function getShuffledProblemsForSkill(
 export function getFreshProblemsForSkill(
   skillId: string,
   seedProblems: PracticeProblem[] = [],
-  seed = Math.floor(Math.random() * 0xffffffff)
+  seed = Math.floor(Math.random() * 0xffffffff),
+  options: { seen?: Set<string> } = {}
 ): PracticeProblem[] {
-  const bank = generateProblemBank(skillId, seedProblems, seed);
-  // Every card that reaches a student has its choices made unique, whichever
-  // bank it came from.
-  if (bank.length === 0) return shuffleArray(getProblemBank(skillId, seedProblems)).map(withUniqueChoices);
-  return shuffleArray(bank).map(withUniqueChoices);
+  const generated = generateProblemBank(skillId, seedProblems, seed);
+  const bank = generated.length ? generated : getProblemBank(skillId, seedProblems);
+  // Random, then varied: questions this browser already showed go last, and
+  // within each part one of every kind comes before any kind repeats (see
+  // src/lib/problem-order.ts). Every card that reaches a student has its
+  // choices made unique, whichever bank it came from.
+  const seen = options.seen;
+  const shuffled = shuffleArray(bank);
+  const ordered = seen?.size
+    ? [
+        ...interleaveByShape(shuffled.filter((p) => !seen.has(canonicalPrompt(p.prompt))), (p) => shapeKey(p.prompt)),
+        ...interleaveByShape(shuffled.filter((p) => seen.has(canonicalPrompt(p.prompt))), (p) => shapeKey(p.prompt)),
+      ]
+    : interleaveByShape(shuffled, (p) => shapeKey(p.prompt));
+  return ordered.map(withUniqueChoices);
 }
 
 export function getProblemBankSize(skillId: string): number {
