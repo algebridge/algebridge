@@ -24,6 +24,7 @@ cp .env.example .env.local
 |----------|----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` | No | Cloud login & sync |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | Cloud login & sync |
+| `NEXT_PUBLIC_GA_ID` | No | Google Analytics 4 measurement ID for visit counts. Unset: the Algebridge property (`G-3JJ9QGH9DM`). Set to an empty string to count nothing. |
 | `OPENAI_API_KEY` | No | AI-powered tutor hints |
 
 Run `supabase/schema.sql` in your Supabase project SQL editor to create the progress table.

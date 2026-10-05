@@ -1546,6 +1546,19 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ok("policy: the pending list names the leaderboard's old default and the class hole", SF.PENDING_SAFETY_UPDATE.some((l) => /old default/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /class code/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /took the request/.test(l)));
   ok("policy: the pending list is house style", SF.PENDING_SAFETY_UPDATE.every((l) => !/[—–]/.test(l) && /\.$/.test(l) && !/\p{Extended_Pictographic}/u.test(l)));
 
+  // --- visit counting: a live page, outside a frame, with an ID, and only then -----------------
+  const AN = await import("../analytics.ts");
+  const live = { framed: false, bareRoute: false, hostname: "learn.algebridge.org", globalPrivacyControl: false };
+  ok("analytics: a live page with an ID counts", AN.analyticsAllowed("G-ABCD1234", live));
+  ok("analytics: no ID, no counting", !AN.analyticsAllowed("", live) && !AN.analyticsAllowed("UA-1234-1", live));
+  ok("analytics: a demo inside algebridge.org's frame is counted there, not twice", !AN.analyticsAllowed("G-ABCD1234", { ...live, framed: true }));
+  ok("analytics: the frame-only routes are left out", !AN.analyticsAllowed("G-ABCD1234", { ...live, bareRoute: true }));
+  ok("analytics: a local checkout never counts", ["localhost", "127.0.0.1", "[::1]", "app.localhost", "mac.local"].every((h) => !AN.analyticsAllowed("G-ABCD1234", { ...live, hostname: h })));
+  ok("analytics: Global Privacy Control is honored", !AN.analyticsAllowed("G-ABCD1234", { ...live, globalPrivacyControl: true }));
+  ok("analytics: Google signals and ad personalization off, page views sent by the app", AN.GA_CONFIG.allow_google_signals === false && AN.GA_CONFIG.allow_ad_personalization_signals === false && AN.GA_CONFIG.send_page_view === false);
+  ok("analytics: the privacy page names Google Analytics while the ID is set", /\{GA_ID && \(/.test(pages[0][1]) && /<strong>Google Analytics<\/strong> counts visits/.test(pages[0][1]));
+  ok("analytics: the layout mounts the counter once", (repo("src/app/layout.tsx").match(/<Analytics \/>/g) || []).length === 1);
+
   // --- the extension's model-side rule (finding 3c) ---------------------------------------------
   const EX = await import("../extension-hints.ts");
   ok("extension: ASK_SYSTEM tells the model to answer CRISIS", EX.ASK_SYSTEM.includes(H.CRISIS_MODEL_RULE));

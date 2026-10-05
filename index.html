@@ -22,6 +22,24 @@
 <meta name="twitter:title" content="Every student deserves to master Algebra 1.">
 <meta name="twitter:description" content="Free Algebra 1: 13 units, 46 skills, feedback that names the slip, an AI helper that refuses to give answers, and real tutors. Built by students.">
 <meta name="twitter:image" content="https://algebridge.org/og.png">
+<meta name="google-site-verification" content="IeZni3c_m0n9Y9cXaDHAdbJ1JSt1FNoZM44xfhoIA1s">
+
+<!-- Analytics: Google Analytics 4. Set GA_ID to the property's measurement ID (G-XXXXXXXXXX) and the same
+     ID on the platform (NEXT_PUBLIC_GA_ID on Vercel). Empty ID: nothing loads. Local previews never count. -->
+<script>
+(function(){
+  var GA_ID = 'G-3JJ9QGH9DM';
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ window.dataLayer.push(arguments); }
+  window.gtag = gtag;
+  if (!GA_ID || location.port === '4828' || location.hostname === 'localhost') return;
+  var s = document.createElement('script'); s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA_ID);
+  document.head.appendChild(s);
+  gtag('js', new Date());
+  gtag('config', GA_ID, { allow_google_signals: false, allow_ad_personalization_signals: false });
+})();
+</script>
 
 <script type="application/ld+json">
 {
@@ -268,10 +286,10 @@ img{display:block;max-width:100%;}
 }
 
 /* ── Scroll-revealed statement ──────────────────────────────── */
-.statement{position:relative;z-index:2;background:linear-gradient(180deg,#d6e9ff,#edf5ff);color:var(--black);padding:6rem 0 2rem;}
+.statement{position:relative;z-index:2;background:linear-gradient(180deg,#d6e9ff,#edf5ff);color:var(--black);padding:6rem 0 2rem;overflow-x:clip;}
 .band-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
 .statement p{font-size:clamp(1.5rem,3.1vw,2.75rem);font-weight:400;line-height:1.18;letter-spacing:-0.015em;max-width:22ch;}
-.statement-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3rem 5rem;align-items:end;}
+.statement-grid{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,13fr);gap:3rem 5rem;align-items:end;}
 .statement .w{color:rgba(27,42,82,.24);transition:color .35s ease;}
 .statement .w.lit{color:var(--black);}
 .statement .w.accent.lit{color:var(--accent);}
@@ -339,7 +357,7 @@ img{display:block;max-width:100%;}
 /* ── Curriculum stage ───────────────────────────────────────── */
 .stage{position:relative;overflow:hidden;background:linear-gradient(180deg,#e4f0ff 0%,#f6faff 100%);padding:7rem 0;}
 .stage-words{display:flex;flex-wrap:wrap;gap:.35em 1.15em;align-items:baseline;justify-content:center;
-  font-size:clamp(1.5rem,4vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-0.01em;max-width:1100px;margin:0 auto;}
+  font-size:clamp(.9375rem,1.45vw,1.3125rem);font-weight:400;line-height:1.15;letter-spacing:-0.005em;max-width:760px;margin:0 auto;}
 .stage-words span{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease;}
 .stage-words span.in{opacity:1;transform:none;}
 .stage-words .dim{color:#8fa8dc;}
@@ -437,7 +455,7 @@ img{display:block;max-width:100%;}
 .snap figcaption{margin-top:1.5rem;font-size:.875rem;color:var(--label);opacity:0;transition:opacity .5s ease .45s;}
 .snap.seen figcaption{opacity:1;}
 .snap figcaption a{color:var(--black);text-decoration:underline;text-underline-offset:3px;}
-.snap-wide{max-width:420px;justify-self:end;margin:0 2rem -8rem 0;}
+.snap-wide{max-width:640px;justify-self:end;margin:0 2rem -8rem 0;}
 .snap-tall{max-width:240px;position:relative;top:-1.5rem;margin:-11.5rem 2.5rem 0 0;}
 .art-wrap{display:flex;justify-content:center;align-items:center;}
 .art-books{width:min(100%,380px);display:block;}
@@ -546,7 +564,7 @@ img{display:block;max-width:100%;}
   .hero{padding-top:2.5rem;}
   .statement{padding:5rem 0 2.5rem;}
   .statement-grid{grid-template-columns:1fr;}
-  .snap-wide{justify-self:start;max-width:400px;margin:0 1rem -6.5rem 0;}
+  .snap-wide{justify-self:start;max-width:620px;margin:0 1rem -6.5rem 0;}
   #how{padding-top:6.5rem;}
   .team-top{grid-template-columns:1fr;gap:2.5rem;align-items:start;}
   .team-top .snap-tall{justify-self:start;max-width:240px;top:0;margin-top:0;}
@@ -572,7 +590,7 @@ img{display:block;max-width:100%;}
   .statement{padding:4rem 0 2rem;}
   .snap{--tilt:-2deg;}
   .snap-tall{--tilt:2deg;max-width:210px;}
-  .snap-wide{max-width:300px;margin:0 .5rem -3rem 0;}
+  .snap-wide{max-width:calc(100% - .75rem);margin:0 .75rem -3rem 0;}
   #how{padding-top:4.5rem;}
   .snap-wide img{border-radius:80px 20px 80px 20px;}
   .snap img{box-shadow:0 0 0 5px #fff,0 24px 48px -26px rgba(27,42,82,.45);}
@@ -1003,14 +1021,13 @@ img{display:block;max-width:100%;}
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var phoneQuery = window.matchMedia('(max-width: 640px)');
 
-  /* ── CTA events for whichever analytics gets installed ──────
-     GA4 reads window.dataLayer as is; Plausible can read the same
-     pushes from a one-line adapter. Nothing is sent anywhere until
-     one of them is added to the page.                             */
-  window.dataLayer = window.dataLayer || [];
+  /* ── CTA events ──────────────────────────────────────────────
+     Each button with data-cta reports a cta_click event through
+     gtag (defined in the head). Without a GA_ID the call only
+     lands in window.dataLayer and nothing leaves the page.      */
   document.addEventListener('click', function(e){
     var a = e.target && e.target.closest ? e.target.closest('[data-cta]') : null;
-    if (a) window.dataLayer.push({ event: 'cta_click', cta: a.getAttribute('data-cta') });
+    if (a && window.gtag) window.gtag('event', 'cta_click', { cta: a.getAttribute('data-cta') });
   });
 
   /* ── Announcement dismiss ─────────────────────────────────── */

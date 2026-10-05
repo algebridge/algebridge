@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
+import { GA_ID } from "@/lib/analytics";
 
 export const metadata = { title: "Privacy Policy" };
 
@@ -99,6 +100,9 @@ export default function PrivacyPage() {
             <li><strong>Anthropic or OpenAI</strong>, when one is set up, writes the recap after a tutoring call. It gets both people&apos;s names, the call&apos;s captions as a transcript labeled by speaker (if captions were on), and the student&apos;s notebook. The recap is saved with the call record and sent to the other person as a message. Without either service, a template on our own server writes it.</li>
             <li><strong>Google</strong>: if anyone turns on captions in a call, the browser&apos;s speech recognition turns the audio into text, and in Chrome that is a Google service. Google also handles &quot;Continue with Google&quot; sign-in if you choose it.</li>
             <li><strong>YouTube</strong> plays the lesson videos, embedded from youtube-nocookie.com. Your browser contacts YouTube when a lesson&apos;s video player loads.</li>
+            {GA_ID && (
+              <li><strong>Google Analytics</strong> counts visits: which pages open, when, the browser and screen size, and a rough location worked out from the IP address, which Google does not keep. It sets a cookie with a random ID so one visitor over several days counts once. It gets no name, email, answer or message, the advertising features are off, and browsers that send Global Privacy Control are left out. The demo frames on algebridge.org are counted there, not here.</li>
+            )}
           </ul>
           <p className="mt-2">
             AlgeBridge checks each message to Archie, and each question to the Hints extension,
