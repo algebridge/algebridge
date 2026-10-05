@@ -79,7 +79,47 @@ export function getProblemBankSize(skillId: string): number {
  * Share of a skill's problems that earn a calculator before the whole skill
  * gets one. Below it, the calculator is left out of that skill entirely.
  */
-const CALCULATOR_SHARE = 0.3;
+const CALCULATOR_SHARE = 0.2;
+
+/**
+ * Skills where the arithmetic, or knowing a number by heart, IS the work:
+ * inverse operations on small numbers, the slope fraction, exponent and
+ * radical rules (a calculator turns "simplify 8^(2/3)" or "√288" into a
+ * button press), spotting perfect squares and factor pairs, and the special
+ * products a student is asked to work out without one. These never get the
+ * calculator, however big their numbers look.
+ */
+export const CALCULATOR_WITHHELD: ReadonlySet<string> = new Set([
+  "one-step-equations",
+  "two-step-equations",
+  "multi-step-equations",
+  "equations-with-fractions",
+  "linear-inequalities",
+  "slope",
+  "exponent-rules",
+  "negative-fractional-exponents",
+  "simplifying-radicals",
+  "multiplying-binomials",
+  "special-products",
+  "factoring-trinomials",
+  "factoring-special",
+  "solving-by-factoring",
+  "completing-square",
+]);
+
+/**
+ * Skills where the numbers are bookkeeping around the idea, so the calculator
+ * is offered even when most of the bank looks tidy: chaining conversion
+ * factors, means and fences, relative frequencies, and evaluating powers in
+ * an exponential model.
+ */
+export const CALCULATOR_OFFERED: ReadonlySet<string> = new Set([
+  "dimensional-analysis",
+  "center-spread",
+  "two-way-tables",
+  "exponential-functions",
+]);
+
 const calculatorBySkill = new Map<string, boolean>();
 
 /**
@@ -97,6 +137,8 @@ const calculatorBySkill = new Map<string, boolean>();
  * visits.
  */
 export function skillOffersCalculator(skillId: string, seedProblems: PracticeProblem[] = []): boolean {
+  if (CALCULATOR_WITHHELD.has(skillId)) return false;
+  if (CALCULATOR_OFFERED.has(skillId)) return true;
   const known = calculatorBySkill.get(skillId);
   if (known !== undefined) return known;
   const bank = getProblemBank(skillId, seedProblems);

@@ -57,7 +57,13 @@ export type IconName =
   | "phone"
   | "flag"
   | "shield"
-  | "search";
+  | "search"
+  | "keyboard"
+  | "backspace"
+  | "enter"
+  | "printer"
+  | "download"
+  | "versus";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -241,6 +247,44 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M7 20h11" />
       <path d="M5.5 15.5 14 7a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12.5 18.5H9L5.5 15.5Z" />
       <path d="M10 11l5 5" />
+    </>
+  ),
+  keyboard: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 13.5h.01M11 13.5h.01M14.5 13.5h.01M8 15.5h8" />
+    </>
+  ),
+  backspace: (
+    <>
+      <path d="M9 5h10.5A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5H9l-6-7Z" />
+      <path d="M12 9.5l5 5M17 9.5l-5 5" />
+    </>
+  ),
+  enter: (
+    <>
+      <path d="M19 5v7a2 2 0 0 1-2 2H6" />
+      <path d="M10 10l-4 4 4 4" />
+    </>
+  ),
+  printer: (
+    <>
+      <path d="M7 9V3.5h10V9" />
+      <path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+      <path d="M7 14h10v6.5H7Z" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 4v11M7 10.5l5 5 5-5" />
+      <path d="M5 19.5h14" />
+    </>
+  ),
+  versus: (
+    <>
+      <circle cx="7" cy="7.5" r="2.6" />
+      <circle cx="17" cy="7.5" r="2.6" />
+      <path d="M2.5 19c.4-3 2.2-5 4.5-5s4.1 2 4.5 5M12.5 19c.4-3 2.2-5 4.5-5s4.1 2 4.5 5" />
     </>
   ),
   "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,

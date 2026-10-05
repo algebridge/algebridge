@@ -56,6 +56,50 @@ ok("words are not numbers", parseNumericAnswer("idk") === null);
 ok("1,5 is not fifteen", parseNumericAnswer("1,5") === null);
 ok("divide by zero", parseNumericAnswer("3/0") === null);
 
+// --- More ways to write an answer ------------------------------------------------
+{
+  const G = await import("../grading.ts");
+  const num = (expected: number, given: string, opts = {}) => G.gradeTyped(expected, given, opts);
+  ok("½ on its own", numericAnswerMatches(0.5, "½"));
+  ok("2½ is a mixed number", numericAnswerMatches(2.5, "2½") && numericAnswerMatches(2.5, "2 ½"));
+  ok("-¾", numericAnswerMatches(-0.75, "-¾") && numericAnswerMatches(-0.75, "−¾"));
+  ok("fraction slash and ÷", numericAnswerMatches(5 / 3, "5⁄3") && numericAnswerMatches(5 / 3, "5 ÷ 3"));
+  ok("x ≈ for a rounded answer", numericAnswerMatches(5 / 3, "x ≈ 1.67") && numericAnswerMatches(5 / 3, "≈1.67"));
+  ok("f(4) ≈", numericAnswerMatches(11, "f(4) = 11") && numericAnswerMatches(11.2, "f(4) ≈ 11.2", 1));
+  ok("percent for a share", numericAnswerMatches(0.45, "45%") && numericAnswerMatches(0.45, "45 %", 2));
+  ok("percent still reads as a percent", numericAnswerMatches(45, "45%"));
+  ok("a percent is not any amount", !numericAnswerMatches(0.45, "4.5%") && !numericAnswerMatches(0.45, "450%"));
+  ok("scientific notation, typed every way", ["3.5 × 10^4", "3.5x10^4", "3.5*10^4", "3.5 x 10⁴", "3.5e4", "3.5 times 10^4"].every((t) => numericAnswerMatches(35000, t)));
+  ok("negative exponents in scientific notation", numericAnswerMatches(0.00042, "4.2 × 10^-4") && numericAnswerMatches(0.00042, "4.2 × 10⁻⁴") && numericAnswerMatches(0.00042, "4.2*10^(-4)"));
+  ok("scientific notation with a unit", numericAnswerMatches(35000, "3.5 × 10^4 km"));
+  ok("a superscript power", numericAnswerMatches(729, "3⁶") && numericAnswerMatches(0.125, "2⁻³"));
+  ok("old forms still read", ["5/3", "1 2/3", "1.67", "x = 1.67"].every((t) => numericAnswerMatches(5 / 3, t)));
+
+  // Arithmetic counts where the calculator is offered, and is only a nudge where it is not.
+  ok("expressions judged where offered", num((3 + Math.sqrt(17)) / 2, "(3+√17)/2", { expressions: true }) === "right");
+  ok("rounded expression", num(562.43, "500 × 1.04^3", { expressions: true, decimalPlaces: 2 }) === "right" && num(562.43, "500*1.04³", { expressions: true, decimalPlaces: 2 }) === "right");
+  ok("π and roots", num(4 * Math.PI, "4π", { expressions: true }) === "right" && num(2 * Math.sqrt(3), "2√3", { expressions: true }) === "right");
+  ok("a wrong expression is wrong", num(10, "2 × 6", { expressions: true }) === "wrong");
+  ok("3x4 typed for 3 × 4", num(12, "3x4", { expressions: true }) === "right");
+  ok("unfinished arithmetic is a nudge where it is the skill", num(4, "(11 − 3)/2") === "simplify" && num(5, "2 + 3") === "simplify");
+  ok("a nudge says nothing about right or wrong", num(4, "(11 − 3)/3") === "simplify");
+  ok("a typo is unreadable, not wrong", num(4, "4..") === "unreadable" && num(4, "four-ish") === "unreadable" && num(4, "") === "unreadable");
+  ok("a plain number is judged either way", num(4, "4") === "right" && num(4, "5") === "wrong" && num(4, "8/2") === "right");
+
+  // Typing the problem's own arithmetic back is not an answer.
+  ok("2^5 for Evaluate 2^5", num(32, "2^5", { prompt: "Evaluate 2^5." }) === "simplify" && num(32, "2⁵", { prompt: "Evaluate 2^5." }) === "simplify");
+  ok("√49 for Simplify √49", num(7, "√49", { expressions: true, prompt: "Simplify √49" }) === "simplify");
+  ok("standard form copied back", num(35000, "3.5 × 10^4", { prompt: "Write 3.5 × 10^4 in standard form." }) === "simplify" && num(35000, "3.5x10^4", { prompt: "Write 3.5 × 10^4 in standard form." }) === "simplify");
+  ok("a power that is the work still counts", num(729, "3^6", { prompt: "Simplify 3^2 · 3^4" }) === "right");
+  ok("a fraction from the prompt still counts", num(2 / 3, "2/3", { prompt: "A line has slope 2/3. What is the slope of a line parallel to it?" }) === "right");
+  ok("a negative from the prompt still counts", num(-3, "-3", { prompt: "What is the y-intercept of y = 2x − 3?" }) === "right");
+  ok("a wrong copy is just wrong", num(97, "2^5", { prompt: "Evaluate 3 · 2^5 + 1" }) === "wrong");
+
+  const P = { type: "numeric", answer: 4, prompt: "Solve 2x + 3 = 11" };
+  ok("answerIsRight keeps its yes or no", G.answerIsRight(P, "4") && !G.answerIsRight(P, "(11-3)/2") && G.answerIsRight(P, "(11-3)/2", { expressions: true }));
+  ok("gradeAnswer reads choices", G.gradeAnswer({ type: "multiple-choice", answer: "x = 4" }, "x = 4") === "right" && G.gradeAnswer({ type: "multiple-choice", answer: "x = 4" }, "x = 5") === "wrong");
+}
+
 // --- Interests ------------------------------------------------------------------
 ok("picks map to topics", topicsFromPicks(["basketball", "minecraft"]).map((t) => t.label).join() === "Basketball,Minecraft");
 ok("unknown picks ignored", topicsFromPicks(["nope", "music"]).length === 1);
@@ -398,6 +442,20 @@ ok("no calculator for slope", !calc("slope"));
 ok("calculator for unit conversion", calc("unit-basics"));
 ok("calculator for compound interest", calc("exponential-growth"));
 ok("calculator for unit word problems", calc("unit-word-problems"));
+ok("calculator for chained conversions", calc("dimensional-analysis"));
+ok("calculator for means and fences", calc("center-spread"));
+ok("calculator for relative frequencies", calc("two-way-tables"));
+ok("calculator for the quadratic formula", calc("quadratic-formula"));
+ok("no calculator where perfect squares are the skill", !calc("simplifying-radicals") && !calc("factoring-special") && !calc("solving-by-factoring"));
+ok("no calculator for exponent rules", !calc("exponent-rules") && !calc("negative-fractional-exponents"));
+ok("no calculator for the special products done by hand", !calc("special-products"));
+{
+  const { CALCULATOR_WITHHELD, CALCULATOR_OFFERED } = await import("../../data/problem-banks.ts");
+  const ids = new Set(units.flatMap((u) => u.skills.map((s) => s.id)));
+  const stray = [...CALCULATOR_WITHHELD, ...CALCULATOR_OFFERED].filter((id) => !ids.has(id));
+  ok("every calculator override names a real skill", stray.length === 0, stray.join(", "));
+  ok("no skill is both offered and withheld", [...CALCULATOR_OFFERED].every((id) => !CALCULATOR_WITHHELD.has(id)));
+}
 ok("no answer is remembered from an empty bank", !skillOffersCalculator("unit-basics", []) || calc("unit-basics"));
 const offered = units.flatMap((u) => u.skills).filter((s) => calc(s.id)).map((s) => s.id);
 console.log(`  calculator offered on ${offered.length} skills: ${offered.join(", ")}`);

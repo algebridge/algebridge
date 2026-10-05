@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { MathKeysOpen } from "@/components/MathKeyboard";
 import { checkWork, hasLetters, startingLines, workContext, type StepMark } from "@/lib/work-check";
 import type { PadLine } from "./types";
 
@@ -108,6 +109,7 @@ export function WorkPad({
   /** Something for the header's right side in place of "Back to chat". */
   headerAction?: React.ReactNode;
 }) {
+  const keysOpen = useContext(MathKeysOpen);
   const [fallback] = useState(() => initialPad(problem));
   const lines = given ?? fallback;
   const inputs = useRef(new Map<number, HTMLInputElement>());
@@ -254,6 +256,8 @@ export function WorkPad({
                   autoCapitalize="off"
                   spellCheck={false}
                   maxLength={120}
+                  data-math-keys="work"
+                  inputMode={keysOpen ? "none" : undefined}
                   className={`min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-[14px] font-medium tabular-nums tracking-wide text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
                     mark.kind === "changed"
                       ? "border-amber-300 focus:border-amber-400 focus:ring-amber-100"
