@@ -11,6 +11,7 @@ import { SmoothScroll } from "@/components/SmoothScroll";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { LoginBanner } from "@/components/LoginBanner";
 import { AppInit } from "@/components/AppInit";
+import { Analytics } from "@/components/Analytics";
 import { AuthProvider } from "@/lib/auth";
 import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
@@ -34,6 +35,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Search Console ownership of learn.algebridge.org (the same token verifies algebridge.org).
+  verification: { google: "IeZni3c_m0n9Y9cXaDHAdbJ1JSt1FNoZM44xfhoIA1s" },
   // Every page names itself in the tab ("Achievements, AlgeBridge"); a page
   // with no title of its own gets the default.
   title: {
@@ -72,6 +75,7 @@ export default function RootLayout({
           <ScratchpadProvider>
             <SmoothScroll />
             <AppInit />
+            <Analytics />
             <IncomingCall />
             <SideNav />
 

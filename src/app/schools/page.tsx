@@ -19,6 +19,7 @@ import { PhoneFold, UnitStandards } from "./UnitStandards";
 import { SchoolIcon, type SchoolIconName } from "./icons";
 import { SCHOOL_MODE_OFF, SCHOOL_MODE_STAYS } from "@/lib/school-mode";
 import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
+import { GA_ID } from "@/lib/analytics";
 
 /*
  * A page for a school or district audience. Every sentence here was checked
@@ -253,6 +254,16 @@ const PRIVACY_ITEMS: Item[] = [
     title: "No ads, and deleting an account",
     body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages. Uploaded photos (stored at public links), feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
   },
+  // Listed only while a measurement ID is set, so the handout matches the running deployment.
+  ...(GA_ID
+    ? [
+        {
+          mark: { icon: "eye" } as Glyph,
+          title: "Visit counts",
+          body: "Google Analytics counts page views on the live site: the page, the time, the browser and screen size, and a rough location from the IP address, which Google does not keep. It gets no names, emails, answers or messages, the advertising features are off, and browsers that send Global Privacy Control are left out. A district deployment runs without it when NEXT_PUBLIC_GA_ID is left unset.",
+        },
+      ]
+    : []),
 ];
 
 const AI_ROWS: { what: string; sends: string; who: string }[] = [
