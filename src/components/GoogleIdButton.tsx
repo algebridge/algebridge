@@ -58,6 +58,14 @@ export function GoogleIdButton({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      // Google refuses its button on an address the client does not list, so
+      // keep the redirect button until Google says this one is allowed.
+      const allowed = await fetch("/api/google-origin")
+        .then((r) => r.json() as Promise<{ valid?: boolean }>)
+        .then((j) => j.valid === true)
+        .catch(() => false);
+      if (cancelled) return;
+      if (!allowed) return setState("failed");
       const google = await loadGoogle();
       if (cancelled) return;
       if (!google || !host.current) return setState("failed");
