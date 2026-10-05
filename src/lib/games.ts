@@ -47,7 +47,18 @@ export interface CourtGame {
   accent: string;
 }
 
-const MOVE = { accel: 2400, maxSpeed: 470, drag: 7 };
+/**
+ * How each sport moves. Drag is how fast a player stops once the keys let go:
+ * a wrestler stays balanced and set, a volleyball player bursts and plants, a
+ * footballer at full tilt carries their pace a few steps. Speeds are in scene
+ * units a second; the stride that goes with them is in src/lib/gait.ts.
+ */
+const MOVES: Record<CourtGameId, { accel: number; maxSpeed: number; drag: number }> = {
+  wrestling: { accel: 1800, maxSpeed: 300, drag: 8.5 },
+  cheer: { accel: 2100, maxSpeed: 400, drag: 6.5 },
+  volleyball: { accel: 2700, maxSpeed: 440, drag: 8 },
+  soccer: { accel: 1500, maxSpeed: 560, drag: 3.8 },
+};
 
 export const COURT_GAMES: CourtGame[] = [
   {
@@ -63,7 +74,7 @@ export const COURT_GAMES: CourtGame[] = [
     cheers: ["Takedown!", "Two points!", "Clean shot!", "On the mat!"],
     continueLabel: "Wrestle on",
     note: "In your head, or draw it out. Hands on the mat, calculator away.",
-    ...MOVE,
+    ...MOVES.wrestling,
     accent: "#f59e0b",
   },
   {
@@ -79,7 +90,7 @@ export const COURT_GAMES: CourtGame[] = [
     cheers: ["Go team!", "Toe touch!", "Stuck it!", "Crowd's up!"],
     continueLabel: "Keep cheering",
     note: "In your head, or draw it out. Pom-poms down, calculator away.",
-    ...MOVE,
+    ...MOVES.cheer,
     accent: "#facc15",
   },
   {
@@ -95,7 +106,7 @@ export const COURT_GAMES: CourtGame[] = [
     cheers: ["Kill!", "Spiked it!", "Point!", "Over the top!"],
     continueLabel: "Next ball",
     note: "In your head, or draw it out. Eyes on the ball, calculator away.",
-    ...MOVE,
+    ...MOVES.volleyball,
     accent: "#f97316",
   },
   {
@@ -111,7 +122,7 @@ export const COURT_GAMES: CourtGame[] = [
     cheers: ["Goal!", "Top corner!", "Back of the net!", "What a strike!"],
     continueLabel: "Play on",
     note: "In your head, or draw it out. Head up, calculator away.",
-    ...MOVE,
+    ...MOVES.soccer,
     accent: "#22c55e",
   },
 ];

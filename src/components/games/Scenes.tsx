@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GOAL, NET_Y, type CourtGameId } from "@/lib/games";
-import { BOARD, RINK } from "@/lib/rink";
+import { RINK } from "@/lib/rink";
 import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Ribbon, SideStands, Vignette, WoodFloor, toward } from "./Arena";
 
 /**
- * The four courts and the rink, drawn flat on the same 1200 × 800 plane as
- * the House, in its hand: no outlines, two tones per surface, detail from
- * repetition. The play areas in src/lib/games.ts sit on these surfaces, so
- * everything drawn here stays clear of where the players run.
+ * The four courts and the rink, as arenas seen from a broadcast camera high
+ * in the stands, on the same 1200 × 800 plane as the House. The shared pieces
+ * (the bowl, boards, video board, lights, floors) are in ./Arena.tsx. The play
+ * areas in src/lib/games.ts and the rink in src/lib/rink.ts sit on these
+ * surfaces, so everything drawn here stays clear of where the players run.
  */
 
 const W = 1200;
@@ -56,62 +57,11 @@ function Svg({ children, label }: { children: React.ReactNode; label: string }) 
   );
 }
 
-const SHIRTS = ["#1d4ed8", "#facc15", "#ef4444", "#f8fafc", "#22c55e", "#7c3aed", "#f97316", "#0ea5e9"];
 const SKINS = ["#f1c7a5", "#b07a55", "#6f432a", "#8d5a3b", "#e0ac86", "#4b2d1c"];
 const HAIRS = ["#1c1210", "#4a2c17", "#c9a24a", "#2b1b12", "#6b4426", "#111111"];
 
 /** Rounds to hundredths, so a computed coordinate prints the same on the server and in the browser. */
 const r2 = (v: number) => Math.round(v * 100) / 100;
-
-/**
- * A crowd in rows: people with sloped shoulders, heads lit from the upper
- * left with the far cheek in shade, hair cut four ways (short, long to the
- * shoulders, a bun, cropped), shirts in team colors, a few arms up. Placed
- * by a fixed pattern so the server and the browser agree.
- */
-function Crowd({ x0, x1, y0, rows, gap, size, colors = SHIRTS }: { x0: number; x1: number; y0: number; rows: number; gap: number; size: number; colors?: string[] }) {
-  const out: React.ReactNode[] = [];
-  const s = size;
-  for (let r = 0; r < rows; r += 1) {
-    const y = y0 + r * gap;
-    const row: React.ReactNode[] = [];
-    for (let x = x0 + (r % 2) * (s * 1.1); x < x1; x += s * 2.3) {
-      const k = Math.round(x * 7 + r * 13);
-      const up = k % 9 === 0;
-      const skin = SKINS[(k >> 2) % SKINS.length];
-      const hy = y - s * 0.45;
-      const X = (v: number) => r2(x + v * s);
-      const Y = (v: number) => r2(y + v * s);
-      const cut = (k >> 4) % 4;
-      const hair =
-        cut === 1
-          ? `M${X(-0.68)} ${Y(-0.4)} Q${X(-0.72)} ${Y(-1.2)} ${X(0)} ${Y(-1.15)} Q${X(0.72)} ${Y(-1.2)} ${X(0.68)} ${Y(-0.4)} L${X(0.72)} ${Y(0.45)} L${X(0.44)} ${Y(0.4)} Q${X(0.5)} ${Y(-0.78)} ${X(0)} ${Y(-0.84)} Q${X(-0.5)} ${Y(-0.78)} ${X(-0.44)} ${Y(0.4)} L${X(-0.72)} ${Y(0.45)}Z`
-          : cut === 2
-            ? `M${X(-0.64)} ${Y(-0.45)} Q${X(-0.66)} ${Y(-1.15)} ${X(0)} ${Y(-1.12)} Q${X(0.66)} ${Y(-1.15)} ${X(0.64)} ${Y(-0.45)} Q${X(0.45)} ${Y(-0.86)} ${X(0)} ${Y(-0.88)} Q${X(-0.45)} ${Y(-0.86)} ${X(-0.64)} ${Y(-0.45)}Z M${X(0.02)} ${Y(-1.5)} a${r2(s * 0.3)} ${r2(s * 0.3)} 0 1 0 0.01 0Z`
-            : cut === 3
-              ? `M${X(-0.6)} ${Y(-0.6)} Q${X(-0.6)} ${Y(-1.1)} ${X(0)} ${Y(-1.08)} Q${X(0.6)} ${Y(-1.1)} ${X(0.6)} ${Y(-0.6)} Q${X(0.3)} ${Y(-0.96)} ${X(0)} ${Y(-0.96)} Q${X(-0.3)} ${Y(-0.96)} ${X(-0.6)} ${Y(-0.6)}Z`
-              : `M${X(-0.64)} ${Y(-0.45)} Q${X(-0.66)} ${Y(-1.15)} ${X(0)} ${Y(-1.12)} Q${X(0.66)} ${Y(-1.15)} ${X(0.64)} ${Y(-0.45)} Q${X(0.45)} ${Y(-0.84)} ${X(0)} ${Y(-0.8)} Q${X(-0.45)} ${Y(-0.84)} ${X(-0.64)} ${Y(-0.45)}Z`;
-      row.push(
-        <g key={`${r}-${x}`}>
-          {/* Shoulders, sloping from the neck. */}
-          <path d={`M${X(-1)} ${Y(1.6)} C${X(-1)} ${Y(0.6)} ${X(-0.78)} ${Y(0.18)} ${X(-0.3)} ${Y(0.1)} L${X(0.3)} ${Y(0.1)} C${X(0.78)} ${Y(0.18)} ${X(1)} ${Y(0.6)} ${X(1)} ${Y(1.6)}Z`} fill={colors[k % colors.length]} />
-          {up && <rect x={X(0.7)} y={Y(-1.5)} width={r2(s * 0.42)} height={r2(s * 1.8)} rx={r2(s * 0.21)} fill={skin} />}
-          <circle cx={x} cy={r2(hy)} r={r2(s * 0.62)} fill={skin} />
-          {/* The far cheek turned from the light. */}
-          <path d={`M${X(0.12)} ${Y(-1.06)} A${r2(s * 0.62)} ${r2(s * 0.62)} 0 0 1 ${X(0.12)} ${Y(0.16)} A${r2(s * 0.44)} ${r2(s * 0.62)} 0 0 0 ${X(0.12)} ${Y(-1.06)}Z`} fill="#000000" opacity="0.16" />
-          <path d={hair} fill={HAIRS[(k >> 3) % HAIRS.length]} />
-        </g>
-      );
-    }
-    // Each row sways on its own beat, so the stand looks alive without a thousand animations.
-    out.push(
-      <g key={r} className="sc-bob" style={{ animationDelay: `${(r % 2) * -1.3}s` }}>
-        {row}
-      </g>
-    );
-  }
-  return <g>{out}</g>;
-}
 
 /** Text that always fits the sign it is on. */
 function Fit({ x, y, w, size, fill, children, weight = 800, spacing }: { x: number; y: number; w: number; size: number; fill: string; children: string; weight?: number; spacing?: number }) {
@@ -837,33 +787,14 @@ export function CourtScene({ game, netHit, live = true }: { game: CourtGameId; n
 
 /* ── Veronica: an outdoor rink in winter ─────────────────────────── */
 
-/** The bulbs strung over the rink: where each hangs, from the sag of the line. */
-const BULBS = [50, 130, 210, 290, 370, 450, 530, 610, 690, 770, 850, 930, 1010, 1090, 1170].map((x, i) => {
-  const t = x / 1200;
-  const y = 140 + 90 * Math.sin(Math.PI * (t < 0.5 ? t * 2 : (t - 0.5) * 2)) * (t < 0.5 ? 1 : 0.55) + 20;
-  return { x, y: Math.round(y * 10) / 10, color: ["#fbbf24", "#fb7185", "#38bdf8", "#4ade80", "#c084fc", "#fb923c"][i % 6] };
-});
-
-/** Snow, in three sheets that fall at their own speeds; each is drawn twice so the loop is seamless. */
-function Snow({ seed, fall, r }: { seed: number; fall: string; r: number }) {
-  const flakes = Array.from({ length: 24 }, (_, i) => ({ x: (i * 173 + seed * 61) % 1200, y: (i * 97 + seed * 37) % 440 }));
-  return (
-    <g className="sc-snow" style={{ ["--fall" as string]: fall }}>
-      {[0, -440].map((dy) =>
-        flakes.map((f, i) => <circle key={`${dy}-${i}`} cx={f.x} cy={f.y + dy} r={r} fill="#ffffff" opacity="0.85" />)
-      )}
-    </g>
-  );
-}
-
 /**
- * The rink she skates on, out on its own in the snow: boards with a red
- * rail, mountains and evergreens behind (the end trees strung with lights),
- * stands either side, a skate booth, a warming hut with smoke from its
- * chimney, a Zamboni, lamp posts, a cocoa stand and a fire to warm up at,
- * a snowman, bulbs twinkling over it all and snow coming down. The ice is
- * the same ellipse the game has always used (`RINK` in lib/rink.ts), so her
- * skating and the seven decoration spots around the boards are unchanged.
+ * The rink she skates on, now an ice arena like the courts: a packed bowl,
+ * the video board with her name, white boards with their ad panels and a
+ * yellow kick plate, glass over the far side, a bright sheet of ice that
+ * catches the lights, and a kiss and cry off to the side. The ice is the
+ * same ellipse the game has always used (`RINK` in lib/rink.ts), so her
+ * skating and the seven decoration spots around the boards are unchanged:
+ * decorations stand on the arena floor around the rink.
  */
 export function RinkScene({ live = true }: { live?: boolean }) {
   return (
@@ -874,205 +805,156 @@ export function RinkScene({ live = true }: { live?: boolean }) {
 }
 
 function RinkPicture() {
+  const id = "rk";
   const R = RINK;
-  const trees = [40, 130, 215, 300, 380, 470, 560, 650, 740, 830, 920, 1010, 1100, 1180];
+  // The ice and the boards around it: the far boards' inner face shows above the ice,
+  // the near boards' outer face below it, the glass over the far side.
+  const boardTop = { cy: R.cy - 26, rx: R.rx + 6, ry: R.ry + 8 };
+  const nearFace = { cy: R.cy + 24, rx: R.rx + 12, ry: R.ry + 12 };
+  const glass = { cy: R.cy - 70, rx: R.rx + 10, ry: R.ry + 14 };
+  // Ad panels around the near boards, left to right.
+  const panels = [
+    { x0: 150, x1: 330, bg: "#db2777", fg: "#ffffff", text: "ALGEBRIDGE" },
+    { x0: 330, x1: 500, bg: "#f8fafc", fg: "#0f172a", text: "FREE ALGEBRA 1" },
+    { x0: 500, x1: 700, bg: "#1d4ed8", fg: "#ffffff", text: "ALGEBRIDGE" },
+    { x0: 700, x1: 870, bg: "#f8fafc", fg: "#db2777", text: "SKATE ON" },
+    { x0: 870, x1: 1050, bg: "#db2777", fg: "#ffffff", text: "UNIT BY UNIT" },
+  ];
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" aria-hidden>
+      <title>Ice arena</title>
       <defs>
-        <linearGradient id="rink-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#bfdbfe" />
-          <stop offset="1" stopColor="#eff6ff" />
+        <ArenaDefs id={id} glow="#f472b6" />
+        <CrowdTiles id={id} shirts={["#db2777", "#db2777", "#f8fafc", "#1d4ed8", "#7c3aed", "#facc15", "#0ea5e9", "#1f2937"]} seat="#2a1f3d" />
+        <radialGradient id="rk-ice" cx="50%" cy="45%" r="60%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="60%" stopColor="#eef6ff" />
+          <stop offset="100%" stopColor="#cfe2f5" />
+        </radialGradient>
+        <linearGradient id="rk-streak" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
+        <clipPath id="rk-ice-clip">
+          <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} />
+        </clipPath>
+        <clipPath id="rk-near-clip">
+          <path d={`M${R.cx - nearFace.rx} ${nearFace.cy} A${nearFace.rx} ${nearFace.ry} 0 0 0 ${R.cx + nearFace.rx} ${nearFace.cy} L${R.cx + R.rx} ${R.cy} A${R.rx} ${R.ry} 0 0 1 ${R.cx - R.rx} ${R.cy}Z`} />
+        </clipPath>
+        <clipPath id="rk-glass-clip">
+          <path d={`M${R.cx - glass.rx} ${glass.cy} A${glass.rx} ${glass.ry} 0 0 1 ${R.cx + glass.rx} ${glass.cy} L${R.cx + boardTop.rx} ${boardTop.cy} A${boardTop.rx} ${boardTop.ry} 0 0 0 ${R.cx - boardTop.rx} ${boardTop.cy}Z`} />
+        </clipPath>
       </defs>
-      <rect x="0" y="0" width={W} height="440" fill="url(#rink-sky)" />
-      {/* The sun, upper left, where the figures are lit from. */}
-      <circle cx="250" cy="120" r="120" fill="#ffffff" opacity="0.4" />
-      <circle cx="250" cy="120" r="52" fill="#fff7e0" />
-      {/* Mountains, then snowy hills. */}
-      <path d="M0 300 L120 180 L220 250 L340 150 L460 260 L560 200 L660 290 L780 170 L900 260 L1010 190 L1120 280 L1200 230 L1200 340 L0 340Z" fill="#cbd5e1" />
-      <path d="M340 150 L380 190 L300 200Z M780 170 L820 208 L740 214Z M1010 190 L1040 222 L980 226Z M120 180 L150 214 L96 218Z" fill="#f8fafc" />
-      <path d="M0 330 Q200 250 420 300 Q600 340 800 280 Q1000 230 1200 300 L1200 460 L0 460Z" fill="#e2e8f0" />
-      <path d="M0 360 Q260 300 520 340 Q760 370 1000 320 Q1120 300 1200 330 L1200 460 L0 460Z" fill="#f1f5f9" />
-      {/* Birds, far off. */}
-      {[[860, 120], [900, 108], [940, 124]].map(([x, y]) => (
-        <path key={x} d={`M${x - 8} ${y} q8 -6 16 0`} fill="none" stroke="#64748b" strokeWidth="1.5" />
-      ))}
-      {/* Evergreens in a row, snow on their tips, lights on the two at the ends. */}
-      {trees.map((x, i) => {
-        const h = 120 + ((i * 37) % 60);
-        const base = 430;
-        const lit = i === 0 || i === trees.length - 1;
-        return (
-          <g key={x}>
-            <rect x={x - 6} y={base - 18} width="12" height="22" fill="#5b3a21" />
-            <path d={`M${x} ${base - h} L${x + 42} ${base - 10} L${x - 42} ${base - 10}Z`} fill="#1f5a3a" />
-            <path d={`M${x} ${base - h + 26} L${x + 32} ${base - 42} L${x - 32} ${base - 42}Z`} fill="#2f7a4d" />
-            <path d={`M${x} ${base - h} L${x + 10} ${base - h + 22} L${x - 10} ${base - h + 22}Z`} fill="#f8fafc" opacity="0.9" />
-            <path d={`M${x - 14} ${base - h + 46} q14 -6 28 0 l-4 6 q-10 -4 -20 0Z`} fill="#f8fafc" opacity="0.8" />
-            {lit &&
-              [[-6, 40], [8, 54], [-16, 70], [14, 84], [-24, 98], [4, 108], [22, 116], [-10, 122]].map(([dx, dy], j) => (
-                <circle key={j} cx={x + dx} cy={base - h + dy} r="4" fill={["#fbbf24", "#fb7185", "#38bdf8", "#4ade80"][j % 4]} className="sc-twinkle" style={{ animationDelay: `${(j % 2) * -0.95}s` }} />
-              ))}
-          </g>
-        );
-      })}
-      {/* Snow on the ground. */}
-      <rect x="0" y="420" width={W} height={H - 420} fill="#f1f5f9" />
-      <rect x="0" y="420" width={W} height="60" fill="#dbe7f3" opacity="0.6" />
-      {/* Stands either side, with a crowd in coats and a rail. */}
-      {[
-        [60, 380],
-        [820, 1140],
-      ].map(([x0, x1]) => (
-        <g key={x0}>
-          <rect x={x0} y="352" width={x1 - x0} height="96" fill="#8b5a2b" />
-          <rect x={x0} y="352" width={x1 - x0} height="10" fill="#a9703a" />
-          <rect x={x0} y="392" width={x1 - x0} height="10" fill="#a9703a" />
-          <rect x={x0 - 4} y="346" width={x1 - x0 + 8} height="4" fill="#64748b" />
-          <rect x={x0 - 6} y="440" width={x1 - x0 + 12} height="12" fill="#f8fafc" />
-          <Crowd x0={x0 + 14} x1={x1 - 8} y0={360} rows={2} gap={40} size={12} colors={["#1d4ed8", "#dc2626", "#0f766e", "#f8fafc", "#7c3aed", "#f97316"]} />
-        </g>
-      ))}
-      {/* The skate booth, the warming hut with its chimney going, the Zamboni: one tidy row. */}
-      <rect x="404" y="368" width="104" height="80" fill="#1e40af" />
-      <rect x="404" y="368" width="52" height="80" fill="#2563eb" />
-      <path d="M396 370 L456 340 L516 370Z" fill="#f8fafc" />
-      <rect x="418" y="392" width="76" height="30" fill="#0b1220" />
-      <rect x="418" y="392" width="76" height="4" fill="#facc15" />
-      <Fit x={456} y={414} w={56} size={13} fill="#facc15">
-        SKATES
-      </Fit>
-      {[428, 448, 468, 488].map((x, i) => (
-        <g key={x}>
-          <rect x={x - 6} y="430" width="12" height="9" rx="2" fill={i % 2 ? "#f8fafc" : "#1f2937"} />
-          <rect x={x - 7} y="438" width="14" height="2" fill="#94a3b8" />
-        </g>
-      ))}
-      <rect x="520" y="322" width="160" height="112" fill="#7c4a2a" />
-      <rect x="520" y="322" width="80" height="112" fill="#8f5a35" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <rect key={i} x="520" y={330 + i * 20} width="160" height="2" fill="#5b3a21" opacity="0.6" />
-      ))}
-      <path d="M506 326 L600 268 L694 326Z" fill="#334155" />
-      <path d="M512 320 L600 266 L688 320 L680 320 L600 276 L520 320Z" fill="#f8fafc" />
-      <rect x="640" y="272" width="14" height="30" fill="#475569" />
-      <rect x="638" y="268" width="18" height="6" fill="#64748b" />
-      {[0, 1, 2].map((i) => (
-        <circle key={i} cx="647" cy="262" r={5 + i} fill="#e2e8f0" className="sc-smoke" style={{ animationDelay: `${i * -1.3}s` }} />
-      ))}
-      <rect x="546" y="356" width="40" height="34" rx="2" fill="#fde68a" />
-      <rect x="564" y="356" width="4" height="34" fill="#5b3a21" />
-      <rect x="546" y="371" width="40" height="4" fill="#5b3a21" />
-      <rect x="614" y="366" width="42" height="68" fill="#3f2a1a" />
-      <circle cx="648" cy="402" r="3" fill="#facc15" />
-      <rect x="536" y="292" width="128" height="26" rx="4" fill="#1e3a8a" />
-      <Fit x={600} y={311} w={112} size={15} fill="#facc15">
-        ALGEBRIDGE RINK
-      </Fit>
-      <rect x="700" y="392" width="100" height="44" rx="6" fill="#1d4ed8" />
-      <rect x="700" y="380" width="44" height="20" rx="4" fill="#1e40af" />
-      <rect x="708" y="384" width="28" height="12" fill="#bae6fd" />
-      <rect x="760" y="400" width="34" height="22" rx="3" fill="#facc15" />
-      <circle cx="722" cy="378" r="4" fill="#f97316" className="sc-blink" />
-      {[716, 782].map((x) => (
-        <circle key={x} cx={x} cy="438" r="9" fill="#1f2937" />
-      ))}
-      <rect x="700" y="428" width="100" height="6" fill="#0f172a" opacity="0.3" />
-      {/* Lamp posts either side, lit. */}
-      {[36, 1164].map((x) => (
-        <g key={x}>
-          <rect x={x - 3} y="500" width="6" height="200" fill="#334155" />
-          <rect x={x - 14} y="488" width="28" height="18" rx="4" fill="#475569" />
-          <rect x={x - 10} y="504" width="20" height="5" rx="2" fill="#fef3c7" />
-          <circle cx={x} cy="512" r="30" fill="#fde68a" opacity="0.16" />
-        </g>
-      ))}
-      {/* A cocoa stand at the front left, a cup steaming on the counter. */}
-      <rect x="70" y="704" width="120" height="66" fill="#9a3412" />
-      <rect x="70" y="704" width="60" height="66" fill="#b45309" />
-      <rect x="66" y="698" width="128" height="10" rx="3" fill="#f8fafc" />
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <path key={i} d={`M${64 + i * 22} 684 L${86 + i * 22} 684 L${86 + i * 22} 698 L${64 + i * 22} 698Z`} fill={i % 2 ? "#f8fafc" : "#dc2626"} />
-      ))}
-      <rect x="82" y="716" width="96" height="22" rx="3" fill="#1f2937" />
-      <Fit x={130} y={732} w={76} size={12} fill="#fde68a">
-        HOT COCOA
-      </Fit>
-      <rect x="108" y="746" width="14" height="14" rx="2" fill="#f8fafc" />
-      <rect x="140" y="746" width="14" height="14" rx="2" fill="#f8fafc" />
-      {[0, 1].map((i) => (
-        <circle key={i} cx={115 + i * 32} cy="742" r="3" fill="#e2e8f0" className="sc-smoke" style={{ animationDelay: `${i * -1.7}s` }} />
-      ))}
-      {/* A fire to warm up at, at the front right, two people with their hands out. */}
-      <ellipse cx="1080" cy="764" rx="34" ry="12" fill="#94a3b8" />
-      <ellipse cx="1080" cy="760" rx="26" ry="8" fill="#475569" />
-      <rect x="1064" y="750" width="32" height="6" rx="2" fill="#5b3a21" transform="rotate(-18 1080 753)" />
-      <rect x="1064" y="750" width="32" height="6" rx="2" fill="#7c4a2a" transform="rotate(20 1080 753)" />
-      <g className="sc-flame">
-        <path d="M1066 754 Q1070 728 1080 722 Q1090 728 1094 754Z" fill="#f97316" />
-        <path d="M1072 754 Q1076 736 1080 732 Q1084 736 1088 754Z" fill="#fde047" />
-      </g>
-      <circle cx="1080" cy="746" r="34" fill="#fb923c" opacity="0.14" />
-      <Person x={1032} y={768} h={56} shirt="#1d4ed8" skin="#e0ac86" hair="#6b4426" />
-      <Person x={1128} y={768} h={56} shirt="#dc2626" skin="#6f432a" hair="#111111" />
-      {/* A snowman by the boards, footprints to the hut. */}
-      <circle cx="52" cy="640" r="20" fill="#ffffff" />
-      <circle cx="52" cy="608" r="15" fill="#ffffff" />
-      <circle cx="52" cy="582" r="11" fill="#ffffff" />
-      <rect x="44" y="565" width="16" height="10" fill="#1f2937" />
-      <rect x="40" y="573" width="24" height="3" fill="#1f2937" />
-      <path d="M52 582 l10 2 l-10 2Z" fill="#f97316" />
-      {[[49, 579], [56, 579], [52, 603], [52, 612]].map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="#1f2937" />
-      ))}
-      <path d="M40 594 q-14 -8 -22 -18 M64 594 q14 -8 22 -18" stroke="#5b3a21" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-      <rect x="38" y="596" width="28" height="5" rx="2" fill="#dc2626" />
-      {[[590, 468], [604, 480], [592, 492], [606, 504]].map(([x, y]) => (
-        <ellipse key={`${x}-${y}`} cx={x} cy={y} rx="4" ry="2.4" fill="#cbd5e1" />
-      ))}
-      {/* A string of bulbs over everything, each twinkling on its own. */}
-      <path d="M0 140 Q300 250 600 190 T1200 140" fill="none" stroke="#475569" strokeWidth="3" />
-      {BULBS.map((b, i) => (
-        <g key={b.x}>
-          <rect x={b.x - 2} y={b.y - 14} width="4" height="8" fill="#475569" />
-          <g className="sc-twinkle" style={{ animationDelay: `${(i % 2) * -0.95}s` }}>
-            <circle cx={b.x} cy={b.y} r="7" fill={b.color} />
-            <circle cx={b.x} cy={b.y} r="12" fill={b.color} opacity="0.25" />
-          </g>
-        </g>
-      ))}
-      {/* Snowbanks pushed up against the boards. */}
-      <ellipse cx={R.cx} cy={R.cy + 8} rx={R.rx + 62} ry={R.ry + 52} fill="#ffffff" />
-      <ellipse cx={R.cx} cy={R.cy + 16} rx={R.rx + 62} ry={R.ry + 48} fill="#e2e8f0" opacity="0.7" />
-      <ellipse cx={R.cx} cy={R.cy + 8} rx={R.rx + 62} ry={R.ry + 52} fill="#ffffff" opacity="0.6" />
-      {/* The rink: boards with a red rail, then the ice, then its lines. */}
-      <ellipse cx={R.cx} cy={R.cy + 10} rx={R.rx + BOARD} ry={R.ry + BOARD} fill="#1f2937" opacity="0.14" />
-      <ellipse cx={R.cx} cy={R.cy + 4} rx={R.rx + BOARD} ry={R.ry + BOARD} fill="#cbd5e1" />
-      <ellipse cx={R.cx} cy={R.cy} rx={R.rx + BOARD} ry={R.ry + BOARD} fill="#f1f5f9" />
-      <ellipse cx={R.cx} cy={R.cy - 3} rx={R.rx + BOARD} ry={R.ry + BOARD} fill="#dc2626" />
-      <ellipse cx={R.cx} cy={R.cy - 3} rx={R.rx + 4} ry={R.ry + 4} fill="#f1f5f9" />
-      <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} fill="#dbe7f3" />
-      <ellipse cx={R.cx} cy={R.cy - 2} rx={R.rx - 4} ry={R.ry - 4} fill="#f4f8fc" />
-      {/* The bulbs' colours, caught in the ice. */}
-      {BULBS.filter((b) => b.x > 260 && b.x < 940).map((b, i) => (
-        <ellipse key={b.x} cx={b.x} cy={R.cy - R.ry + 34} rx="40" ry="9" fill={b.color} opacity="0.09" className="sc-twinkle" style={{ animationDelay: `${((i + 1) % 2) * -0.95}s` }} />
-      ))}
-      <ellipse cx={R.cx} cy={R.cy} rx={R.rx * 0.36} ry={R.ry * 0.36} fill="none" stroke="#3b82f6" strokeWidth="4" opacity="0.8" />
-      <circle cx={R.cx} cy={R.cy} r="5" fill="#3b82f6" opacity="0.8" />
-      <rect x={R.cx - 2} y={R.cy - R.ry + 8} width="4" height={R.ry * 2 - 16} fill="#dc2626" opacity="0.55" />
-      <rect x={R.cx - R.rx * 0.55 - 2} y={R.cy - R.ry * 0.83} width="4" height={R.ry * 1.66} fill="#3b82f6" opacity="0.5" />
-      <rect x={R.cx + R.rx * 0.55 - 2} y={R.cy - R.ry * 0.83} width="4" height={R.ry * 1.66} fill="#3b82f6" opacity="0.5" />
-      <path
-        d={`M${R.cx - R.rx * 0.9} ${R.cy - 10} Q${R.cx} ${R.cy - R.ry * 0.9} ${R.cx + R.rx * 0.9} ${R.cy - 10} Q${R.cx} ${R.cy - R.ry * 0.55} ${R.cx - R.rx * 0.9} ${R.cy - 10}Z`}
-        fill="#ffffff"
-        opacity="0.55"
+      <rect x="0" y="0" width={W} height={H} fill="#070910" />
+      {/* The bowl: the upper deck, the ribbon, the lower stand, the corners. */}
+      <FarStand id={id} front={56} top={-14} rows={6} s0={0.3} s1={0.24} aisles={[220, 980]} tunnels={[]} />
+      <Ribbon
+        id={id}
+        y={56}
+        segments={[
+          { text: "FREE SKATE", bg: "#db2777", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#111827", fg: "#f9a8d4" },
+          { text: "ON THE ICE", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "FREE SKATE", bg: "#db2777", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#93c5fd" },
+          { text: "ALGEBRIDGE", bg: "#1d4ed8", fg: "#ffffff" },
+        ]}
       />
-      <path d={`M${R.cx - 260} ${R.cy + 40} q60 -30 130 -6`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-      <path d={`M${R.cx + 40} ${R.cy + 70} q80 -40 170 -20`} fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-      {/* Snow coming down. */}
-      <Snow seed={1} fall="18s" r={2.2} />
-      <Snow seed={2} fall="26s" r={1.6} />
-      <Snow seed={3} fall="36s" r={1.2} />
+      <FarStand id={id} front={350} top={74} rows={17} s0={0.62} s1={0.38} />
+      <SideStands id={id} front={372} edge={40} colors={["#db2777", "#f8fafc", "#1d4ed8", "#facc15"]} />
+      <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
+      <Jumbotron id={id} ring="#db2777">
+        <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
+          NOW SKATING
+        </text>
+        <Fit x={178} y={70} w={170} size={36} fill="#ffffff">
+          VERONICA
+        </Fit>
+        <rect x="128" y="80" width="100" height="3" rx="1.5" fill="#f9a8d4" />
+      </Jumbotron>
+      {/* The boards along the front of the stand, and the arena floor around the rink. */}
+      <CourtBoards
+        id={id}
+        y={350}
+        h={22}
+        x0={-20}
+        x1={W + 20}
+        reflect={false}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#db2777", fg: "#ffffff" },
+          { text: "FREE SKATE", bg: "#0f172a", fg: "#f9a8d4" },
+          { text: "ALGEBRA 1", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#f8fafc", fg: "#db2777" },
+          { text: "SKATE ON", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#93c5fd" },
+        ]}
+      />
+      <rect x="-20" y="372" width={W + 40} height={H - 372 + 20} fill="#11151f" />
+      <rect x="-20" y="372" width={W + 40} height="14" fill="#000000" opacity="0.35" />
+      {/* Kiss and cry: where a skater waits for the marks, off to the side. */}
+      <rect x="1010" y="392" width="150" height="44" rx="4" fill="#3b1d4a" />
+      <Fit x={1085} y={410} w={110} size={12} fill="#f9a8d4">
+        KISS &amp; CRY
+      </Fit>
+      <rect x="1018" y="418" width="134" height="12" rx="3" fill="#7c2d6f" />
+      <rect x="1030" y="436" width="110" height="10" rx="3" fill="#db2777" />
+      {[1040, 1130].map((x) => (
+        <g key={x}>
+          <circle cx={x} cy="430" r="7" fill="#f472b6" />
+          <circle cx={x + 6} cy="426" r="5" fill="#fbcfe8" />
+          <rect x={x - 1} y="436" width="2" height="8" fill="#15803d" />
+        </g>
+      ))}
+      {/* The glass over the far boards: panes, their posts, light caught on them. */}
+      <g clipPath="url(#rk-glass-clip)">
+        <rect x={R.cx - glass.rx} y={glass.cy - glass.ry} width={glass.rx * 2} height={glass.ry + 80} fill="#dbeafe" opacity="0.1" />
+        {Array.from({ length: 17 }, (_, i) => {
+          const x = R.cx - glass.rx + 12 + i * 50;
+          return <rect key={i} x={x} y={glass.cy - glass.ry} width="2.2" height={glass.ry + 80} fill="#cbd5e1" opacity="0.35" />;
+        })}
+        {[260, 640, 940].map((x) => (
+          <path key={x} d={`M${x} ${glass.cy - glass.ry} L${x + 26} ${glass.cy - glass.ry} L${x - 14} ${R.cy} L${x - 40} ${R.cy}Z`} fill="#ffffff" opacity="0.08" />
+        ))}
+      </g>
+      {/* The boards: the near face first (the ice covers its top), then the far face, then the ice. */}
+      <ellipse cx={R.cx} cy={nearFace.cy} rx={nearFace.rx} ry={nearFace.ry} fill="#f8fafc" />
+      <g clipPath="url(#rk-near-clip)">
+        {panels.map((pn) => (
+          <g key={pn.x0}>
+            <rect x={pn.x0 + 2} y={R.cy} width={pn.x1 - pn.x0 - 4} height={nearFace.ry + 40} fill={pn.bg} />
+            <Fit x={(pn.x0 + pn.x1) / 2} y={R.cy + R.ry + 22} w={Math.min(130, pn.x1 - pn.x0 - 40)} size={12} fill={pn.fg}>
+              {pn.text}
+            </Fit>
+          </g>
+        ))}
+        <ellipse cx={R.cx} cy={nearFace.cy + 2} rx={nearFace.rx} ry={nearFace.ry} fill="none" stroke="#facc15" strokeWidth="7" />
+      </g>
+      <ellipse cx={R.cx} cy={boardTop.cy} rx={boardTop.rx} ry={boardTop.ry} fill="#f1f5f9" />
+      <ellipse cx={R.cx} cy={boardTop.cy} rx={boardTop.rx} ry={boardTop.ry} fill="none" stroke="#94a3b8" strokeWidth="2.4" />
+      <ellipse cx={R.cx} cy={boardTop.cy + 6} rx={boardTop.rx - 2} ry={boardTop.ry - 2} fill="none" stroke="#e2e8f0" strokeWidth="3" />
+      {/* The ice: bright, the lights caught in it, the marks of earlier skating. */}
+      <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} fill="url(#rk-ice)" />
+      <g clipPath="url(#rk-ice-clip)">
+        <rect x={R.cx - R.rx} y={R.cy - R.ry} width={R.rx * 2} height="22" fill="#94a3b8" opacity="0.18" />
+        {[290, 600, 910].map((x) => (
+          <path key={x} d={`M${x - 40} ${R.cy - R.ry} L${x + 40} ${R.cy - R.ry} L${x + 26} ${R.cy + R.ry} L${x - 26} ${R.cy + R.ry}Z`} fill="url(#rk-streak)" opacity="0.5" />
+        ))}
+        <path
+          d="M300 560 Q420 520 560 548 M640 640 Q760 690 900 646 M380 680 Q520 712 620 690 M700 540 Q820 512 930 560 M450 610 Q560 580 700 600 M260 640 Q330 690 420 700"
+          fill="none"
+          stroke="#9fb6cd"
+          strokeWidth="1.6"
+          opacity="0.35"
+        />
+        <ellipse cx={R.cx} cy={R.cy} rx="74" ry="24" fill="none" stroke="#db2777" strokeWidth="3" opacity="0.28" />
+        <g opacity="0.16">
+          <Fit x={R.cx} y={R.cy + 9} w={110} size={22} fill="#db2777">
+            ALGEBRIDGE
+          </Fit>
+        </g>
+      </g>
+      <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} fill="none" stroke="#e2e8f0" strokeWidth="2" />
+      <Vignette id={id} />
     </svg>
   );
 }

@@ -632,6 +632,27 @@ html.lenis body {
 .player .p-skirt {
   transition: transform 0.2s ease-out;
 }
+/* Moving, the game loop poses every joint itself from the ground covered
+   (src/lib/gait.ts), so no keyframes or easing stand in its way. Stopping
+   hands the joints back to the stances below, which they ease into. */
+.player-gait .p-all,
+.player-gait .p-leg,
+.player-gait .p-shin,
+.player-gait .p-foot,
+.player-gait .p-arm,
+.player-gait .p-fore,
+.player-gait .p-body,
+.player-gait .p-skirt,
+.veronica-gait .v-leg,
+.veronica-gait .v-shin,
+.veronica-gait .v-foot,
+.veronica-gait .v-arm,
+.veronica-gait .v-fore,
+.veronica-gait .v-body,
+.veronica-gait .v-skirt {
+  animation: none !important;
+  transition: none !important;
+}
 .player-moving .p-leg-front {
   animation: p-run var(--stride) ease-in-out infinite;
 }
