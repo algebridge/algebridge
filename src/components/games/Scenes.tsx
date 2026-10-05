@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { GOAL, NET_Y, type CourtGameId } from "@/lib/games";
 import { BOARD, RINK } from "@/lib/rink";
+import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Ribbon, SideStands, Vignette, WoodFloor, toward } from "./Arena";
 
 /**
  * The four courts and the rink, drawn flat on the same 1200 × 800 plane as
@@ -158,167 +159,153 @@ function Person({ x, y, h, shirt, skin = "#b07a55", hair = "#1c1210", stripes = 
   );
 }
 
-/** A hanging light fixture with its glow. */
-function Lamp({ x, y, w = 60 }: { x: number; y: number; w?: number }) {
-  return (
-    <g>
-      <rect x={x - 1.5} y="0" width="3" height={y} fill="#64748b" />
-      <rect x={x - w / 2} y={y} width={w} height="10" rx="3" fill="#475569" />
-      <rect x={x - w / 2 + 4} y={y + 8} width={w - 8} height="4" rx="2" fill="#fef3c7" />
-      <path d={`M${x - w / 2} ${y + 12} L${x + w / 2} ${y + 12} L${x + w * 1.1} ${y + 130} L${x - w * 1.1} ${y + 130}Z`} fill="#ffffff" opacity="0.06" />
-    </g>
-  );
-}
-
-/** A felt pennant hanging on a wall. */
-function Pennant({ x, y, color, text }: { x: number; y: number; color: string; text: string }) {
-  return (
-    <g>
-      <rect x={x - 2} y={y} width="72" height="6" rx="2" fill="#a16207" />
-      <g className="sc-sway" style={{ transformOrigin: `${x + 34}px ${y + 6}px`, animationDelay: `${(x % 7) * -0.4}s` }}>
-        <path d={`M${x} ${y + 6} L${x + 68} ${y + 6} L${x + 34} ${y + 96}Z`} fill={color} />
-        <Fit x={x + 34} y={y + 34} w={48} size={10} fill="#ffffff">
-          {text}
-        </Fit>
-      </g>
-    </g>
-  );
-}
-
 /* ── Shaurya: a school gym and a wrestling mat ───────────────────── */
 
 export function WrestlingScene() {
+  const id = "wr";
+  // The mat and the platform it sits on, laid toward the vanishing point.
+  const matFar = 405;
+  const mat = `M130 ${matFar} L1070 ${matFar} L${toward(1070, matFar, H + 60)} ${H + 60} L${toward(130, matFar, H + 60)} ${H + 60}Z`;
+  const deck = `M108 390 L1092 390 L${toward(1092, 390, H + 60)} ${H + 60} L${toward(108, 390, H + 60)} ${H + 60}Z`;
   return (
-    <Svg label="Wrestling mat">
-      {/* Cinder-block wall, a painted band, the courses of blocks. */}
-      <rect x="0" y="0" width={W} height="385" fill="#ece4d4" />
-      {Array.from({ length: 13 }, (_, i) => (
-        <rect key={i} x="0" y={22 + i * 22} width={W} height="1.5" fill="#d9cdb6" />
-      ))}
-      {Array.from({ length: 13 }, (_, r) =>
-        Array.from({ length: 21 }, (_, c) => (
-          <rect key={`${r}-${c}`} x={c * 60 + (r % 2) * 30} y={22 + r * 22} width="1.5" height="22" fill="#d9cdb6" />
-        ))
-      )}
-      <rect x="0" y="300" width={W} height="85" fill="#ddd0b8" />
-      <rect x="0" y="294" width={W} height="7" fill="#1d4ed8" />
-      <rect x="0" y="301" width={W} height="3" fill="#facc15" />
-      {/* Lights along the ceiling. */}
-      {[120, 360, 840, 1080].map((x) => (
-        <Lamp key={x} x={x} y={14} />
-      ))}
-      {/* Doors out to the hall, with the exit sign; a clock and an extinguisher on the far wall. */}
-      <rect x="352" y="196" width="72" height="104" fill="#64748b" />
-      <rect x="356" y="200" width="30" height="100" fill="#94a3b8" />
-      <rect x="390" y="200" width="30" height="100" fill="#94a3b8" />
-      <rect x="360" y="246" width="22" height="4" rx="2" fill="#e2e8f0" />
-      <rect x="394" y="246" width="22" height="4" rx="2" fill="#e2e8f0" />
-      <rect x="362" y="206" width="18" height="24" fill="#bae6fd" />
-      <rect x="396" y="206" width="18" height="24" fill="#bae6fd" />
-      <rect x="366" y="176" width="44" height="14" rx="2" fill="#166534" />
-      <text x="388" y="187" textAnchor="middle" fontSize="9" fontWeight="800" fill="#bbf7d0" fontFamily={FONT} letterSpacing="1">
-        EXIT
-      </text>
-      <circle cx="806" cy="222" r="20" fill="#f8fafc" />
-      <circle cx="806" cy="222" r="17" fill="#ffffff" stroke="#94a3b8" strokeWidth="1.5" />
-      <path d="M806 222 L806 210 M806 222 L814 226" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" />
-      <rect x="796" y="256" width="20" height="36" rx="4" fill="#dc2626" />
-      <rect x="800" y="250" width="12" height="8" fill="#1f2937" />
-      {/* Pennants over the wall. */}
-      <path d={`M0 38 Q${W / 2} 78 ${W} 38`} fill="none" stroke="#94a3b8" strokeWidth="2" />
-      {Array.from({ length: 14 }, (_, i) => {
-        const x = 30 + i * 82;
-        const t = x / W;
-        const y = 38 + 160 * t * (1 - t);
-        return (
-          <g key={i} className="sc-sway" style={{ transformOrigin: `${x + 20}px ${y}px`, animationDelay: `${i * -0.3}s` }}>
-            <path d={`M${x} ${y} L${x + 40} ${y + 2} L${x + 20} ${y + 42}Z`} fill={["#1d4ed8", "#facc15", "#dc2626"][i % 3]} />
-          </g>
-        );
-      })}
-      {[40, 130, 220].map((x, i) => (
-        <Pennant key={x} x={x} y={100} color={["#1e3a8a", "#b91c1c", "#1e3a8a"][i]} text={["BRIDGES", "GO TEAM", "WRESTLE"][i]} />
-      ))}
-      {[900, 990, 1080].map((x, i) => (
-        <Pennant key={x} x={x} y={100} color={["#1e3a8a", "#b91c1c", "#1e3a8a"][i]} text={["VARSITY", "PIN IT", "BRIDGES"][i]} />
-      ))}
-      {/* The team banner. */}
-      <rect x="430" y="112" width="340" height="86" rx="8" fill="#1e3a8a" />
-      <rect x="430" y="186" width="340" height="12" rx="4" fill="#172554" />
-      <Fit x={600} y={156} w={250} size={36} fill="#facc15">
+    <Svg label="Wrestling arena">
+      <defs>
+        <ArenaDefs id={id} glow="#60a5fa" />
+        <CrowdTiles id={id} shirts={["#1d4ed8", "#1d4ed8", "#facc15", "#f8fafc", "#b91c1c", "#1f2937", "#1e3a8a", "#f97316"]} seat="#1e2a4a" />
+        <radialGradient id="wr-spot" cx="50%" cy="56%" r="58%">
+          <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.42" />
+          <stop offset="55%" stopColor="#fffbeb" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="#fffbeb" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="wr-mat" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1e3a8a" />
+          <stop offset="100%" stopColor="#172554" />
+        </linearGradient>
+        <linearGradient id="wr-beam" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#fff7ed" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="#05070c" />
+      <FarStand id={id} front={58} top={-14} rows={6} s0={0.3} s1={0.24} aisles={[220, 980]} tunnels={[]} />
+      <Ribbon
+        id={id}
+        y={58}
+        segments={[
+          { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
+          { text: "WRESTLING", bg: "#111827", fg: "#ffffff" },
+          { text: "PIN IT", bg: "#b91c1c", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#93c5fd" },
+          { text: "TAKEDOWN", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
+        ]}
+      />
+      <FarStand id={id} front={300} top={76} rows={15} s0={0.6} s1={0.38} />
+      <SideStands id={id} front={326} edge={60} colors={["#1d4ed8", "#facc15", "#f8fafc", "#b91c1c"]} />
+      <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
+      <Jumbotron id={id} ring="#1d4ed8">
+        <text x="178" y="16" textAnchor="middle" fontSize="10" fontWeight="800" fill="#93c5fd" fontFamily={FONT} letterSpacing="2">
+          PERIOD 1 · 2:00
+        </text>
+        <rect x="16" y="24" width="150" height="62" rx="4" fill="#0b1220" />
+        <rect x="190" y="24" width="150" height="62" rx="4" fill="#0b1220" />
+        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#4ade80" fontFamily={FONT} letterSpacing="2">
+          BRIDGES
+        </text>
+        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#f87171" fontFamily={FONT} letterSpacing="2">
+          GUEST
+        </text>
+        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#4ade80" fontFamily="ui-monospace, monospace">
+          0
+        </text>
+        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#f87171" fontFamily="ui-monospace, monospace">
+          0
+        </text>
+      </Jumbotron>
+      {/* The arena floor around the platform, dark, with the boards along the far side. */}
+      <rect x="-20" y="300" width={W + 40} height={H - 300 + 20} fill="#0d111c" />
+      <CourtBoards
+        id={id}
+        y={300}
+        h={24}
+        x0={-20}
+        x1={W + 20}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
+          { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
+          { text: "WRESTLE ON", bg: "#b91c1c", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#facc15", fg: "#1e3a8a" },
+          { text: "STAY ON THE MAT", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#93c5fd" },
+        ]}
+      />
+      {/* The officials' table at the far side of the platform: a lit front, a clock, two officials. */}
+      {/* Seated: drawn first, so the table's front hides their legs. */}
+      <Person x={522} y={372} h={52} shirt="#f8fafc" skin="#e0ac86" hair="#6b4426" />
+      <Person x={678} y={372} h={52} shirt="#1f2937" skin="#6f432a" />
+      <rect x="478" y="346" width="244" height="38" rx="3" fill="#0b0f19" />
+      <rect x="478" y="346" width="244" height="4" rx="2" fill="#374151" />
+      <rect x="482" y="356" width="236" height="24" fill="#1e3a8a" />
+      <rect x="482" y="356" width="236" height="8" fill="#ffffff" opacity="0.07" />
+      <Fit x={600} y={373} w={150} size={13} fill="#facc15">
         ALGEBRIDGE
       </Fit>
-      <Fit x={600} y={182} w={150} size={15} fill="#ffffff" weight={700}>
-        WRESTLING
-      </Fit>
-      {/* Bleachers, full, with a rail along the top. */}
+      <rect x="586" y="330" width="28" height="16" rx="2" fill="#111827" />
+      <text x="600" y="342" textAnchor="middle" fontSize="10" fontWeight="800" fill="#f87171" fontFamily="ui-monospace, monospace">
+        2:00
+      </text>
+      {/* Team corners at the far ends of the platform: chairs, headgear, water, a towel. */}
       {[0, 1].map((side) => {
-        const x0 = side ? 850 : 30;
+        const x = side ? 1100 : 10;
+        const team = side ? "#b91c1c" : "#1d4ed8";
         return (
           <g key={side}>
-            <rect x={x0 - 4} y="222" width="328" height="4" fill="#64748b" />
-            {[0, 1, 2, 3].map((i) => (
+            <ellipse cx={x + 46} cy="430" rx="54" ry="8" fill="#000000" opacity="0.4" />
+            {[0, 1, 2].map((i) => (
               <g key={i}>
-                <rect x={x0} y={236 + i * 36} width="320" height="14" fill="#b45309" />
-                <rect x={x0} y={250 + i * 36} width="320" height="22" fill="#92400e" />
-                <rect x={x0 + 154} y={236 + i * 36} width="12" height="36" fill="#78350f" />
+                <rect x={x + i * 30} y="396" width="24" height="16" rx="3" fill={team} />
+                <rect x={x + i * 30} y="412" width="24" height="6" rx="2" fill="#111827" />
+                <rect x={x + i * 30 + 2} y="418" width="3" height="10" fill="#374151" />
+                <rect x={x + i * 30 + 19} y="418" width="3" height="10" fill="#374151" />
               </g>
             ))}
-            <Crowd x0={x0 + 20} x1={x0 + 300} y0={214} rows={3} gap={36} size={11} />
+            <ellipse cx={x + 76} cy="392" rx="9" ry="6" fill={team} />
+            <rect x={x + 10} y="384" width="7" height="12" rx="3" fill="#f8fafc" />
+            <rect x={x + 40} y="384" width="7" height="12" rx="3" fill="#f8fafc" />
           </g>
         );
       })}
-      {/* The scorer's table under the banner: a flip board, two officials. */}
-      <rect x="510" y="344" width="180" height="40" rx="3" fill="#7c4a2a" />
-      <rect x="510" y="344" width="180" height="6" fill="#a9703a" />
-      <rect x="546" y="306" width="108" height="34" rx="3" fill="#111827" />
-      <text x="576" y="330" textAnchor="middle" fontSize="20" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
-        0
-      </text>
-      <text x="624" y="330" textAnchor="middle" fontSize="20" fontWeight="800" fill="#ef4444" fontFamily="ui-monospace, monospace">
-        0
-      </text>
-      <rect x="598" y="312" width="4" height="22" fill="#475569" />
-      <Person x={540} y={344} h={44} shirt="#f8fafc" skin="#e0ac86" hair="#6b4426" />
-      <Person x={662} y={344} h={44} shirt="#1f2937" skin="#6f432a" />
-      {/* Wood floor with its lines showing beside the mat. */}
-      <rect x="0" y="385" width={W} height={H - 385} fill="#d9a066" />
-      {Array.from({ length: 16 }, (_, i) => (
-        <rect key={i} x="0" y={398 + i * 26} width={W} height="2" fill="#c68a52" opacity="0.7" />
-      ))}
-      <path d="M0 470 Q60 440 130 445" fill="none" stroke="#f8fafc" strokeWidth="4" opacity="0.6" />
-      <path d="M1200 470 Q1140 440 1070 445" fill="none" stroke="#f8fafc" strokeWidth="4" opacity="0.6" />
-      {/* Team corners: a bench, water, headgear, a towel. */}
-      {[0, 1].map((side) => {
-        const x = side ? 1088 : 8;
-        return (
-          <g key={side}>
-            <rect x={x} y="404" width="104" height="10" rx="3" fill="#94a3b8" />
-            <rect x={x + 8} y="414" width="6" height="18" fill="#64748b" />
-            <rect x={x + 90} y="414" width="6" height="18" fill="#64748b" />
-            {[0, 1, 2].map((i) => (
-              <rect key={i} x={x + 18 + i * 14} y="388" width="8" height="16" rx="3" fill={side ? "#dc2626" : "#1d4ed8"} />
-            ))}
-            <ellipse cx={x + 76} cy="398" rx="10" ry="7" fill={side ? "#dc2626" : "#1d4ed8"} />
-            <rect x={x + 62} y="392" width="4" height="12" rx="2" fill="#f8fafc" opacity="0.9" />
-            <rect x={x + 20} y="434" width="60" height="8" rx="4" fill="#f8fafc" />
-          </g>
-        );
-      })}
-      {/* The mat: its border, the red circle, the seams, the starting lines. */}
-      <path d="M130 405 L1070 405 L1195 795 L5 795Z" fill="#1e3a8a" />
-      <path d="M130 405 L1070 405 L1074 418 L126 418Z" fill="#172554" />
-      <ellipse cx="600" cy="592" rx="480" ry="188" fill="#dc2626" />
-      <ellipse cx="600" cy="592" rx="462" ry="178" fill="#2563eb" />
-      <ellipse cx="600" cy="600" rx="420" ry="150" fill="#1d4ed8" opacity="0.35" />
-      {[380, 820].map((x) => (
-        <path key={x} d={`M${x - 20} 414 L${x + 20} 780`} stroke="#1e40af" strokeWidth="2" opacity="0.5" />
-      ))}
-      <ellipse cx="600" cy="592" rx="78" ry="28" fill="none" stroke="#ffffff" strokeWidth="5" opacity="0.9" />
+      {/* The platform, the mat on it, and the light falling on the mat. */}
+      <path d={deck} fill="#1f2937" />
+      <path d={`M108 390 L1092 390 L1088 394 L112 394Z`} fill="#4b5563" />
+      <path d={mat} fill="url(#wr-mat)" />
+      <path
+        d={Array.from({ length: 5 }, (_, i) => {
+          const x = 130 + (i + 1) * 157;
+          return `M${x} ${matFar} L${toward(x, matFar, H + 60)} ${H + 60}`;
+        }).join(" ")}
+        stroke="#0f1d4a"
+        strokeWidth="2"
+        opacity="0.6"
+      />
+      <ellipse cx="600" cy="592" rx="480" ry="188" fill="#c81e1e" />
+      <ellipse cx="600" cy="592" rx="462" ry="178" fill="#2348c8" />
+      <ellipse cx="600" cy="600" rx="420" ry="150" fill="#1b3aa8" opacity="0.45" />
+      <ellipse cx="600" cy="592" rx="78" ry="28" fill="none" stroke="#ffffff" strokeWidth="5" opacity="0.92" />
       <rect x="570" y="588" width="24" height="6" rx="2" fill="#22c55e" />
       <rect x="606" y="588" width="24" height="6" rx="2" fill="#ef4444" />
-      {/* The referee, at the edge of the mat. */}
+      <g opacity="0.2">
+        <Fit x={600} y={770} w={260} size={30} fill="#ffffff">
+          ALGEBRIDGE
+        </Fit>
+      </g>
+      {/* The spotlights from above: soft cones and a bright pool on the mat. */}
+      <path d="M380 -10 L460 -10 L760 420 L220 420Z" fill="url(#wr-beam)" />
+      <path d="M740 -10 L820 -10 L980 420 L440 420Z" fill="url(#wr-beam)" />
+      <rect x="-20" y="380" width={W + 40} height={H - 380 + 20} fill="url(#wr-spot)" />
+      {/* The referee, at the edge of the circle. */}
       <Person x={1010} y={486} h={64} shirt="#f8fafc" skin="#f1c7a5" hair="#4a2c17" stripes />
+      <Vignette id={id} />
     </Svg>
   );
 }
@@ -332,127 +319,145 @@ export function WrestlingScene() {
  * passes for the judges, not a crowd on a sideline.
  */
 export function CheerScene() {
+  const id = "ch";
+  // The spring floor: its far edge where the old mat began, its sides toward the vanishing point.
+  const far = 478;
+  const floor = `M130 ${far} L1070 ${far} L${toward(1070, far, H + 60)} ${H + 60} L${toward(130, far, H + 60)} ${H + 60}Z`;
+  const tape = `M118 ${far - 8} L1082 ${far - 8} L${toward(1082, far - 8, H + 60)} ${H + 60} L${toward(118, far - 8, H + 60)} ${H + 60}Z`;
+  // Panel seams across, closer together far away.
+  const across = [520, 572, 634, 708, 796].map((y) => `M${toward(130, far, y)} ${y} L${toward(1070, far, y)} ${y}`);
+  const along = Array.from({ length: 8 }, (_, i) => {
+    const x = 130 + ((i + 1) * 940) / 9;
+    return `M${x} ${far} L${toward(x, far, H + 60)} ${H + 60}`;
+  });
   return (
-    <Svg label="Cheer competition floor">
-      {/* The arena: a dark upper wall, trusses, spotlights, a lit band, and the floor. */}
-      <rect x="0" y="0" width={W} height={H} fill="#1e293b" />
-      <rect x="0" y="0" width={W} height="240" fill="#0f172a" />
-      {[26, 52].map((y) => (
-        <rect key={y} x="0" y={y} width={W} height="3" fill="#334155" />
-      ))}
-      {Array.from({ length: 12 }, (_, i) => (
-        <path key={i} d={`M${i * 100 + 20} 26 L${i * 100 + 70} 52 M${i * 100 + 70} 26 L${i * 100 + 120} 52`} stroke="#334155" strokeWidth="2" />
-      ))}
-      {[180, 420, 660, 900].map((x, i) => (
-        <g key={x}>
-          <rect x={x - 12} y="54" width="24" height="16" rx="3" fill="#475569" />
-          <rect x={x - 8} y="68" width="16" height="6" rx="2" fill="#fef3c7" />
-          <g className="sc-sweep" style={{ transformOrigin: `${x}px 74px`, animationDelay: `${i * -2.3}s` }}>
-            <path d={`M${x - 10} 74 L${x + 10} 74 L${x + 300} 470 L${x - 140} 470Z`} fill="#ffffff" opacity="0.06" />
-          </g>
-        </g>
-      ))}
-      {/* The banner. */}
-      <rect x="240" y="62" width="720" height="66" rx="8" fill="#1d4ed8" />
-      <rect x="240" y="62" width="720" height="10" rx="4" fill="#facc15" />
-      <Fit x={600} y={108} w={520} size={30} fill="#ffffff">
-        CHEER CHAMPIONSHIP
-      </Fit>
-      {/* A video board over the judges. */}
-      <rect x="440" y="140" width="320" height="94" rx="6" fill="#0b1220" />
-      <rect x="446" y="146" width="308" height="82" rx="4" fill="#1e3a8a" />
-      <Fit x={600} y={176} w={180} size={13} fill="#93c5fd" weight={700}>
-        NOW ON THE FLOOR
-      </Fit>
-      <Fit x={600} y={210} w={190} size={24} fill="#ffffff">
-        ALGEBRIDGE
-      </Fit>
-      {/* Flags at the back corners. */}
-      {[60, 1140].map((x, i) => (
-        <g key={x}>
-          <rect x={x - 2} y="130" width="4" height="120" fill="#94a3b8" />
-          <g className="sc-sway" style={{ transformOrigin: `${x}px 132px`, animationDelay: `${i * -1.1}s` }}>
-            <path d={`M${x + 2} 132 l${i ? -50 : 50} 12 l${i ? 50 : -50} 12Z`} fill={i ? "#dc2626" : "#1d4ed8"} />
-          </g>
-        </g>
-      ))}
-      {/* Stands either side, full, with rails. */}
-      {[
-        [40, 400],
-        [800, 1160],
-      ].map(([x0, x1]) => (
-        <g key={x0}>
-          <rect x={x0} y="250" width={x1 - x0} height="200" fill="#334155" />
-          {[0, 1, 2, 3].map((r) => (
-            <rect key={r} x={x0} y={250 + r * 50} width={x1 - x0} height="8" fill="#475569" />
-          ))}
-          <rect x={x0 - 4} y="244" width={x1 - x0 + 8} height="4" fill="#94a3b8" />
-          <rect x={x0 + (x1 - x0) / 2 - 8} y="250" width="16" height="200" fill="#1e293b" />
-          <Crowd x0={x0 + 14} x1={x1 - 8} y0={262} rows={4} gap={48} size={12} colors={["#1d4ed8", "#facc15", "#f8fafc", "#dc2626", "#7c3aed", "#f97316"]} />
-        </g>
-      ))}
+    <Svg label="Cheer competition arena">
+      <defs>
+        <ArenaDefs id={id} glow="#f472b6" />
+        <CrowdTiles id={id} shirts={["#1d4ed8", "#facc15", "#f8fafc", "#dc2626", "#7c3aed", "#f97316", "#ec4899", "#0ea5e9"]} seat="#1f2547" />
+        <linearGradient id="ch-carpet" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#1e40af" />
+        </linearGradient>
+        <radialGradient id="ch-pool" cx="50%" cy="62%" r="55%">
+          <stop offset="0%" stopColor="#eff6ff" stopOpacity="0.36" />
+          <stop offset="100%" stopColor="#eff6ff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="ch-beam" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fdf4ff" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#fdf4ff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="#06060f" />
+      <FarStand id={id} front={58} top={-14} rows={6} s0={0.3} s1={0.24} aisles={[220, 980]} tunnels={[]} />
+      <Ribbon
+        id={id}
+        y={58}
+        segments={[
+          { text: "CHEER CHAMPIONSHIP", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#111827", fg: "#facc15" },
+          { text: "GO ALLSTARS", bg: "#db2777", fg: "#ffffff" },
+          { text: "CHEER CHAMPIONSHIP", bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#f9a8d4" },
+        ]}
+      />
+      <FarStand id={id} front={300} top={76} rows={15} s0={0.6} s1={0.38} />
+      <SideStands id={id} front={326} edge={60} colors={["#1d4ed8", "#facc15", "#ec4899", "#f8fafc"]} />
+      <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
+      <Jumbotron id={id} ring="#db2777">
+        <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
+          NOW ON THE FLOOR
+        </text>
+        <Fit x={178} y={70} w={290} size={34} fill="#ffffff">
+          ALGEBRIDGE ALLSTARS
+        </Fit>
+        <rect x="128" y="80" width="100" height="3" rx="1.5" fill="#facc15" />
+      </Jumbotron>
+      {/* The competition floor, dark, with the boards along the far side. */}
+      <rect x="-20" y="300" width={W + 40} height={H - 300 + 20} fill="#0b0d18" />
+      <CourtBoards
+        id={id}
+        y={300}
+        h={24}
+        x0={-20}
+        x1={W + 20}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#1d4ed8", fg: "#facc15" },
+          { text: "CHEER CHAMPIONSHIP", bg: "#0f172a", fg: "#ffffff" },
+          { text: "STICK IT", bg: "#db2777", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#facc15", fg: "#1d4ed8" },
+          { text: "GO ALLSTARS", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#f9a8d4" },
+        ]}
+      />
       {/* The announcer's table with speakers, the judges, the trophies. */}
-      <rect x="230" y="392" width="150" height="56" rx="5" fill="#111827" />
-      <rect x="230" y="392" width="150" height="6" fill="#334155" />
-      <rect x="254" y="372" width="40" height="24" rx="3" fill="#475569" />
-      <rect x="258" y="376" width="32" height="16" fill="#93c5fd" />
-      <Person x={330} y={392} h={46} shirt="#0f766e" skin="#e0ac86" hair="#111111" />
       {[200, 400].map((x) => (
         <g key={x}>
-          <rect x={x - 16} y="380" width="32" height="68" rx="3" fill="#0b1220" />
-          <circle cx={x} cy="402" r="9" fill="#1e293b" />
-          <circle cx={x} cy="430" r="7" fill="#1e293b" />
+          <rect x={x - 16} y="380" width="32" height="68" rx="3" fill="#05070c" />
+          <circle cx={x} cy="402" r="9" fill="#1f2937" />
+          <circle cx={x} cy="402" r="4" fill="#111827" />
+          <circle cx={x} cy="430" r="7" fill="#1f2937" />
         </g>
       ))}
-      <rect x="440" y="378" width="320" height="70" rx="6" fill="#1e40af" />
-      <rect x="440" y="378" width="320" height="8" rx="3" fill="#60a5fa" />
-      <Fit x={600} y={432} w={110} size={20} fill="#ffffff">
-        JUDGES
-      </Fit>
+      <rect x="230" y="392" width="150" height="56" rx="5" fill="#0b0f19" />
+      <rect x="230" y="392" width="150" height="5" fill="#374151" />
+      <rect x="254" y="372" width="40" height="24" rx="3" fill="#374151" />
+      <rect x="258" y="376" width="32" height="16" fill="#93c5fd" />
+      <Person x={330} y={392} h={46} shirt="#0f766e" skin="#e0ac86" hair="#111111" />
       {[500, 600, 700].map((x, i) => (
         <g key={x}>
           <Person x={x} y={382} h={54} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} />
           <rect x={x - 14} y="368" width="28" height="14" rx="2" fill="#f8fafc" />
+          <rect x={x - 12} y="370" width="24" height="10" fill="#bfdbfe" opacity="0.6" />
         </g>
       ))}
+      <rect x="440" y="378" width="320" height="70" rx="6" fill="#0b0f19" />
+      <rect x="446" y="392" width="308" height="50" rx="4" fill="#1e40af" />
+      <rect x="446" y="392" width="308" height="14" rx="4" fill="#ffffff" opacity="0.07" />
+      <Fit x={600} y={426} w={110} size={20} fill="#ffffff">
+        JUDGES
+      </Fit>
       <rect x="820" y="400" width="160" height="48" rx="5" fill="#f8fafc" />
       <rect x="820" y="400" width="160" height="6" fill="#cbd5e1" />
+      <rect x="820" y="430" width="160" height="18" rx="3" fill="#e2e8f0" />
       {[850, 900, 950].map((x, i) => (
         <g key={x}>
           <rect x={x - 10} y={392 - i * 4} width="20" height="8" fill="#a16207" />
           <path d={`M${x - 8} ${392 - i * 4} L${x + 8} ${392 - i * 4} L${x + 10} ${368 - i * 8} Q${x} ${358 - i * 8} ${x - 10} ${368 - i * 8}Z`} fill="#facc15" />
+          <path d={`M${x - 2} ${392 - i * 4} L${x + 2} ${392 - i * 4} L${x + 5} ${370 - i * 8} Q${x + 2} ${364 - i * 8} ${x - 1} ${366 - i * 8}Z`} fill="#fef9c3" opacity="0.7" />
           <path d={`M${x - 12} ${376 - i * 8} q-8 -4 -2 -10 M${x + 12} ${376 - i * 8} q8 -4 2 -10`} stroke="#facc15" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         </g>
       ))}
-      {/* The wood floor, then the spring floor: nine blue panels under white tape. */}
-      <rect x="0" y="450" width={W} height={H - 450} fill="#c9a46b" />
-      {Array.from({ length: 14 }, (_, i) => (
-        <rect key={i} x="0" y={456 + i * 26} width={W} height="2" fill="#a67f4a" opacity="0.5" />
-      ))}
-      {/* Gym bags and water along the front edge of the stands. */}
+      {/* Gym bags and water along the front of the floor. */}
       {[60, 110, 1090, 1140].map((x, i) => (
         <g key={x}>
+          <ellipse cx={x} cy="486" rx="26" ry="5" fill="#000000" opacity="0.4" />
           <rect x={x - 22} y="462" width="44" height="22" rx="7" fill={i % 2 ? "#1d4ed8" : "#dc2626"} />
           <rect x={x - 10} y="456" width="20" height="8" rx="4" fill="#0f172a" />
         </g>
       ))}
-      <rect x="140" y="486" width="920" height="292" rx="10" fill="#0f172a" opacity="0.22" />
-      <rect x="130" y="478" width="940" height="292" rx="10" fill="#f8fafc" />
-      <rect x="140" y="488" width="920" height="272" rx="6" fill="#1d4ed8" />
-      {Array.from({ length: 8 }, (_, i) => (
-        <rect key={i} x={140 + (i + 1) * 102.2} y="488" width="3" height="272" fill="#3b82f6" opacity="0.7" />
-      ))}
-      <rect x="140" y="488" width="920" height="272" rx="6" fill="#ffffff" opacity="0.06" />
-      {/* Centre mark, and the team's name on the mat. */}
+      {/* The spring floor: white tape around blue carpet panels, the light pooled on it. */}
+      <path d={tape} fill="#f8fafc" />
+      <path d={floor} fill="url(#ch-carpet)" />
+      <path d={[...across, ...along].join(" ")} stroke="#1e3a8a" strokeWidth="2.4" opacity="0.7" />
+      <path d={[...across, ...along].join(" ")} stroke="#60a5fa" strokeWidth="0.8" opacity="0.5" transform="translate(0 -1.2)" />
+      <path d={floor} fill="url(#ch-pool)" />
       <ellipse cx="600" cy="624" rx="80" ry="30" fill="none" stroke="#facc15" strokeWidth="5" opacity="0.9" />
       <text x="600" y="636" textAnchor="middle" fontSize="34" fontWeight="800" fill="#facc15" fontFamily={FONT} opacity="0.9">
         A
       </text>
       <g opacity="0.28">
-        <Fit x={600} y={742} w={440} size={22} fill="#ffffff">
+        <Fit x={600} y={760} w={460} size={24} fill="#ffffff">
           ALGEBRIDGE ALLSTARS
         </Fit>
       </g>
+      {/* Spotlights from the rigs, sweeping slowly across the floor. */}
+      {[180, 420, 780, 1020].map((x, i) => (
+        <g key={x} className="sc-sweep" style={{ transformOrigin: `${x}px 10px`, animationDelay: `${i * -2.3}s` }}>
+          <path d={`M${x - 10} 10 L${x + 10} 10 L${x + 200} 560 L${x - 120} 560Z`} fill="url(#ch-beam)" />
+        </g>
+      ))}
+      <Vignette id={id} />
     </Svg>
   );
 }
@@ -467,118 +472,164 @@ function courtX(y: number, side: "l" | "r") {
 }
 
 export function VolleyballScene() {
+  const id = "vb";
   const line = (y: number) => <rect key={y} x={courtX(y, "l")} y={y - 2} width={courtX(y, "r") - courtX(y, "l")} height="4" fill="#ffffff" />;
+  const courtPath = `M${COURT.farL} ${COURT.farY} L${COURT.farR} ${COURT.farY} L${COURT.nearR} ${COURT.nearY} L${COURT.nearL} ${COURT.nearY}Z`;
+  // The painted free zone: the court's lines pushed out, the way an arena floor is laid.
+  const zone = { farY: 318, farL: toward(COURT.farL - 150, COURT.farY, 318), farR: toward(COURT.farR + 150, COURT.farY, 318) };
   return (
-    <Svg label="Volleyball court">
-      <rect x="0" y="0" width={W} height="335" fill="#e2e8f0" />
-      <rect x="0" y="280" width={W} height="55" fill="#cbd5e1" />
-      <rect x="0" y="276" width={W} height="6" fill="#7c3aed" />
-      {/* Lights and the windows. */}
-      {[130, 1070].map((x) => (
-        <Lamp key={x} x={x} y={10} w={70} />
-      ))}
-      {Array.from({ length: 6 }, (_, i) => (
-        <g key={i}>
-          <rect x={60 + i * 190} y="36" width="130" height="92" rx="4" fill="#94a3b8" />
-          <rect x={66 + i * 190} y="42" width="118" height="80" fill="#bae6fd" />
-          <rect x={66 + i * 190} y="42" width="118" height="30" fill="#e0f2fe" opacity="0.8" />
-          <rect x={123 + i * 190} y="42" width="4" height="80" fill="#94a3b8" />
-          <rect x={66 + i * 190} y="80" width="118" height="3" fill="#94a3b8" />
-        </g>
-      ))}
-      {/* Pennants along the wall, the school crest, a clock. */}
-      {Array.from({ length: 10 }, (_, i) => (
-        <g key={i} className="sc-sway" style={{ transformOrigin: `${40 + i * 124}px 140px`, animationDelay: `${i * -0.35}s` }}>
-          <path d={`M${20 + i * 124} 140 L${60 + i * 124} 140 L${40 + i * 124} 176Z`} fill={["#7c3aed", "#facc15", "#0d9488"][i % 3]} />
-        </g>
-      ))}
-      <circle cx="300" cy="212" r="36" fill="#7c3aed" />
-      <circle cx="300" cy="212" r="28" fill="#5b21b6" />
-      <text x="300" y="222" textAnchor="middle" fontSize="28" fontWeight="800" fill="#facc15" fontFamily={FONT}>
-        B
-      </text>
-      <circle cx="900" cy="206" r="22" fill="#f8fafc" />
-      <circle cx="900" cy="206" r="19" fill="#ffffff" stroke="#94a3b8" strokeWidth="1.5" />
-      <path d="M900 206 L900 192 M900 206 L910 210" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" />
-      {/* Scoreboard. */}
-      <rect x="490" y="150" width="220" height="92" rx="8" fill="#111827" />
-      <rect x="506" y="166" width="84" height="60" rx="4" fill="#0b1220" />
-      <rect x="610" y="166" width="84" height="60" rx="4" fill="#0b1220" />
-      <text x="548" y="211" textAnchor="middle" fontSize="42" fontWeight="800" fill="#f97316" fontFamily="ui-monospace, monospace">
-        24
-      </text>
-      <text x="652" y="211" textAnchor="middle" fontSize="42" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
-        23
-      </text>
-      <Fit x={548} y={158} w={44} size={9} fill="#94a3b8" weight={700}>
-        HOME
-      </Fit>
-      <Fit x={652} y={158} w={48} size={9} fill="#94a3b8" weight={700}>
-        GUEST
-      </Fit>
-      {/* Wall pads at the ends, the scorer's table in the middle. */}
-      <rect x="0" y="286" width="230" height="49" fill="#7c3aed" />
-      <rect x="970" y="286" width="230" height="49" fill="#7c3aed" />
-      {[40, 100, 160, 1010, 1070, 1130].map((x) => (
-        <rect key={x} x={x} y="290" width="2" height="41" fill="#5b21b6" />
-      ))}
-      <rect x="500" y="296" width="200" height="40" rx="3" fill="#7c4a2a" />
-      <rect x="500" y="296" width="200" height="6" fill="#a9703a" />
-      <Person x={548} y={296} h={46} shirt="#f8fafc" skin="#e0ac86" hair="#c9a24a" />
-      <Person x={652} y={296} h={46} shirt="#1f2937" skin="#6f432a" />
-      <rect x="590" y="282" width="22" height="14" rx="2" fill="#93c5fd" />
-      {/* Free zone, then the court and its lines. */}
-      <rect x="0" y="335" width={W} height={H - 335} fill="#2563eb" />
-      <path d={`M${COURT.farL} ${COURT.farY} L${COURT.farR} ${COURT.farY} L${COURT.nearR} ${COURT.nearY} L${COURT.nearL} ${COURT.nearY}Z`} fill="#f97316" />
-      <path d={`M${COURT.farL} ${COURT.farY} L${COURT.farR} ${COURT.farY} L${COURT.nearR} ${COURT.nearY} L${COURT.nearL} ${COURT.nearY}Z`} fill="none" stroke="#ffffff" strokeWidth="5" />
+    <Svg label="Volleyball arena">
+      <defs>
+        <ArenaDefs id={id} glow="#a78bfa" />
+        <CrowdTiles id={id} shirts={["#7c3aed", "#7c3aed", "#7c3aed", "#facc15", "#f8fafc", "#5b21b6", "#0d9488", "#1f2937", "#ef4444"]} seat="#3b1f6e" />
+        <linearGradient id="vb-paint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fb923c" />
+          <stop offset="100%" stopColor="#ea580c" />
+        </linearGradient>
+        <linearGradient id="vb-zone" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b5bdb" />
+          <stop offset="100%" stopColor="#1e3a8a" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="#070a14" />
+      {/* The upper bowl in the dark, the ribbon board, then the lower bowl down to the floor. */}
+      <FarStand id={id} front={52} top={-14} rows={6} s0={0.3} s1={0.24} aisles={[220, 980]} tunnels={[]} />
+      <Ribbon
+        id={id}
+        y={52}
+        segments={[
+          { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
+          { text: "SET 3", bg: "#111827", fg: "#ffffff" },
+          { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#a78bfa" },
+          { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
+          { text: "DIG DEEP", bg: "#7c3aed", fg: "#ffffff" },
+        ]}
+      />
+      <FarStand id={id} front={288} top={70} rows={15} s0={0.62} s1={0.4} />
+      <SideStands id={id} front={318} edge={150} colors={["#7c3aed", "#facc15", "#f8fafc", "#5b21b6"]} />
+      <LightRig id={id} y={12} xs={[90, 260, 940, 1110]} />
+      <Jumbotron id={id} ring="#7c3aed">
+        <text x="178" y="16" textAnchor="middle" fontSize="10" fontWeight="800" fill="#c4b5fd" fontFamily={FONT} letterSpacing="2">
+          SET 3 · MATCH POINT
+        </text>
+        <rect x="16" y="24" width="150" height="62" rx="4" fill="#0b1220" />
+        <rect x="190" y="24" width="150" height="62" rx="4" fill="#0b1220" />
+        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#a78bfa" fontFamily={FONT} letterSpacing="2">
+          BRIDGES
+        </text>
+        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#5eead4" fontFamily={FONT} letterSpacing="2">
+          GUEST
+        </text>
+        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#f97316" fontFamily="ui-monospace, monospace">
+          24
+        </text>
+        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
+          23
+        </text>
+      </Jumbotron>
+      {/* The floor: maple, the painted free zone, the court. */}
+      <WoodFloor id={id} top={314} />
+      <path d={`M${zone.farL} ${zone.farY} L${zone.farR} ${zone.farY} L${toward(zone.farR, zone.farY, H + 40)} ${H + 40} L${toward(zone.farL, zone.farY, H + 40)} ${H + 40}Z`} fill="url(#vb-zone)" opacity="0.93" />
+      <path d={courtPath} fill="url(#vb-paint)" />
+      {/* The grain still shows through the paint. */}
+      <path
+        d={Array.from({ length: 46 }, (_, i) => {
+          const x = 80 + i * 23;
+          return `M${x} ${COURT.nearY} L${toward(x, COURT.nearY, COURT.farY)} ${COURT.farY}`;
+        }).join(" ")}
+        stroke="#7c2d12"
+        strokeWidth="0.8"
+        opacity="0.16"
+      />
+      <path d={courtPath} fill="none" stroke="#ffffff" strokeWidth="5" />
       {line(NET_Y)}
       {line(470)}
       {line(640)}
-      {/* Team benches in the free zone, a ball cart, water. */}
+      {/* The center logo, painted on the near court. */}
+      <g opacity="0.16">
+        <Fit x={600} y={760} w={200} size={30} fill="#ffffff">
+          ALGEBRIDGE
+        </Fit>
+      </g>
+      {/* The courtside boards along the far end, lit, and their shine in the floor. */}
+      <CourtBoards
+        id={id}
+        y={288}
+        h={26}
+        x0={-20}
+        x1={W + 20}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
+          { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
+          { text: "SPIKE IT", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#facc15", fg: "#4c1d95" },
+          { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#a78bfa" },
+        ]}
+      />
+      {/* Light from the rigs, caught in the gloss. */}
+      {[260, 600, 940].map((x) => (
+        <FloorShine key={x} x={x} y={392} w={230} h={34} opacity={0.12} />
+      ))}
+      {/* Team benches in the free zone: padded seats, the subs, water bottles. */}
       {[0, 1].map((side) => {
         const x = side ? 1062 : 16;
         const shirt = side ? "#0d9488" : "#7c3aed";
         return (
           <g key={side}>
-            <rect x={x} y="612" width="120" height="10" rx="3" fill="#94a3b8" />
-            <rect x={x + 8} y="622" width="6" height="16" fill="#64748b" />
-            <rect x={x + 106} y="622" width="6" height="16" fill="#64748b" />
+            <ellipse cx={x + 62} cy="642" rx="72" ry="10" fill="#020617" opacity="0.35" />
+            <rect x={x} y="612" width="124" height="12" rx="4" fill="#1f2937" />
+            <rect x={x} y="612" width="124" height="4" rx="2" fill="#4b5563" />
+            <rect x={x + 6} y="624" width="5" height="16" fill="#111827" />
+            <rect x={x + 113} y="624" width="5" height="16" fill="#111827" />
             {[0, 1, 2].map((i) => (
-              <Person key={i} x={x + 24 + i * 36} y={612} h={52} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} />
+              <Person key={i} x={x + 24 + i * 38} y={612} h={52} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} />
             ))}
             {[0, 1, 2].map((i) => (
-              <rect key={i} x={x + 14 + i * 30} y="640" width="7" height="14" rx="3" fill="#f8fafc" />
+              <g key={i}>
+                <rect x={x + 14 + i * 34} y="640" width="7" height="15" rx="3" fill="#f8fafc" />
+                <rect x={x + 14 + i * 34} y="640" width="7" height="4" rx="2" fill={shirt} />
+              </g>
             ))}
           </g>
         );
       })}
-      <rect x="1070" y="520" width="96" height="46" rx="4" fill="#475569" />
-      <rect x="1074" y="512" width="88" height="12" rx="3" fill="#64748b" />
+      {/* The ball cart. */}
+      <ellipse cx="1118" cy="578" rx="54" ry="9" fill="#020617" opacity="0.35" />
+      <rect x="1070" y="520" width="96" height="46" rx="4" fill="#374151" />
+      <rect x="1074" y="512" width="88" height="12" rx="3" fill="#4b5563" />
       {[1086, 1108, 1130, 1152].map((x, i) => (
-        <circle key={x} cx={x} cy={i % 2 ? 522 : 524} r="9" fill={i % 2 ? "#f8fafc" : "#facc15"} />
-      ))}
-      <rect x="1078" y="566" width="6" height="10" fill="#1f2937" />
-      <rect x="1152" y="566" width="6" height="10" fill="#1f2937" />
-      {/* The net: posts, antennae, mesh, tapes, and the referee on the stand. */}
-      {[196, 1004].map((x) => (
         <g key={x}>
-          <rect x={x - 6} y="392" width="12" height={NET_Y - 392 + 6} fill="#e5e7eb" />
-          <rect x={x + 6} y="392" width="4" height={NET_Y - 392 + 6} fill="#94a3b8" />
+          <circle cx={x} cy={i % 2 ? 522 : 524} r="9" fill={i % 2 ? "#f8fafc" : "#facc15"} />
+          <path d={`M${x - 8} ${i % 2 ? 520 : 522} Q${x} ${i % 2 ? 526 : 528} ${x + 8} ${i % 2 ? 520 : 522}`} stroke="#1d4ed8" strokeWidth="1.6" fill="none" />
         </g>
       ))}
-      <rect x="1018" y="360" width="36" height="8" rx="2" fill="#94a3b8" />
-      <rect x="1022" y="368" width="4" height="180" fill="#64748b" />
-      <rect x="1046" y="368" width="4" height="180" fill="#64748b" />
+      <rect x="1078" y="566" width="6" height="10" fill="#111827" />
+      <rect x="1152" y="566" width="6" height="10" fill="#111827" />
+      {/* The net: posts with their pads, antennae, mesh, tapes, and the referee on the stand. */}
+      {[196, 1004].map((x) => (
+        <g key={x}>
+          <ellipse cx={x + 2} cy={NET_Y + 6} rx="22" ry="5" fill="#020617" opacity="0.35" />
+          <rect x={x - 6} y="392" width="12" height={NET_Y - 392 + 6} fill="#e5e7eb" />
+          <rect x={x + 2} y="392" width="4" height={NET_Y - 392 + 6} fill="#9ca3af" />
+          <rect x={x - 9} y="470" width="18" height={NET_Y - 470} rx="3" fill="#7c3aed" />
+          <rect x={x - 9} y="470" width="5" height={NET_Y - 470} rx="2" fill="#a78bfa" opacity="0.6" />
+        </g>
+      ))}
+      <rect x="1018" y="360" width="36" height="8" rx="2" fill="#9ca3af" />
+      <rect x="1022" y="368" width="4" height="180" fill="#4b5563" />
+      <rect x="1046" y="368" width="4" height="180" fill="#4b5563" />
       {[400, 440, 480, 520].map((y) => (
-        <rect key={y} x="1022" y={y} width="28" height="3" fill="#94a3b8" />
+        <rect key={y} x="1022" y={y} width="28" height="3" fill="#9ca3af" />
       ))}
       <Person x={1036} y={362} h={70} shirt="#f8fafc" skin="#b07a55" hair="#1c1210" stripes />
-      <rect x="202" y="404" width="796" height="66" fill="#0f172a" opacity="0.45" />
+      <rect x="202" y="404" width="796" height="66" fill="#0f172a" opacity="0.5" />
       {Array.from({ length: 57 }, (_, i) => (
-        <rect key={i} x={204 + i * 14} y="404" width="1.2" height="66" fill="#ffffff" opacity="0.28" />
+        <rect key={i} x={204 + i * 14} y="404" width="1.2" height="66" fill="#ffffff" opacity="0.3" />
       ))}
       {Array.from({ length: 6 }, (_, i) => (
-        <rect key={i} x="202" y={410 + i * 11} width="796" height="1.2" fill="#ffffff" opacity="0.28" />
+        <rect key={i} x="202" y={410 + i * 11} width="796" height="1.2" fill="#ffffff" opacity="0.3" />
       ))}
       <rect x="202" y="398" width="796" height="9" fill="#ffffff" />
       <rect x="202" y="468" width="796" height="4" fill="#ffffff" opacity="0.85" />
@@ -589,6 +640,9 @@ export function VolleyballScene() {
           ))}
         </g>
       ))}
+      {/* The net's shadow on the court. */}
+      <path d={`M${courtX(NET_Y + 4, "l")} ${NET_Y + 4} L${courtX(NET_Y + 4, "r")} ${NET_Y + 4} L${courtX(NET_Y + 22, "r")} ${NET_Y + 22} L${courtX(NET_Y + 22, "l")} ${NET_Y + 22}Z`} fill="#000000" opacity="0.08" />
+      <Vignette id={id} />
     </Svg>
   );
 }
@@ -596,78 +650,99 @@ export function VolleyballScene() {
 /* ── Rayla: a soccer pitch and a goal ────────────────────────────── */
 
 export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
-  // Mowing stripes that widen toward the viewer.
+  const id = "sc";
+  const pitchTop = 190;
+  // Mowing stripes across the pitch, wider toward the viewer.
   const bands: { y: number; h: number }[] = [];
-  let y = 170;
+  let y = pitchTop;
   for (let i = 0; y < H; i += 1) {
-    const h = 34 + i * 9;
+    const h = 30 + i * 9;
     bands.push({ y, h });
     y += h;
   }
+  // And stripes along it, toward the vanishing point: together, the checker a groundskeeper cuts.
+  const lanes = Array.from({ length: 14 }, (_, i) => -900 + i * 220);
   return (
-    <Svg label="Soccer pitch">
+    <Svg label="Soccer stadium at night">
       <defs>
-        <linearGradient id="soccer-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7dd3fc" />
-          <stop offset="100%" stopColor="#e0f2fe" />
+        <ArenaDefs id={id} glow="#4ade80" />
+        <CrowdTiles id={id} shirts={["#16a34a", "#16a34a", "#f8fafc", "#facc15", "#15803d", "#1f2937", "#f8fafc", "#dc2626"]} seat="#14301f" />
+        <linearGradient id="sc-night" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#020617" />
+          <stop offset="100%" stopColor="#0b1635" />
         </linearGradient>
+        <radialGradient id="sc-pool" cx="50%" cy="55%" r="65%">
+          <stop offset="0%" stopColor="#f7fee7" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#f7fee7" stopOpacity="0" />
+        </radialGradient>
+        <pattern id="sc-grass" patternUnits="userSpaceOnUse" width="18" height="12">
+          <path d="M2 10 L3 6 M7 11 L7.6 7 M12 10 L11.2 6.4 M15.5 11 L16.4 7.2 M4.6 4 L5 1 M10 5 L10.8 1.6 M14 4.4 L13.6 1" stroke="#14532d" strokeWidth="0.9" opacity="0.35" />
+        </pattern>
       </defs>
-      <rect x="0" y="0" width={W} height="175" fill="url(#soccer-sky)" />
-      <circle cx="1030" cy="70" r="34" fill="#fff6d8" opacity="0.95" />
-      {/* Clouds, far hills, floodlights. */}
-      {[
-        [150, 50],
-        [520, 34],
-        [820, 62],
-      ].map(([x, cy], i) => (
-        <g key={x} opacity="0.9" className="sc-drift" style={{ animationDelay: `${i * -13}s` }}>
-          <ellipse cx={x} cy={cy} rx="46" ry="14" fill="#ffffff" />
-          <ellipse cx={x - 22} cy={cy + 4} rx="26" ry="12" fill="#ffffff" />
-          <ellipse cx={x + 26} cy={cy + 5} rx="30" ry="12" fill="#ffffff" />
-        </g>
+      <rect x="0" y="0" width={W} height={H} fill="url(#sc-night)" />
+      {/* The roof's edge and the floodlights along it. */}
+      <rect x="-20" y="16" width={W + 40} height="22" fill="#0a0d16" />
+      <rect x="-20" y="36" width={W + 40} height="3" fill="#374151" />
+      {Array.from({ length: 11 }, (_, i) => (
+        <Glare key={i} id={id} x={60 + i * 108} y={30} r={52} core={3.8} />
       ))}
-      <path d="M0 140 Q200 90 420 130 Q640 160 860 110 Q1040 80 1200 130 L1200 180 L0 180Z" fill="#86c98a" />
-      {[90, 1110].map((x) => (
-        <g key={x}>
-          <rect x={x - 3} y="20" width="6" height="150" fill="#94a3b8" />
-          <rect x={x - 24} y="12" width="48" height="16" rx="3" fill="#475569" />
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x={x - 20 + i * 11} y="15" width="8" height="10" rx="2" fill="#fef3c7" />
-          ))}
-        </g>
-      ))}
-      {/* Trees and the stand behind the goal, under a roof, with the scoreboard. */}
-      {Array.from({ length: 16 }, (_, i) => (
-        <circle key={i} cx={i * 80 + 20} cy={150 - (i % 3) * 10} r={42 + (i % 2) * 10} fill={i % 2 ? "#15803d" : "#166534"} />
-      ))}
-      <rect x="300" y="86" width="600" height="12" fill="#334155" />
-      <rect x="306" y="98" width="588" height="76" fill="#64748b" />
-      {[0, 1, 2].map((r) => (
-        <rect key={r} x="306" y={104 + r * 22} width="588" height="3" fill="#475569" />
-      ))}
-      <Crowd x0={318} x1={882} y0={110} rows={3} gap={20} size={6.5} colors={["#22c55e", "#f8fafc", "#facc15", "#dc2626", "#1d4ed8"]} />
-      <rect x="180" y="96" width="112" height="70" rx="5" fill="#111827" />
-      <Fit x={236} y={120} w={92} size={12} fill="#f8fafc">
-        CITY UNITED
+      {/* Two tiers behind the goal, the ribbon between them. */}
+      <FarStand id={id} front={94} top={40} rows={6} s0={0.34} s1={0.27} aisles={[300, 900]} tunnels={[]} wall="#0d1424" />
+      <Ribbon
+        id={id}
+        y={94}
+        h={14}
+        segments={[
+          { text: "CITY UNITED", bg: "#15803d", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#111827", fg: "#facc15" },
+          { text: "GO CITY", bg: "#f8fafc", fg: "#15803d" },
+          { text: "CITY UNITED", bg: "#15803d", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#86efac" },
+          { text: "GO CITY", bg: "#f8fafc", fg: "#15803d" },
+        ]}
+      />
+      <FarStand id={id} front={168} top={108} rows={8} s0={0.48} s1={0.38} aisles={[200, 500, 700, 1000]} tunnels={[360, 840]} wall="#0d1424" />
+      {/* The big screen in the corner of the stand. */}
+      <rect x="44" y="44" width="236" height="74" rx="4" fill="#05070c" />
+      <rect x="50" y="50" width="224" height="62" fill={`url(#${id}-screen)`} />
+      <Fit x={162} y={66} w={150} size={11} fill="#86efac">
+        CITY UNITED · GUEST
       </Fit>
-      <text x="212" y="152" textAnchor="middle" fontSize="26" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
-        0
+      <text x="162" y="100" textAnchor="middle" fontSize="28" fontWeight="800" fill="#ffffff" fontFamily="ui-monospace, monospace">
+        0 – 0
       </text>
-      <text x="260" y="152" textAnchor="middle" fontSize="26" fontWeight="800" fill="#facc15" fontFamily="ui-monospace, monospace">
-        0
+      <text x="250" y="104" textAnchor="middle" fontSize="9" fontWeight="800" fill="#facc15" fontFamily="ui-monospace, monospace">
+        45:00
       </text>
-      {/* Boards along the back, plain, in the club's colours. */}
-      {Array.from({ length: 10 }, (_, i) => (
-        <g key={i}>
-          <rect x={20 + i * 116} y="174" width="112" height="16" fill={i % 2 ? "#f8fafc" : "#15803d"} />
-          <Fit x={76 + i * 116} y={186} w={i % 2 ? 60 : 84} size={9} fill={i % 2 ? "#15803d" : "#f8fafc"}>
-            {i % 2 ? "GO CITY" : "ALGEBRIDGE"}
-          </Fit>
-        </g>
-      ))}
+      {/* The LED boards at the end of the pitch. */}
+      <CourtBoards
+        id={id}
+        y={168}
+        h={22}
+        x0={-20}
+        x1={W + 20}
+        reflect={false}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
+          { text: "GO CITY", bg: "#0f172a", fg: "#86efac" },
+          { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#14532d" },
+          { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
+          { text: "TOP CORNER", bg: "#0f172a", fg: "#ffffff" },
+          { text: "CITY UNITED", bg: "#f8fafc", fg: "#15803d" },
+        ]}
+      />
+      <rect x="-20" y="190" width={W + 40} height="10" fill={`url(#${id}-boardglow)`} opacity="0.5" />
+      {/* The pitch: stripes across and along, the grass itself, the floodlit pool. */}
       {bands.map((b, i) => (
-        <rect key={i} x="0" y={b.y} width={W} height={b.h} fill={i % 2 ? "#4aa853" : "#3f9b47"} />
+        <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#2f8f3c" : "#287f34"} />
       ))}
+      {lanes.map((x, i) =>
+        i % 2 ? null : (
+          <path key={x} d={`M${toward(x, H, pitchTop)} ${pitchTop} L${toward(x + 220, H, pitchTop)} ${pitchTop} L${x + 220} ${H} L${x} ${H}Z`} fill="#ffffff" opacity="0.045" />
+        )
+      )}
+      <rect x="-20" y={pitchTop} width={W + 40} height={H - pitchTop + 20} fill="url(#sc-grass)" />
+      <rect x="-20" y={pitchTop} width={W + 40} height={H - pitchTop + 20} fill="url(#sc-pool)" />
       {/* Lines: the end line, the penalty box, the goal box, the spot, the arc. */}
       <rect x="40" y={GOAL.line - 2} width="1120" height="4" fill="#f8fafc" />
       <path d={`M320 ${GOAL.line} L880 ${GOAL.line} L935 410 L265 410Z`} fill="none" stroke="#f8fafc" strokeWidth="4" />
@@ -683,17 +758,28 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
           </g>
         </g>
       ))}
-      {/* Dugouts on both sides: a shelter, the substitutes, a ball bag and cones. */}
+      {/* Photographers behind the end line, either side of the goal. */}
+      {[300, 380, 820, 900].map((x, i) => (
+        <g key={x}>
+          <ellipse cx={x} cy="284" rx="18" ry="4" fill="#000000" opacity="0.35" />
+          <Person x={x} y={282} h={40} shirt={i % 2 ? "#1f2937" : "#f97316"} skin={SKINS[(i * 2 + 1) % SKINS.length]} hair={HAIRS[i % HAIRS.length]} />
+          <rect x={x - 3} y="250" width="16" height="7" rx="1.5" fill="#111827" />
+          <rect x={x + 11} y="251.5" width="10" height="4" rx="1" fill="#374151" />
+        </g>
+      ))}
+      {/* Dugouts on both sides: glass shelters, padded seats, the substitutes, a ball bag and cones. */}
       {[0, 1].map((side) => {
         const x = side ? 1010 : 30;
         const shirt = side ? "#facc15" : "#22c55e";
         return (
           <g key={side}>
-            <rect x={x} y="306" width="160" height="10" rx="3" fill="#475569" />
-            <rect x={x + 4} y="316" width="152" height="52" fill="#93c5fd" opacity="0.45" />
-            <rect x={x} y="316" width="6" height="66" fill="#475569" />
-            <rect x={x + 154} y="316" width="6" height="66" fill="#475569" />
-            <rect x={x + 10} y="366" width="140" height="8" rx="3" fill="#64748b" />
+            <ellipse cx={x + 80} cy="388" rx="92" ry="9" fill="#000000" opacity="0.35" />
+            <path d={`M${x - 4} 318 Q${x + 80} 296 ${x + 164} 318 L${x + 164} 324 L${x - 4} 324Z`} fill="#111827" />
+            <rect x={x + 2} y="322" width="156" height="48" fill="#bae6fd" opacity="0.22" />
+            <rect x={x + 2} y="322" width="156" height="12" fill="#ffffff" opacity="0.12" />
+            <rect x={x} y="322" width="5" height="62" fill="#1f2937" />
+            <rect x={x + 155} y="322" width="5" height="62" fill="#1f2937" />
+            <rect x={x + 8} y="360" width="144" height="12" rx="4" fill={side ? "#a16207" : "#166534"} />
             {[0, 1, 2].map((i) => (
               <Person key={i} x={x + 36 + i * 44} y={366} h={50} shirt={shirt} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 2 + side) % HAIRS.length]} />
             ))}
@@ -703,26 +789,31 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
           </g>
         );
       })}
-      <ellipse cx="220" cy="392" rx="26" ry="12" fill="#1f2937" />
+      <ellipse cx="220" cy="392" rx="26" ry="12" fill="#111827" />
       {[204, 220, 236].map((x, i) => (
         <circle key={x} cx={x} cy={386 - (i % 2) * 4} r="7" fill="#f8fafc" />
       ))}
       {[960, 980, 1000].map((x) => (
         <path key={x} d={`M${x} 396 l6 -18 l6 18Z`} fill="#f97316" />
       ))}
-      {/* The goal. */}
+      {/* The goal: the net behind, then the frame, posts lit from the left. */}
       <g className={netHit ? "net-hit" : ""} style={{ transformOrigin: `600px ${GOAL.line}px`, transformBox: "view-box" }}>
-        <rect x={GOAL.x0 + 6} y={GOAL.top + 8} width={GOAL.x1 - GOAL.x0 - 12} height={GOAL.line - GOAL.top - 8} fill="#e2e8f0" opacity="0.28" />
+        <rect x={GOAL.x0 + 6} y={GOAL.top + 8} width={GOAL.x1 - GOAL.x0 - 12} height={GOAL.line - GOAL.top - 8} fill="#e2e8f0" opacity="0.2" />
         {Array.from({ length: 19 }, (_, i) => (
-          <rect key={i} x={GOAL.x0 + 8 + i * 13.5} y={GOAL.top + 8} width="1.2" height={GOAL.line - GOAL.top - 8} fill="#f8fafc" opacity="0.55" />
+          <rect key={i} x={GOAL.x0 + 8 + i * 13.5} y={GOAL.top + 8} width="1.2" height={GOAL.line - GOAL.top - 8} fill="#f8fafc" opacity="0.6" />
         ))}
         {Array.from({ length: 7 }, (_, i) => (
-          <rect key={i} x={GOAL.x0 + 6} y={GOAL.top + 18 + i * 13} width={GOAL.x1 - GOAL.x0 - 12} height="1.2" fill="#f8fafc" opacity="0.55" />
+          <rect key={i} x={GOAL.x0 + 6} y={GOAL.top + 18 + i * 13} width={GOAL.x1 - GOAL.x0 - 12} height="1.2" fill="#f8fafc" opacity="0.6" />
         ))}
       </g>
+      <ellipse cx="600" cy={GOAL.line + 6} rx="150" ry="8" fill="#000000" opacity="0.25" />
       <rect x={GOAL.x0} y={GOAL.top} width="9" height={GOAL.line - GOAL.top + 2} fill="#ffffff" />
+      <rect x={GOAL.x0 + 6} y={GOAL.top} width="3" height={GOAL.line - GOAL.top + 2} fill="#cbd5e1" />
       <rect x={GOAL.x1 - 9} y={GOAL.top} width="9" height={GOAL.line - GOAL.top + 2} fill="#ffffff" />
+      <rect x={GOAL.x1 - 3} y={GOAL.top} width="3" height={GOAL.line - GOAL.top + 2} fill="#cbd5e1" />
       <rect x={GOAL.x0} y={GOAL.top} width={GOAL.x1 - GOAL.x0} height="9" fill="#ffffff" />
+      <rect x={GOAL.x0} y={GOAL.top + 6} width={GOAL.x1 - GOAL.x0} height="3" fill="#cbd5e1" />
+      <Vignette id={id} />
     </Svg>
   );
 }
