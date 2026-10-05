@@ -15,6 +15,61 @@ import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { clampToRink, onRink, pickRinkProblem, RINK, RINK_DAILY_CAP, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
 import type { UserProgress } from "@/types";
+import { approach, skatePose, strokePeriod, type SkatePose } from "@/lib/gait";
+
+/** Veronica's joints, found once per drawing, for the loop to pose while she skates. */
+interface SkateJoints {
+  svg: SVGSVGElement;
+  parts: Record<"legF" | "legB" | "shinF" | "shinB" | "footF" | "footB" | "armF" | "armB" | "foreF" | "foreB", SVGElement | null>;
+  bodies: SVGElement[];
+}
+
+function skateJointsOf(svg: SVGSVGElement): SkateJoints {
+  const q = (sel: string) => svg.querySelector<SVGElement>(sel);
+  return {
+    svg,
+    parts: {
+      legF: q(".v-leg-front"),
+      legB: q(".v-leg-back"),
+      shinF: q(".v-shin-front"),
+      shinB: q(".v-shin-back"),
+      footF: q(".v-foot-front"),
+      footB: q(".v-foot-back"),
+      armF: q(".v-arm-front"),
+      armB: q(".v-arm-back"),
+      foreF: q(".v-fore-front"),
+      foreB: q(".v-fore-back"),
+    },
+    bodies: [...svg.querySelectorAll<SVGElement>(".v-body, .v-skirt")],
+  };
+}
+
+/** Poses her strokes and glides, or hands her back to the CSS (her moves, standing still) when `pose` is null. */
+function writeSkate(j: SkateJoints, pose: SkatePose | null): void {
+  const all = [...Object.values(j.parts), ...j.bodies];
+  if (!pose) {
+    if (j.svg.classList.contains("veronica-gait")) {
+      j.svg.classList.remove("veronica-gait");
+      for (const el of all) if (el) el.style.transform = "";
+    }
+    return;
+  }
+  j.svg.classList.add("veronica-gait");
+  const angles: Record<keyof SkateJoints["parts"], number> = {
+    legF: pose.thighF,
+    legB: pose.thighB,
+    shinF: pose.shinF,
+    shinB: pose.shinB,
+    footF: pose.footF,
+    footB: pose.footB,
+    armF: pose.armF,
+    armB: pose.armB,
+    foreF: pose.foreF,
+    foreB: pose.foreB,
+  };
+  for (const [k, el] of Object.entries(j.parts)) if (el) el.style.transform = `rotate(${angles[k as keyof SkateJoints["parts"]]}deg)`;
+  for (const b of j.bodies) b.style.transform = `rotate(${pose.body}deg)`;
+}
 
 /**
  * Skating with Veronica. Arrow keys or WASD skate (drag, on touch); the
@@ -64,6 +119,9 @@ export function RinkGame({
   const pos = useRef({ x: RINK.cx, y: RINK.cy + 40 });
   const vel = useRef({ x: 0, y: 0 });
   const facing = useRef<1 | -1>(1);
+  // Her strokes: where she is in a pair (0..1), how much she is pushing rather than gliding, and the turn.
+  const skate = useRef({ phase: 0, push: 0, fx: 1 });
+  const skateJoints = useRef<SkateJoints | null>(null);
   const keys = useRef(new Set<string>());
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -179,6 +237,8 @@ export function RinkGame({
           ay = dy / d;
         }
       }
+      // An arrow held (or a finger down) is a push; nothing held is a glide.
+      const pushing = ax !== 0 || ay !== 0;
       const len = Math.hypot(ax, ay) || 1;
       // The floor is flat, so up and down are foreshortened.
       v.x += (ax / len) * ACCEL * dt;
@@ -219,7 +279,10 @@ export function RinkGame({
         const svg = el.firstElementChild as HTMLElement | null;
         if (svg) {
           const s = Math.min(1, speed / MAX_SPEED);
-          svg.style.transform = facing.current === -1 ? "scaleX(-1)" : "";
+          // She turns through a turn rather than flipping in one frame.
+          const sk = skate.current;
+          sk.fx = approach(sk.fx, facing.current, 14, dt);
+          svg.style.transform = Math.abs(sk.fx) > 0.995 ? (sk.fx < 0 ? "scaleX(-1)" : "") : `scaleX(${sk.fx.toFixed(3)})`;
           svg.style.setProperty("--stride", `${Math.max(0.26, 0.9 - s * 0.6)}s`);
           const moving = s > 0.06;
           svg.classList.toggle("veronica-moving", moving);
@@ -249,6 +312,12 @@ export function RinkGame({
           svg.classList.toggle("veronica-spiral", r.move === "spiral");
           svg.classList.toggle("veronica-duck", r.move === "duck");
           svg.classList.toggle("veronica-kneel", r.move === "kneel");
+          // Strokes while she pushes, a glide when she lets go; her moves keep their own poses.
+          if (pushing && moving) sk.phase = (sk.phase + dt / strokePeriod(s)) % 1;
+          sk.push = approach(sk.push, pushing && moving ? 1 : 0, 7, dt);
+          const vsvg = svg as unknown as SVGSVGElement;
+          if (skateJoints.current?.svg !== vsvg) skateJoints.current = skateJointsOf(vsvg);
+          writeSkate(skateJoints.current, moving && !r.move ? skatePose(sk.phase, s, sk.push) : null);
         }
       }
 

@@ -11,6 +11,7 @@ import { useSound } from "@/hooks/useSound";
 import { awardRinkBridgeys, recordGameRun } from "@/lib/bridgeys";
 import { pctX, pctY, SCENE_H, SCENE_W } from "@/lib/dollhouse";
 import { clampToArea, depthScale, getCourtGame, GOAL, inArea, spotAwayFrom, type CourtGameId } from "@/lib/games";
+import { approach, gaitPose, GAITS, strideLength, type Pose } from "@/lib/gait";
 import { DAILY_GOAL } from "@/lib/gamification";
 import { answerIsRight } from "@/lib/grading";
 import { fireConfetti, showToast } from "@/lib/notify";
@@ -30,6 +31,71 @@ import type { UserProgress } from "@/types";
  */
 
 const MARGIN = 22;
+
+/** The joints the game loop poses while a player moves, found once per drawing. */
+interface Joints {
+  svg: SVGSVGElement;
+  flip: SVGElement | null;
+  all: SVGElement | null;
+  legF: SVGElement | null;
+  legB: SVGElement | null;
+  shinF: SVGElement | null;
+  shinB: SVGElement | null;
+  armF: SVGElement | null;
+  armB: SVGElement | null;
+  foreF: SVGElement | null;
+  foreB: SVGElement | null;
+  bodies: SVGElement[];
+}
+
+function jointsOf(svg: SVGSVGElement): Joints {
+  const q = (sel: string) => svg.querySelector<SVGElement>(sel);
+  return {
+    svg,
+    flip: q(".p-flip"),
+    all: q(".p-all"),
+    legF: q(".p-leg-front"),
+    legB: q(".p-leg-back"),
+    shinF: q(".p-shin-front"),
+    shinB: q(".p-shin-back"),
+    armF: q(".p-arm-front"),
+    armB: q(".p-arm-back"),
+    foreF: q(".p-fore-front"),
+    foreB: q(".p-fore-back"),
+    bodies: [...svg.querySelectorAll<SVGElement>(".p-body, .p-skirt")],
+  };
+}
+
+/**
+ * Writes a running pose onto the joints, or hands them back to the CSS
+ * stance (which they ease into) when `pose` is null. The facing turns
+ * through `fx` either way, so a turn reads as a turn rather than a snap.
+ */
+function writePose(j: Joints, pose: Pose | null, fx: number): void {
+  if (j.flip) j.flip.style.transform = `scale(${Math.abs(fx) > 0.995 ? Math.sign(fx) : fx.toFixed(3)}, 1)`;
+  const parts = [j.all, j.legF, j.legB, j.shinF, j.shinB, j.armF, j.armB, j.foreF, j.foreB, ...j.bodies];
+  if (!pose) {
+    if (j.svg.classList.contains("player-gait")) {
+      j.svg.classList.remove("player-gait");
+      for (const el of parts) if (el) el.style.transform = "";
+    }
+    return;
+  }
+  j.svg.classList.add("player-gait");
+  const set = (el: SVGElement | null, t: string) => {
+    if (el) el.style.transform = t;
+  };
+  set(j.all, `translateY(${pose.bob}px)`);
+  set(j.legF, `rotate(${pose.thighF}deg) scale(1, ${pose.liftF})`);
+  set(j.legB, `rotate(${pose.thighB}deg) scale(1, ${pose.liftB})`);
+  set(j.shinF, `rotate(${pose.shinF}deg)`);
+  set(j.shinB, `rotate(${pose.shinB}deg)`);
+  set(j.armF, `rotate(${pose.armF}deg)`);
+  set(j.armB, `rotate(${pose.armB}deg)`);
+  set(j.foreF, `rotate(${pose.foreF}deg)`);
+  set(j.foreB, `rotate(${pose.foreB}deg)`);
+  for (const b of j.bodies) b.style.transform = `rotate(${pose.body}deg)`;
+}
 const REACH = 52;
 const ACTION_MS = 950;
 /** When, into the move, the ball leaves: the hand at the top of the spike, the foot through the ball. */
@@ -71,6 +137,9 @@ export function CourtGame({
   const pos = useRef({ ...game.start });
   const vel = useRef({ x: 0, y: 0 });
   const facing = useRef<1 | -1>(1);
+  // The stride: where it is (0..1), how much of the motion is across the court, the drive, the turn.
+  const gait = useRef({ phase: 0, side: 1, push: 0, fx: 1, speed: 0, last: { ...game.start } });
+  const joints = useRef<Joints | null>(null);
   const keys = useRef(new Set<string>());
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const paused = useRef(false);
@@ -211,10 +280,23 @@ export function CourtGame({
         el.style.zIndex = String(300 + Math.round((p.y / SCENE_H) * 100));
         const svg = el.firstElementChild as SVGSVGElement | null;
         if (svg) {
-          const s = Math.min(1, Math.hypot(v.x, v.y * 1.6) / game.maxSpeed);
-          svg.style.setProperty("--stride", `${Math.max(0.26, 0.62 - s * 0.3)}s`);
+          const speed = Math.hypot(v.x, v.y * 1.6);
+          const s = Math.min(1, speed / game.maxSpeed);
+          const g = gait.current;
+          // The ground covered this frame is what turns the stride, so a planted foot stays planted.
+          const covered = Math.hypot(p.x - g.last.x, (p.y - g.last.y) * 1.6);
+          g.last = { x: p.x, y: p.y };
+          const G = GAITS[gameId];
+          g.phase = (g.phase + covered / strideLength(G, s, game.height, scale)) % 1;
+          if (speed > 1) g.side = approach(g.side, Math.abs(v.x) / (Math.abs(v.x) + Math.abs(v.y * 1.6)), 10, dt);
+          const drive = Math.max(-1, Math.min(1, (speed - g.speed) / Math.max(dt, 1e-3) / game.accel));
+          g.push = approach(g.push, drive, 8, dt);
+          g.speed = speed;
+          g.fx = approach(g.fx, facing.current, 16, dt);
           svg.classList.toggle("player-moving", s > 0.08);
           svg.classList.toggle("player-left", facing.current === -1);
+          if (joints.current?.svg !== svg) joints.current = jointsOf(svg);
+          writePose(joints.current, s > 0.05 && !paused.current ? gaitPose(G, g.phase, s, g.side, g.push) : null, g.fx);
         }
       }
 
