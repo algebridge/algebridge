@@ -1,11 +1,12 @@
 /**
- * Visit counting: Google Analytics 4, one property shared with algebridge.org.
+ * Visit counting, two ways: AlgeBridge's own daily totals for the admin
+ * console (src/lib/traffic.ts), and Google Analytics 4, one property shared
+ * with algebridge.org.
  *
- * The measurement ID comes from the deployment's environment. With no ID the
- * page loads nothing and sends nothing, so a local checkout or a preview
- * deployment never counts. `analyticsAllowed` is the single rule for whether
- * a page view counts at all; the Analytics component applies it.
- */
+ * `countingAllowed` is the single rule for whether a page view counts at all,
+ * and `analyticsAllowed` adds Google's measurement ID on top of it. The
+ * Analytics component applies both. With no ID the page loads nothing from
+ * Google and sends nothing there.
 
 /** The Algebridge property (account "Algebridge" under ivan.malchugan@gmail.com), shared with algebridge.org. */
 const DEFAULT_GA_ID = "G-3JJ9QGH9DM";
@@ -33,16 +34,20 @@ export type AnalyticsContext = {
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
 
 /**
- * Whether this page view is counted. False without an ID, inside a frame (the
- * landing page counts that visit itself), on the frame-only routes, on a local
- * host, and when the browser sends Global Privacy Control.
+ * Whether this page view counts at all. False inside a frame (the landing
+ * page counts that visit itself), on the frame-only routes, on a local host,
+ * and when the browser sends Global Privacy Control.
  */
-export function analyticsAllowed(id: string, ctx: AnalyticsContext): boolean {
-  if (!/^G-[A-Z0-9]{4,}$/.test(id)) return false;
+export function countingAllowed(ctx: AnalyticsContext): boolean {
   if (ctx.framed || ctx.bareRoute || ctx.globalPrivacyControl) return false;
   const host = ctx.hostname.toLowerCase();
   if (LOCAL_HOSTS.has(host) || host.endsWith(".local") || host.endsWith(".localhost")) return false;
   return true;
+}
+
+/** Whether Google Analytics hears about this page view: a counted view, with a measurement ID. */
+export function analyticsAllowed(id: string, ctx: AnalyticsContext): boolean {
+  return /^G-[A-Z0-9]{4,}$/.test(id) && countingAllowed(ctx);
 }
 
 /** The gtag config: no Google signals, no ad personalization, page views sent by the app itself. */

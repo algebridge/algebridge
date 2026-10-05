@@ -7,24 +7,31 @@ import { useAuth } from "@/lib/auth";
 import { consoleFontClass } from "@/lib/console-fonts";
 import { fullDate, shortAgo } from "@/lib/console-format";
 import {
+  fetchAdminFeedback,
   fetchAdminOverview,
   fetchAdminReports,
   fetchAdminReviews,
+  fetchAdminTraffic,
   fetchAdminUserRows,
   grantAdmin,
   REPORT_REASON_LABELS,
   setUnlimitedBridgeysFor,
+  type AdminFeedbackItem,
+  type AdminFeedbackResult,
   type AdminOverview,
   type AdminReport,
   type AdminReportsResult,
   type AdminReviews,
+  type AdminTrafficResult,
   type AdminUserRow,
 } from "@/lib/admin";
 import { StarsDisplay } from "@/components/StarRating";
+import { FeedbackItem, FeedbackPanel } from "./FeedbackPanel";
+import { TrafficPanel, lastDays } from "./TrafficPanel";
 import { adminDeleteUser, adminSetRole } from "@/lib/social";
 import type { UserRole } from "@/types";
 
-type Tab = "overview" | "people" | "reports";
+type Tab = "overview" | "traffic" | "people" | "feedback" | "reports";
 type RoleFilter = "all" | "student" | "tutor" | "teacher" | "nontutor";
 type SeenFilter = "all" | "1d" | "7d" | "30d" | "dormant";
 
@@ -72,6 +79,8 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [reviews, setReviews] = useState<AdminReviews | null>(null);
   const [reports, setReports] = useState<AdminReportsResult | null>(null);
+  const [traffic, setTraffic] = useState<AdminTrafficResult | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackResult | null>(null);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [msg, setMsg] = useState("");
@@ -88,11 +97,20 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setLoadingData(true);
-    const [o, r, rv, rp] = await Promise.all([fetchAdminOverview(), fetchAdminUserRows(), fetchAdminReviews(), fetchAdminReports()]);
+    const [o, r, rv, rp, tr, fb] = await Promise.all([
+      fetchAdminOverview(),
+      fetchAdminUserRows(),
+      fetchAdminReviews(),
+      fetchAdminReports(),
+      fetchAdminTraffic(30),
+      fetchAdminFeedback(300),
+    ]);
     setOverview(o);
     setRows(r);
     setReviews(rv);
     setReports(rp);
+    setTraffic(tr);
+    setFeedback(fb);
     setSelected(new Set());
     setLoadingData(false);
   }, []);
@@ -238,6 +256,15 @@ export default function AdminPage() {
   const confirmWord = String(chosen.length);
   const seenByDay = overview?.seenByDay ?? [];
   const histoMax = Math.max(1, ...seenByDay.map((d) => d.n));
+  const week = traffic?.status === "ok" ? lastDays(traffic.data, 7) : null;
+  const feedbackWeek =
+    feedback?.status === "ok"
+      ? feedback.data.items.filter((f) => Date.now() - new Date(f.createdAt).getTime() <= 7 * 86_400_000).length
+      : 0;
+  // Until the safety update adds admin_reports(), reports are read as the feedback rows they are saved as.
+  const reportFallback = feedback?.status === "ok" ? feedback.data.items.filter((f) => f.kind === "report") : null;
+  const reportCount =
+    reports?.status === "ok" ? reports.reports.length : reports?.status === "missing" ? (reportFallback?.length ?? 0) : 0;
 
   return (
     <div className={`sbc ${consoleFontClass}`}>
@@ -258,18 +285,28 @@ export default function AdminPage() {
         <button type="button" className={tab === "overview" ? "is-active" : ""} onClick={() => setTab("overview")}>
           Overview
         </button>
+        <button type="button" className={tab === "traffic" ? "is-active" : ""} onClick={() => setTab("traffic")}>
+          Traffic
+        </button>
         <button type="button" className={tab === "people" ? "is-active" : ""} onClick={() => setTab("people")}>
           People{rows.length ? ` (${rows.length})` : ""}
         </button>
+        <button type="button" className={tab === "feedback" ? "is-active" : ""} onClick={() => setTab("feedback")}>
+          Feedback{feedback?.status === "ok" && feedback.data.total ? ` (${feedback.data.total})` : ""}
+        </button>
         <button type="button" className={tab === "reports" ? "is-active" : ""} onClick={() => setTab("reports")}>
-          Reports{reports?.status === "ok" && reports.reports.length ? ` (${reports.reports.length})` : ""}
+          Reports{reportCount ? ` (${reportCount})` : ""}
         </button>
       </div>
 
       {err && <div className="sbc-notice">{err}</div>}
       {msg && <div className="sbc-notice is-ok">{msg}</div>}
 
-      {tab === "reports" && <ReportsPanel data={reports} loading={loadingData} />}
+      {tab === "traffic" && <TrafficPanel data={traffic} loading={loadingData} />}
+
+      {tab === "feedback" && <FeedbackPanel data={feedback} loading={loadingData} />}
+
+      {tab === "reports" && <ReportsPanel data={reports} loading={loadingData} fallback={reportFallback} />}
 
       {tab === "overview" && (
         <>
@@ -277,6 +314,34 @@ export default function AdminPage() {
             <div className="sbc-notice is-info">
               These numbers come from <code>admin_overview()</code>. If this stays empty, run{" "}
               <code>supabase/schema-admin-console.sql</code> in the Supabase SQL editor first.
+            </div>
+          )}
+
+          {traffic?.status === "ok" && (
+            <div className="sbc-stats">
+              <article className="sbc-stat">
+                <strong>{traffic.data.days[traffic.data.days.length - 1]?.siteVisitors ?? 0}</strong>
+                <span>algebridge.org · today</span>
+                <b className="is-quiet">{week ? `${week.siteVisitors} in 7 days` : ""}</b>
+              </article>
+              <article className="sbc-stat">
+                <strong>{traffic.data.days[traffic.data.days.length - 1]?.appVisitors ?? 0}</strong>
+                <span>Platform · today</span>
+                <b className="is-quiet">{week ? `${week.appVisitors} in 7 days` : ""}</b>
+              </article>
+              <article className="sbc-stat">
+                <strong>{feedbackWeek}</strong>
+                <span>Feedback · 7 days</span>
+                <b className="is-quiet">{feedback?.status === "ok" ? `${feedback.data.total} in all` : ""}</b>
+              </article>
+              <article className="sbc-stat" style={{ display: "grid", alignContent: "center", gap: 8 }}>
+                <button type="button" className="sbc-btn is-small" onClick={() => setTab("traffic")}>
+                  Open Traffic
+                </button>
+                <button type="button" className="sbc-btn is-small" onClick={() => setTab("feedback")}>
+                  Open Feedback
+                </button>
+              </article>
             </div>
           )}
 
@@ -723,7 +788,16 @@ function reportPlace(where: string | null): { label: string; id: string | null }
  * channel, see the header of supabase/schema-2026-10-03-safety.sql), so the
  * panel says how recent each one is and what to do with one that is serious.
  */
-function ReportsPanel({ data, loading }: { data: AdminReportsResult | null; loading: boolean }) {
+function ReportsPanel({
+  data,
+  loading,
+  fallback,
+}: {
+  data: AdminReportsResult | null;
+  loading: boolean;
+  /** Reports read as feedback rows, for while admin_reports() is missing. */
+  fallback: AdminFeedbackItem[] | null;
+}) {
   return (
     <section className="sbc-panel" aria-labelledby="sbc-reports-title">
       <div className="sbc-panel-head">
@@ -741,11 +815,20 @@ function ReportsPanel({ data, loading }: { data: AdminReportsResult | null; load
 
         {data?.status === "missing" && (
           <div className="sbc-notice is-info" role="status">
-            <strong>Reports need the October 3 database update.</strong> Run{" "}
-            <code>supabase/schema-2026-10-03-safety.sql</code> in the Supabase SQL editor to list them here. Until then,
-            reports are kept, but only the Supabase Table Editor shows them: table <code>feedback</code>, where{" "}
-            <code>kind</code> is <code>report</code>.
+            <strong>Each report is listed as it was sent.</strong> The October 3 safety update (
+            <code>supabase/schema-2026-10-03-safety.sql</code>) files the reason, the reported account and the quoted
+            message into their own fields. Until it runs, all of that is in the text of each report below.
           </div>
+        )}
+
+        {data?.status === "missing" && fallback && fallback.length === 0 && <p style={{ fontSize: 13 }}>No reports yet.</p>}
+
+        {data?.status === "missing" && fallback && fallback.length > 0 && (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, borderTop: "1px solid var(--line)" }}>
+            {fallback.map((f) => (
+              <FeedbackItem key={f.id} item={f} />
+            ))}
+          </ul>
         )}
 
         {data?.status === "error" && (

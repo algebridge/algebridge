@@ -1559,6 +1559,59 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ok("analytics: the privacy page names Google Analytics while the ID is set", /\{GA_ID && \(/.test(pages[0][1]) && /<strong>Google Analytics<\/strong> counts visits/.test(pages[0][1]));
   ok("analytics: the layout mounts the counter once", (repo("src/app/layout.tsx").match(/<Analytics \/>/g) || []).length === 1);
 
+  // --- visit counts for the admin console ---------------------------------------------------
+  const TR = await import("../traffic.ts");
+  ok("traffic: a person's thread, a group and a call are never kept", TR.normalizePath("/messages/3f2a8c1e-1111-4222-8333-444455556666") === "/messages/:id" && TR.normalizePath("/groups/abc") === "/groups/:id" && TR.normalizePath("/room/room-a--b") === "/room/:id");
+  ok("traffic: curriculum pages stay readable", TR.normalizePath("/learn/unit-1/one-step") === "/learn/unit-1/one-step");
+  ok("traffic: query strings and hashes are dropped", TR.normalizePath("/review?skill=x#top") === "/review" && TR.normalizePath("/?ref=ig") === "/");
+  ok("traffic: long tokens with digits count as ids", TR.normalizePath("/x/abcdefghijklmnopqrstuvwxyz123") === "/x/:id");
+  ok("traffic: odd characters are dropped, at most 120 characters", TR.normalizePath("/a b<script>") === "/abscript" && TR.normalizePath("/" + "a".repeat(300)).length === 120);
+  ok("traffic: trailing slashes and empty paths", TR.normalizePath("/learn/") === "/learn" && TR.normalizePath("") === "/" && TR.normalizePath("learn") === "/learn");
+  ok("traffic: the referrer is a bare host", TR.referrerHost("https://www.google.com/search?q=algebra", "algebridge.org") === "google.com" && TR.referrerHost("https://m.facebook.com/", "algebridge.org") === "facebook.com");
+  ok("traffic: a link from the same site is not a source", TR.referrerHost("https://algebridge.org/#team", "algebridge.org") === null && TR.referrerHost("https://www.algebridge.org/", "algebridge.org") === null);
+  ok("traffic: the platform keeps the home page as its source", TR.referrerHost("https://algebridge.org/", "learn.algebridge.org") === "algebridge.org");
+  ok("traffic: no referrer or a broken one", TR.referrerHost("", "x.org") === null && TR.referrerHost("not a url", "x.org") === null);
+  ok("traffic: phone, tablet, computer", TR.deviceClass(true, 390) === "phone" && TR.deviceClass(true, 820) === "tablet" && TR.deviceClass(false, 390) === "computer");
+  let visitStore: string | null = null;
+  const vRead = () => visitStore;
+  const vWrite = (v: string) => { visitStore = v; };
+  const id1 = TR.dailyVisitorId(vRead, vWrite, "2026-10-05", () => "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA");
+  const id2 = TR.dailyVisitorId(vRead, vWrite, "2026-10-05", () => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  const id3 = TR.dailyVisitorId(vRead, vWrite, "2026-10-06", () => "cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  ok("traffic: one id all day, a new one the next day", id1 === id2 && id1 === "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" && id3 === "cccccccc-cccc-4ccc-8ccc-cccccccccccc" && visitStore === "2026-10-06|cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  const id4 = TR.dailyVisitorId(() => { throw new Error("blocked"); }, () => { throw new Error("blocked"); }, "2026-10-05", () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  ok("traffic: blocked storage still gets an id", id4 === "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+  ok("traffic: random ids are version 4 UUIDs", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(TR.randomId()));
+  ok("traffic: local days", TR.localDay(new Date(2026, 0, 5)) === "2026-01-05");
+  const V1 = "11111111-1111-4111-8111-111111111111";
+  const tv = TR.parseTrafficBeacon({ t: "view", s: "app", v: V1, p: "/messages/3f2a8c1e-1111-4222-8333-444455556666?x=1", r: "google.com", d: "phone" });
+  ok("traffic: a view beacon is cleaned on the server too", tv?.type === "view" && tv.path === "/messages/:id" && tv.referrer === "google.com" && tv.device === "phone");
+  ok("traffic: a click beacon", JSON.stringify(TR.parseTrafficBeacon({ t: "click", s: "site", v: V1, l: "hero-start" })) === JSON.stringify({ type: "click", site: "site", visitor: V1, label: "hero-start" }));
+  ok("traffic: unknown sites, ids, kinds and labels are refused", [
+    { t: "view", s: "admin", v: V1 }, { t: "view", s: "site", v: "not-a-uuid" }, { t: "delete", s: "site", v: V1 }, { t: "click", s: "site", v: V1, l: "DROP TABLE" }, null, [], "x",
+  ].every((b) => TR.parseTrafficBeacon(b) === null));
+  const tj = TR.parseTrafficBeacon({ s: "site", v: V1, r: "Evil Host!", d: "fridge" });
+  ok("traffic: junk referrers and devices become nothing", tj?.type === "view" && tj.referrer === null && tj.device === null && tj.path === "/");
+  ok("traffic: bots, previews and scripts are left out, browsers are not",
+    ["Mozilla/5.0 (compatible; Googlebot/2.1)", "Mozilla/5.0 HeadlessChrome/140", "curl/8.4", "facebookexternalhit/1.1", "Slackbot-LinkExpanding 1.0", ""].every((u) => TR.isLikelyBot(u)) &&
+    !TR.isLikelyBot("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1") &&
+    !TR.isLikelyBot("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"));
+  ok("traffic: counting has Google's rule, without the ID", AN.countingAllowed(live) && !AN.countingAllowed({ ...live, framed: true }) && !AN.countingAllowed({ ...live, bareRoute: true }) && !AN.countingAllowed({ ...live, hostname: "localhost" }) && !AN.countingAllowed({ ...live, globalPrivacyControl: true }));
+  const landing = repo("index.html");
+  ok("traffic: the landing page sends to the platform's route", landing.includes(`'${TR.TRAFFIC_ENDPOINT}'`));
+  ok("traffic: the landing page skips local previews, frames and Global Privacy Control", /var local = location\.port === '4828'/.test(landing) && /window\.top !== window\.self \|\| navigator\.globalPrivacyControl === true\) return null/.test(landing));
+  ok("traffic: the landing page keeps the same daily id key", landing.includes(`localStorage.getItem('${TR.VISITOR_KEY}')`));
+  ok("traffic: every landing page button label passes the database's check", [...landing.matchAll(/data-cta="([^"]+)"/g)].every((m) => /^[a-z0-9-]{1,40}$/.test(m[1])));
+  const trafficRoute = repo("src/app/api/traffic/route.ts");
+  ok("traffic: the route drops bots and parses through the shared rules", /isLikelyBot\(/.test(trafficRoute) && /parseTrafficBeacon\(/.test(trafficRoute) && /record_visit/.test(trafficRoute) && /record_event/.test(trafficRoute));
+  const counter = repo("src/components/Analytics.tsx");
+  ok("traffic: admins are never counted, and Google gets the cleaned page", /if \(isAdmin\) return;/.test(counter) && /page_location = window\.location\.origin \+ path/.test(counter) && !/window\.location\.href/.test(counter));
+  ok("traffic: the privacy page names the visit counts", /<strong>Visit counts<\/strong>: AlgeBridge counts visits/.test(pages[0][1]));
+  ok("traffic: the handout names them whatever the ID", /title: "Visit counts"/.test(pages[2][1]) && !/\.\.\.\(GA_ID/.test(pages[2][1]));
+  const consoleSql = repo("supabase/schema-2026-10-05-console.sql");
+  ok("traffic: the database keeps the server's path rule", consoleSql.includes("'^/[A-Za-z0-9/_.:-]{0,119}$'") && /^\/[A-Za-z0-9/_.:-]{0,119}$/.test(TR.normalizePath("/messages/3f2a8c1e-1111-4222-8333-444455556666")));
+  ok("traffic: the console reads the counts and every piece of feedback", /fetchAdminTraffic\(30\)/.test(repo("src/app/admin/page.tsx")) && /fetchAdminFeedback\(300\)/.test(repo("src/app/admin/page.tsx")));
+
   // --- the extension's model-side rule (finding 3c) ---------------------------------------------
   const EX = await import("../extension-hints.ts");
   ok("extension: ASK_SYSTEM tells the model to answer CRISIS", EX.ASK_SYSTEM.includes(H.CRISIS_MODEL_RULE));
@@ -1694,7 +1747,7 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   const admin = repo("src/app/admin/page.tsx");
   const adminLib = repo("src/lib/admin.ts");
   ok("admin: a Reports tab reads admin_reports()", /rpc\("admin_reports"/.test(adminLib) && /tab === "reports" && <ReportsPanel/.test(admin));
-  ok("admin: before the migration it says so plainly", /Reports need the October 3 database update\./.test(admin) && /status: "missing"/.test(adminLib));
+  ok("admin: before the migration it lists each report as it was sent and names the update", /Each report is listed as it was sent\./.test(admin) && /schema-2026-10-03-safety\.sql/.test(admin) && /fallback=\{reportFallback\}/.test(admin) && /status: "missing"/.test(adminLib));
   ok("admin: reason labels are the report form's own", /REPORT_REASONS\.map/.test(adminLib));
   {
     const FB = await import("../../app/api/feedback/route.ts");

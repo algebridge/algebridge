@@ -254,16 +254,16 @@ const PRIVACY_ITEMS: Item[] = [
     title: "No ads, and deleting an account",
     body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages. Uploaded photos (stored at public links), feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
   },
-  // Listed only while a measurement ID is set, so the handout matches the running deployment.
-  ...(GA_ID
-    ? [
-        {
-          mark: { icon: "eye" } as Glyph,
-          title: "Visit counts",
-          body: "Google Analytics counts page views on the live site: the page, the time, the browser and screen size, and a rough location from the IP address, which Google does not keep. It gets no names, emails, answers or messages, the advertising features are off, and browsers that send Global Privacy Control are left out. A district deployment runs without it when NEXT_PUBLIC_GA_ID is left unset.",
-        },
-      ]
-    : []),
+  {
+    mark: { icon: "eye" },
+    title: "Visit counts",
+    body:
+      "AlgeBridge counts page views itself as daily totals: the page with any account, group or call id taken out, the site that linked to it, and phone, tablet or computer. A random code the browser makes fresh each day lets one visit count once that day; it is never tied to an account, name, email or IP address. Admins, bots and browsers that send Global Privacy Control are left out, and only AlgeBridge admins see the totals." +
+      // Named only while a measurement ID is set, so the handout matches the running deployment.
+      (GA_ID
+        ? " Google Analytics also counts page views on the live site, with the same pages and the same people left out, plus the browser, screen size and a rough location from the IP address, which Google does not keep. Its advertising features are off. A district deployment runs without it when NEXT_PUBLIC_GA_ID is set to an empty value."
+        : ""),
+  },
 ];
 
 const AI_ROWS: { what: string; sends: string; who: string }[] = [

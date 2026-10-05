@@ -261,3 +261,151 @@ export async function touchLastSeen(): Promise<void> {
   if (!supabase) return;
   await supabase.rpc("touch_last_seen");
 }
+
+// --- Traffic ------------------------------------------------------------------
+
+/** One day of visits: a visitor is one browser on one day. */
+export interface TrafficDay {
+  day: string;
+  siteVisitors: number;
+  siteViews: number;
+  appVisitors: number;
+  appViews: number;
+}
+
+/** A labelled count for one site: a source, a page, a button or a device. */
+export interface TrafficCount {
+  site: "site" | "app";
+  label: string;
+  n: number;
+}
+
+export interface AdminTraffic {
+  /** New York dates, the same days Google Analytics uses. */
+  today: string;
+  from: string;
+  /** The first day anything was counted, or null before the first visit. */
+  firstDay: string | null;
+  days: TrafficDay[];
+  referrers: TrafficCount[];
+  pages: TrafficCount[];
+  clicks: TrafficCount[];
+  devices: TrafficCount[];
+}
+
+export type AdminTrafficResult =
+  | { status: "ok"; data: AdminTraffic }
+  /** admin_traffic() is not in the database: supabase/schema-2026-10-05-console.sql has not run. */
+  | { status: "missing" }
+  | { status: "error"; message: string };
+
+const MISSING_FUNCTION = /PGRST202|42883|could not find the function|does not exist/i;
+
+function site(v: unknown): "site" | "app" {
+  return v === "app" ? "app" : "site";
+}
+
+/** Visit counts for both sites over the last `days` days, through admin_traffic() (admins only). */
+export async function fetchAdminTraffic(days = 30): Promise<AdminTrafficResult> {
+  const supabase = createClient();
+  if (!supabase) return { status: "error", message: "Cloud accounts are not configured on this deployment." };
+  const { data, error } = await supabase.rpc("admin_traffic", { p_days: days });
+  if (error) {
+    if (MISSING_FUNCTION.test(`${error.code ?? ""} ${error.message ?? ""}`)) return { status: "missing" };
+    return { status: "error", message: error.message || "The visit counts could not be read." };
+  }
+  const d = (data ?? {}) as Record<string, unknown>;
+  const list = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
+  return {
+    status: "ok",
+    data: {
+      today: String(d.today ?? ""),
+      from: String(d.from ?? ""),
+      firstDay: d.first_day == null ? null : String(d.first_day),
+      days: list(d.days).map((r) => ({
+        day: String(r.day),
+        siteVisitors: num(r.site_visitors),
+        siteViews: num(r.site_views),
+        appVisitors: num(r.app_visitors),
+        appViews: num(r.app_views),
+      })),
+      referrers: list(d.referrers).map((r) => ({ site: site(r.site), label: String(r.referrer ?? ""), n: num(r.visitors) })),
+      pages: list(d.pages).map((r) => ({ site: site(r.site), label: String(r.path ?? ""), n: num(r.views) })),
+      clicks: list(d.events).map((r) => ({ site: site(r.site), label: String(r.label ?? ""), n: num(r.n) })),
+      devices: list(d.devices).map((r) => ({ site: site(r.site), label: String(r.device ?? ""), n: num(r.visitors) })),
+    },
+  };
+}
+
+// --- Feedback -----------------------------------------------------------------
+
+/** Anything sent from /feedback: a problem, a bug, an idea, a review or a report. */
+export interface AdminFeedbackItem {
+  id: string;
+  /** review, problem, broken, confusing, idea, love, report or other. */
+  kind: string;
+  message: string;
+  /** The contact the sender left, often an email, or null. */
+  contact: string | null;
+  /** The page it was sent from. */
+  page: string | null;
+  createdAt: string;
+  /** 1 to 5 for a review once the reviews update has run, otherwise null. */
+  rating: number | null;
+  senderId: string | null;
+  /** The sender's display name when they were signed in. */
+  senderName: string | null;
+  senderRole: string | null;
+}
+
+export interface AdminFeedback {
+  total: number;
+  byKind: Record<string, number>;
+  /** The newest first, up to the limit asked for. */
+  items: AdminFeedbackItem[];
+}
+
+export type AdminFeedbackResult =
+  | { status: "ok"; data: AdminFeedback }
+  /** admin_feedback() is not in the database: supabase/schema-2026-10-05-console.sql has not run. */
+  | { status: "missing" }
+  | { status: "error"; message: string };
+
+/** Every piece of feedback, newest first, through admin_feedback() (admins only). */
+export async function fetchAdminFeedback(limit = 300): Promise<AdminFeedbackResult> {
+  const supabase = createClient();
+  if (!supabase) return { status: "error", message: "Cloud accounts are not configured on this deployment." };
+  const { data, error } = await supabase.rpc("admin_feedback", { p_limit: limit });
+  if (error) {
+    if (MISSING_FUNCTION.test(`${error.code ?? ""} ${error.message ?? ""}`)) return { status: "missing" };
+    return { status: "error", message: error.message || "The feedback could not be read." };
+  }
+  const d = (data ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (v == null || v === "" ? null : String(v));
+  const byKind: Record<string, number> = {};
+  if (d.by_kind && typeof d.by_kind === "object") {
+    for (const [k, v] of Object.entries(d.by_kind as Record<string, unknown>)) byKind[k] = num(v);
+  }
+  return {
+    status: "ok",
+    data: {
+      total: num(d.total),
+      byKind,
+      items: (Array.isArray(d.items) ? (d.items as Record<string, unknown>[]) : []).map((r) => {
+        const rating = r.rating == null ? null : Number(r.rating);
+        return {
+          id: String(r.id),
+          kind: String(r.kind ?? "other"),
+          message: String(r.message ?? ""),
+          contact: str(r.contact),
+          page: str(r.page),
+          createdAt: String(r.created_at),
+          rating: rating != null && rating >= 1 && rating <= 5 ? rating : null,
+          senderId: str(r.sender_id),
+          senderName: str(r.sender_name),
+          senderRole: str(r.sender_role),
+        };
+      }),
+    },
+  };
+}
