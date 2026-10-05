@@ -147,8 +147,9 @@ img{display:block;max-width:100%;}
 .announce-x:hover{color:var(--black);}
 
 /* ── Nav ────────────────────────────────────────────────────── */
-.nav{position:sticky;top:0;z-index:80;background:rgba(251,252,255,.9);
-  backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);}
+/* the blur behind the nav costs a re-blur every frame over the hero's moving canvas, so it waits until the hero has scrolled away */
+.nav{position:sticky;top:0;z-index:80;background:rgba(251,252,255,.96);}
+.nav.glass{background:rgba(251,252,255,.9);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);}
 .nav-inner{display:flex;align-items:center;justify-content:space-between;gap:2rem;height:64px;}
 .brand{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
 .brand img{width:26px;height:26px;object-fit:contain;}
@@ -184,8 +185,22 @@ img{display:block;max-width:100%;}
    steered a little by the pointer. The lesson window sits on the paper,
    laid back a few degrees until the page scrolls. Everything enters on
    load; reduced motion gets the finished state.                      */
-.hero{position:relative;overflow:hidden;background:#cfe6ff;color:var(--black);padding:clamp(2.5rem,7vh,5.5rem) 0 clamp(2rem,4vh,3rem);}
-.hero-scene{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;}
+.hero{position:relative;overflow:hidden;background:#f2f6ff;color:var(--black);padding:clamp(2.5rem,7vh,5.5rem) 0 clamp(2rem,4vh,3rem);
+  --horizon:62%;--glow-y:20%;--glow-r:520px;}
+/* the sky above the horizon, the paper below, and the haze where they meet: painted
+   once by the browser, not by the canvas every frame; the script sets --horizon */
+.hero-sky{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,0) calc(var(--horizon) - 80px),rgba(255,255,255,.85) calc(var(--horizon) - 14px),rgba(255,255,255,0) calc(var(--horizon) + 44px)),
+    linear-gradient(180deg,#b7dbff 0,#eaf4ff var(--horizon),#f2f6ff var(--horizon),#f2f6ff 100%);}
+/* warm light from the upper right, breathing on the compositor */
+.hero-glow{position:absolute;z-index:0;pointer-events:none;left:80%;top:var(--glow-y);width:calc(var(--glow-r) * 2);height:calc(var(--glow-r) * 2);
+  margin:calc(var(--glow-r) * -1) 0 0 calc(var(--glow-r) * -1);border-radius:50%;
+  background:radial-gradient(circle,rgba(255,232,150,.78) 0%,rgba(255,238,180,.32) 45%,rgba(255,245,210,0) 100%);
+  animation:hero-breathe 16s ease-in-out infinite;will-change:transform;}
+@keyframes hero-breathe{0%,100%{transform:scale(.96);}50%{transform:scale(1.04);}}
+/* the canvas covers the paper only, from the horizon down: less than half the pixels, repainted sixty times a second */
+.hero-scene{position:absolute;left:0;top:var(--horizon);width:100%;height:calc(100% - var(--horizon));z-index:0;display:block;}
 .hero-veil{position:absolute;inset:0;z-index:1;pointer-events:none;
   background:radial-gradient(60% 40% at 50% 22%,rgba(255,255,255,.6) 0%,rgba(255,255,255,.24) 55%,rgba(255,255,255,0) 100%),
              linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 62%,rgba(251,252,255,.92) 100%);}
@@ -194,7 +209,7 @@ img{display:block;max-width:100%;}
 .hero h1 .w{display:inline-block;animation:word-in .9s cubic-bezier(.2,.8,.2,1) both;}
 .hero h1 .w:nth-child(2){animation-delay:.07s;}.hero h1 .w:nth-child(3){animation-delay:.14s;}.hero h1 .w:nth-child(4){animation-delay:.21s;}
 .hero h1 .w:nth-child(5){animation-delay:.28s;}.hero h1 .w:nth-child(6){animation-delay:.35s;}
-@keyframes word-in{from{opacity:0;transform:translateY(22px);filter:blur(8px);}to{opacity:1;transform:none;filter:blur(0);}}
+@keyframes word-in{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
 .hero-sub{margin:1.75rem auto 0;max-width:50ch;color:var(--ink-2);font-size:clamp(1rem,1.3vw,1.125rem);line-height:1.55;
   animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .4s both;}
 .hero-cta{margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .5s both;}
@@ -634,6 +649,8 @@ img{display:block;max-width:100%;}
 
 <!-- ══ Hero ══════════════════════════════════════════════════ -->
 <section class="hero" id="top">
+  <div class="hero-sky" aria-hidden="true"></div>
+  <div class="hero-glow" aria-hidden="true"></div>
   <canvas class="hero-scene" id="heroScene" aria-hidden="true"></canvas>
   <div class="hero-veil" aria-hidden="true"></div>
   <div class="wrap hero-inner" id="heroCopy">
@@ -997,6 +1014,7 @@ img{display:block;max-width:100%;}
   var ax = document.getElementById('announceX');
   if (ax) ax.addEventListener('click', function(){
     document.getElementById('announce').classList.add('hidden');
+    window.dispatchEvent(new Event('resize'));
   });
 
   /* ── Mobile sheet ─────────────────────────────────────────── */
@@ -1136,7 +1154,7 @@ img{display:block;max-width:100%;}
   if (hero && scene && scene.getContext){
     var ctx = scene.getContext('2d');
     /* S is the scene's scale: the hero's height, up to about a screen's worth */
-    var W = 0, H = 0, S = 0, horizon = 0;
+    var W = 0, H = 0, CH = 0, S = 0, horizon = 0;
     var mono = "'JetBrains Mono', ui-monospace, monospace";
     var BLUE = '37,99,235', AMBER = '245,158,11', INK = '27,42,82';
     /* what lies on the plane: each curve is z = g(x) in plane units, repeating every PERIOD units of flight */
@@ -1149,18 +1167,24 @@ img{display:block;max-width:100%;}
       { z: 9,  tone: AMBER, label: 'y = −x + 5',   xs: [-5, 6],      g: function(x){ return 5.5 - 0.7 * x; } },
       { z: 29, tone: BLUE,  label: 'y = (x + 3)²',  xs: [-7.5, 1.5],  g: function(x){ return 0.5 * (x + 3) * (x + 3); } }
     ];
+    var heroTop = 0;
     function size(){
-      var dpr = Math.min(window.devicePixelRatio || 1, finePointer ? 2 : 1.5);
+      /* faint one-pixel lines need no more than one and a half device pixels each */
+      var dpr = Math.min(window.devicePixelRatio || 1, finePointer ? 1.5 : 1.25);
       W = hero.clientWidth; H = hero.clientHeight; S = Math.min(H, 900);
-      scene.width = Math.floor(W * dpr); scene.height = Math.floor(H * dpr);
+      /* the paper starts a little under the copy; the sky and the light are CSS layers placed from here */
+      horizon = Math.round(Math.min(H * 0.8, copy.offsetTop + copy.offsetHeight + 16));
+      CH = Math.max(1, H - horizon);
+      scene.width = Math.floor(W * dpr); scene.height = Math.floor(CH * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      /* the paper starts a little under the copy */
-      horizon = Math.min(H * 0.8, copy.offsetTop + copy.offsetHeight + 16);
+      hero.style.setProperty('--horizon', horizon + 'px');
+      hero.style.setProperty('--glow-y', Math.round(horizon - S * 0.42) + 'px');
+      hero.style.setProperty('--glow-r', Math.round(S * 0.58) + 'px');
+      heroTop = hero.offsetTop;
     }
-    /* how far the hero has scrolled past the top of the window, 0 to 1 */
+    /* how far the hero has scrolled past the top of the window, 0 to 1 (no layout read: the place is cached) */
     function progress(){
-      var r = hero.getBoundingClientRect();
-      return Math.max(0, Math.min(1, -r.top / Math.max(1, r.height)));
+      return Math.max(0, Math.min(1, (window.scrollY - heroTop) / Math.max(1, H)));
     }
     /* a point on the ground plane (x across, z ahead), seen from a camera one unit up;
        hor is this frame's horizon and vx the vanishing point's drift under the pointer */
@@ -1175,35 +1199,28 @@ img{display:block;max-width:100%;}
       for (var i = 0; i < points.length; i++){ if (i) ctx.lineTo(points[i][0], points[i][1]); else ctx.moveTo(points[i][0], points[i][1]); }
       ctx.stroke();
     }
-    function draw(travel, t, p){
-      hor = horizon - p * S * 0.12;
-      /* the light above, and the paper below the horizon */
-      var sky = ctx.createLinearGradient(0, 0, 0, hor);
-      sky.addColorStop(0, '#b7dbff'); sky.addColorStop(1, '#eaf4ff');
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hor + 1);
-      ctx.fillStyle = '#f2f6ff'; ctx.fillRect(0, hor, W, H - hor);
-      /* warm light from the upper right, breathing very slowly */
-      var lx = W * 0.8, ly = hor - S * 0.42, lr = S * (0.58 + 0.03 * Math.sin(t * 0.4));
-      var glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
-      glow.addColorStop(0, 'rgba(255,232,150,.78)'); glow.addColorStop(0.45, 'rgba(255,238,180,.32)'); glow.addColorStop(1, 'rgba(255,245,210,0)');
-      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, Math.min(H, ly + lr));
-      /* haze where the sky meets the paper */
-      var hz = ctx.createLinearGradient(0, hor - S * 0.09, 0, hor + S * 0.05);
-      hz.addColorStop(0, 'rgba(255,255,255,0)'); hz.addColorStop(0.6, 'rgba(255,255,255,.85)'); hz.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = hz; ctx.fillRect(0, hor - S * 0.09, W, S * 0.14);
-      /* grid: lines across, flowing toward the camera */
+    function draw(travel){
+      hor = 0;
+      ctx.clearRect(0, 0, W, CH);
+      /* grid: lines across, flowing toward the camera. Past z = 26 the lines sit
+         closer than two pixels apart, inside the haze, so they stop there. The
+         nearest move fastest, so they are drawn wider and fade out as they
+         reach the camera instead of popping; a thin line jumping is what reads
+         as stutter */
       var off = ((travel % 1) + 1) % 1;
       ctx.lineCap = 'butt';
-      for (var k = 0; k < 60; k++){
+      for (var k = 0; k < 26; k++){
         var z = 1.0 + k - off;
         if (z < 0.9) continue;
         var y = project(0, z)[1];
-        if (y > H + 2) continue;
-        stroke([[0, y], [W, y]], BLUE, 1, 0.05 + 0.3 * Math.pow(1 - k / 60, 1.5));
+        if (y > CH + 2) continue;
+        var a = 0.06 + 0.26 * Math.pow(1 - k / 26, 1.4);
+        if (z < 1.6) a *= (z - 0.9) / 0.7;
+        stroke([[0, y], [W, y]], BLUE, z < 3 ? 1 + (3 - z) * 0.5 : 1, a);
       }
       /* grid: lines ahead, converging */
-      for (var x = -24; x <= 24; x++){
-        stroke([project(x, 0.95), project(x, 120)], BLUE, 1, x === 0 ? 0.22 : 0.12);
+      for (var x = -18; x <= 18; x++){
+        stroke([project(x, 0.95), project(x, 60)], BLUE, 1, x === 0 ? 0.2 : 0.11);
       }
       /* the curves and their equations, nearest last so they paint on top */
       var placed = curves.map(function(c){
@@ -1234,38 +1251,60 @@ img{display:block;max-width:100%;}
     }
     /* the window lies back seven degrees at the top of the page and comes flat as
        the page scrolls; once flat the transform goes, so the page inside renders crisp */
+    var lastTilt = null;
     function paintTilt(){
       if (!tiltBox) return;
-      if (!finePointer || reduce){ tiltBox.style.transform = ''; return; }
-      var k = Math.max(0, 1 - window.scrollY / 360);
-      tiltBox.style.transform = k > 0.004 ? 'rotateX(' + (7 * k).toFixed(2) + 'deg) scale(' + (1 - 0.025 * k).toFixed(4) + ')' : '';
+      var next = '';
+      if (finePointer && !reduce){
+        var k = Math.max(0, 1 - window.scrollY / 360);
+        if (k > 0.004) next = 'rotateX(' + (7 * k).toFixed(2) + 'deg) scale(' + (1 - 0.025 * k).toFixed(4) + ')';
+      }
+      /* written only when it changes: a style write every frame would cost a style pass every frame */
+      if (next === lastTilt) return;
+      lastTilt = next;
+      tiltBox.style.transform = next;
+      tiltBox.style.willChange = next ? 'transform' : '';
     }
     var reduceMotion = reduce, t = 0, last = 0, raf = 0, inView = true;
-    /* a phone redraws thirty times a second instead of sixty: the flight is slow enough that nobody can tell, and the battery can */
-    var minFrame = finePointer ? 0 : 1000 / 30;
+    /* what a frame costs, for anyone checking: window.__heroStats.ms / window.__heroStats.n */
+    var stats = window.__heroStats = { ms: 0, n: 0 };
+    /* scrolling carries the flight forward a little, eased over a few frames:
+       tied straight to the wheel, each tick threw the near lines across the page */
+    var scrollTravel = 0;
     function frame(now){
       raf = 0;
       if (!last) last = now;
-      if (minFrame && !reduceMotion && now - last < minFrame){ if (inView && !document.hidden) raf = requestAnimationFrame(frame); return; }
+      var t0 = performance.now();
       var dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (!reduceMotion) t += dt * 0.55;
+      if (!reduceMotion) t += dt * 0.35;
       vx += (vxTarget - vx) * 0.06;
-      var p = progress();
-      draw(t + p * 14, t, p);
+      scrollTravel += (progress() * 4 - scrollTravel) * 0.08;
+      draw(t + scrollTravel);
       paintTilt();
+      stats.ms += performance.now() - t0; stats.n++;
       if (!reduceMotion && inView && !document.hidden) raf = requestAnimationFrame(frame);
     }
     function wake(){ if (!raf){ last = 0; raf = requestAnimationFrame(frame); } }
+    var sizeTimer = 0;
+    function sizeSoon(){
+      clearTimeout(sizeTimer);
+      sizeTimer = setTimeout(function(){ if (hero.clientWidth !== W || hero.clientHeight !== H){ size(); wake(); } }, 150);
+    }
     size(); wake();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ size(); wake(); });
+    var navBar = document.querySelector('.nav');
     new IntersectionObserver(function(entries){
-      entries.forEach(function(en){ inView = en.isIntersecting; if (inView) wake(); });
+      entries.forEach(function(en){
+        inView = en.isIntersecting;
+        if (navBar) navBar.classList.toggle('glass', !inView);
+        if (inView) wake();
+      });
     }, { threshold: 0 }).observe(hero);
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) wake(); });
     window.addEventListener('scroll', wake, { passive: true });
-    window.addEventListener('resize', function(){ size(); wake(); });
+    window.addEventListener('resize', sizeSoon);
     /* the lesson window changes height as its page arrives, and the hero with it */
-    if (window.ResizeObserver) new ResizeObserver(function(){ size(); wake(); }).observe(hero);
+    if (window.ResizeObserver) new ResizeObserver(sizeSoon).observe(hero);
     if (finePointer){
       hero.addEventListener('pointermove', function(e){ vxTarget = (e.clientX / Math.max(1, W) - 0.5) * 70; wake(); });
       hero.addEventListener('pointerleave', function(){ vxTarget = 0; wake(); });
@@ -1310,6 +1349,7 @@ img{display:block;max-width:100%;}
       d.classList.add('failed');
       d.removeAttribute('aria-busy');
       if (f.parentNode) f.parentNode.removeChild(f);
+      settled(d);
     }, demoWait);
   }
   window.addEventListener('message', function(e){
@@ -1326,26 +1366,44 @@ img{display:block;max-width:100%;}
       d.classList.add('live');
       d.classList.remove('loading', 'failed');
       d.removeAttribute('aria-busy');
+      settled(d);
       /* the page's own height, plus the 12px the bare page keeps around its card */
       f.style.height = Math.max(160, Math.min(1800, Math.ceil(e.data.height) + 26)) + 'px';
       var win = d.closest('.window');
       if (win) win.classList.add('has-live');
     });
   });
-  /* the demos are part of the page, so they all start with it: the hero
-     frame at once, the rest a beat apart once the page itself has loaded,
-     so by the time anyone scrolls to one it is already there */
-  demos.forEach(function(d){ if (d.hasAttribute('data-eager')) activateDemo(d); });
-  function startTheRest(){
-    var wait = 0;
-    demos.forEach(function(d){
-      if (d.hasAttribute('data-eager')) return;
-      setTimeout(function(){ activateDemo(d); }, wait);
-      wait += 350;
-    });
+  /* the hero's frame starts with the page. The rest start as they come within
+     a screen and a half of the viewport, one at a time: each frame is a page
+     of its own with scripts to run, and frames from the platform share this
+     page's main thread, so five starting at once would stall the hero. */
+  var queue = [], loadingOne = null, nextTimer = 0;
+  function startOne(d){
+    loadingOne = d; activateDemo(d);
+    clearTimeout(nextTimer);
+    nextTimer = setTimeout(function(){ if (loadingOne === d){ loadingOne = null; pump(); } }, 5000);
   }
-  if (document.readyState === 'complete') startTheRest();
-  else window.addEventListener('load', startTheRest);
+  function pump(){
+    if (loadingOne) return;
+    var d = queue.shift();
+    if (d) startOne(d);
+  }
+  function settled(d){
+    if (d !== loadingOne) return;
+    clearTimeout(nextTimer); loadingOne = null;
+    setTimeout(pump, 400);
+  }
+  demos.forEach(function(d){ if (d.hasAttribute('data-eager')) startOne(d); });
+  var dio = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (!en.isIntersecting) return;
+      dio.unobserve(en.target);
+      if (en.target.hasAttribute('data-eager')) return;
+      queue.push(en.target);
+      pump();
+    });
+  }, { rootMargin: '150% 0px' });
+  demos.forEach(function(d){ dio.observe(d); });
 
   /* ── Sticky start button on phones: after the hero, until the
      closing call to action is itself on screen ─────────────── */
