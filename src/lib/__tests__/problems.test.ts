@@ -274,6 +274,23 @@ const checks: Record<string, Check> = {
     if ((m = p.prompt.match(/^Convert (\d+) days to hours/))) return expectAnswer(p, +m[1] * 24);
     if ((m = p.prompt.match(/^Convert (\d+) kilograms to grams/))) return expectAnswer(p, +m[1] * 1000);
     if ((m = p.prompt.match(/^Convert (\d+) minutes to milliseconds/))) return expectAnswer(p, +m[1] * 60000);
+    if ((m = p.prompt.match(/^Convert ([\d,]+) grams to kilograms\.( Write your answer as a decimal\.)?$/))) {
+      const kg = +m[1].replace(/,/g, "") / 1000;
+      if (!Number.isInteger(kg) && !m[2]) return "a decimal answer with no instruction";
+      return expectAnswer(p, kg);
+    }
+    if ((m = p.prompt.match(/^Convert (\d+) weeks to hours/))) return expectAnswer(p, +m[1] * 7 * 24);
+    if ((m = p.prompt.match(/^A cyclist rides at (\d+) kilometers per hour\. How many meters per second/))) {
+      const v = (+m[1] * 1000) / 3600;
+      return Number.isInteger(v) ? expectAnswer(p, v) : "meters per second is not whole";
+    }
+    if ((m = p.prompt.match(/^Convert (\d+) meters to millimeters/))) return expectAnswer(p, +m[1] * 1000);
+    if ((m = p.prompt.match(/^A water tank leaks (\d+) liters per hour\. How many milliliters per minute/))) {
+      const v = (+m[1] * 1000) / 60;
+      return Number.isInteger(v) ? expectAnswer(p, v) : "milliliters per minute is not whole";
+    }
+    if ((m = p.prompt.match(/^Convert (\d+) yards to inches/))) return expectAnswer(p, +m[1] * 3 * 12);
+    if ((m = p.prompt.match(/^Convert ([\d,]+) seconds to minutes/))) return expectAnswer(p, +m[1].replace(/,/g, "") / 60);
     if ((m = p.prompt.match(/^Find the error in this conversion of (\d+) km to centimeters/))) {
       const km = +m[1];
       const s1 = p.steps[1].replace(/,/g, "").match(/^(\d+) km × 1000 m\/km = (\d+) m$/);

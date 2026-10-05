@@ -218,7 +218,9 @@ const generators: Record<string, SkillGenerator> = {
 
   "dimensional-analysis": (seeds) =>
     fillToCount("dimensional-analysis", seeds, PROBLEMS_PER_SKILL, (i) => {
-      const kind = i % 5;
+      // Twelve kinds, so a session rarely meets the same one twice (a student
+      // wrote in that questions kept coming back with only the numbers changed).
+      const kind = i % 12;
       if (kind === 0) {
         const hours = randInt(2, 24);
         const half = randInt(0, 1) === 1;
@@ -273,7 +275,7 @@ const generators: Record<string, SkillGenerator> = {
         };
       }
       if (kind === 3) {
-        const kg = randInt(2, 25);
+        const kg = randInt(2, 40);
         return {
           id: "",
           type: "numeric",
@@ -285,6 +287,116 @@ const generators: Record<string, SkillGenerator> = {
             trap(kg / 1000, "Kilograms are the bigger unit, so there are more grams, not fewer: multiply by 1000."),
           ]),
           explanation: `${kg} × 1000 = ${usNum(kg * 1000)} grams`,
+        };
+      }
+      if (kind === 5) {
+        const grams = randInt(5, 80) * 250;
+        const kg = grams / 1000;
+        const whole = Number.isInteger(kg);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Convert ${usNum(grams)} grams to kilograms.${whole ? "" : " Write your answer as a decimal."}`,
+          hint: "1000 g = 1 kg, so divide by 1000.",
+          answer: kg,
+          traps: trapsFor(kg, [
+            trap(grams * 1000, "Grams are the smaller unit, so the number of kilograms is smaller: divide by 1000."),
+            trap(grams / 100, "A kilogram is 1000 grams, not 100."),
+          ]),
+          explanation: `${usNum(grams)} ÷ 1000 = ${kg} kilograms`,
+        };
+      }
+      if (kind === 6) {
+        const weeks = randInt(2, 8);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Convert ${weeks} weeks to hours.`,
+          hint: "Two steps: 1 week = 7 days, and 1 day = 24 hours.",
+          answer: weeks * 168,
+          traps: trapsFor(weeks * 168, [
+            trap(weeks * 7, "That is days. Each day has 24 hours, so multiply by 24 too."),
+            trap(weeks * 24, "That skips the days: a week is 7 days, and each day is 24 hours."),
+          ]),
+          explanation: `${weeks} weeks × 7 days/week × 24 hours/day = ${weeks * 168} hours`,
+        };
+      }
+      if (kind === 7) {
+        const k = randInt(1, 6);
+        const kmh = 18 * k;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `A cyclist rides at ${kmh} kilometers per hour. How many meters per second is that?`,
+          hint: "Two factors: 1 km = 1000 m, and 1 hour = 3600 seconds. Multiply by 1000, then divide by 3600.",
+          answer: 5 * k,
+          traps: trapsFor(5 * k, [
+            trap(kmh * 1000, "That is meters per hour. An hour is 3600 seconds, so divide by 3600 as well."),
+            trap(300 * k, "That divides by 60, which gives meters per minute. An hour is 3600 seconds."),
+          ]),
+          explanation: `${kmh} km/h × 1000 m/km ÷ 3600 s/h = ${5 * k} meters per second`,
+        };
+      }
+      if (kind === 8) {
+        const meters = randInt(2, 30);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Convert ${meters} meters to millimeters.`,
+          hint: "Milli means a thousandth: 1 m = 1000 mm.",
+          answer: meters * 1000,
+          traps: trapsFor(meters * 1000, [
+            trap(meters * 100, "That is centimeters. A meter is 1000 millimeters."),
+            trap(meters / 1000, "Meters are the bigger unit, so the number of millimeters is bigger: multiply by 1000."),
+          ]),
+          explanation: `${meters} × 1000 = ${usNum(meters * 1000)} millimeters`,
+        };
+      }
+      if (kind === 9) {
+        const step = randInt(1, 8);
+        const liters = 3 * step;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `A water tank leaks ${liters} liters per hour. How many milliliters per minute is that?`,
+          hint: "Two factors: 1 L = 1000 mL, and 1 hour = 60 minutes. Multiply by 1000, then divide by 60.",
+          answer: 50 * step,
+          traps: trapsFor(50 * step, [
+            trap(liters * 1000, "That is milliliters per hour. An hour is 60 minutes, so divide by 60 as well."),
+            trap(liters * 60000, "Minutes are shorter than hours, so less leaks per minute: divide by 60, not multiply."),
+          ]),
+          explanation: `${liters} L/h × 1000 mL/L ÷ 60 min/h = ${50 * step} milliliters per minute`,
+        };
+      }
+      if (kind === 10) {
+        const yards = randInt(2, 30);
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Convert ${yards} yards to inches.`,
+          hint: "Two steps: 1 yard = 3 feet, and 1 foot = 12 inches.",
+          answer: yards * 36,
+          traps: trapsFor(yards * 36, [
+            trap(yards * 3, "That is feet. Each foot is 12 inches, so multiply by 12 too."),
+            trap(yards * 12, "That skips the feet: a yard is 3 feet, and each foot is 12 inches."),
+          ]),
+          explanation: `${yards} yd × 3 ft/yd × 12 in/ft = ${yards * 36} inches`,
+        };
+      }
+      if (kind === 11) {
+        const minutesWhole = randInt(2, 45);
+        const seconds = minutesWhole * 60;
+        return {
+          id: "",
+          type: "numeric",
+          prompt: `Convert ${usNum(seconds)} seconds to minutes.`,
+          hint: "60 seconds = 1 minute, so divide by 60.",
+          answer: minutesWhole,
+          traps: trapsFor(minutesWhole, [
+            trap(seconds * 60, "Seconds are the smaller unit, so the number of minutes is smaller: divide by 60."),
+            trap(seconds / 100, "A minute is 60 seconds, not 100."),
+          ]),
+          explanation: `${usNum(seconds)} ÷ 60 = ${minutesWhole} minutes`,
         };
       }
       const minutes = randInt(2, 20);

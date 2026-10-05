@@ -1582,5 +1582,52 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("summaries use plain US English with no em or en dashes", [...Object.values(S.STANDARDS).map((s) => s.summary), ...S.NOT_CLAIMED.map((n) => n.reason)].every((t) => !/[—–]/.test(t) && !/\bmaths\b/i.test(t)));
 }
 
+// --- Variety: a kind of question comes back only after the others had a turn (feedback, Oct 5 2026) ---
+{
+  const O = await import("../problem-order.ts");
+  const { getFreshProblemsForSkill: fresh } = await import("../../data/problem-banks.ts");
+  const { canonicalPrompt } = await import("../problem-utils.ts");
+  const key = (s: string) => s[0];
+  const mixed = O.interleaveByShape(["a1", "a2", "b1", "a3", "c1"], key);
+  ok("interleave: no kind twice in a row when it can be helped", mixed.every((x, i) => i === 0 || key(x) !== key(mixed[i - 1])), mixed.join());
+  ok("interleave keeps every problem, each kind in its own order", [...mixed].sort().join() === "a1,a2,a3,b1,c1" && mixed.filter((x) => key(x) === "a").join() === "a1,a2,a3");
+  ok("interleave: one kind alone stays as it was", O.interleaveByShape(["a1", "a2", "a3"], key).join() === "a1,a2,a3");
+  ok("fresh first: seen questions go last, in order", O.freshFirst(["a", "b", "c", "d"], (x) => x === "a" || x === "c").join() === "b,d,a,c");
+  ok("spread: a repeat kind moves behind the next other kind", O.spreadShapes(["a1", "a2", "b1", "c1"], 0, key).join() === "a1,b1,a2,c1");
+  ok("spread leaves everything before `from` alone", O.spreadShapes(["a1", "a2", "b1"], 2, key).join() === "a1,a2,b1");
+  ok("spread leaves a list with nothing to fix as it was", (() => { const l = ["a1", "b1", "a2"]; return O.spreadShapes(l, 0, key) === l; })());
+  ok("shapes ignore the numbers", O.shapeKey("Convert 18 kilograms to grams.") === O.shapeKey("Convert 12 kilograms to grams.") && O.shapeKey("Convert 1,250 grams to kilograms.") !== O.shapeKey("Convert 18 kilograms to grams."));
+
+  const da = units.flatMap((u) => u.skills).find((s) => s.id === "dimensional-analysis")!;
+  const kinds = new Set(generateProblemBank(da.id, da.problems, 7).map((p) => O.shapeKey(p.prompt).replace(/^find the error.*/, "error")));
+  ok(`dimensional analysis has at least 12 kinds of question (${kinds.size})`, kinds.size >= 12);
+  let repeatsEarly = 0;
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const first = fresh(da.id, da.problems, seed).slice(0, 10).map((p) => O.shapeKey(p.prompt));
+    if (new Set(first).size < first.length) repeatsEarly += 1;
+  }
+  ok("dimensional analysis: the first ten problems of a session are ten different kinds, every time", repeatsEarly === 0, `${repeatsEarly} of 40 sessions repeated a kind`);
+
+  // Every skill: two of a kind side by side only where the bank leaves no choice.
+  const crowded: string[] = [];
+  for (const u of units) for (const s of u.skills) {
+    const list = fresh(s.id, s.problems, 11).map((p) => O.shapeKey(p.prompt));
+    const counts = new Map<string, number>();
+    for (const k of list) counts.set(k, (counts.get(k) ?? 0) + 1);
+    const most = Math.max(...counts.values());
+    const unavoidable = Math.max(0, most - (list.length - most) - 1);
+    const adjacent = list.filter((k, i) => i > 0 && k === list[i - 1]).length;
+    if (adjacent > unavoidable) crowded.push(`${s.id}: ${adjacent} side by side, ${unavoidable} unavoidable`);
+  }
+  ok("every skill: the same kind twice in a row only when nothing else is left", crowded.length === 0, crowded.slice(0, 3).join(" | "));
+
+  const bank = fresh(da.id, da.problems, 5);
+  const seen = new Set(bank.slice(0, 20).map((p) => canonicalPrompt(p.prompt)));
+  const next = fresh(da.id, da.problems, 5, { seen });
+  const firstSeen = next.findIndex((p) => seen.has(canonicalPrompt(p.prompt)));
+  ok("a question already shown comes after every new one", firstSeen === -1 || next.slice(firstSeen).every((p) => seen.has(canonicalPrompt(p.prompt))), `first seen at ${firstSeen}`);
+  ok("the first question of the next session is a new one", !seen.has(canonicalPrompt(next[0].prompt)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

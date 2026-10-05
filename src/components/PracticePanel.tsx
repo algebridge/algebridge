@@ -13,6 +13,7 @@ import {
   PROGRESS_UPDATED_EVENT,
 } from "@/lib/progress";
 import { getFreshProblemsForSkill, skillOffersCalculator } from "@/data/problem-banks";
+import { loadSeen, rememberSeen, shapeKey, spreadShapes } from "@/lib/problem-order";
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
@@ -305,7 +306,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     sessionRightRef.current = 0;
     setSessionRight(0);
     setSeed(next);
-    setSessionProblems(getFreshProblemsForSkill(skill.id, seedProblemsRef.current, next));
+    // Questions this browser already showed for the skill go to the back.
+    setSessionProblems(getFreshProblemsForSkill(skill.id, seedProblemsRef.current, next, { seen: loadSeen(skill.id) }));
     setProblemIndex(0);
   }, [skill.id, resetStories]);
 
@@ -428,7 +430,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       const i = problemIndexRef.current;
       const current = list[i];
       const from = current && shownRef.current.has(current.id) ? i + 1 : i;
-      return storiesFirst(list, from, (p) => !!scenes[p.id]);
+      // Moving stories forward can bring two of a kind together; spread them again.
+      const moved = storiesFirst(list, from, (p) => !!scenes[p.id]);
+      return moved === list ? list : spreadShapes(moved, from, (p) => shapeKey(p.prompt));
     });
   }, [scenes]);
 
@@ -468,6 +472,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     scene = shown.get(problem.id) ?? null;
   }
   const displayPrompt = problem ? scene?.prompt ?? stripVariantTag(problem.prompt) : "";
+
+  // Once a question is on screen it counts as asked: the next session deals it last.
+  const shownPrompt = problem && !pending ? problem.prompt : null;
+  useEffect(() => {
+    if (shownPrompt) rememberSeen(skill.id, shownPrompt);
+  }, [shownPrompt, skill.id]);
 
   // The helper sees what the student sees, and the answer key it must not say.
   useEffect(() => {
