@@ -1764,6 +1764,102 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("titles: every tier has its plate, and the shine runs once, never on a loop", ["tp-common", "tp-rare", "tp-epic", "tp-legendary"].every((c) => css.includes(`.${c}`)) && /tp-sweep 1\.1s ease-out 1;/.test(css) && !/tp-sweep[^;]*infinite/.test(css));
 }
 
+// --- Pictures of problems -----------------------------------------------------------
+{
+  const Pic = await import("../pictures.ts");
+  let total = 0;
+  let drawn = 0;
+  const outside: string[] = [];
+  const leaks: string[] = [];
+  const bad: string[] = [];
+  const bySkill = new Map<string, [number, number]>();
+  const textOf = (p: import("../pictures.ts").Picture): string[] => {
+    switch (p.kind) {
+      case "plane":
+        return [...p.points.map((q) => q.label ?? ""), ...p.curves.map((c) => c.label ?? ""), ...p.segments.map((g) => g.label ?? "")];
+      case "numberline":
+        return [...p.marks.map((m) => m.label ?? ""), ...p.arcs.map((a) => a.label)];
+      case "tape":
+        return p.rows.flatMap((r) => [...r.parts.map((x) => x.label), r.total ?? ""]);
+      case "area":
+        return [...p.cols, ...p.rows, ...p.cells.flat().map((c) => c ?? "")];
+      case "table":
+        return [...p.cols, ...p.rows, ...p.cells.flat().map((c) => c ?? "")];
+      case "dots":
+        return p.values.map(String);
+      case "terms":
+        return [...p.terms.map((t) => t.value ?? ""), ...p.steps.map((x) => x ?? "")];
+      case "rect":
+        return [p.width, p.height, p.inside];
+      case "chain":
+        return [p.start, p.result, ...p.factors.flatMap((f) => [f.top, f.bottom])];
+      case "bars":
+        return p.values.map(String);
+    }
+  };
+  const numbers = (t: string) => (t.replace(/[−–]/g, "-").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  for (const u of units) {
+    for (const sk of u.skills) {
+      let n = 0;
+      let d = 0;
+      for (const p of generateProblemBank(sk.id, sk.problems)) {
+        if (p.type !== "numeric" && p.type !== "multiple-choice") continue;
+        n++;
+        total++;
+        const pic = Pic.pictureFor(sk.id, p.prompt);
+        if (!pic) continue;
+        d++;
+        drawn++;
+        if (pic.kind === "plane") {
+          const fin = [...pic.x, ...pic.y].every(Number.isFinite) && pic.x[1] > pic.x[0] && pic.y[1] > pic.y[0];
+          if (!fin) bad.push(`${sk.id}: ${p.prompt}`);
+          for (const q of pic.points) {
+            if (q.x < pic.x[0] || q.x > pic.x[1] || q.y < pic.y[0] || q.y > pic.y[1]) outside.push(`${sk.id}: ${p.prompt} (${q.x}, ${q.y}) in ${pic.x}/${pic.y}`);
+          }
+        }
+        if (pic.kind === "numberline" && !(pic.max > pic.min)) bad.push(`${sk.id}: ${p.prompt}`);
+        // A picture of the givens shows no number the prompt does not, when that number is the answer.
+        if (!pic.reveals && p.type === "numeric") {
+          const answer = Number(p.answer);
+          const inPrompt = numbers(p.prompt).some((v) => Math.abs(v - answer) < 1e-9);
+          const shown = textOf(pic).flatMap(numbers).some((v) => Math.abs(v - answer) < 1e-9);
+          if (shown && !inPrompt) leaks.push(`${sk.id}: ${p.prompt} [${p.answer}]`);
+        }
+      }
+      bySkill.set(sk.id, [d, n]);
+    }
+  }
+  ok("pictures: drawn for over half of all problems", drawn / total > 0.55, `${drawn} of ${total}`);
+  ok("pictures: every window is a real window", bad.length === 0, bad.slice(0, 3).join("; "));
+  ok("pictures: every marked point is inside its window", outside.length === 0, outside.slice(0, 3).join("; "));
+  ok("pictures: a picture of the givens never shows the answer", leaks.length === 0, leaks.slice(0, 3).join("; "));
+  const share = (id: string) => {
+    const [d, n] = bySkill.get(id) ?? [0, 1];
+    return d / n;
+  };
+  for (const id of ["graphing-systems", "two-way-tables", "center-spread", "absolute-value", "piecewise-functions", "exponential-growth", "quadratic-formula", "graphing-lines", "domain-range"]) {
+    ok(`pictures: most ${id} problems have one`, share(id) >= 0.8, `${Math.round(share(id) * 100)}%`);
+  }
+  // The answer waits: graphs of the problem's own equation, solution sets and growth bars only come after a try.
+  const sys = Pic.pictureFor("graphing-systems", "Where do y = x + 1 and y = −x + 5 intersect?");
+  ok("pictures: a system is two lines meeting at the solution, held for after a try", sys?.kind === "plane" && sys.reveals && sys.curves.length === 2 && sys.points.some((q) => q.x === 2 && q.y === 3));
+  const tape = Pic.pictureFor("two-step-equations", "Solve for x: 3x + 5 = 20");
+  ok("pictures: a two-step equation is a bar model shown from the start", tape?.kind === "tape" && !tape.reveals && tape.rows[0].parts.filter((x) => x.label === "x").length === 3 && tape.rows[0].total === "20");
+  const ineq = Pic.pictureFor("linear-inequalities", "Solve: -6x + 6 ≤ -24");
+  ok("pictures: an inequality's solutions are a ray with a filled end", ineq?.kind === "numberline" && ineq.marks.length === 1 && ineq.marks[0].x === 5 && !ineq.marks[0].open && ineq.spans.length === 1 && ineq.spans[0].to === Infinity);
+  const abs = Pic.pictureFor("absolute-value", "Solve |x − 3| = 5. Smaller solution?");
+  ok("pictures: absolute value shows both answers the same distance from the center", abs?.kind === "numberline" && abs.arcs.length === 2 && abs.arcs.every((a) => a.label === "5"));
+  const sysIneq = Pic.pictureFor("systems-inequalities", "Which point satisfies y ≤ x + 2 AND y > −1?");
+  ok("pictures: both inequalities of a system are shaded, the strict one dashed", sysIneq?.kind === "plane" && sysIneq.curves.length === 2 && sysIneq.curves.every((c) => c.shade) && sysIneq.curves.filter((c) => c.dashed).length === 1);
+  const asym = Pic.pictureFor("domain-range", "What is the domain of f(x) = 1/(x − 2)?");
+  ok("pictures: a break is a dashed line, and the window stays the classroom grid", asym?.kind === "plane" && asym.vlines.length === 1 && asym.vlines[0].x === 2 && asym.y[1] <= 15);
+  const chain = Pic.pictureFor("dimensional-analysis", "Convert 2.5 hours to seconds.");
+  ok("pictures: a conversion is a chain of factors that each equal 1", chain?.kind === "chain" && chain.factors.length === 2 && chain.factors[0].top === "60 min" && chain.factors[1].top === "60 s");
+  const table = Pic.pictureFor("two-way-tables", "A survey asked 9th graders and 10th graders whether they walk to school or ride the bus. 24 of the 9th graders walk and 36 ride the bus; 30 of the 10th graders walk and 20 ride the bus. What fraction of the 9th graders walk to school? Give it as a fraction.");
+  ok("pictures: a survey is a two-way table with the totals left to find", table?.kind === "table" && table.cells[0][0] === "24" && table.cells[1][1] === "20" && table.cells[2].every((c) => c === null));
+  ok("pictures: a prompt it cannot read gets none", Pic.pictureFor("slope", "What is the slope of a horizontal line?") === null && Pic.pictureFor("no-such-skill", "Solve for x: 3x + 5 = 20") === null);
+}
+
 // --- Certificates and the end of the course ---------------------------------------
 {
   const C = await import("../certificates.ts");

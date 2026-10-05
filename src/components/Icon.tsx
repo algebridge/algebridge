@@ -63,7 +63,8 @@ export type IconName =
   | "enter"
   | "printer"
   | "download"
-  | "versus";
+  | "versus"
+  | "shapes";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -285,6 +286,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <circle cx="7" cy="7.5" r="2.6" />
       <circle cx="17" cy="7.5" r="2.6" />
       <path d="M2.5 19c.4-3 2.2-5 4.5-5s4.1 2 4.5 5M12.5 19c.4-3 2.2-5 4.5-5s4.1 2 4.5 5" />
+    </>
+  ),
+  shapes: (
+    <>
+      <path d="M7.5 3.5l4.5 7.5H3Z" />
+      <circle cx="17" cy="7.25" r="3.75" />
+      <rect x="9" y="13.5" width="7.5" height="7" rx="1.2" />
     </>
   ),
   "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,

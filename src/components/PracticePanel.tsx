@@ -44,6 +44,8 @@ import { checkWork, workContext } from "@/lib/work-check";
 import { SignKeys } from "@/components/SignKeys";
 import { MathKeyboard, MathKeysOpen, MathKeysToggle } from "@/components/MathKeyboard";
 import { CourseCelebration } from "@/components/CourseCelebration";
+import { ProblemPicture } from "@/components/ProblemPicture";
+import { pictureFor } from "@/lib/pictures";
 import { useCertificateName } from "@/components/CertificateView";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
@@ -133,6 +135,8 @@ export const FAST_SECONDS = 45;
 const PAD_PREF_KEY = "ab-work-pad";
 /** Where this device remembers that the student keeps the math keys open. */
 const KEYS_PREF_KEY = "ab-math-keys";
+/** Where this device remembers that the student likes to see the picture of each problem. */
+const PICTURE_PREF_KEY = "ab-pictures";
 
 /**
  * How the student's work on a problem went: the lines they wrote (the
@@ -300,6 +304,26 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   }, []);
   /** The problem card: the math keys type into the boxes inside it. */
   const cardRef = useRef<HTMLDivElement>(null);
+  /** The picture of the problem, open on the card; a student who opened one sees the next ones open. */
+  const [pictureOpen, setPictureOpen] = useState(false);
+  const picturesLiked = useRef(false);
+  useEffect(() => {
+    try {
+      picturesLiked.current = localStorage.getItem(PICTURE_PREF_KEY) === "open";
+    } catch {
+      /* storage blocked: pictures start closed */
+    }
+  }, []);
+  const togglePicture = useCallback((open: boolean) => {
+    setPictureOpen(open);
+    picturesLiked.current = open;
+    try {
+      if (open) localStorage.setItem(PICTURE_PREF_KEY, "open");
+      else localStorage.removeItem(PICTURE_PREF_KEY);
+    } catch {
+      /* remembered for this visit only */
+    }
+  }, []);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
@@ -605,6 +629,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     );
     setFeedback(null);
     setNudge(null);
+    setPictureOpen(picturesLiked.current);
     setShowHint(false);
     setShowExplanation(false);
     setAttempts(0);
@@ -1023,6 +1048,39 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   const over = feedback === "correct" || revealed;
 
+  // A picture that would show the answer waits for the first try; one of the givens is there from the start.
+  const picture = pending ? null : pictureFor(skill.id, displayPrompt) ?? pictureFor(skill.id, problem.prompt);
+  const pictureReady = !!picture && (!picture.reveals || attempts > 0 || over);
+  const pictureBlock = !pictureReady || !picture ? null : pictureOpen ? (
+    <div className="animate-pop-in mt-4 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+          <Icon name="shapes" size={15} className="text-bridge-600" />
+          Picture it
+        </p>
+        <button
+          type="button"
+          onClick={() => togglePicture(false)}
+          onKeyDown={ignoreSpaceKey}
+          className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+        >
+          Hide
+        </button>
+      </div>
+      <ProblemPicture picture={picture} />
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => togglePicture(true)}
+      onKeyDown={ignoreSpaceKey}
+      className="animate-pop-in mt-4 mr-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+    >
+      <Icon name="shapes" size={15} />
+      Picture it
+    </button>
+  );
+
   // A wrong answer, read for where it went wrong: shown under the retry
   // message (with the answer left out) and again on the worked answer.
   const mistake = lastTry && (feedback === "wrong" || revealed) ? diagnoseMistake(problem, lastTry) : null;
@@ -1282,6 +1340,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         ) : (
           <PromptText text={displayPrompt} className="mt-3 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
         )}
+
+        {/* A picture of the problem: a graph, a number line, a bar model, a table. */}
+        {pictureBlock}
 
         {/* The work, between the problem and the answer, the way a worksheet has it. */}
         {problem.type === "numeric" && workPad}
