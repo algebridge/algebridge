@@ -6,7 +6,7 @@ import { useScratchpadSurface } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { GameChip, GameHowTo, GameProblemDialog, type GameTurn, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { MatchEnd, MatchScore, SideMarks } from "@/components/games/Match";
-import { Player } from "@/components/games/Players";
+import { Athlete, Player } from "@/components/games/Players";
 import { jointsOf, writePose, type Joints } from "@/components/games/rig";
 import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
@@ -15,7 +15,7 @@ import { pctX, pctY, SCENE_H, SCENE_W } from "@/lib/dollhouse";
 import { clampToArea, depthScale, getCourtGame, GOAL, inArea, spotAwayFrom, type CourtGameId } from "@/lib/games";
 import { approach, gaitPose, GAITS, strideLength } from "@/lib/gait";
 import { DAILY_GOAL } from "@/lib/gamification";
-import { DEFAULT_SETUP, matchWinner, PARTNERS, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
+import { ATHLETE_HEIGHT, DEFAULT_SETUP, matchWinner, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
 import { answerIsRight } from "@/lib/grading";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
@@ -29,10 +29,11 @@ import type { UserProgress } from "@/types";
  * within the day's cap the games share, and the player does their move:
  * Shaurya's shot, Jo's jump, Jordyn's spike, Rayla's strike.
  *
- * With two players a teammate from another sport joins on the same court:
- * Player 1 on WASD (or the left half of a touch screen), Player 2 on the
- * arrows (or the right half). Both run for the same target; the first there
- * answers, a miss can be stolen, and the first to the agreed score wins.
+ * With two players, each plays as the boy or girl they picked, in their
+ * side's color: Player 1 on WASD (or the left half of a touch screen),
+ * Player 2 on the arrows (or the right half). Both run for the same target;
+ * the first there answers, a miss can be stolen, and the first to the agreed
+ * score wins.
  *
  * The loop runs on requestAnimationFrame and writes each player's position
  * straight to the DOM; React only hears about what happens once.
@@ -109,10 +110,9 @@ export function CourtGame({
   const movers = useRef<Mover[]>(
     two
       ? (() => {
-          const partner = getCourtGame(PARTNERS[gameId])!;
           const left = clampToArea(game.area, game.start.x - 150, game.start.y, MARGIN);
           const right = clampToArea(game.area, game.start.x + 150, game.start.y, MARGIN);
-          return [makeMover(0, gameId, game.height, left, 1), makeMover(1, partner.id, partner.height, right, -1)];
+          return [makeMover(0, gameId, ATHLETE_HEIGHT[setup.kinds[0]], left, 1), makeMover(1, gameId, ATHLETE_HEIGHT[setup.kinds[1]], right, -1)];
         })()
       : [makeMover(0, gameId, game.height, game.start, 1)]
   );
@@ -530,7 +530,11 @@ export function CourtGame({
             className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
             style={{ left: pctX(m.pos.x), top: pctY(m.pos.y), width: pctX(((m.height * 100) / 160) * depthScale(game.area, m.pos.y)), zIndex: 340 }}
           >
-            <Player key={moves[m.side]} game={m.figure} pose={acting[m.side] ? "action" : "idle"} facing={m.facing} className="w-full" />
+            {two ? (
+              <Athlete key={moves[m.side]} kind={setup.kinds[m.side]} side={m.side} game={gameId} name={names[m.side]} pose={acting[m.side] ? "action" : "idle"} facing={m.facing} className="w-full" />
+            ) : (
+              <Player key={moves[m.side]} game={m.figure} pose={acting[m.side] ? "action" : "idle"} facing={m.facing} className="w-full" />
+            )}
             {two && <SideMarks side={m.side} name={names[m.side]} />}
           </div>
         ))}

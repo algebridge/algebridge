@@ -22,7 +22,7 @@
  * Pure and shared, so it is tested without a network.
  */
 
-import { STILTED } from "@/lib/story-templates";
+import { contrivedWording, repeatsTheFact, STILTED } from "@/lib/story-templates";
 import { numericAnswerMatches } from "@/lib/grading";
 import { isSchoolSafe } from "@/lib/interests";
 
@@ -40,8 +40,15 @@ export const FIRST_BATCH_SIZE = 3;
  */
 export const MIN_ENGAGING = 3;
 
-/** Room for two short sentences, which is the whole reading budget. */
-export const MAX_PROMPT_CHARS = 260;
+/**
+ * How naturally a story must read, on the judge's 1 to 5 scale, to be shown.
+ * The feedback that set this: "number-wise they made sense, but wording-wise
+ * they were weird". A story the judge would not print as is stays plain.
+ */
+export const MIN_NATURAL = 4;
+
+/** Room for three short sentences: a real moment, its numbers, and the question. */
+export const MAX_PROMPT_CHARS = 340;
 
 export interface PersonalizableProblem {
   id: string;
@@ -241,6 +248,7 @@ export type RejectReason =
   | "gives-answer"
   | "textbook"
   | "awkward"
+  | "contrived"
   | "format";
 
 /**
@@ -323,6 +331,8 @@ export function checkRewrite(
   // The question has to be the story's own.
   if (endsLikeOriginal(source, text)) return { ok: false, reason: "textbook" };
   if (STILTED.test(text)) return { ok: false, reason: "awkward", detail: "ask it the way a friend would say it, plainly" };
+  const contrived = contrivedWording(text) ?? repeatsTheFact(source, text);
+  if (contrived) return { ok: false, reason: "contrived", detail: contrived };
 
   // A step problem's answer is which step is wrong, or their order. Naming a
   // step, or narrating the moves in order, hands it over whatever the judge
@@ -368,7 +378,7 @@ export function verifierAgrees(original: PersonalizableProblem, solved: unknown)
   return numericAnswerMatches(expected, given, original.decimalPlaces);
 }
 
-export type Verdict = "keep" | "verifier" | "unfit" | "gives-away" | "flat";
+export type Verdict = "keep" | "verifier" | "unfit" | "gives-away" | "flat" | "unnatural";
 
 /**
  * Check 4 in full: the judge solved the story blind, then said whether it
@@ -377,7 +387,7 @@ export type Verdict = "keep" | "verifier" | "unfit" | "gives-away" | "flat";
  */
 export function judgeVerdict(
   original: PersonalizableProblem,
-  entry: { answer?: unknown; fits?: unknown; gives_away?: unknown; engaging?: unknown } | undefined
+  entry: { answer?: unknown; fits?: unknown; gives_away?: unknown; engaging?: unknown; natural?: unknown } | undefined
 ): Verdict {
   // A step problem's answer lives in its steps, which are never rewritten, so
   // there is no number for the judge to reach. It still has to make sense.
@@ -386,6 +396,7 @@ export function judgeVerdict(
   if (entry?.fits !== true) return "unfit";
   if (entry?.gives_away !== false) return "gives-away";
   if (!(Number(entry?.engaging) >= MIN_ENGAGING)) return "flat";
+  if (!(Number(entry?.natural) >= MIN_NATURAL)) return "unnatural";
   return "keep";
 }
 
@@ -510,7 +521,7 @@ Original: "Find the slope between (1, 2) and (4, 8)." (YouTube)
 
 Reply with JSON only: {"items":[{"id":"...","topic":"<one of the student's interests, exactly as given>","text":"..."}]}`;
 
-export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as short stories for students aged 12 to 16. For each one, do four things.
+export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as short stories for students aged 12 to 16. For each one, do five things.
 
 1. Solve it exactly as written. Questions may be phrased as the student's call ("What do you think...?"); answer what they are really asking. If a question has no single right answer, set fits to false. For a multiple-choice problem, answer with the letter of the correct choice (A, B, C or D). Otherwise answer with the number only, no units. If the problem says how to round, round that way. For a problem of kind "steps", whose steps are shown with it, answer "-".
 2. "fits" is true only if ALL of these hold, otherwise false:
@@ -521,14 +532,16 @@ export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as s
    - For a "steps" problem, the story asks for exactly its task (ordering the steps, or finding the wrong one), and matches the steps shown with it.
    - Numbers read naturally: no "you scored -2x points", no "1 are".
    - The closing question reads the way a person would say it. "What is your call on the total seconds?" and "What do you think the answer is?" are stilted; a stilted or bolted-on question means fits is false, with why "stilted question".
+   - There is a real reason for the question in that world. A made-up need ("the software needs the value in feet", "the sponsor wants the length in milliseconds") means fits is false, with why "made-up reason".
 3. "gives_away" is true if the story states the answer, or makes it obvious without doing the math (for example "you hit 5 threes" when the question is how many threes). For a "steps" problem, gives_away is false unless the story names the wrong step ("the second step") or states the order of the steps ("first subtract, then divide"). Spotting the error in easy algebra is the skill being practised, not a give-away.
 4. "engaging" from 1 to 5, as a 13 year old who loves that interest would feel it. 5: the answer matters to them inside the story and there are stakes. 4: clearly their world, with a real reason to want the answer. 3: their world, but flat. 2: barely connected. 1: generic.
+5. "natural" from 1 to 5: how it reads as writing, the way a careful textbook editor would judge it. 5: polished, every sentence natural. 4: natural, with at most one small rough spot. 3: understandable but clunky. 2: awkward, telegraphic or oddly worded. 1: hard to follow. A textbook instruction pasted into the story ("...holds 18 kilograms of volleyballs; convert 18 kilograms to grams."), fragments and chains of orders ("Build a rail line. Place 30 blocks."), odd phrases ("grams of ball weight you are hauling") or the math book inside the story score 2 or lower.
 
-When fits is false or engaging is below 3, add "why": what is wrong, in at most 12 words.
+When fits is false, engaging is below 3 or natural is below 4, add "why": what is wrong, in at most 12 words.
 
 Be strict. When in doubt, fits is false and gives_away is true.
 
-Reply with JSON only: {"answers":[{"id":"...","answer":"...","fits":true,"gives_away":false,"engaging":4,"why":""}]}`;
+Reply with JSON only: {"answers":[{"id":"...","answer":"...","fits":true,"gives_away":false,"engaging":4,"natural":5,"why":""}]}`;
 
 export interface WriterItem {
   id: string;
@@ -597,7 +610,11 @@ export function whyRejected(reason: string, detail?: string): string {
     case "gives-away":
       return "It gave the answer away. Keep the answer hidden.";
     case "too-long":
-      return "It was too long. At most 2 sentences and 40 words.";
+      return "It was too long. At most 3 sentences and 55 words.";
+    case "contrived":
+      return `It read as made up${detail ? `: ${detail}` : ""}. Give the question a real reason in that world.`;
+    case "unnatural":
+      return `It read awkwardly${detail ? `: ${detail}` : ""}. Write natural, complete sentences, the way a good textbook would.`;
     case "unsafe":
       return "It used a word that is not school-appropriate.";
     case "format":

@@ -6,13 +6,14 @@ import { RinkGame } from "@/components/house/RinkGame";
 import { Veronica } from "@/components/house/Veronica";
 import { CourtGame } from "@/components/games/CourtGame";
 import { GameSetupBar } from "@/components/games/GameSetupBar";
-import { Player } from "@/components/games/Players";
+import { MatchSetupCard } from "@/components/games/Match";
+import { Athlete, Player } from "@/components/games/Players";
 import { RinkDecor, RinkTray } from "@/components/games/RinkDecor";
 import { CourtScene, RinkScene } from "@/components/games/Scenes";
 import { pctX, pctY } from "@/lib/dollhouse";
 import { depthScale, GAME_CARDS, getCourtGame, getGameCard, isGameId, type CourtGameId, type GameCard, type GameId } from "@/lib/games";
 import { today } from "@/lib/path";
-import { DEFAULT_SETUP, PARTNERS, readSetup, saveSetup, topicLabel, type GameSetup } from "@/lib/game-session";
+import { ATHLETE_HEIGHT, DEFAULT_SETUP, readSetup, saveSetup, topicLabel, type GameSetup, type PlayerKind } from "@/lib/game-session";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
@@ -91,9 +92,19 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
     if (Math.abs(top - window.scrollY) > 4) window.scrollTo({ top: Math.max(0, top), behavior: still ? "auto" : "smooth" });
   }, []);
 
+  /** The pre-match card is up: two players are typing their names and picking who they play as. */
+  const [matchSetup, setMatchSetup] = useState(false);
+
   function play() {
     setDecorating(false);
     setPlacing(null);
+    // A match starts from the card on the court where both players are looking.
+    if (setup.players === 2 && !matchSetup) {
+      setMatchSetup(true);
+      if (!inDemo) showCourt();
+      return;
+    }
+    setMatchSetup(false);
     setPlaying(true);
     if (!inDemo) showCourt();
   }
@@ -193,7 +204,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
               <RinkGame key="rink" progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} setup={setup} />
             ) : (
               <RinkPreview
-                partner={setup.players === 2 ? PARTNERS.rink : null}
+                match={setup.players === 2 ? setup : null}
                 card={card}
                 decorating={decorating}
                 placing={placing}
@@ -213,7 +224,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         ) : playing && progress ? (
           <CourtGame key={picked} gameId={picked as CourtGameId} progress={progress} onExit={() => setPlaying(false)} onUpdate={refresh} demo={inDemo} setup={setup} />
         ) : (
-          <CourtPreview card={card} onPlay={play} partner={setup.players === 2 ? PARTNERS[picked] : null} />
+          <CourtPreview card={card} onPlay={play} match={setup.players === 2 ? setup : null} />
         )}
       </div>
 
@@ -222,14 +233,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       )}
 
       {!decorating && (
-        <GameSetupBar
-          setup={setup}
-          onChange={changeSetup}
-          progress={progress}
-          disabled={playing}
-          host={card.player}
-          partner={getGameCard(PARTNERS[picked])?.player ?? "a teammate"}
-        />
+        <GameSetupBar setup={setup} onChange={changeSetup} progress={progress} disabled={playing || matchSetup} />
       )}
 
       <div className="space-y-2 text-sm text-slate-600">
@@ -253,6 +257,16 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         </div>
         {inDemo && <p className="text-xs text-slate-500">Demo: nothing is saved.</p>}
       </div>
+
+      {matchSetup && (
+        <MatchSetupCard
+          setup={setup}
+          onChange={changeSetup}
+          onStart={play}
+          onCancel={() => setMatchSetup(false)}
+          game={picked === "rink" ? "cheer" : (picked as CourtGameId)}
+        />
+      )}
     </div>
   );
 }
@@ -315,27 +329,42 @@ function PlayButton({ onPlay }: { onPlay: () => void }) {
   );
 }
 
-/** A court before play: the player waiting where they start (with their teammate, for a match), and the way in. */
-function CourtPreview({ card, onPlay, partner }: { card: GameCard; onPlay: () => void; partner: CourtGameId | null }) {
+/** The two match athletes, facing each other, as the players picked them. */
+function MatchPair({ match, left, right, y, scale, game }: { match: GameSetup; left: number; right: number; y: number; scale: number; game: CourtGameId }) {
+  return (
+    <>
+      {([0, 1] as const).map((side) => {
+        const kind: PlayerKind = match.kinds[side];
+        return (
+          <div
+            key={side}
+            className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+            style={{ left: pctX(side === 0 ? left : right), top: pctY(y), width: pctX(((ATHLETE_HEIGHT[kind] * 100) / 160) * scale), zIndex: 340 }}
+          >
+            <Athlete kind={kind} side={side} game={game} name={match.names[side].trim() || `Player ${side + 1}`} facing={side === 0 ? 1 : -1} className="w-full" />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/** A court before play: the player waiting where they start (or the two match players), and the way in. */
+function CourtPreview({ card, onPlay, match }: { card: GameCard; onPlay: () => void; match: GameSetup | null }) {
   const game = getCourtGame(card.id)!;
   const scale = depthScale(game.area, game.start.y);
-  const mate = partner ? getCourtGame(partner) : null;
   return (
     <>
       <CourtScene game={game.id} live={false} />
-      {/* figures-still: before play the player is a picture, so their idle motion holds. */}
-      <div
-        className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-        style={{ left: pctX(game.start.x - (mate ? 150 : 0)), top: pctY(game.start.y), width: pctX(((game.height * 100) / 160) * scale), zIndex: 340 }}
-      >
-        <Player game={game.id} pose="idle" className="w-full" />
-      </div>
-      {mate && (
+      {match ? (
+        <MatchPair match={match} left={game.start.x - 150} right={game.start.x + 150} y={game.start.y} scale={scale} game={game.id} />
+      ) : (
+        // figures-still: before play the player is a picture, so their idle motion holds.
         <div
           className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: pctX(game.start.x + 150), top: pctY(game.start.y), width: pctX(((mate.height * 100) / 160) * scale), zIndex: 340 }}
+          style={{ left: pctX(game.start.x), top: pctY(game.start.y), width: pctX(((game.height * 100) / 160) * scale), zIndex: 340 }}
         >
-          <Player game={mate.id} pose="idle" facing={-1} className="w-full" />
+          <Player game={game.id} pose="idle" className="w-full" />
         </div>
       )}
       <StageChrome title={card.title}>
@@ -348,7 +377,7 @@ function CourtPreview({ card, onPlay, partner }: { card: GameCard; onPlay: () =>
 /** The rink before play: Veronica by the boards, the way in, and the way to decorate (none in the demo). */
 function RinkPreview({
   card,
-  partner,
+  match,
   decorating,
   placing,
   onPlay,
@@ -356,8 +385,8 @@ function RinkPreview({
   onCancel,
 }: {
   card: GameCard;
-  /** The teammate who joins her for a match. */
-  partner: CourtGameId | null;
+  /** A match: the two players, as they picked themselves, in place of Veronica. */
+  match: GameSetup | null;
   decorating: boolean;
   placing: string | null;
   onPlay: () => void;
@@ -366,18 +395,14 @@ function RinkPreview({
 }) {
   return (
     <>
-      <div
-        className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-        style={{ left: pctX(RINK.cx + RINK.rx - 30), top: pctY(RINK.cy + 96), width: pctX((card.height * 100) / 160), zIndex: 330 }}
-      >
-        <Veronica pose="idle" facing={-1} className="w-full" />
-      </div>
-      {partner && !decorating && (
+      {match && !decorating ? (
+        <MatchPair match={match} left={RINK.cx - 170} right={RINK.cx + 170} y={RINK.cy + 70} scale={1} game="cheer" />
+      ) : (
         <div
           className="figures-still pointer-events-none absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: pctX(RINK.cx - RINK.rx + 40), top: pctY(RINK.cy + 96), width: pctX(((getCourtGame(partner)?.height ?? 164) * 100) / 160), zIndex: 330 }}
+          style={{ left: pctX(RINK.cx + RINK.rx - 30), top: pctY(RINK.cy + 96), width: pctX((card.height * 100) / 160), zIndex: 330 }}
         >
-          <Player game={partner} pose="idle" className="w-full" />
+          <Veronica pose="idle" facing={-1} className="w-full" />
         </div>
       )}
       <StageChrome title={decorating ? (placing ? "Tap a spot by the boards" : "Decorate the rink") : card.title}>

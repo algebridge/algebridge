@@ -216,7 +216,7 @@ ok("textbook ending is rejected", reason({ ...eq, prompt: "Solve for x: 3x + 5 =
   const orderP = { id: "o2", type: "step-order", prompt: "Order the steps to solve 2x + 5 = 17:", steps: ["Subtract 5: 2x = 12", "Divide by 2: x = 6", "Check: 2(6) + 5 = 17 ✓"] };
   const cleaned = P.checkRewrite(orderP, pasted);
   ok("pasted steps are dropped and three steps is allowed", cleaned.ok && !cleaned.text.includes("Divide"), JSON.stringify(cleaned));
-  ok("a step problem needs no answer from the judge", P.judgeVerdict(errorProblem as any, { answer: "-", fits: true, gives_away: false, engaging: 4 }) === "keep");
+  ok("a step problem needs no answer from the judge", P.judgeVerdict(errorProblem as any, { answer: "-", fits: true, gives_away: false, engaging: 4, natural: 4 }) === "keep");
 }
 
 // --- The independent solve --------------------------------------------------
@@ -230,7 +230,7 @@ ok("verifier: quoted choice", P.verifierAgrees(mc, "y = 4x - 2"));
 const money = { id: "c", type: "numeric", prompt: "x", answer: 787.4, decimalPlaces: 2 };
 ok("verifier: rounding rule", P.verifierAgrees(money, "787.40") && !P.verifierAgrees(money, "787.41"));
 
-const good4 = { answer: "5", fits: true, gives_away: false, engaging: 4 };
+const good4 = { answer: "5", fits: true, gives_away: false, engaging: 4, natural: 5 };
 ok("judge: all good is kept", P.judgeVerdict(eq, good4) === "keep");
 ok("judge: wrong answer", P.judgeVerdict(eq, { ...good4, answer: "6" }) === "verifier");
 ok("judge: makes no sense", P.judgeVerdict(eq, { ...good4, fits: false }) === "unfit");
@@ -240,6 +240,26 @@ ok("judge: flat but in their world is kept", P.judgeVerdict(eq, { ...good4, enga
 ok("judge: barely connected stays plain", P.judgeVerdict(eq, { ...good4, engaging: 2 }) === "flat");
 ok("judge: no score stays plain", P.judgeVerdict(eq, { answer: "5", fits: true, gives_away: false }) === "flat");
 ok("judge: nothing at all", P.judgeVerdict(eq, undefined) === "verifier");
+ok("judge: clunky wording stays plain", P.judgeVerdict(eq, { ...good4, natural: 3 }) === "unnatural" && P.judgeVerdict(eq, { ...good4, natural: 4 }) === "keep");
+ok("judge: no wording score stays plain", P.judgeVerdict(eq, { answer: "5", fits: true, gives_away: false, engaging: 4 }) === "unnatural");
+{
+  const T = await import("../story-templates.ts");
+  // The lines from the feedback, and the shipped ones that read like them.
+  ok("made-up reasons are caught", [
+    "Your studio arm is {1} inches long and the software needs the value in feet for the mix. How many feet do you figure that is?",
+    "You dig a tunnel {1} inches wide, and your build log wants the width in feet. How wide is the tunnel in feet?",
+    "Your video edit runs {1} minutes, and the upload form wants the length in milliseconds. How many milliseconds long is the edit?",
+  ].every((t) => !!T.contrivedWording(t)));
+  ok("a pasted instruction is caught", !!T.contrivedWording("Your team's equipment bag holds 18 kilograms of volleyballs; convert 18 kilograms to grams. How many grams of ball weight are you hauling?"));
+  ok("the math book in a story is caught", !!T.contrivedWording("The gym is {1} miles from the school. With {2} mile = {3} ft in the math book, how many feet do you think that is?"));
+  ok("real stories pass", [
+    "Your crew is filming a downhill line that runs {1} miles from the top of the hill to the skate park. How many feet of pavement will you roll before you get there? ({2} mile = {3} ft)",
+    "You smelt the ore and convert the raw iron into ingots before the raid.",
+    "Frost is coming tonight, and you want {3} seedlings in the ground before dark. Each row holds {1}, with {2} already planted, so {1}x + {2} = {3}. How many rows do you still have to dig?",
+    "You need {1} cups of flour in total for the bake sale.",
+  ].every((t) => !T.contrivedWording(t)));
+  ok("a contrived story is rejected by the code checks", P.checkRewrite({ id: "c", type: "numeric", prompt: "Convert 18 kilograms to grams.", answer: 18000 }, "Your team's equipment bag holds 18 kilograms of volleyballs; convert 18 kilograms to grams. How many grams are you hauling?").reason === "contrived");
+}
 ok("parse fenced json", P.parseModelJson('```json\n{"items":[{"id":"a"}]}\n```')?.items !== undefined);
 ok("parse with preamble", P.parseModelJson('Sure! {"answers":[]} hope that helps')?.answers !== undefined);
 ok("parse garbage", P.parseModelJson("no json here") === null);
@@ -264,12 +284,17 @@ for (const unit of units) {
         // question of its own, must get through. Only the ending differs from
         // the original, so this isolates checks 1 to 3 from the textbook rule.
         const story = `${prompt}${/[.?!)]$/.test(prompt) ? "" : "."} What does that mean for you?`;
-        if (story.length <= P.MAX_PROMPT_CHARS && !P.checkRewrite(p, story).ok) {
+        // The textbook instruction itself ("Convert 18 kilograms to grams") is
+        // rejected inside a story on purpose (see contrivedWording); this sweep
+        // is about numbers and math surviving, so that reason is set aside.
+        const identity = P.checkRewrite(p, story);
+        if (story.length <= P.MAX_PROMPT_CHARS && !identity.ok && identity.reason !== "contrived") {
           identityFails++;
-          if (identityFails <= 5) console.log("  story rejected:", skill.id, prompt, JSON.stringify(P.checkRewrite(p, story)));
+          if (identityFails <= 5) console.log("  story rejected:", skill.id, prompt, JSON.stringify(identity));
         }
         const prefixed = `At practice today: ${story}`;
-        if (prefixed.length <= P.MAX_PROMPT_CHARS && !P.checkRewrite(p, prefixed).ok) prefixFails++;
+        const withScene = P.checkRewrite(p, prefixed);
+        if (prefixed.length <= P.MAX_PROMPT_CHARS && !withScene.ok && withScene.reason !== "contrived") prefixFails++;
         // Gluing a scene onto an instruction ("Convert...", "Solve for x") is
         // exactly what the textbook rule exists to catch.
         if (/^(convert|solve|find|simplify|evaluate|expand|factor|which|what)\b/i.test(prompt) && !P.endsLikeOriginal(prompt, `Big game tonight. ${prompt}`)) {
@@ -1805,7 +1830,16 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("games: only a right answer scores", S.scoreAfter([1, 2], 0, true).join() === "2,2" && S.scoreAfter([1, 2], 1, false).join() === "1,2");
   ok("games: the first to the mark wins", S.matchWinner([5, 3], 5) === 0 && S.matchWinner([2, 3], 3) === 1 && S.matchWinner([2, 2], 3) === null);
   ok("games: names default to Player 1 and 2", S.sideName({ ...S.DEFAULT_SETUP, names: ["", " Leo "] }, 0) === "Player 1" && S.sideName({ ...S.DEFAULT_SETUP, names: ["", " Leo "] }, 1) === "Leo");
-  ok("games: every game has a partner for a match", ["rink", "wrestling", "cheer", "volleyball", "soccer"].every((g) => !!S.PARTNERS[g as keyof typeof S.PARTNERS] && S.PARTNERS[g as keyof typeof S.PARTNERS] !== g));
+  ok("games: each player plays as a boy or a girl, Player 1 a boy and Player 2 a girl until they pick", S.DEFAULT_SETUP.kinds.join() === "boy,girl" && S.ATHLETE_HEIGHT.boy > 0 && S.ATHLETE_HEIGHT.girl > 0);
+  {
+    const store = new Map<string, string>();
+    const prev = (globalThis as { window?: unknown }).window;
+    Object.assign(globalThis, { window: { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) } } });
+    store.set("algebridge:game-setup", JSON.stringify({ players: 2, names: ["Maya", "Leo Leo Leo Leo Leo"], kinds: ["girl", "robot"] }));
+    const read = S.readSetup();
+    ok("games: a saved setup keeps names and picks, and drops anything else", read.players === 2 && read.names[0] === "Maya" && read.names[1].length === 14 && read.kinds.join() === "girl,girl");
+    Object.assign(globalThis, { window: prev });
+  }
   // A fair spot: about as far from each player.
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

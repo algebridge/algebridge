@@ -724,6 +724,120 @@ export function Rayla({ pose = "idle", facing = 1, className }: Props) {
   );
 }
 
+/* ── Match athletes: a boy or a girl, in a side's color ─────────── */
+
+/**
+ * In a two-player match each player picks a boy or a girl to play as, drawn
+ * in their side's color with their player number. They are no one in
+ * particular (the team are real people, and a match is the players' own),
+ * on the same rig as the team, so they run, stride and do the court's move
+ * the way the teammate who lives there does.
+ */
+export type AthleteKind = "boy" | "girl";
+
+const ATHLETE: Look = {
+  skin: "#b07a52",
+  skinShade: "#8e5d3c",
+  skinLight: "#c8946c",
+  hair: "#2a1b14",
+  hairLight: "#5a4032",
+  iris: "#2b1a12",
+  lip: "#87503d",
+  lipLight: "#a46752",
+};
+
+export function Athlete({
+  kind,
+  side,
+  game,
+  name,
+  pose = "idle",
+  facing = 1,
+  className,
+}: Props & { kind: AthleteKind; side: 0 | 1; game: CourtGameId; name: string }) {
+  const id = useArtId();
+  const kit = side === 0 ? "#2563eb" : "#ea580c";
+  const kitShade = side === 0 ? "#1e40af" : "#9a3412";
+  const white = "#f8fafc";
+  const girl = kind === "girl";
+  const w = girl ? 0.98 : 1.04;
+  const shorts = { fill: `url(#${id}-shorts)`, shade: "#000000", to: girl ? 97 : 101, hem: "#374151" };
+  const sock = { fill: `url(#${id}-sock)`, shade: kitShade, from: 118, stripe: white };
+  const shoe = (x: number, back: boolean) => <Sneaker x={x} upper="#111827" shade="#000000" midsole={white} outsole="#9ca3af" accent={kit} lace="#e5e7eb" back={back} />;
+  const sleeve = (x: number, back: boolean) => capSleeve(x, w, back ? kitShade : `url(#${id}-kit)`, mix(kitShade, "#000000", 0.25), 52, white);
+  const hairBack = mix(ATHLETE.hair, "#000000", 0.25);
+  const defs = (
+    <>
+      <SkinDefs id={id} look={ATHLETE} />
+      <defs>
+        <ClothGradient id={`${id}-kit`} base={kit} shade={kitShade} />
+        <ClothGradient id={`${id}-kitBody`} base={kit} shade={kitShade} from={31} to={70} />
+        <ClothGradient id={`${id}-sock`} base={kit} shade={kitShade} />
+        <ClothGradient id={`${id}-shorts`} base="#1f2937" light="#334155" shade="#05070b" />
+      </defs>
+    </>
+  );
+  return (
+    <Frame game={game} art={id} name={name} pose={pose} facing={facing} className={className} defs={defs}>
+      <Leg cls="p-leg p-leg-back" side="back" look={ATHLETE} id={id} w={w} shorts={shorts} sock={sock} shoe={shoe(JOINT.backLegX, true)} thigh={<HemShadow id={id} x={JOINT.backLegX} y={87} />} />
+      <g className="p-body" style={BODY}>
+        {girl && (
+          <>
+            {/* A high ponytail, falling behind the far shoulder, with a band in the side's color. */}
+            <path d="M44.6 9.6 C38.4 10.4 35.2 16.6 35.4 25 C35.6 33 37 40.2 38.8 45.4 C39.6 38.4 40.6 30.6 42.2 23.8 C43.2 19 44.2 13.8 44.6 9.6Z" fill={ATHLETE.hair} />
+            <path d="M42.6 13 C39.6 18.6 38.6 27 38.8 36 M41 15.6 C38.6 22 38 30 38.4 39" stroke={ATHLETE.hairLight} strokeWidth="0.45" fill="none" opacity="0.8" strokeLinecap="round" />
+          </>
+        )}
+        <Arm cls="p-arm p-arm-back" side="back" look={ATHLETE} id={id} w={w} upper={sleeve(JOINT.backArmX, true)} />
+        <path d="M45 32.6 C47.4 31.2 53.8 31.2 56.2 32.6 C53.8 33.8 47.4 33.8 45 32.6Z" fill={mix(kitShade, "#000000", 0.3)} />
+        <Neck id={id} look={ATHLETE} w={girl ? 1 : 1.12} />
+        {/* The jersey: the side's color, a white collar and the player's number. */}
+        <path d={torso(girl ? 0.98 : 1.06)} fill={`url(#${id}-kitBody)`} />
+        <path d="M44.8 33.2 C47.2 36 54 36 56.4 33.2" stroke={white} strokeWidth="1.4" fill="none" />
+        <path d="M37 44 C38 50 38.6 56 38.8 62" stroke="#ffffff" strokeWidth="0.9" opacity="0.22" strokeLinecap="round" />
+        <path d="M63.6 45 C62.8 52 62.2 60 62.4 64" stroke={RIM} strokeWidth="0.5" opacity="0.2" />
+        <text x="50.6" y="56.4" textAnchor="middle" fontSize="10" fontWeight="800" fill={white} fontFamily="ui-sans-serif, system-ui, sans-serif" className="p-text" style={{ transformOrigin: "50.6px 53px" }}>
+          {side + 1}
+        </text>
+        <ellipse cx={n(JOINT.frontArmX - 3.4)} cy="46" rx="2.4" ry="6.5" fill={aoFill(id)} />
+        <Head
+          id={id}
+          look={ATHLETE}
+          jaw={girl ? "round" : "long"}
+          back={<path d="M38.6 24 C37.4 14 42.6 7.6 50.6 7.6 C58.6 7.6 63.6 13.2 62.6 24 L61 20 L40 20Z" fill={hairBack} />}
+          shade={<path d="M39 21.6 C41 17.6 44.6 15.6 48.6 15.4 C52.4 15.4 57.6 16 61.6 21.8 L62 12 L38.6 12Z" fill={ATHLETE.skinShade} opacity="0.5" />}
+        >
+          <Face id={id} look={ATHLETE} spec={girl ? { eye: "almond", eyeSize: 1, brow: "soft", nose: "medium", lips: "medium", mouth: "smile", lashes: true } : { eye: "almond", eyeSize: 0.96, brow: "straight-thick", nose: "medium", lips: "medium", mouth: "smile" }} />
+          {girl ? (
+            <>
+              {/* Pulled back from a side part, smooth over the crown to the band. */}
+              <path d="M39.2 22.6 C38.4 14 43.4 8.6 50.4 8.6 C57.8 8.6 62.8 14 61.8 22.6 C60.4 18 57.4 15.2 53.2 14.6 C50.6 14.2 48 13.2 46.6 11.6 C45.6 13.4 44 14.6 42.4 15.6 C40.8 17.2 39.8 19.6 39.2 22.6Z" fill={ATHLETE.hair} />
+              <path d="M46.6 11.6 C49.6 11.4 54.6 12 58.4 14.6 M45.8 12.6 C43.4 14 41.6 16 40.6 18.8" stroke={ATHLETE.hairLight} strokeWidth="0.5" fill="none" opacity="0.8" strokeLinecap="round" />
+              <path d="M42.4 11.2 C44.6 9.6 47.4 8.8 50.2 8.8" stroke="#8a7064" strokeWidth="1.1" fill="none" opacity="0.4" strokeLinecap="round" />
+              <ellipse cx="44.4" cy="10.4" rx="1.6" ry="1.1" fill={kit} />
+            </>
+          ) : (
+            <>
+              {/* A short crop, a little longer on top. */}
+              <path d="M39.4 22.4 C38.6 14.4 43.6 8.4 50.6 8.4 C57.8 8.4 62.8 14 61.8 22.2 C61.2 19.6 60.4 18 59 17.2 C55.4 16.2 46.6 16.2 42.2 17.2 C40.8 18 40 19.8 39.4 22.4Z" fill={ATHLETE.hair} />
+              <path d="M43 15.4 C46 14 50.4 13.6 54.6 14 M42.4 12.6 C45.6 10.6 50.2 9.8 54.8 10.6 M57.6 12.4 C59.2 13.8 60.2 15.4 60.6 17" stroke={ATHLETE.hairLight} strokeWidth="0.45" fill="none" opacity="0.8" strokeLinecap="round" />
+              <path d="M39.6 18 C39.2 20.6 39.4 23 39.8 25.6 C40.4 25.2 40.6 24.2 40.6 23 C40.6 21.2 40.8 19.8 41.4 18.6Z M61.6 18 C62 20.6 61.8 23 61.4 25.4 C60.8 25 60.6 24.2 60.6 23 C60.6 21.2 60.4 19.8 59.8 18.6Z" fill={ATHLETE.hair} opacity="0.92" />
+            </>
+          )}
+        </Head>
+      </g>
+      <Leg cls="p-leg p-leg-front" side="front" look={ATHLETE} id={id} w={w} shorts={shorts} sock={sock} shoe={shoe(JOINT.frontLegX, false)} thigh={<HemShadow id={id} x={JOINT.frontLegX} y={87} />} />
+      <g className="p-skirt" style={BODY}>
+        <path d={hem(girl ? 0.98 : 1.06, 64, 86)} fill={`url(#${id}-kitBody)`} />
+        <path d="M37.4 84.6 C45 85.8 56 85.8 63.8 84.6" stroke={kitShade} strokeWidth="0.45" fill="none" />
+      </g>
+      <g className="p-body p-front" style={BODY}>
+        <Arm cls="p-arm p-arm-front" side="front" look={ATHLETE} id={id} w={w} upper={sleeve(JOINT.frontArmX, false)} />
+      </g>
+    </Frame>
+  );
+}
+
 export const PLAYER_BY_GAME: Record<CourtGameId, (p: Props) => ReactNode> = {
   wrestling: Shaurya,
   cheer: Jo,

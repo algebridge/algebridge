@@ -5,7 +5,7 @@ import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
 import { GameChip, GameHowTo, GameProblemDialog, type GameTurn, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { MatchEnd, MatchScore, SideMarks } from "@/components/games/Match";
-import { Player } from "@/components/games/Players";
+import { Athlete } from "@/components/games/Players";
 import { jointsOf, writePose, type Joints } from "@/components/games/rig";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { Veronica } from "@/components/house/Veronica";
@@ -17,8 +17,7 @@ import { DAILY_GOAL } from "@/lib/gamification";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { clampToRink, onRink, RINK, RINK_DAILY_CAP, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
-import { DEFAULT_SETUP, matchWinner, PARTNERS, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
-import { getCourtGame } from "@/lib/games";
+import { ATHLETE_HEIGHT, DEFAULT_SETUP, matchWinner, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
 import type { UserProgress } from "@/types";
 import { approach, gaitPose, GAITS, skatePose, strideLength, strokePeriod, type SkatePose } from "@/lib/gait";
 
@@ -82,10 +81,10 @@ function writeSkate(j: SkateJoints, pose: SkatePose | null): void {
  * rink; skate through it and a problem from the topic picked pops up. Right
  * answers pay Bridgeys, up to the day's cap.
  *
- * With two players, Jo joins her on the ice: Player 1 skates Veronica on
- * WASD (or the left half of a touch screen), Player 2 skates Jo on the
- * arrows (or the right half). First through the ring answers; a miss can be
- * stolen; first to the agreed score wins.
+ * With two players, each skates as the boy or girl they picked, in their
+ * side's color: Player 1 on WASD (or the left half of a touch screen),
+ * Player 2 on the arrows (or the right half). First through the ring
+ * answers; a miss can be stolen; first to the agreed score wins.
  *
  * The loop runs on requestAnimationFrame and writes each skater's transform
  * straight to the DOM; React only hears about the things that happen once
@@ -99,8 +98,8 @@ const MARGIN = 26;
 const REACH = 54;
 /** Her drawing's height on the rink, in scene units. */
 const HEIGHT = 168;
-const PARTNER = PARTNERS.rink;
-const PARTNER_HEIGHT = getCourtGame(PARTNER)!.height;
+/** A match athlete on the ice moves on the cheer rig: a light step, and a jump for a point. */
+const ATHLETE_GAME = "cheer" as const;
 const ACTION_MS = 950;
 
 /** Which keys move which side. Alone, a player has both sets. */
@@ -124,7 +123,7 @@ interface Skater {
   facing: 1 | -1;
   /** Veronica's strokes: where she is in a pair (0..1), how much she is pushing rather than gliding, and the turn. */
   skate: { phase: number; push: number; fx: number };
-  /** Jo's stride, posed on the court rig. */
+  /** A match athlete's stride, posed on the court rig. */
   gait: { phase: number; side: number; push: number; fx: number; speed: number; last: { x: number; y: number } };
   joints: Joints | null;
 }
@@ -193,8 +192,9 @@ export function RinkGame({
   const [turn, setTurn] = useState<{ side: 0 | 1; steal: boolean; missedChoice?: string } | null>(null);
   const [spin, setSpin] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [joMove, setJoMove] = useState(0);
-  const [joActing, setJoActing] = useState(false);
+  /** A match athlete's move (their jump), per side. */
+  const [moves, setMoves] = useState<[number, number]>([0, 0]);
+  const [acting, setActing] = useState<[boolean, boolean]>([false, false]);
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
   const [score, setScore] = useState<[number, number]>([0, 0]);
   const [winner, setWinner] = useState<0 | 1 | null>(null);
@@ -235,18 +235,21 @@ export function RinkGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Veronica's spin, or Jo's jump: a side's move. */
-  const doMove = useCallback((side: 0 | 1) => {
-    if (side === 0) {
-      setSpin((n) => n + 1);
-      setSpinning(true);
-      window.setTimeout(() => setSpinning(false), 720);
-    } else {
-      setJoMove((n) => n + 1);
-      setJoActing(true);
-      window.setTimeout(() => setJoActing(false), ACTION_MS - 60);
-    }
-  }, []);
+  /** Veronica's spin alone, or a match athlete's jump: a side's move. */
+  const doMove = useCallback(
+    (side: 0 | 1) => {
+      if (!two) {
+        setSpin((n) => n + 1);
+        setSpinning(true);
+        window.setTimeout(() => setSpinning(false), 720);
+        return;
+      }
+      setMoves((m) => (side === 0 ? [m[0] + 1, m[1]] : [m[0], m[1] + 1]));
+      setActing((a) => (side === 0 ? [true, a[1]] : [a[0], true]));
+      window.setTimeout(() => setActing((a) => (side === 0 ? [false, a[1]] : [a[0], false])), ACTION_MS - 60);
+    },
+    [two]
+  );
 
   // --- Input -----------------------------------------------------------------
   useEffect(() => {
@@ -353,15 +356,15 @@ export function RinkGame({
         el.style.top = pctY(p.y);
         el.style.zIndex = String(300 + Math.round((p.y / SCENE_H) * 100));
         const s = Math.min(1, speed / MAX_SPEED);
-        if (sk.side === 1) {
-          // Jo, on the court rig: her run, on ice.
+        if (two) {
+          // A match athlete, on the court rig: a light step, on ice.
           const svg = el.firstElementChild as SVGSVGElement | null;
           if (!svg) continue;
           const g = sk.gait;
           const covered = Math.hypot(p.x - g.last.x, (p.y - g.last.y) * 1.6);
           g.last = { x: p.x, y: p.y };
-          const G = GAITS[PARTNER];
-          g.phase = (g.phase + covered / strideLength(G, s, PARTNER_HEIGHT, 1)) % 1;
+          const G = GAITS[ATHLETE_GAME];
+          g.phase = (g.phase + covered / strideLength(G, s, ATHLETE_HEIGHT[setup.kinds[sk.side]], 1)) % 1;
           if (speed > 1) g.side = approach(g.side, Math.abs(v.x) / (Math.abs(v.x) + Math.abs(v.y * 1.6)), 10, dt);
           const driveNow = Math.max(-1, Math.min(1, (speed - g.speed) / Math.max(dt, 1e-3) / ACCEL));
           g.push = approach(g.push, driveNow, 8, dt);
@@ -573,14 +576,23 @@ export function RinkGame({
             style={{
               left: pctX(sk.pos.x),
               top: pctY(sk.pos.y),
-              width: pctX(((sk.side === 0 ? HEIGHT : PARTNER_HEIGHT) * 100) / 160),
+              width: pctX(((two ? ATHLETE_HEIGHT[setup.kinds[sk.side]] : HEIGHT) * 100) / 160),
               zIndex: 340,
             }}
           >
-            {sk.side === 0 ? (
-              <Veronica key={spin} pose={spinning ? "spin" : "skate"} speed={0} className="w-full" />
+            {two ? (
+              <Athlete
+                key={moves[sk.side]}
+                kind={setup.kinds[sk.side]}
+                side={sk.side}
+                game={ATHLETE_GAME}
+                name={names[sk.side]}
+                pose={acting[sk.side] ? "action" : "idle"}
+                facing={sk.facing}
+                className="w-full"
+              />
             ) : (
-              <Player key={joMove} game={PARTNER} pose={joActing ? "action" : "idle"} facing={-1} className="w-full" />
+              <Veronica key={spin} pose={spinning ? "spin" : "skate"} speed={0} className="w-full" />
             )}
             {two && <SideMarks side={sk.side} name={names[sk.side]} />}
           </div>

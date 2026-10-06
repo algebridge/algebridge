@@ -1949,7 +1949,7 @@ const generators: Record<string, SkillGenerator> = {
         return {
           id: "",
           type: "multiple-choice",
-          prompt: `Start at the y-intercept of y = ${slope}${plusTerm(b)}. Use the slope twice: each time, run ${bottom} right and ${top > 0 ? `rise ${top}` : `fall ${-top}`}. Where do you land?`,
+          prompt: `Start at the y-intercept of y = ${slope}${plusTerm(b)} and follow the slope for two steps, each one ${bottom} to the right and ${top > 0 ? `${top} up` : `${-top} down`}. Where do you end up?`,
           hint: `The y-intercept is (0, ${b}). Two runs of ${bottom} and two rises of ${top} from there.`,
           answer,
           choices: mcChoices(answer, [`(${bottom}, ${b + top})`, `(${2 * top}, ${b + 2 * bottom})`, `(${2 * bottom}, ${2 * top})`, `(${2 * bottom}, ${b - 2 * top})`]),
