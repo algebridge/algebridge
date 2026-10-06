@@ -258,8 +258,14 @@ interface Props {
   onChange: (text: string) => void;
   flavor: Flavor;
   label: string;
-  /** "none" when the on-screen keypad is showing, so a phone does not open its own keyboard over it. */
-  inputMode: "none" | "text";
+  /**
+   * "none" when the on-screen keypad is showing, so a phone does not open its
+   * own keyboard over it; "decimal" for an answer box, where the phone's
+   * number pad is the quickest.
+   */
+  inputMode: "none" | "text" | "decimal";
+  /** Marks the row as the place a dialog puts the focus when it opens (see useDialogFocus). */
+  autoFocus?: boolean;
   placeholder?: string;
   /** An operator typed on an empty row works on the answer above (Scientific). */
   ansFirst?: boolean;
@@ -290,6 +296,7 @@ export function MathField({
   onBlur,
   handle,
   className = "",
+  autoFocus = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -737,6 +744,7 @@ export function MathField({
           onBlur?.();
         }}
         aria-label={label}
+        data-autofocus={autoFocus ? "" : undefined}
         inputMode={inputMode}
         autoComplete="off"
         autoCorrect="off"

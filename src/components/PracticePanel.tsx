@@ -38,14 +38,8 @@ import { announcePractice } from "@/lib/sidebar";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
-import { WorkPad } from "@/components/helper/WorkPad";
-import type { PadLine } from "@/components/helper/types";
-import { checkWork, workContext } from "@/lib/work-check";
-import { SignKeys } from "@/components/SignKeys";
-import { MathKeyboard, MathKeysOpen, MathKeysToggle } from "@/components/MathKeyboard";
+import { AnswerField, type AnswerFieldHandle } from "@/components/AnswerField";
 import { CourseCelebration } from "@/components/CourseCelebration";
-import { ProblemPicture } from "@/components/ProblemPicture";
-import { pictureFor } from "@/lib/pictures";
 import { useCertificateName } from "@/components/CertificateView";
 import { requestHelperOpen, setHelperContext } from "@/lib/helper-bridge";
 import { listTopics, type InterestTopic } from "@/lib/interests";
@@ -130,33 +124,6 @@ const MISSES_BEFORE_NUDGE = 3;
  */
 export const FAST_RUN = 4;
 export const FAST_SECONDS = 45;
-
-/** Where this device remembers that the student tucked the work pad away. */
-const PAD_PREF_KEY = "ab-work-pad";
-/** Where this device remembers that the student keeps the math keys open. */
-const KEYS_PREF_KEY = "ab-math-keys";
-/** Where this device remembers that the student likes to see the picture of each problem. */
-const PICTURE_PREF_KEY = "ab-pictures";
-
-/**
- * How the student's work on a problem went: the lines they wrote (the
- * problem's own lines aside), how many of those the checker passed, and
- * which ones changed the answer.
- */
-function workTally(lines: PadLine[], problem: string, choices?: string[]) {
-  const marks = checkWork(lines.map((l) => l.entered ?? ""), workContext(problem, choices));
-  let written = 0;
-  let checked = 0;
-  const changed: number[] = [];
-  lines.forEach((l, i) => {
-    const text = l.text.trim();
-    if (!l.entered || text !== l.entered || (l.given && text === l.given)) return;
-    written += 1;
-    if (marks[i].kind === "same" || marks[i].kind === "case") checked += 1;
-    if (marks[i].kind === "changed") changed.push(i + 1);
-  });
-  return { written, checked, changed };
-}
 
 /**
  * How long a problem waits for its story before it is shown as it is. The
@@ -253,7 +220,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [courseParty, setCourseParty] = useState(false);
   const [certificateName] = useCertificateName();
   const daily = useDaily();
-  const answerRef = useRef<HTMLInputElement>(null);
+  const answerField = useRef<AnswerFieldHandle>(null);
   const unitOfSkill = useMemo(() => units.find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   // Unfinished arithmetic or a typo, said gently, with no try spent on it.
@@ -264,66 +231,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   /** What was tried last, read for where it went wrong once it is marked. */
   const [lastTry, setLastTry] = useState<Attempt | null>(null);
   const [mastery, setMastery] = useState<MasteryLevel>("locked");
-  /** The student's typed work, for the problem it was written on: a new problem gets a clean pad. */
-  const [pad, setPad] = useState<{ key: string; lines: PadLine[] } | null>(null);
-  /** The work pad open on the card, or tucked away. Open unless this device was told otherwise. */
-  const [padOpen, setPadOpen] = useState(true);
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(PAD_PREF_KEY) === "closed") setPadOpen(false);
-    } catch {
-      /* storage blocked: the pad stays open */
-    }
-  }, []);
-  const togglePad = useCallback((open: boolean) => {
-    setPadOpen(open);
-    try {
-      if (open) localStorage.removeItem(PAD_PREF_KEY);
-      else localStorage.setItem(PAD_PREF_KEY, "closed");
-    } catch {
-      /* remembered for this visit only */
-    }
-  }, []);
-  /** The on-screen math keys, open or closed as this device last left them. */
-  const [keysOpen, setKeysOpen] = useState(false);
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(KEYS_PREF_KEY) === "open") setKeysOpen(true);
-    } catch {
-      /* storage blocked: the keys start closed */
-    }
-  }, []);
-  const toggleKeys = useCallback((open: boolean) => {
-    setKeysOpen(open);
-    try {
-      if (open) localStorage.setItem(KEYS_PREF_KEY, "open");
-      else localStorage.removeItem(KEYS_PREF_KEY);
-    } catch {
-      /* remembered for this visit only */
-    }
-  }, []);
-  /** The problem card: the math keys type into the boxes inside it. */
-  const cardRef = useRef<HTMLDivElement>(null);
-  /** The picture of the problem, open on the card; a student who opened one sees the next ones open. */
-  const [pictureOpen, setPictureOpen] = useState(false);
-  const picturesLiked = useRef(false);
-  useEffect(() => {
-    try {
-      picturesLiked.current = localStorage.getItem(PICTURE_PREF_KEY) === "open";
-    } catch {
-      /* storage blocked: pictures start closed */
-    }
-  }, []);
-  const togglePicture = useCallback((open: boolean) => {
-    setPictureOpen(open);
-    picturesLiked.current = open;
-    try {
-      if (open) localStorage.setItem(PICTURE_PREF_KEY, "open");
-      else localStorage.removeItem(PICTURE_PREF_KEY);
-    } catch {
-      /* remembered for this visit only */
-    }
-  }, []);
   const [sessionProblems, setSessionProblems] = useState<ActiveProblem[]>([]);
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
@@ -361,7 +268,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   // shake, skipped for anyone who asked for less motion.
   useEffect(() => {
     if (feedback !== "wrong") return;
-    const el = answerRef.current;
+    const el = answerField.current?.el;
     if (!el || typeof el.animate !== "function") return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     el.animate(
@@ -450,11 +357,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const problem = allProblems[problemIndex % allProblems.length];
   const problemIndexRef = useRef(0);
   problemIndexRef.current = problemIndex;
-  // The bank's ids repeat from session to session, so the seed is part of the key.
-  const padKey = `${seed ?? "-"}:${problemIndex}:${problem?.id ?? ""}`;
-  const padKeyRef = useRef(padKey);
-  padKeyRef.current = padKey;
-  const savePad = useCallback((lines: PadLine[]) => setPad({ key: padKeyRef.current, lines }), []);
 
   useEffect(() => {
     setMastery(getSkillProgress(skill.id).level);
@@ -629,7 +531,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     );
     setFeedback(null);
     setNudge(null);
-    setPictureOpen(picturesLiked.current);
     setShowHint(false);
     setShowExplanation(false);
     setAttempts(0);
@@ -957,7 +858,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     focusNewProblem.current = false;
     // The button pressed may still hold the focus: Check answer reuses Next problem's place.
     if (!focusIsLost() && document.activeElement !== leavingFrom.current) return;
-    (answerRef.current ?? document.querySelector<HTMLElement>("[data-choice]:not(:disabled)"))?.focus();
+    if (answerField.current) answerField.current.focus();
+    else document.querySelector<HTMLElement>("[data-choice]:not(:disabled)")?.focus();
   });
 
   if (!problem) return null;
@@ -978,108 +880,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   const showNudge = misses - nudgeDismissedAt >= MISSES_BEFORE_NUDGE;
 
-  // Space to write the work, on every problem worked out by hand. Error
-  // analysis and step order bring their own steps.
-  const padLines = pad?.key === padKey ? pad.lines : undefined;
-  const padChoices = problem.type === "multiple-choice" ? problem.choices : undefined;
-  const padHere = !pending && (problem.type === "numeric" || problem.type === "multiple-choice");
-  // Counted once the answer is right, the only time the count is shown.
-  const tally = feedback === "correct" && padHere && padLines ? workTally(padLines, displayPrompt, padChoices) : null;
-  const workPad = !padHere ? null : padOpen ? (
-    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70">
-      <WorkPad
-        key={padKey}
-        problem={displayPrompt}
-        lines={padLines}
-        onChange={savePad}
-        heading="Your work"
-        intro="Write one step per line and press Enter. Each step gets checked against the line above."
-        autoFocus={false}
-        inline
-        choices={padChoices}
-        finalNote={
-          problem.type === "multiple-choice"
-            ? "That looks like your answer. Pick it from the choices to check it."
-            : "That looks like your answer. Type it in the answer box to check it."
-        }
-        headerAction={
-          <span className="flex items-center gap-1">
-            {problem.type === "multiple-choice" && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => toggleKeys(!keysOpen)}
-                onKeyDown={ignoreSpaceKey}
-                aria-pressed={keysOpen}
-                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
-                  keysOpen ? "bg-bridge-50 text-bridge-700" : "text-slate-500 hover:bg-white hover:text-slate-700"
-                }`}
-              >
-                <Icon name="keyboard" size={15} />
-                Math keys
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => togglePad(false)}
-              onKeyDown={ignoreSpaceKey}
-              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-            >
-              Hide
-            </button>
-          </span>
-        }
-      />
-      {problem.type === "multiple-choice" && keysOpen && (
-        <MathKeyboard scope={cardRef} onClose={() => toggleKeys(false)} className="m-2 mt-0 max-w-md" />
-      )}
-    </div>
-  ) : (
-    <button
-      type="button"
-      onClick={() => togglePad(true)}
-      onKeyDown={ignoreSpaceKey}
-      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-    >
-      <Icon name="pen" size={15} />
-      Show your work
-    </button>
-  );
-
   const over = feedback === "correct" || revealed;
-
-  // A picture that would show the answer waits for the first try; one of the givens is there from the start.
-  const picture = pending ? null : pictureFor(skill.id, displayPrompt) ?? pictureFor(skill.id, problem.prompt);
-  const pictureReady = !!picture && (!picture.reveals || attempts > 0 || over);
-  const pictureBlock = !pictureReady || !picture ? null : pictureOpen ? (
-    <div className="animate-pop-in mt-4 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-          <Icon name="shapes" size={15} className="text-bridge-600" />
-          Picture it
-        </p>
-        <button
-          type="button"
-          onClick={() => togglePicture(false)}
-          onKeyDown={ignoreSpaceKey}
-          className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-        >
-          Hide
-        </button>
-      </div>
-      <ProblemPicture picture={picture} />
-    </div>
-  ) : (
-    <button
-      type="button"
-      onClick={() => togglePicture(true)}
-      onKeyDown={ignoreSpaceKey}
-      className="animate-pop-in mt-4 mr-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
-    >
-      <Icon name="shapes" size={15} />
-      Picture it
-    </button>
-  );
 
   // A wrong answer, read for where it went wrong: shown under the retry
   // message (with the answer left out) and again on the worked answer.
@@ -1172,7 +973,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                 onClick={() => {
                   setCelebration(null);
                   // The banner, and this button with it, goes away: the focus goes on to the practice.
-                  requestAnimationFrame(() => (nextRef.current ?? answerRef.current)?.focus());
+                  requestAnimationFrame(() => (nextRef.current ? nextRef.current.focus() : answerField.current?.focus()));
                 }}
                 className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10"
               >
@@ -1288,9 +1089,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       {/* Problem card. A story takes the color of the interest it is set in,
           so a Minecraft problem and a basketball one look like different
           places; a plain problem keeps the page's neutral card. */}
-      <MathKeysOpen.Provider value={keysOpen}>
       <div
-        ref={cardRef}
         style={hueVars(scene?.topic ? topicHue(scene.topic) : HUES.blue)}
         className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-panel sm:p-6 ${scene?.topic ? "hue-line" : "border-slate-200"}`}
       >
@@ -1341,64 +1140,27 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           <PromptText text={displayPrompt} className="mt-3 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
         )}
 
-        {/* A picture of the problem: a graph, a number line, a bar model, a table. */}
-        {pictureBlock}
-
-        {/* The work, between the problem and the answer, the way a worksheet has it. */}
-        {problem.type === "numeric" && workPad}
-
-        {/* Numeric input */}
+        {/* The answer, written as math: a square root with its bar, a fraction stacked. */}
         {!pending && problem.type === "numeric" && (
-          <div className="mt-4 flex max-w-sm items-center gap-1.5">
-            <input
-              ref={answerRef}
-              type="text"
-              // With the math keys open they are the keyboard, so a phone keeps its own away.
-              inputMode={keysOpen ? "none" : "decimal"}
-              data-math-keys="answer"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              value={userAnswer}
-              onChange={(e) => {
-                setUserAnswer(e.target.value);
-                setNudge(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter" || feedback === "correct") return;
-                // preventDefault stops the same key press from also landing on Next
-                // Problem, which takes the focus the moment the answer is right.
-                e.preventDefault();
-                handleSubmit();
-              }}
-              placeholder={
-                "decimalPlaces" in problem && typeof problem.decimalPlaces === "number"
-                  ? "Your answer, rounded"
-                  : "Your answer (2/3 works too)"
-              }
-              aria-label="Your answer"
-              disabled={over}
-              className={`h-12 w-0 min-w-0 flex-1 rounded-xl border px-4 text-lg transition-colors focus:outline-none focus:ring-2 ${
-                feedback === "correct"
-                  ? "border-emerald-400 bg-emerald-50 font-semibold text-emerald-900 ring-2 ring-emerald-100"
-                  : over
-                    ? "border-slate-200 bg-slate-50 text-slate-500"
-                    : feedback === "wrong"
-                      ? "border-amber-400 ring-2 ring-amber-100 focus:border-amber-500 focus:ring-amber-200"
-                      : "border-slate-300 focus:border-bridge-500 focus:ring-bridge-200"
-              }`}
-            />
-            {!keysOpen && <SignKeys value={userAnswer} onChange={setUserAnswer} inputRef={answerRef} disabled={over} />}
-            {!over && <MathKeysToggle open={keysOpen} onToggle={() => toggleKeys(!keysOpen)} />}
-          </div>
-        )}
-        {!pending && problem.type === "numeric" && nudge && !over && (
-          <p role="status" className="animate-pop-in mt-2 max-w-sm text-sm font-medium text-slate-600">
-            {nudge}
-          </p>
-        )}
-        {!pending && problem.type === "numeric" && keysOpen && !over && (
-          <MathKeyboard scope={cardRef} onClose={() => toggleKeys(false)} className="mt-3 max-w-md" />
+          <AnswerField
+            key={`${problemIndex}:${problem.id}`}
+            handle={answerField}
+            value={userAnswer}
+            onChange={(text) => {
+              setUserAnswer(text);
+              setNudge(null);
+            }}
+            onEnter={() => {
+              if (feedback !== "correct") handleSubmit();
+            }}
+            placeholder={
+              "decimalPlaces" in problem && typeof problem.decimalPlaces === "number" ? "Your answer, rounded" : "Your answer"
+            }
+            tone={feedback === "correct" ? "right" : feedback === "wrong" ? "wrong" : "idle"}
+            locked={over}
+            note={nudge}
+            className="mt-4 max-w-md"
+          />
         )}
 
         {/* Multiple choice */}
@@ -1451,9 +1213,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             <p className="hidden text-xs text-slate-400 sm:block [@media(hover:none)]:hidden">Tip: press 1-{problem.choices.length} to pick an answer.</p>
           </div>
         )}
-
-        {/* On a choice card the choices stay under the question, and the work goes after them. */}
-        {problem.type === "multiple-choice" && workPad}
 
         {/* Error analysis */}
         {!pending && problem.type === "error-analysis" && getProblemSteps(problem) && (
@@ -1567,18 +1326,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </div>
             ) : (
               <AnswerFeedback state={feedback} seed={feedbackSeed} />
-            )}
-            {/* The work that got them there, counted. */}
-            {feedback === "correct" && tally && tally.changed.length === 0 && tally.checked > 0 && (
-              <p className="mt-2 flex items-center gap-1.5 px-1 text-sm font-semibold text-emerald-800">
-                <Icon name="check" size={15} className="shrink-0 text-emerald-600" />
-                {tally.checked} {tally.checked === 1 ? "step" : "steps"} of your work checked out.
-              </p>
-            )}
-            {feedback === "correct" && tally && tally.changed.length > 0 && (
-              <p className="mt-2 px-1 text-sm text-amber-800">
-                Line {tally.changed[0]} of your work changes the answer. Give it a second look.
-              </p>
             )}
             {feedback === "correct" && showExplanation && (
               <div className="mt-2 px-1 text-sm text-slate-600">
@@ -1768,7 +1515,6 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </Link>
         </div>
       </div>
-      </MathKeysOpen.Provider>
 
     </div>
   );
