@@ -81,15 +81,30 @@ const ANSWER_PATTERNS = [
   /\bwhat'?s\s+[a-z]\s*=\s*\?/,
 ];
 
-const ESCALATE_PATTERNS = [
-  /\b(i\s+)?(still\s+)?(don'?t|do\s+not|dont)\s+(get|understand)\s+(it|this|any\s+of\s+it)\b/,
+/** Asking for a person outright. */
+const PERSON_PATTERNS = [
   /\b(i\s+)?need\s+(a\s+)?(real\s+)?(person|human|tutor|teacher)\b/,
   /\bcan\s+i\s+(talk|speak)\s+to\s+(a|someone)\b/,
+];
+
+const ESCALATE_PATTERNS = [
+  /\b(i\s+)?(still\s+)?(don'?t|do\s+not|dont)\s+(get|understand)\s+(it|this|any\s+of\s+it)\b/,
+  ...PERSON_PATTERNS,
   /\b(i'?m\s+)?(completely|totally|so)\s+lost\b/,
   /\bthis\s+(isn'?t|is\s+not)\s+helping\b/,
   /\bi\s+give\s+up\b/,
   /\bmore\s+help\b/,
 ];
+
+/**
+ * "I need a real person" is answered with the offer of one, straight away.
+ * "I don't get it" the first time is Archie's to meet: he slows down and
+ * comes at it smaller. The offer follows if it is still not landing.
+ */
+export function asksForPerson(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return PERSON_PATTERNS.some((r) => r.test(t));
+}
 
 const FORMULA_PATTERNS = [
   /\bformula\b/,
@@ -853,7 +868,7 @@ export function leaksAnswer(reply: string, forbidden: string[], opts: { signed?:
 // Words that state a result just before a number: "x = 7", "the answer is 7",
 // "there were 7 adult tickets", "it comes to 7".
 const STATES_RESULT =
-  /(?:=|≈|\b(?:is|are|was|were|get|gets|got|equals?|makes?|gives?|be|answer|comes? (?:out )?to|works? out to|thats|its))\s*\$?\s*$/i;
+  /(?:=|≈|\b(?:is|are|was|were|get|gets|got|equals?|makes?|gives?|be|answer|comes? (?:out )?to|works? out to|thats|its|(?:slope|rate|total|value|answer|result|solution|sum|product|difference|quotient) of))\s*\$?\s*$/i;
 
 /**
  * Sometimes the answer is also a number the problem prints for another
@@ -1127,6 +1142,43 @@ export function actionAsWords(action: HelperAction): string {
     case "next-step":
       return "what next";
   }
+}
+
+/**
+ * A reply that hit the token budget stops mid-word. It is cut back to its
+ * last whole sentence; one with no whole sentence counts as no reply at all.
+ */
+export function wholeSentences(text: string, cutOff: boolean): string {
+  if (!cutOff) return text;
+  const ends = [...text.matchAll(/[.!?](?=\s|$)/g)];
+  if (!ends.length) return "";
+  const last = ends[ends.length - 1];
+  return text.slice(0, last.index + 1).trim();
+}
+
+/**
+ * Chatty is good; a wall of text in a narrow sidebar is not. A reply that
+ * runs past `max` words keeps its whole sentences up to about `keep` words,
+ * and then its last question, so it still ends by asking the student
+ * something. Shorter replies, and anything already short of sentences, are
+ * left exactly as they are.
+ */
+export function trimLongReply(text: string, max = 120, keep = 90): string {
+  const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
+  if (words(text) <= max) return text;
+  const sentences = text.trim().split(/(?<=[.!?]["'’”)]*)\s+/);
+  if (sentences.length < 3) return text;
+  const kept: string[] = [];
+  let count = 0;
+  for (const sentence of sentences) {
+    const n = words(sentence);
+    if (kept.length && count + n > keep) break;
+    kept.push(sentence);
+    count += n;
+  }
+  const lastQuestion = [...sentences].reverse().find((s) => /\?["'’”)]*$/.test(s));
+  if (lastQuestion && !kept.includes(lastQuestion)) kept.push(lastQuestion);
+  return kept.join(" ");
 }
 
 /** When no clean example can be made, the method is the next best thing. */

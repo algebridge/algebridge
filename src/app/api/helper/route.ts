@@ -4,7 +4,9 @@ import {
   actionInstruction,
   arithmeticIsStep,
   arithmeticReply,
+  answerForms,
   arithmeticStepReply,
+  asksForPerson,
   classifyIntent,
   CRISIS_REPLY,
   detectCrisisInTurns,
@@ -25,7 +27,9 @@ import {
   schedulerPrompt,
   stripEmoji,
   withoutCrisisTurns,
+  trimLongReply,
   withoutListMarkers,
+  wholeSentences,
   type HelperAction,
   type HelperContext,
   type HelperMessage,
@@ -33,7 +37,7 @@ import {
 } from "@/lib/helper";
 import { buildLocalChatReply, stripMarkdownEmphasis } from "@/lib/tutor";
 import { clientKey, helperGroqModels, makeRateLimiter, sessionKey } from "@/lib/ai-provider";
-import { archiePersonaPrompt, cleanFirstName } from "@/lib/archie-persona";
+import { archiePersonaPrompt, claimsAHumanLife, cleanFirstName, honestAboutHimself } from "@/lib/archie-persona";
 import { sanitizeTopics, type InterestTopic } from "@/lib/interests";
 
 /**
@@ -187,6 +191,9 @@ ${FORMAT}
 You are arranging a session with a human tutor. Ask one short question at a time.
 Do not teach math here and do not answer any math question.`;
   }
+  // A made-up example stays off the answer too, even when the problem prints
+  // that number for another reason: "a slope of 2" on a slope-2 problem.
+  const exampleAvoid = [...new Set([...avoid, ...answerForms(ctx.answer)])];
   return `${archiePersonaPrompt(student)}
 ${FORMAT}
 Skill: ${ctx.skillTitle ?? "Algebra 1"}
@@ -197,23 +204,30 @@ Worked solution, for your context only and never to be revealed: ${ctx.explanati
 
 Absolute rule: never state the final answer, and never state an intermediate value the student is working toward.
 Numbers already in the problem, in the key idea, and standard unit facts (12 inches in a foot, 60 minutes in an hour) are fine to say.
-When they ask for math help, guide with one small next step and end with a question.
-If the message is small talk, answer it in one or two friendly sentences and offer to get back to the math. Give a math step only when asked.
-If they ask for a fun fact or a joke, keep it short and clean, and only share math facts you are sure are true.
+Keep every math statement exactly true. Base each why on the key idea and the worked solution, and leave out any reason you are not sure of.
+If you make up a quick example to explain an idea, use small numbers of your own, never this problem's${exampleAvoid.length ? `, and never any of these: ${exampleAvoid.join(", ")}` : ""}.
+When they ask for math help, say what you notice about what they tried or asked, explain the idea behind the next small step and why it works without carrying it out, then ask them to try it.
+If the message is small talk, chat back like a friend in 2 to 4 sentences: answer it, add something of your own, and ask them something back. Bring the problem back up after a few messages of chat, not right away. Give a math step only when asked.
+If they ask for a fun fact or a joke, keep it clean, and only share math facts you are sure are true.
 If the student proposes an answer, do not confirm or deny it. Have them check it themselves: substitute it back into an equation, or convert it back to the starting unit on a conversion.
 If the student asks for help with something that is not math, say kindly that you help with Algebra 1 and ask what math they are working on.
-If the student sounds frustrated, say so in a few kind words before the next step.${
+If they say this is boring or pointless, that is not a worry for an adult: give one real, specific reason it is useful, without a lecture.
+If they say they are lost, stuck, or frustrated, say something kind about it first. Then slow way down: start from a part they already know, and take a smaller step than before, in new words.${
     action
       ? `\n\n${actionInstruction(action, avoid)}${
-          action === "example" ? "\nFor this worked example, its own format and length replace the 1 to 4 sentence rule." : ""
+          action === "example" ? "\nFor this worked example, its own format and length replace the usual reply length." : ""
         }`
       : ""
   }`;
 }
 
-/** A worked example needs room for its steps; everything else stays short. */
+/**
+ * A worked example needs room for its steps. A chatty reply is 60 to 180
+ * tokens, and gpt-oss bills its (low effort) thinking against the same
+ * budget; a reply that still runs out is cut back to whole sentences.
+ */
 function tokenBudget(action?: HelperAction): number {
-  return action === "example" ? 700 : 350;
+  return action === "example" ? 700 : 400;
 }
 
 /**
@@ -249,7 +263,8 @@ async function callGroq(
         continue;
       }
       const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content;
+      const choice = data?.choices?.[0];
+      const text = wholeSentences(choice?.message?.content ?? "", choice?.finish_reason === "length");
       if (!text) {
         errors.push(`${model}: empty`);
         continue;
@@ -282,7 +297,8 @@ async function callOpenAICompatible(
   });
   if (!res.ok) throw new Error("provider failed");
   const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
+  const choice = data?.choices?.[0];
+  const text = wholeSentences(choice?.message?.content ?? "", choice?.finish_reason === "length");
   if (!text) throw new Error("provider empty");
   return text;
 }
@@ -444,10 +460,15 @@ export async function POST(request: Request) {
 
   // The offer of a human is made once. Repeating it verbatim every time a
   // student expresses frustration is the canned-reply problem in miniature.
+  // Asked for a person, it is made straight away. "I don't get it" the first
+  // time goes to Archie, who slows down and tries a smaller step; a second
+  // time in the same conversation, the person is offered.
   const alreadyOffered = messages.some(
     (m) => m.role === "assistant" && m.content.includes("set you up with one of our tutors")
   );
-  if (intent === "escalate" && !alreadyOffered) {
+  const frustratedBefore = userTurns.slice(0, -1).some((m) => classifyIntent(m.content) === "escalate");
+  const offerNow = intent === "escalate" && !alreadyOffered && (mode !== "tutor" || asksForPerson(last) || frustratedBefore);
+  if (offerNow) {
     return reply(ESCALATION_OFFER, "gate", { intent, offerTutor: true });
   }
 
@@ -489,15 +510,22 @@ export async function POST(request: Request) {
   let answered = withinBudget
     ? await askModel(systemPrompt(mode, ctx, action, forbidden, student), forModel, tokenBudget(action))
     : null;
-  // A made-up example is full of numbers and can land on a forbidden one by
-  // chance. It gets one more try, told again which numbers to stay off.
-  if (answered && action === "example" && leaks(answered.text)) {
-    const again = await askModel(
-      `${systemPrompt(mode, ctx, action, forbidden, student)}\nYour last example used a number from the student's own solution. Pick completely different numbers.`,
-      forModel,
-      tokenBudget(action)
-    );
-    if (again) answered = again;
+  // A made-up example, or a chatty reply that echoes a step, can land on a
+  // forbidden number by chance, and a reply that bonds over an interest can
+  // invent a life for him. Either gets one more try, told what went wrong,
+  // and the second reply passes the same checks as the first.
+  if (answered && mode === "tutor" && !modelSignalsCrisis(answered.text)) {
+    const leaked = leaks(answered.text);
+    if (leaked || claimsAHumanLife(answered.text)) {
+      const offLimits = forbidden.length ? ` Keep these numbers out of it entirely: ${forbidden.join(", ")}.` : "";
+      const retry = !leaked
+        ? "Your last reply said you do something a person does. You are an AI: you do not play, watch, listen to music, eat, or go to school, and you have no past. Say it again honestly, curious about their world instead."
+        : action === "example"
+          ? "Your last example used a number from the student's own solution. Pick completely different numbers."
+          : `Your last reply gave away part of the answer. Say it again in a new way that leaves the answer for the student to find.${offLimits}`;
+      const again = await askModel(`${systemPrompt(mode, ctx, action, forbidden, student)}\n${retry}`, forModel, tokenBudget(action));
+      if (again) answered = again;
+    }
   }
   const raw = answered?.text ?? null;
   const limited = withinBudget ? {} : { limited: true };
@@ -509,7 +537,11 @@ export async function POST(request: Request) {
     return reply(CRISIS_REPLY, "gate", { intent: "crisis", crisis: true, kind: "model", provider: answered!.provider });
   }
 
-  // Without a key the mode-specific engines are the best answer available.
+  // Without a key the mode-specific engines are the best answer available,
+  // and "I don't get it" is met by the offer of a person, as it always was.
+  if (!raw && intent === "escalate" && !alreadyOffered) {
+    return reply(ESCALATION_OFFER, "gate", { intent, offerTutor: true, ...limited });
+  }
   if (!raw) {
     if (mode === "scheduler") return reply(schedulerPrompt("offered"), "local", { intent: "scheduling", ...limited });
     if (mode === "reminder") return reply(reminderReply(ctx, last), "local", { intent: "formula", ...limited });
@@ -519,7 +551,11 @@ export async function POST(request: Request) {
 
   if (raw) {
     if (!leaks(raw)) {
-      return reply(firstTurnOnly(raw), "ai", { intent, action, provider: answered!.provider });
+      // A made-up life that survived the retry is taken out sentence by
+      // sentence, and a runaway reply is cut to a sidebar's worth. A worked
+      // example keeps its steps.
+      const said = honestAboutHimself(firstTurnOnly(raw));
+      return reply(action === "example" ? said : trimLongReply(said), "ai", { intent, action, provider: answered!.provider });
     }
     // The model gave away a value the student was meant to reach. Discard it
     // entirely rather than trying to patch it, and answer deterministically.
