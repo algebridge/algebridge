@@ -470,9 +470,9 @@ const checks: Record<string, Check> = {
       const line = lineOf(m[1])!;
       return expectAnswer(p, -line.b / line.m);
     }
-    if ((m = p.prompt.match(/^Start at the y-intercept of (y = .*)\. Use the slope twice: each time, run (\d+) right and (rise|fall) (\d+)\. Where do you land\?$/))) {
+    if ((m = p.prompt.match(/^Start at the y-intercept of (y = .*) and follow the slope for two steps, each one (\d+) to the right and (\d+) (up|down)\. Where do you end up\?$/))) {
       const line = lineOf(m[1])!;
-      const rise = m[3] === "rise" ? +m[4] : -m[4];
+      const rise = m[4] === "up" ? +m[3] : -m[3];
       if (!close(line.m, rise / +m[2])) return "the steps described are not the line's slope";
       return onlyRight(p, (c) => {
         const q = point(c);

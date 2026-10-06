@@ -2,7 +2,7 @@
 
 import { units } from "@/data/curriculum";
 import { Icon } from "@/components/Icon";
-import { MATCH_LENGTHS, SIDE_COLORS, topicSkills, type GameSetup, type GameTopic } from "@/lib/game-session";
+import { topicSkills, type GameSetup, type GameTopic } from "@/lib/game-session";
 import { rinkSkillIds } from "@/lib/rink";
 import type { UserProgress } from "@/types";
 
@@ -25,17 +25,12 @@ export function GameSetupBar({
   onChange,
   progress,
   disabled,
-  host,
-  partner,
 }: {
   setup: GameSetup;
   /** A change to the setup, merged into the latest one. */
   onChange: (patch: Partial<GameSetup>) => void;
   progress: UserProgress | null;
   disabled: boolean;
-  /** Who each side plays as: the game's own player and the teammate who joins them. */
-  host: string;
-  partner: string;
 }) {
   const here = progress ? rinkSkillIds(progress) : null;
   const unitTitle = here ? units.find((u) => u.id === here.unitId)?.title : null;
@@ -48,7 +43,7 @@ export function GameSetupBar({
     }`;
 
   return (
-    <fieldset disabled={disabled} className="card space-y-4 disabled:opacity-60">
+    <fieldset disabled={disabled} className="card space-y-3 disabled:opacity-60">
       <legend className="sr-only">Set up the game</legend>
       <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
         <label className="min-w-[16rem] flex-1">
@@ -75,70 +70,31 @@ export function GameSetupBar({
         <div>
           <span className="block text-sm font-semibold text-slate-900">Players</span>
           <div role="radiogroup" aria-label="Players" className="mt-1 inline-flex rounded-xl bg-slate-100 p-1">
-            {([1, 2] as const).map((n) => (
+            {([1, 2] as const).map((nPlayers) => (
               <button
-                key={n}
+                key={nPlayers}
                 type="button"
                 role="radio"
-                aria-checked={setup.players === n}
-                onClick={() => onChange({ players: n })}
-                className={seg(setup.players === n)}
+                aria-checked={setup.players === nPlayers}
+                onClick={() => onChange({ players: nPlayers })}
+                className={seg(setup.players === nPlayers)}
               >
                 <span className="inline-flex items-center gap-1.5">
-                  {n === 2 && <Icon name="versus" size={15} />}
-                  {n === 1 ? "1 player" : "2 players"}
+                  {nPlayers === 2 && <Icon name="versus" size={15} />}
+                  {nPlayers === 1 ? "1 player" : "2 players"}
                 </span>
               </button>
             ))}
           </div>
         </div>
-
-        {setup.players === 2 && (
-          <div>
-            <span className="block text-sm font-semibold text-slate-900">First to</span>
-            <div role="radiogroup" aria-label="Points to win" className="mt-1 inline-flex rounded-xl bg-slate-100 p-1">
-              {MATCH_LENGTHS.map((n) => (
-                <button key={n} type="button" role="radio" aria-checked={setup.toWin === n} onClick={() => onChange({ toWin: n })} className={seg(setup.toWin === n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {setup.players === 2 && (
-        <div className="space-y-3 border-t border-slate-100 pt-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {([0, 1] as const).map((side) => (
-              <label key={side} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2">
-                <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: SIDE_COLORS[side] }} aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-slate-500">
-                    Player {side + 1} plays {side === 0 ? host : partner} · {side === 0 ? "W A S D" : "arrow keys"}
-                  </span>
-                  <input
-                    value={setup.names[side]}
-                    onChange={(e) => {
-                      const names: [string, string] = [...setup.names];
-                      names[side] = e.target.value.slice(0, 14);
-                      onChange({ names });
-                    }}
-                    placeholder={`Player ${side + 1}`}
-                    aria-label={`Player ${side + 1}'s name`}
-                    maxLength={14}
-                    autoComplete="off"
-                    className="mt-0.5 w-full bg-transparent text-[15px] font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
-                  />
-                </span>
-              </label>
-            ))}
-          </div>
-          <p className="text-sm text-slate-600">
-            Race to each question on this keyboard. On a touch screen, each player drags on their own half. Whoever gets there first answers, and a miss
-            lets the other player steal it. Matches are played for the win; Bridgeys come from 1-player games.
-          </p>
-        </div>
+        <p className="text-sm text-slate-600">
+          Two players on this computer. Press Play, type your names and pick who you play as. Player 1 moves with W A S D, Player 2 with the arrow
+          keys, or each drags on their own half of a touch screen. Whoever reaches the question first answers, and a miss lets the other player
+          steal it. Matches are played for the win; Bridgeys come from 1-player games.
+        </p>
       )}
     </fieldset>
   );

@@ -17,7 +17,7 @@
 import { units } from "@/data/curriculum";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { generateProblemBank } from "@/data/skill-problem-generators";
-import type { CourtGameId, GameId, PlayArea } from "@/lib/games";
+import type { PlayArea } from "@/lib/games";
 import { isHeadMath, rinkSkillIds, type RinkProblem } from "@/lib/rink";
 import type { PracticeProblem, UserProgress } from "@/types";
 
@@ -90,14 +90,18 @@ export function pickGameProblem(progress: UserProgress, topic: GameTopic, avoid 
 export const MATCH_LENGTHS = [3, 5, 7] as const;
 export type MatchLength = (typeof MATCH_LENGTHS)[number];
 
+/** Who each player plays as in a match: a boy or a girl, drawn in their side's color. */
+export type PlayerKind = "boy" | "girl";
+
 export interface GameSetup {
   topic: GameTopic;
   players: 1 | 2;
   toWin: MatchLength;
   names: [string, string];
+  kinds: [PlayerKind, PlayerKind];
 }
 
-export const DEFAULT_SETUP: GameSetup = { topic: { kind: "unit" }, players: 1, toWin: 5, names: ["", ""] };
+export const DEFAULT_SETUP: GameSetup = { topic: { kind: "unit" }, players: 1, toWin: 5, names: ["", ""], kinds: ["boy", "girl"] };
 
 /** The two sides' colors: the app's blue and an orange that reads beside it. */
 export const SIDE_COLORS = ["#2563eb", "#ea580c"] as const;
@@ -108,14 +112,8 @@ export function sideName(setup: GameSetup, side: 0 | 1): string {
   return typed || `Player ${side + 1}`;
 }
 
-/** Who plays beside the host in a match: a teammate from another sport, on this one's court. */
-export const PARTNERS: Record<GameId, CourtGameId> = {
-  rink: "cheer",
-  wrestling: "volleyball",
-  cheer: "soccer",
-  volleyball: "cheer",
-  soccer: "wrestling",
-};
+/** How tall each kind of match athlete is drawn, in scene units (the team are 164 to 182). */
+export const ATHLETE_HEIGHT: Record<PlayerKind, number> = { boy: 172, girl: 166 };
 
 /** The score after a side answers: only a right answer moves it. */
 export function scoreAfter(score: readonly [number, number], side: 0 | 1, right: boolean): [number, number] {
@@ -199,6 +197,7 @@ export function readSetup(): GameSetup {
       players: got.players === 2 ? 2 : 1,
       toWin: MATCH_LENGTHS.includes(got.toWin as MatchLength) ? (got.toWin as MatchLength) : 5,
       names: Array.isArray(got.names) ? [String(got.names[0] ?? "").slice(0, 14), String(got.names[1] ?? "").slice(0, 14)] : ["", ""],
+      kinds: Array.isArray(got.kinds) ? [got.kinds[0] === "girl" ? "girl" : "boy", got.kinds[1] === "boy" ? "boy" : "girl"] : ["boy", "girl"],
     };
   } catch {
     return DEFAULT_SETUP;
