@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { MathText, PromptText } from "@/components/PromptText";
-import { SignKeys } from "@/components/SignKeys";
+import { AnswerField } from "@/components/AnswerField";
 import { ScratchpadButton } from "@/components/Scratchpad";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { MistakeNote } from "@/components/MistakeNote";
@@ -64,7 +64,6 @@ export function GameProblemDialog({
   /** A match: the question belongs to one side, and pays nothing. */
   turn?: GameTurn;
 }) {
-  const answerRef = useRef<HTMLInputElement>(null);
   // Keyboard: the card takes the focus (the answer box, or the first choice), Tab stays in it, and the
   // focus goes back to the game when it closes.
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -127,31 +126,24 @@ export function GameProblemDialog({
                 })}
               </div>
             ) : (
-              <form
-                key={turn ? `answer-${turn.name}-${turn.steal}` : "answer"}
-                className="mt-4 flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onCheck(answer);
-                }}
-              >
-                <input
-                  ref={answerRef}
-                  autoFocus
-                  data-autofocus=""
+              <div key={turn ? `answer-${turn.name}-${turn.steal}` : "answer"} className="mt-4">
+                <AnswerField
                   value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  inputMode="decimal"
-                  autoComplete="off"
-                  aria-label="Your answer"
+                  onChange={setAnswer}
+                  onEnter={() => onCheck(answer)}
                   placeholder="Your answer"
-                  className="field min-w-0 flex-1 text-lg"
+                  full={false}
+                  autoFocus
                 />
-                <SignKeys value={answer} onChange={setAnswer} inputRef={answerRef} />
-                <button type="submit" disabled={!answer.trim()} className="hue-solid rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => onCheck(answer)}
+                  disabled={!answer.trim()}
+                  className="hue-solid mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
+                >
                   Check
                 </button>
-              </form>
+              </div>
             )
           ) : (
             <div className="mt-4">

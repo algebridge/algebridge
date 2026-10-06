@@ -6,11 +6,12 @@ import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { MathText, PromptText } from "@/components/PromptText";
 import { MistakeNote } from "@/components/MistakeNote";
 import { WorkedSteps } from "@/components/WorkedSteps";
-import { SignKeys } from "@/components/SignKeys";
+import { AnswerField, type AnswerFieldHandle } from "@/components/AnswerField";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { Icon } from "@/components/Icon";
 import { diagnoseMistake } from "@/lib/diagnose";
-import { answerIsRight } from "@/lib/grading";
+import { gradeAnswer } from "@/lib/grading";
+import { skillOffersCalculator } from "@/data/problem-banks";
 import { CHECK_LENGTH, today } from "@/lib/path";
 import { recordSkillCheck } from "@/lib/progress";
 import { stripVariantTag } from "@/lib/personalize";
@@ -43,7 +44,9 @@ export function SkillCheck({
   const [phase, setPhase] = useState<Phase>("asking");
   /** The answer that ended the check, read for where it went wrong. */
   const [lastGiven, setLastGiven] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const answerField = useRef<AnswerFieldHandle>(null);
+  /** Unfinished arithmetic or a typo, said gently: the one try of the day is not spent on it. */
+  const [nudge, setNudge] = useState<string | null>(null);
   const day = useRef(today()).current;
   useScratchpadSurface(`${skill.id}:${index}`);
 
@@ -52,7 +55,7 @@ export function SkillCheck({
   }, [skill.id, problems.length, day]);
 
   useEffect(() => {
-    if (phase === "asking") inputRef.current?.focus();
+    if (phase === "asking") answerField.current?.focus();
   }, [phase, index]);
 
   const problem = problems[index];
@@ -70,7 +73,13 @@ export function SkillCheck({
 
   function submit(given: string) {
     if (phase !== "asking" || !given.trim()) return;
-    if (!answerIsRight(problem, given)) {
+    const verdict = gradeAnswer(problem, given, { expressions: skillOffersCalculator(skill.id, skill.problems) });
+    if (verdict === "simplify" || verdict === "unreadable") {
+      setNudge(verdict === "simplify" ? "Finish the arithmetic, then type one number, like 12, -3 or 2/3." : "Type your answer as a number, like 12, -3, 2/3 or 0.75.");
+      return;
+    }
+    setNudge(null);
+    if (verdict !== "right") {
       setLastGiven(given);
       setPhase("failed");
       return;
@@ -165,33 +174,30 @@ export function SkillCheck({
           ))}
         </div>
       ) : (
-        <form
-          className="mt-4 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(answer);
-          }}
-        >
-          <input
-            ref={inputRef}
+        <div className="mt-4">
+          <AnswerField
+            key={index}
+            handle={answerField}
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            disabled={phase !== "asking"}
-            inputMode="decimal"
-            autoComplete="off"
-            aria-label="Your answer"
+            onChange={(text) => {
+              setAnswer(text);
+              setNudge(null);
+            }}
+            onEnter={() => submit(answer)}
             placeholder="Your answer"
-            className="field min-w-0 flex-1"
+            locked={phase !== "asking"}
+            full={false}
+            note={nudge}
           />
-          <SignKeys value={answer} onChange={setAnswer} inputRef={inputRef} disabled={phase !== "asking"} />
           <button
-            type="submit"
+            type="button"
+            onClick={() => submit(answer)}
             disabled={phase !== "asking" || !answer.trim()}
-            className="hue-solid inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
+            className="hue-solid mt-3 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
           >
             Check
           </button>
-        </form>
+        </div>
       )}
       <p className="mt-3 h-5 text-sm font-medium text-emerald-700" aria-live="polite">
         {phase === "right" ? "Right." : ""}

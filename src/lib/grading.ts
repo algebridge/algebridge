@@ -169,7 +169,12 @@ export function expressionValue(raw: string): number | null {
 
 /** One spelling to compare with: no spaces, one minus, one times. */
 function compact(text: string): string {
-  return normalizeMath(tidy(text)).toLowerCase().replace(/(\d)x(?=\d)/g, "$1*").replace(/\s+/g, "");
+  return normalizeMath(tidy(text))
+    .toLowerCase()
+    .replace(/(\d)x(?=\d)/g, "$1*")
+    .replace(/\s+/g, "")
+    // The √ key writes √(49); the problem prints √49.
+    .replace(/√\((\d+(?:\.\d+)?)\)/g, "√$1");
 }
 
 /**
