@@ -246,7 +246,7 @@ export function Header() {
               <Link href="/login?mode=signin" className="btn-ghost">
                 Sign in
               </Link>
-              <Link href="/login" className="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex">
+              <Link href="/login" data-tour="signup" className="btn-primary btn-sm hidden whitespace-nowrap sm:inline-flex">
                 Create account
               </Link>
             </div>

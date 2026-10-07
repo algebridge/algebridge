@@ -109,14 +109,20 @@ export function MatchSetupCard({
   game: CourtGameId;
 }) {
   const first = useRef<HTMLInputElement>(null);
+  const second = useRef<HTMLInputElement>(null);
+  // The card gets a fresh onCancel on every keystroke, so it is read through a
+  // ref: an effect that depended on it put the focus back in Player 1's box
+  // after every letter, and Player 2 could not type a name.
+  const cancel = useRef(onCancel);
+  cancel.current = onCancel;
   useEffect(() => {
     first.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") cancel.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, []);
 
   const setName = (side: 0 | 1, value: string) => {
     const names: [string, string] = [...setup.names];
@@ -130,9 +136,11 @@ export function MatchSetupCard({
   };
 
   return (
-    <div className="fixed inset-0 z-[700] flex items-center justify-center overflow-y-auto bg-slate-900/45 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="match-setup-title">
+    // Taller than a phone's screen: lined up from the top (centered, the
+    // card spilled upward past where scrolling reaches, cutting its title).
+    <div className="fixed inset-0 z-[700] flex items-start justify-center overflow-y-auto bg-slate-900/45 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="match-setup-title">
       <form
-        className="animate-pop-in w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
+        className="animate-pop-in my-auto w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
         onSubmit={(e) => {
           e.preventDefault();
           onStart();
@@ -153,9 +161,16 @@ export function MatchSetupCard({
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-500">Name</span>
                   <input
-                    ref={side === 0 ? first : undefined}
+                    ref={side === 0 ? first : second}
                     value={setup.names[side]}
                     onChange={(e) => setName(side, e.target.value)}
+                    // Enter in Player 1's box goes on to Player 2's, rather than starting the match without them.
+                    onKeyDown={(e) => {
+                      if (side === 0 && e.key === "Enter") {
+                        e.preventDefault();
+                        second.current?.focus();
+                      }
+                    }}
                     placeholder={`Player ${side + 1}`}
                     maxLength={14}
                     autoComplete="off"

@@ -19,6 +19,8 @@ import {
   tryAwardUnitCompleteBridgeys,
 } from "@/lib/bridgeys";
 import { today } from "@/lib/path";
+import { unitCertificateDate } from "@/lib/certificates";
+import { restDayAvailable, weekKey } from "@/lib/house-functions";
 import { STARTER_HOUSE_ID } from "@/data/house-catalog";
 import type { InterestProfile } from "@/lib/interests";
 
@@ -137,6 +139,8 @@ export function tallyDaily(progress: UserProgress, now = new Date()): number {
   if (d.right >= DAILY_GOAL && !d.paid) {
     d.paid = true;
     bonus = awardBridgeys(progress, BRIDGEY_REWARDS.dailyGoal);
+    // The house's plants grow with the days the goal is reached.
+    progress.goalDays = [...(progress.goalDays ?? []).filter((x) => x !== day), day].slice(-30);
   }
   progress.daily = d;
   return bonus;
@@ -181,7 +185,24 @@ export function normalizeProgress(raw: Partial<UserProgress> | null | undefined)
   // itself let the first answer on a new device write into the shared
   // default, which then leaked into whoever signed in next in the same tab.
   const merged = { ...structuredClone(DEFAULT_PROGRESS), ...raw, skills: { ...(raw?.skills ?? {}) } };
-  return normalizeBridgeyProgress(merged);
+  return pinCertificateDates(normalizeBridgeyProgress(merged));
+}
+
+/**
+ * A unit finished before certificates existed has no stored date, and its
+ * certificate shows the day its last skill was practiced. That day moved with
+ * every review answer after it, so the date on the certificate kept changing
+ * to today. It is pinned here, on every load, before any new answer can
+ * write a later practice day: the closest true date there is, kept for good.
+ */
+function pinCertificateDates(progress: UserProgress): UserProgress {
+  let certificates = progress.certificates;
+  for (const unit of units) {
+    if (certificates?.[unit.id]) continue;
+    const date = unitCertificateDate(progress, unit);
+    if (date) certificates = { ...(certificates ?? {}), [unit.id]: date };
+  }
+  return certificates === progress.certificates ? progress : { ...progress, certificates };
 }
 
 /**
@@ -201,21 +222,27 @@ export function daysBetween(earlier: Date, later: Date): number {
  * day already counted, one more the day after the last one, and back to 1
  * after any gap or when there was no last day.
  */
-export function streakAfterActivity(streak: number, lastVisit: string | undefined, now: Date): number {
+export function streakAfterActivity(streak: number, lastVisit: string | undefined, now: Date, restDay = false): number {
   if (!lastVisit) return 1;
   const gap = daysBetween(new Date(lastVisit), now);
   if (gap === 0) return streak || 1;
-  return gap === 1 ? (streak || 0) + 1 : 1;
+  // One missed day is a rest day when a bed in the house still has this week's to give.
+  return gap === 1 || (gap === 2 && restDay) ? (streak || 0) + 1 : 1;
 }
 
 /** The streak as it stands at `now`, before any action today: 0 once a day was missed. */
-export function streakStanding(streak: number, lastVisit: string | undefined, now: Date): number {
+export function streakStanding(streak: number, lastVisit: string | undefined, now: Date, restDay = false): number {
   if (!streak || !lastVisit) return streak || 0;
-  return daysBetween(new Date(lastVisit), now) > 1 ? 0 : streak;
+  const gap = daysBetween(new Date(lastVisit), now);
+  return gap > 1 && !(gap === 2 && restDay) ? 0 : streak;
 }
 
 function applyStreakForActivity(progress: UserProgress, now = new Date()): void {
-  progress.streak = streakAfterActivity(progress.streak, progress.lastVisit, now);
+  const rest = restDayAvailable(progress, now);
+  const gap = progress.lastVisit ? daysBetween(new Date(progress.lastVisit), now) : 0;
+  progress.streak = streakAfterActivity(progress.streak, progress.lastVisit, now, rest);
+  // The bed's rest day kept the streak: it is used for this week.
+  if (rest && gap === 2) progress.restDayWeek = weekKey(now);
   progress.lastVisit = now.toISOString();
 }
 
@@ -449,7 +476,7 @@ export function recordProblemAttempt(
  */
 export function ensureDailyStreak(now = new Date()): { streak: number; newBadges: Badge[] } {
   const progress = getProgress();
-  const standing = streakStanding(progress.streak, progress.lastVisit, now);
+  const standing = streakStanding(progress.streak, progress.lastVisit, now, restDayAvailable(progress, now));
   // A missed day ends the streak on sight, rather than showing yesterday's
   // number until the next answer knocks it down to 1.
   if (standing !== (progress.streak || 0)) {
@@ -716,6 +743,24 @@ export function newerCopy(local: UserProgress, cloudUpdatedAt: string | null): "
   if (!cloudUpdatedAt) return "local";
   if (!local.updatedAt) return "cloud";
   return Date.parse(local.updatedAt) > Date.parse(cloudUpdatedAt) ? "local" : "cloud";
+}
+
+/**
+ * How much practice a copy holds: every answer ever checked, on every skill.
+ * It only goes up, so when two devices both changed an account, the copy with
+ * more of it is the one with more of the student's work in it.
+ */
+export function workDone(progress: UserProgress): number {
+  return Object.values(progress.skills ?? {}).reduce((sum, s) => sum + (s?.problemsAttempted ?? 0), 0);
+}
+
+/**
+ * Another device saved this account since this tab last read or wrote it.
+ * Its copy is taken when it holds at least as much work as this tab's, which
+ * is what keeps a day on the Chromebook when an old tab answers one problem.
+ */
+export function takeOtherDevicesCopy(local: UserProgress, cloud: UserProgress): boolean {
+  return workDone(cloud) >= workDone(local);
 }
 
 /** Wipe this browser's saved progress back to a clean slate. Used on sign-out

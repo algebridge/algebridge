@@ -825,8 +825,18 @@ const OPERATOR_START = /^[+*/^×÷·]/;
 
 export function insertText(st: EditState, raw: string, opts: { caret?: number; ansFirst?: boolean } = {}): EditState {
   let text = st.text;
-  const a = lo(st);
-  const b = hi(st);
+  let a = lo(st);
+  let b = hi(st);
+  // "pi" turns into π as it is typed, before the next letter can say it was
+  // the start of a word: "12 pieces" came out "12 πeces", and "6 pints" could
+  // not be read. A letter right after a π that starts a word puts the letters
+  // back. The engine reads "pi" as π anyway, so "πr" means the same either
+  // way, and after a digit (2πr) the symbol stays.
+  if (/^[a-z]$/i.test(raw) && a === b && text[a - 1] === "π" && (a === 1 || /[\sA-Za-z]/.test(text[a - 2]))) {
+    text = `${text.slice(0, a - 1)}pi${text.slice(a)}`;
+    a += 1;
+    b += 1;
+  }
   let s = raw;
   let caret = opts.caret ?? s.length;
   const next = text[b] ?? "";

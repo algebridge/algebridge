@@ -131,12 +131,14 @@ export function matchWinner(score: readonly [number, number], toWin: number): 0 
 
 /**
  * A spot for the next target that is fair to two players: on the line of
- * points exactly as far from each (distances measured with up and down
- * counting 2.5 times, since the floor is seen at an angle), inside the
- * court, and a real run for both. Which fair spot is picked is random.
+ * points exactly as far from each, inside the court, and a real run for both.
+ * Which fair spot is picked is random. Far is measured in time: up and down
+ * count `k` times, the same factor the game caps a player's speed with (1.6
+ * on a court, 1.8 on the rink). It used to be 2.5 everywhere, which handed
+ * one side a run up to 40% shorter.
  */
-export function spotFairFor(area: PlayArea, a: { x: number; y: number }, b: { x: number; y: number }, random = Math.random): { x: number; y: number } {
-  const K = 2.5;
+export function spotFairFor(area: PlayArea, a: { x: number; y: number }, b: { x: number; y: number }, random = Math.random, k = 1.6): { x: number; y: number } {
+  const K = k;
   const inside = (x: number, y: number) => {
     if (area.kind === "rect") return x >= area.x0 + 40 && x <= area.x1 - 40 && y >= area.y0 + 20 && y <= area.y1 - 20;
     const dx = (x - area.cx) / (area.rx * 0.84);

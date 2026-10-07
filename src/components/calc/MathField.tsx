@@ -744,6 +744,10 @@ export function MathField({
           onBlur?.();
         }}
         aria-label={label}
+        // Both: data-autofocus is what a dialog focuses when it opens, and
+        // autoFocus covers a box that mounts later in the same dialog (a
+        // two-player steal swaps in a fresh box for the other player).
+        autoFocus={autoFocus}
         data-autofocus={autoFocus ? "" : undefined}
         inputMode={inputMode}
         autoComplete="off"

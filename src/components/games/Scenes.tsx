@@ -796,15 +796,16 @@ export function CourtScene({ game, netHit, live = true }: { game: CourtGameId; n
  * skating and the seven decoration spots around the boards are unchanged:
  * decorations stand on the arena floor around the rink.
  */
-export function RinkScene({ live = true }: { live?: boolean }) {
+/** `skating` is who the video board names: Veronica, or the two players of a match. */
+export function RinkScene({ live = true, skating = "VERONICA" }: { live?: boolean; skating?: string }) {
   return (
     <SceneMotion live={live}>
-      <RinkPicture />
+      <RinkPicture skating={skating} />
     </SceneMotion>
   );
 }
 
-function RinkPicture() {
+function RinkPicture({ skating }: { skating: string }) {
   const id = "rk";
   const R = RINK;
   // The ice and the boards around it: the far boards' inner face shows above the ice,
@@ -867,8 +868,9 @@ function RinkPicture() {
         <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
           NOW SKATING
         </text>
-        <Fit x={178} y={70} w={170} size={36} fill="#ffffff">
-          VERONICA
+        {/* Two names are longer than one: a smaller size keeps the letters readable once fitted. */}
+        <Fit x={178} y={70} w={170} size={skating.length > 10 ? Math.max(18, Math.round(360 / skating.length)) : 36} fill="#ffffff">
+          {skating}
         </Fit>
         <rect x="128" y="80" width="100" height="3" rx="1.5" fill="#f9a8d4" />
       </Jumbotron>

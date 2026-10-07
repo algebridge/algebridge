@@ -170,6 +170,10 @@ export function CourtGame({
     const isGameKey = (k: string) => ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D", " "].includes(k);
     function down(e: KeyboardEvent) {
       if (paused.current) return;
+      // Keys typed into a text box (Archie, while the game runs) are words,
+      // not moves: "what is a slope" came out "htilope", and Esc there quit.
+      const field = e.target as HTMLElement | null;
+      if (field?.isContentEditable || field?.closest?.("input, textarea, select")) return;
       if (e.key === "Escape") {
         onExit();
         return;
@@ -472,7 +476,10 @@ export function CourtGame({
             : `${game.sport} with ${game.player}. Arrow keys or WASD move ${game.player}.`
         }
         onPointerDown={(e) => {
-          if (paused.current) return;
+          // A press on a button (Leave, the score) is for the button: captured
+          // by the stage, its click went to the stage instead, so Leave did
+          // nothing for a mouse or a Chromebook trackpad.
+          if (paused.current || (e.target as Element).closest("button, a, input")) return;
           try {
             (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
           } catch {

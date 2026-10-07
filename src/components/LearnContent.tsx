@@ -255,8 +255,9 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           )}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
             <div className="min-w-0 space-y-6 lg:col-span-3">
-              {/* The two steps, watch then practice, each marked done in its own heading. */}
-              <section>
+              {/* The two steps, watch then practice, each marked done in its own heading.
+                  #watch is where the house's TV and projector open the lesson. */}
+              <section id="watch" className="scroll-mt-20">
                 <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <h2 className="section-title flex items-center gap-2">
                     <StepMark n={1} done={videoStepSatisfied} />

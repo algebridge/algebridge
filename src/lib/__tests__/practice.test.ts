@@ -1848,9 +1848,10 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   for (let i = 0; i < 40; i++) {
     const a = { x: 200 + rnd() * 800, y: 600 + rnd() * 150 };
     const b = { x: 200 + rnd() * 800, y: 600 + rnd() * 150 };
+    // Measured the way the game moves a player on a court: up and down at 1/1.6 the speed.
     const spot = S.spotFairFor(area, a, b, rnd);
-    const da = Math.hypot(spot.x - a.x, (spot.y - a.y) * 2.5);
-    const db = Math.hypot(spot.x - b.x, (spot.y - b.y) * 2.5);
+    const da = Math.hypot(spot.x - a.x, (spot.y - a.y) * 1.6);
+    const db = Math.hypot(spot.x - b.x, (spot.y - b.y) * 1.6);
     worst = Math.max(worst, Math.abs(da - db) / Math.max(da, db));
   }
   ok("games: the next target is a fair race", worst < 0.25, worst.toFixed(2));
@@ -1883,9 +1884,187 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });
   ok("certificates: the course finishes once", !again.courseJustCompleted && Pg.getProgress().courseCompletedAt === after.courseCompletedAt);
   ok("certificates: dates read as a person writes them", C.certificateDateText("2026-10-05T15:00:00.000Z").endsWith("2026") && /^[A-Z][a-z]+ \d{1,2}, 2026$/.test(C.certificateDateText("2026-10-05T15:00:00.000Z")));
+  // A unit finished before certificates existed keeps its date through a review answer.
+  {
+    const old = Pg.normalizeProgress({});
+    for (const sk of units[0].skills) old.skills[sk.id] = { ...finished(sk.id), lastPracticed: "2026-09-01T15:00:00.000Z" };
+    delete (old as { certificates?: unknown }).certificates;
+    Pg.saveProgress(old);
+    ok("certificates: an old finish is pinned on load", Pg.getProgress().certificates?.[units[0].id] === "2026-09-01T15:00:00.000Z");
+    Pg.recordProblemAttempt(units[0].skills[1].id, true, { firstTry: true });
+    const reviewed = Pg.getProgress();
+    ok("certificates: a review answer leaves the date alone", C.unitCertificateDate(reviewed, units[0]) === "2026-09-01T15:00:00.000Z" && reviewed.certificates?.[units[0].id] === "2026-09-01T15:00:00.000Z", JSON.stringify(reviewed.certificates));
+    ok("certificates: an unfinished unit gets no date", !reviewed.certificates?.[units[1].id]);
+  }
   const facts = C.courseFacts(after);
   ok("certificates: the course facts are the student's own", facts.units === units.length && facts.skills === all.length && facts.problemsSolved === after.totalProblemsSolved);
   Pg.saveProgress(Pg.normalizeProgress({}));
+}
+
+// --- the welcome tour (src/lib/tour.ts) ---------------------------------------------
+{
+  const T = await import("../tour.ts");
+  const { GAME_CARDS } = await import("../games.ts");
+  const { readFileSync, readdirSync, statSync } = await import("node:fs");
+  const path = await import("node:path");
+  const steps = T.tourSteps(false);
+  ok("tour: seven steps, welcome first and the account last", steps.length === 7 && steps[0].id === "welcome" && steps[steps.length - 1].id === "account");
+  ok("tour: school mode leaves the games out", T.tourSteps(true).every((s) => s.id !== "games") && T.tourSteps(true).length === 6);
+  const skills = units.reduce((n, u) => n + u.skills.length, 0);
+  ok("tour: the welcome counts the course as it is", steps[0].body.includes(`${units.length} units and ${skills} skills`), steps[0].body);
+  const gameCount = ["One", "Two", "Three", "Four", "Five", "Six", "Seven"][GAME_CARDS.length - 1];
+  ok("tour: the games step names as many games as there are", steps.find((s) => s.id === "games")!.body.startsWith(`${gameCount} games:`), String(GAME_CARDS.length));
+  for (const s of steps) {
+    const text = `${s.title} ${s.body}`;
+    ok(`tour copy: no em dash (${s.id})`, !/[—–]/.test(text));
+    ok(`tour copy: no emoji (${s.id})`, !/\p{Extended_Pictographic}/u.test(text));
+    ok(`tour copy: said positively (${s.id})`, !/\b(not|no|never|nothing|none|but)\b|n't/i.test(text), text);
+    ok(`tour copy: short enough for a phone card (${s.id})`, s.body.length <= 190, String(s.body.length));
+  }
+  // Every step points at something that exists: a data-tour mark somewhere in the app.
+  const src = path.resolve(import.meta.dirname, "../..");
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const f of readdirSync(dir)) {
+      const full = path.join(dir, f);
+      if (statSync(full).isDirectory()) { if (f !== "__tests__") walk(full); }
+      else if (/\.tsx$/.test(f)) files.push(full);
+    }
+  };
+  walk(src);
+  const marked = new Set(files.flatMap((f) => [...readFileSync(f, "utf8").matchAll(/data-tour="([a-z-]+)"/g)].map((m) => m[1])));
+  for (const s of steps.filter((s) => s.target)) ok(`tour: "${s.target}" is marked in the app`, marked.has(s.target!), [...marked].join(" "));
+  ok("tour: never starts by itself on sign-in, For schools or the fine print", !T.tourMayStartOn("/login") && !T.tourMayStartOn("/schools") && !T.tourMayStartOn("/privacy") && !T.tourMayStartOn("/certificate/course") && T.tourMayStartOn("/") && T.tourMayStartOn("/games") && T.tourMayStartOn("/learn/a/b"));
+  // Where the card goes.
+  const low = { top: 700, left: 1100, width: 72, height: 72 };
+  ok("tour card: a phone puts it at the bottom", T.placeCard({ top: 100, left: 10, width: 300, height: 200 }, 375, 812, 240).bottom === 12);
+  ok("tour card: a phone moves it up when the spotlight is low (Archie)", T.placeCard({ ...low, left: 280 }, 375, 812, 240).top === 12);
+  const under = T.placeCard({ top: 100, left: 300, width: 400, height: 200 }, 1280, 900, 260);
+  ok("tour card: under the spotlight when it fits", under.top === 314 && under.left >= 12 && under.left + under.width <= 1268, JSON.stringify(under));
+  const over = T.placeCard(low, 1280, 900, 260);
+  ok("tour card: over the spotlight near the bottom, inside the window", over.top !== undefined && over.top + 260 <= 700 && over.left + over.width <= 1268, JSON.stringify(over));
+  ok("tour card: centered with nothing to point at", Math.abs(T.placeCard(null, 1280, 900, 260).left - (1280 - 380) / 2) < 1);
+}
+
+// --- the house: what every piece is for (src/lib/house-functions.ts) ----------------
+{
+  const HF = await import("../house-functions.ts");
+  const { FURNITURE_ITEMS } = await import("../../data/house-catalog.ts");
+  const ids = FURNITURE_ITEMS.map((f) => f.id);
+  ok("house: every piece has a job", ids.every((id) => !!HF.USES[HF.pieceUse(id)]), ids.filter((id) => !HF.USES[HF.pieceUse(id)]).join(" "));
+  ok("house: every listed job is a real piece", Object.keys(HF.PIECE_USE).every((id) => ids.includes(id)), Object.keys(HF.PIECE_USE).filter((id) => !ids.includes(id)).join(" "));
+  ok("house: a unit prize opens its unit", HF.pieceUse("prize-scale") === "unit" && HF.pieceUse("desk") === "study" && HF.pieceUse("tv") === "watch" && HF.pieceUse("arcade") === "play");
+  for (const [kind, spec] of Object.entries(HF.USES)) {
+    ok(`house copy: ${kind} has a verb and a line`, spec.verb.length > 1 && spec.does.length > 8);
+    ok(`house copy: ${kind} said positively, no em dash`, !/[—–]/.test(spec.does + spec.verb) && !/\b(not|no|never|nothing|but)\b|n't/i.test(spec.does), spec.does);
+  }
+  const live = { ...(await import("../house3d/types.ts")).DEFAULT_LIVE, goalRight: 6, streak: 9, unitsDone: 5, skillsDone: 19, growth: 0.6 };
+  for (const id of ids) {
+    const note = HF.pieceNote(id, live);
+    ok(`house note: ${id}`, note.length > 8 && !/[—–]/.test(note) && !/undefined|NaN/.test(note), note);
+  }
+  ok("house note: the clock is today's goal", HF.pieceNote("clock", live).includes("6 of 10"));
+  ok("house note: the shelf counts skills", HF.pieceNote("bookshelf", live).includes("19 of"));
+  // Garden ornaments have jobs too.
+  const { ORNAMENTS } = await import("../../data/ornament-catalog.ts");
+  const ornIds = ORNAMENTS.map((o) => o.id);
+  ok("garden: every ornament has its own job", ornIds.every((id) => id in HF.ORNAMENT_USE), ornIds.filter((id) => !(id in HF.ORNAMENT_USE)).join(" "));
+  ok("garden: every listed job is a real ornament", Object.keys(HF.ORNAMENT_USE).every((id) => ornIds.includes(id)));
+  ok("garden: the lamp post is the one with a switch", ornIds.filter((id) => HF.pieceUse(id, "ornament") === "light").join() === "lamp");
+  ok("garden: an ornament's job is its own, not the furniture's of the same name", HF.pieceUse("lamp", "ornament") === "light" && HF.pieceUse("tree", "ornament") === "water" && HF.pieceUse("mailbox", "ornament") === "review");
+  for (const id of ornIds) {
+    const note = HF.ornamentNote(id, live);
+    ok(`garden note: ${id}`, note.length > 8 && !/[—–]/.test(note) && !/undefined|NaN/.test(note), note);
+  }
+  // Plants grow with the goals reached in two weeks, and droop after three days away.
+  const now = new Date(2026, 9, 6, 12);
+  const days = (n: number) => Array.from({ length: n }, (_, i) => { const d = new Date(now.getTime() - i * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+  const p0 = Pg0();
+  function Pg0() { return { skills: {}, streak: 0, goalDays: [] as string[], lastVisit: now.toISOString() } as unknown as import("../../types/index.ts").UserProgress; }
+  ok("plants: nothing yet, a seedling", HF.plantGrowth(p0, now) === 0);
+  ok("plants: five goals this fortnight, half grown", HF.plantGrowth({ ...p0, goalDays: days(5) }, now) === 0.5);
+  ok("plants: goals older than two weeks do not count", HF.recentGoalDays({ ...p0, goalDays: ["2026-08-01", ...days(3)] }, now) === 3);
+  ok("plants: full grown at ten", HF.plantGrowth({ ...p0, goalDays: days(14) }, now) === 1);
+  ok("plants: thirsty after three days", HF.plantsThirsty({ ...p0, lastVisit: new Date(now.getTime() - 3.2 * 86400000).toISOString() }, now) && !HF.plantsThirsty(p0, now));
+  // The rest day: a bed keeps a streak through one missed day a week.
+  const Pg = await import("../progress.ts");
+  const mon = new Date(2026, 9, 5, 9);
+  ok("rest day: weeks start on Monday", HF.weekKey(new Date(2026, 9, 11, 20)) === "2026-10-05" && HF.weekKey(new Date(2026, 9, 12, 8)) === "2026-10-12");
+  const withBed = { ...p0, placedFurnitureItems: [{ instanceId: "b", itemId: "bed", x: 50, y: 50 }] } as unknown as import("../../types/index.ts").UserProgress;
+  ok("rest day: only with a bed in the house", !HF.restDayAvailable(p0, mon) && HF.restDayAvailable(withBed, mon));
+  ok("rest day: used once a week", !HF.restDayAvailable({ ...withBed, restDayWeek: "2026-10-05" }, mon) && HF.restDayAvailable({ ...withBed, restDayWeek: "2026-09-28" }, mon));
+  const twoDaysAgo = new Date(2026, 9, 3, 18).toISOString();
+  ok("rest day: one missed day keeps the streak", Pg.streakAfterActivity(7, twoDaysAgo, mon, true) === 8 && Pg.streakAfterActivity(7, twoDaysAgo, mon, false) === 1);
+  ok("rest day: two missed days still end it", Pg.streakAfterActivity(7, new Date(2026, 9, 2, 18).toISOString(), mon, true) === 1);
+  ok("rest day: the streak shown stands through it", Pg.streakStanding(7, twoDaysAgo, mon, true) === 7 && Pg.streakStanding(7, twoDaysAgo, mon, false) === 0);
+}
+
+// --- the 3D room: stored places and metres (src/lib/house3d/space.ts) ------------------
+{
+  const SP = await import("../house3d/space.ts");
+  let worst = 0;
+  for (let x = 5; x <= 95; x += 5)
+    for (let y = 10; y <= 92; y += 4) {
+      const w = SP.floorToWorld(x, y);
+      const back = SP.worldToFloor(w.x, w.z);
+      worst = Math.max(worst, Math.abs(back.x - x), Math.abs(back.y - y));
+      if (Math.abs(w.x) > SP.ROOM_W / 2 || Math.abs(w.z) > SP.ROOM_D / 2) worst = 999;
+    }
+  ok("room: a stored floor spot comes back where it was, inside the room", worst < 1e-9, String(worst));
+  let wallWorst = 0;
+  for (let x = 0; x <= 100; x += 10)
+    for (let y = 0; y <= 100; y += 10) {
+      const w = SP.wallToWorld(x, y);
+      const back = SP.worldToWall(w.x, w.y);
+      wallWorst = Math.max(wallWorst, Math.abs(back.x - x), Math.abs(back.y - y));
+    }
+  ok("room: a stored wall spot comes back where it was", wallWorst < 1e-9, String(wallWorst));
+  ok("room: the back of the floor is near the back wall", SP.floorToWorld(50, 10).z < -SP.ROOM_D / 2 + 0.5 && SP.floorToWorld(50, 92).z > SP.ROOM_D / 2 - 0.5);
+  ok("room: hung pieces hang between a desk's height and high on the wall", SP.wallToWorld(50, 100).y === SP.WALL_HANG.bottom && SP.wallToWorld(50, 0).y === SP.WALL_HANG.top);
+  // Nothing hangs over a window or a door, in any house, wherever it was stored.
+  const shapes = ["square", "round", "grid", "wide", "arch"] as const;
+  let overOpening = "";
+  for (const shape of shapes) {
+    const open = SP.backWallOpenings(shape);
+    for (const width of [0.3, 0.6, 1.0, 1.3]) {
+      for (let x = 0; x <= 100; x += 2) {
+        const cx = SP.clearOfOpenings(SP.wallToWorld(x, 30).x, width, shape);
+        const hit = open.some((o) => cx + width / 2 > o.x0 + 1e-6 && cx - width / 2 < o.x1 - 1e-6);
+        const inside = cx - width / 2 >= -SP.ROOM_W / 2 && cx + width / 2 <= SP.ROOM_W / 2;
+        if (hit || !inside) overOpening ||= `${shape} w${width} x${x} -> ${cx.toFixed(2)}`;
+      }
+    }
+    // Every opening is taller than a hung piece's lowest edge can sit, so sideways is enough.
+    const win = SP.windowSize(shape, SP.BACK_WINDOW);
+    if (win.sill + win.h <= SP.WALL_HANG.top || SP.DOOR.h <= SP.WALL_HANG.top) overOpening ||= `${shape}: an opening ends below the hanging range`;
+  }
+  ok("room: hung pieces slide off the window and the door, inside the wall", !overOpening, overOpening);
+  ok("room: a clear spot is left where it was", SP.clearOfOpenings(-2.4, 0.4, "square") === -2.4);
+  ok("room: a clock on the window slides to the nearer side", SP.clearOfOpenings(-1.1, 0.38, "square") < SP.BACK_WINDOW.x - 0.75 - 0.1);
+}
+
+// --- two devices: an old tab never uploads over a newer day's work ------------------
+{
+  const Pg = await import("../progress.ts");
+  const skill = (attempted: number) => ({ skillId: "x", level: "attempted" as const, problemsAttempted: attempted, problemsCorrect: 0, videoWatched: false });
+  const yesterday = Pg.normalizeProgress({ skills: { a: skill(10), b: skill(4) } });
+  const chromebook = Pg.normalizeProgress({ skills: { a: skill(10), b: skill(4), c: skill(25) } });
+  const oldTabPlusOne = Pg.normalizeProgress({ skills: { a: skill(11), b: skill(4) } });
+  ok("sync: work is every answer checked", Pg.workDone(chromebook) === 39 && Pg.workDone(Pg.normalizeProgress({})) === 0);
+  ok("sync: the old tab takes the Chromebook's day", Pg.takeOtherDevicesCopy(oldTabPlusOne, chromebook));
+  ok("sync: an hour offline is kept over one answer elsewhere", !Pg.takeOtherDevicesCopy(Pg.normalizeProgress({ skills: { a: skill(70), b: skill(4) } }), Pg.normalizeProgress({ skills: { a: skill(10), b: skill(5) } })));
+  ok("sync: the same work either way takes the cloud", Pg.takeOtherDevicesCopy(yesterday, yesterday));
+}
+
+// --- /schools: "not covered yet" never names a standard a skill claims -----------
+{
+  const St = await import("../../data/standards.ts");
+  const claimed = new Set(Object.values(St.SKILL_STANDARDS).flat().map((c) => (typeof c === "string" ? c : (c as { code: string }).code)));
+  for (const row of St.NOT_COVERED) {
+    for (const code of row.codes ? St.expandCodes(row.codes) : []) ok(`schools: not covered and not claimed: ${code}`, !claimed.has(code), row.what);
+  }
+  ok("schools: codes written out", St.expandCodes("HSF-IF.B.4, B.5, C.9").join(" ") === "HSF-IF.B.4 HSF-IF.B.5 HSF-IF.C.9");
+  ok("schools: graph-only standards are not also called missing", St.NOT_COVERED.every((r) => !(r.codes ? St.expandCodes(r.codes) : []).some((c) => St.GRAPHING_STANDARDS.includes(c))));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

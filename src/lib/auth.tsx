@@ -10,6 +10,8 @@ import {
   getProgress,
   importProgressFromSync,
   newerCopy,
+  normalizeProgress,
+  takeOtherDevicesCopy,
 } from "@/lib/progress";
 import { getLeaderboardSnapshot, setUnlimitedBridgeys } from "@/lib/bridgeys";
 import { syncLeaderboardStats } from "@/lib/leaderboard";
@@ -106,10 +108,18 @@ export const SIGNED_OUT_KEY = "algebridge:signed-out-at";
 /** When this page was loaded, to compare with SIGNED_OUT_KEY. */
 const PAGE_LOADED_AT = Date.now();
 
+/** The names typed onto certificates, one key per account (CertificateView). */
+const CERTIFICATE_NAME_PREFIX = "ab-certificate-name";
+
 function clearPersonalDeviceData(): void {
   clearLocalProgress();
   try {
     for (const key of PERSONAL_KEYS) window.localStorage.removeItem(key);
+    // A student's full name, typed for a certificate, never waits for the next student.
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(CERTIFICATE_NAME_PREFIX)) window.localStorage.removeItem(key);
+    }
   } catch {
     /* storage blocked: nothing was kept there either */
   }
@@ -184,6 +194,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const tokenRef = useRef<string | null>(null);
   /** Progress changed since the last upload that succeeded. */
   const dirtyRef = useRef(false);
+  /**
+   * The cloud copy's updated_at as this tab last read or wrote it, and when it
+   * last looked. A tab left open since yesterday still holds yesterday's copy,
+   * and its next save used to go up over everything done on another device
+   * since; a different updated_at in the cloud means another device saved.
+   */
+  const cloudSeenRef = useRef<string | null>(null);
+  const cloudCheckedRef = useRef(0);
   /** The account whose saved progress has been read, as state so pages re-render. */
   const [progressFor, setProgressFor] = useState<string | null>(null);
 
@@ -291,6 +309,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) continue;
       const local = getProgress();
       const cloudAt = data?.updated_at ? String(data.updated_at) : null;
+      cloudSeenRef.current = cloudAt;
+      cloudCheckedRef.current = Date.now();
       if (data?.progress_json && newerCopy(local, cloudAt) === "cloud") {
         importProgressFromSync(JSON.stringify(data.progress_json), cloudAt ?? undefined);
       } else if (local.updatedAt) {
@@ -334,6 +354,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const token = tokenRef.current;
     if (!url || !anon || !token) return false;
+    const writtenAt = new Date().toISOString();
     try {
       const res = await fetch(`${url}/rest/v1/${PROGRESS_TABLE}?on_conflict=user_id`, {
         method: "POST",
@@ -347,13 +368,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           user_id: userId,
           progress_json: JSON.parse(exportProgressForSync()),
-          updated_at: new Date().toISOString(),
+          updated_at: writtenAt,
         }),
       });
+      if (res.ok) cloudSeenRef.current = writtenAt;
       return res.ok;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Whether another device saved this account since this tab last read or
+   * wrote it, and if so, taking its copy when it holds at least as much work
+   * as this one (workDone). The case it is for: a tab left open overnight,
+   * the next day's practice done on a school Chromebook, then one answer in
+   * the old tab, which uploaded yesterday's copy over the whole day. True
+   * when the cloud copy was taken, so the caller skips its upload.
+   */
+  async function pullIfOtherDeviceSaved(userId: string): Promise<boolean> {
+    cloudCheckedRef.current = Date.now();
+    const supabase = createClient();
+    if (!supabase || loadedFor.current !== userId) return false;
+    const head = await supabase.from(PROGRESS_TABLE).select("updated_at").eq("user_id", userId).maybeSingle();
+    if (head.error) return false;
+    const at = head.data?.updated_at ? String(head.data.updated_at) : null;
+    const seen = cloudSeenRef.current;
+    if (!at || (seen && Date.parse(at) === Date.parse(seen))) return false;
+    const { data, error } = await supabase.from(PROGRESS_TABLE).select("progress_json, updated_at").eq("user_id", userId).maybeSingle();
+    if (error || !data?.progress_json || loadedFor.current !== userId) return false;
+    const cloudAt = String(data.updated_at);
+    cloudSeenRef.current = cloudAt;
+    if (!takeOtherDevicesCopy(getProgress(), normalizeProgress(data.progress_json as never))) return false;
+    importProgressFromSync(JSON.stringify(data.progress_json), cloudAt);
+    dirtyRef.current = false;
+    return true;
   }
 
   // Autosave. Progress used to reach the account only at sign-in, sign-out and
@@ -366,9 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let timer: number | undefined;
     let retry: number | undefined;
     let inFlight = false;
-    const flush = () => {
-      window.clearTimeout(timer);
-      timer = undefined;
+    const upload = () => {
       if (!dirtyRef.current || inFlight || loadedFor.current !== userId) return;
       inFlight = true;
       dirtyRef.current = false;
@@ -386,28 +433,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         retry = window.setTimeout(flush, 8_000);
       });
     };
+    // A tab that has not compared with the cloud for a minute does so before
+    // its upload. A closing tab (pagehide, hidden) cannot wait for that, and
+    // sends at once: the check on its return (below) covers what it missed.
+    const flush = () => {
+      window.clearTimeout(timer);
+      timer = undefined;
+      if (!dirtyRef.current || inFlight || loadedFor.current !== userId) return;
+      if (Date.now() - cloudCheckedRef.current < 60_000) return upload();
+      inFlight = true;
+      void pullIfOtherDeviceSaved(userId)
+        .catch(() => false)
+        .then((took) => {
+          inFlight = false;
+          if (!took) upload();
+        });
+    };
     const schedule = () => {
       dirtyRef.current = true;
       window.clearTimeout(timer);
       timer = window.setTimeout(flush, 2500);
     };
     const onHide = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") {
+        window.clearTimeout(timer);
+        timer = undefined;
+        upload();
+      } else if (!inFlight) {
+        // Back to this tab: before the student answers anything here, take
+        // what another device saved in the meantime.
+        inFlight = true;
+        void pullIfOtherDeviceSaved(userId)
+          .catch(() => false)
+          .then(() => {
+            inFlight = false;
+            if (dirtyRef.current) schedule();
+          });
+      }
     };
     // Anything that arrived before the cloud copy was read goes up once it has been.
     const catchUp = window.setInterval(flush, 20_000);
     window.addEventListener(PROGRESS_UPDATED_EVENT, schedule);
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", upload);
     window.addEventListener("online", flush);
     return () => {
       window.removeEventListener(PROGRESS_UPDATED_EVENT, schedule);
       document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("pagehide", upload);
       window.removeEventListener("online", flush);
       window.clearInterval(catchUp);
       window.clearTimeout(retry);
-      flush();
+      // Leaving (or signing out) sends what is pending as it is: no cloud
+      // read that could land after the student has gone.
+      window.clearTimeout(timer);
+      upload();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configured, userId]);

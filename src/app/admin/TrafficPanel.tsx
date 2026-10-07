@@ -20,6 +20,30 @@ export const CTA_LABELS: Record<string, string> = {
   "close-schools": "Closing · Bring it to a school",
 };
 
+/**
+ * The welcome tour's buttons (components/WelcomeTour.tsx), in the order a
+ * visitor meets them, so the list reads as a funnel: started, finished, and
+ * where the rest stopped.
+ */
+const TOUR_ROWS: { label: string; text: string }[] = [
+  { label: "tour-start", text: "Started: Show me around" },
+  { label: "tour-menu", text: "Started from the menu" },
+  { label: "tour-done", text: "Reached the last step" },
+  { label: "tour-signup", text: "Went to Create account" },
+  { label: "tour-later", text: "Chose Keep exploring" },
+  { label: "tour-left", text: "Left for another page" },
+];
+
+export function tourRows(clicks: { site: string; label: string; n: number }[]): { key: string; text: string; n: number }[] {
+  const app = clicks.filter((c) => c.site === "app" && c.label.startsWith("tour-"));
+  const count = (label: string) => app.filter((c) => c.label === label).reduce((sum, c) => sum + c.n, 0);
+  const skips = app.filter((c) => c.label.startsWith("tour-skip-"));
+  return [
+    ...TOUR_ROWS.map((r) => ({ key: r.label, text: r.text, n: count(r.label) })),
+    ...[...new Set(skips.map((c) => c.label))].map((label) => ({ key: label, text: `Skipped at: ${label.slice("tour-skip-".length)}`, n: count(label) })),
+  ].filter((r) => r.n > 0);
+}
+
 const GA_PROPERTY = "557361067";
 const GOOGLE_LINKS = [
   { href: `https://analytics.google.com/analytics/web/#/p${GA_PROPERTY}/realtime/overview`, label: "Google Analytics · Realtime" },
@@ -209,6 +233,16 @@ export function TrafficPanel({ data, loading }: { data: AdminTrafficResult | nul
               label="Buttons clicked on algebridge.org"
               rows={clicks.map((c) => ({ key: c.label, text: CTA_LABELS[c.label] ?? c.label, n: c.n, title: c.label }))}
             />
+          </div>
+        </section>
+
+        <section className="sbc-panel">
+          <div className="sbc-panel-head">
+            <h2>Welcome tour</h2>
+            <span className="sbc-meta">first visits without an account · 30 days</span>
+          </div>
+          <div className="sbc-panel-body">
+            <Bars label="Welcome tour" rows={tourRows(t.clicks)} />
           </div>
         </section>
 

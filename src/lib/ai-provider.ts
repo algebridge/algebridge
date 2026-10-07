@@ -45,8 +45,9 @@ export interface JsonCallResult {
  *
  * Model ids here are retired often, and fast. Every Llama id this list
  * originally held was already gone by the time a key was issued, which made a
- * perfectly valid key look rejected. These four were verified against a live
- * account; the order is largest first for answer quality.
+ * perfectly valid key look rejected, and groq/compound-mini was retired by
+ * Oct 2026 (a 404 on every fallback). These three were verified against the
+ * live model list; the order is largest first for answer quality.
  *
  * qwen3.6-27b is deliberately absent: it emits its chain of thought inside
  * <think> tags, which is not something to show a student.
@@ -55,7 +56,6 @@ export const HELPER_GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
   "qwen/qwen3.8-27b",
-  "groq/compound-mini",
 ];
 
 /** HELPER_GROQ_MODELS with GROQ_MODEL, when it is set, tried first. */

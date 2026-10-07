@@ -1286,34 +1286,8 @@ html.lenis body {
 }
 
 
-/* ── Dollhouse motion ────────────────────────────────────────
-   The House is one flat picture, so everything that moves is a CSS transform
-   on an SVG group. Distances are in user units, which map 1:1 to the scene's
-   1200x800 viewBox however large it is drawn. */
-
-/* Cloud bands are authored one scene wider than the frame and slid exactly
-   one scene, so the loop has no seam to see. */
-@keyframes dh-drift {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-1200px); }
-}
-.dh-cloud {
-  animation-name: dh-drift;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
-.dh-cloud-far  { animation-duration: 96s; }
-.dh-cloud-near { animation-duration: 58s; }
-
-/* The front of the house. Both halves move on the same curve as the panels
-   they reveal, so opening reads as one gesture rather than two. */
-.dh-shutter {
-  transition: transform 480ms cubic-bezier(0.22, 0.9, 0.28, 1), opacity 380ms ease-out;
-}
-
-/* Anything placed pops in rather than appearing, which is what makes putting
-   a thing down feel like putting it down. */
+/* Rink decorations pop in rather than appearing, which is what makes
+   putting a thing down feel like putting it down. */
 @keyframes dh-settle {
   from { transform: translate(-50%, -100%) scale(0.86); opacity: 0; }
   to   { transform: translate(-50%, -100%) scale(1); opacity: 1; }
@@ -1323,12 +1297,8 @@ html.lenis body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dh-cloud,
   .dh-piece {
     animation: none !important;
-  }
-  .dh-shutter {
-    transition: none !important;
   }
 }
 
@@ -1387,57 +1357,8 @@ html.lenis body {
 /* A shop full of moving pieces stays cheap: cards off screen are not drawn. */
 .shop-card { content-visibility: auto; contain-intrinsic-size: 240px 260px; }
 
-/* ── The house at night ──────────────────────────────────────
-   A piece that is switched off, or has no light of its own, sits in the dark;
-   one that is on keeps its colour and throws a little light. */
-.dh-night .dh-piece { filter: brightness(0.55) saturate(0.85); }
-.dh-night .dh-piece.dh-lit { filter: none; }
-.dh-night .dh-piece.dh-lit::before {
-  content: "";
-  position: absolute;
-  inset: -18% -22% -6%;
-  border-radius: 9999px;
-  background: radial-gradient(closest-side, rgba(253, 224, 130, 0.42), rgba(253, 224, 130, 0));
-  pointer-events: none;
-}
-.dh-piece.dh-dragging { transition: none; cursor: grabbing; opacity: 0.85; }
-
-/* The little bar of actions over a piece you tapped. */
-.dh-actions {
-  animation: dh-settle 200ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
-}
-
-/* ── The garden ──────────────────────────────────────────────
-   Butterflies drift over the flowers in bloom and beat their wings, the
-   sprinkler pulses on a watered day, a swing sways, fireflies blink at night. */
-.gd-flutter { animation: gd-flutter 7s ease-in-out infinite; }
-.gd-flap { animation: gd-flap 0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.gd-spray { animation: gd-spray 1.6s ease-in-out infinite; }
-.gd-swing { animation: gd-swing 3.4s ease-in-out infinite; }
-.gd-firefly { animation: gd-firefly 4.2s ease-in-out infinite; }
-@keyframes gd-flutter {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(14px, -10px); }
-  50% { transform: translate(-6px, -18px); }
-  75% { transform: translate(-16px, -6px); }
-}
-@keyframes gd-flap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.3); } }
-@keyframes gd-spray { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
-@keyframes gd-swing { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
-@keyframes gd-firefly {
-  0%, 100% { opacity: 0; transform: translate(0, 0); }
-  30% { opacity: 1; }
-  60% { opacity: 0.2; transform: translate(10px, -12px); }
-  80% { opacity: 0.9; transform: translate(-6px, -18px); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .fa,
-  .gd-flutter,
-  .gd-flap,
-  .gd-spray,
-  .gd-swing,
-  .gd-firefly,
   .sc-bob,
   .sc-sway,
   .sc-twinkle,
@@ -1506,7 +1427,6 @@ a:hover .figures-still * {
 .sc-drift { animation-timing-function: steps(46, jump-none); }
 .sc-smoke { animation-timing-function: steps(12, jump-none); }
 .sc-flame { animation-timing-function: steps(3, jump-none); }
-.dh-cloud { animation-timing-function: steps(240, jump-none); will-change: auto; }
 
 /* ── Bare routes ──────────────────────────────────────────────────
    /try and the /demo pages, which algebridge.org embeds in iframes: the
