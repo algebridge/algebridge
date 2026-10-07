@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { refreshPush } from "@/lib/push";
+import { participantsFromRoom } from "@/lib/call-utils";
 import { loadManagedFlag, sendCallDecline, subscribeToRing, verifyCaller, type RingPayload } from "@/lib/social";
 import { showToast } from "@/lib/notify";
 import { Icon } from "@/components/Icon";
@@ -111,6 +113,11 @@ export function IncomingCall() {
     }
   }
 
+  // Keep this device saved for whoever is signed in, if notifications are on.
+  useEffect(() => {
+    if (user && !school) void refreshPush();
+  }, [user, school]);
+
   useEffect(() => {
     if (!user || school) return;
     const unsub = subscribeToRing(
@@ -186,7 +193,7 @@ export function IncomingCall() {
     const call = incoming!;
     stopRing();
     setIncoming(null);
-    router.push(`/room/${call.roomId}?with=${call.callerId}`);
+    router.push(`/room/${call.roomId}`);
   }
   function decline(e?: React.MouseEvent) {
     if (tooSoon(e) || !incoming) return;
@@ -211,7 +218,13 @@ export function IncomingCall() {
         {/* On a phone the buttons go to their own row, so the name is not cut short. */}
         <p id={titleId} className="min-w-0 flex-1 basis-28">
           <span className="block truncate font-semibold text-slate-900">{incoming.callerName}</span>{" "}
-          <span className="block text-xs text-slate-600">is calling you</span>
+          <span className="block text-xs text-slate-600">
+            {(() => {
+              // A group call names how many others are in it (the room id lists everyone).
+              const others = (participantsFromRoom(incoming.roomId)?.length ?? 2) - 2;
+              return others > 0 ? `is calling you and ${others} ${others === 1 ? "other" : "others"}` : "is calling you";
+            })()}
+          </span>
         </p>
         <div className="ml-auto flex shrink-0 gap-2">
           <button

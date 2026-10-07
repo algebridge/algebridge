@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { forgetThisDevice } from "@/lib/push";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -683,6 +684,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* not saved now; the autosave already sent everything but the last moments */
     }
+    // This device stops getting their messages and calls (a shared computer).
+    await within(forgetThisDevice(), 3000).catch(() => undefined);
     const supabase = createClient();
     if (supabase) {
       try {

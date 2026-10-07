@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ORNAMENT_PICTURES, PICTURES_VERSION, PIECE_PICTURES } from "@/data/house-pictures";
 import type { LiveData } from "@/lib/house3d/types";
 
 /**
- * A piece of furniture as a picture: the same 3D model, materials and light
- * as the room, photographed on its own (lib/house3d/studio.ts). Taken when
- * the card scrolls near the screen, one at a time, and kept, so the shop and
- * the tray show exactly the thing that will stand in the room.
+ * A piece of furniture as a picture.
+ *
+ * Usually it is a picture rendered ahead of time (scripts/house-pictures.mjs,
+ * public/house/pictures): the shop and the tray show plain images and the
+ * page does no 3D work at all. It is drawn live (lib/house3d/studio.ts), on a
+ * quiet moment, only when that picture would be wrong: a color picked for
+ * it, a lamp switched off, or `live`, the student's own numbers (the card of
+ * the piece they tapped, showing their books and their clock).
  */
 export function PieceShot({
   itemId,
@@ -25,13 +30,17 @@ export function PieceShot({
   className?: string;
   /** A garden ornament rather than a piece of furniture. */
   ornament?: boolean;
-  /** The student's own numbers, so the shelf shows their books and the clock their goal. */
+  /** The student's own numbers, drawn live (the shelf with their books, the clock with their goal). */
   live?: LiveData;
 }) {
+  const ready = !color && on && !live && (ornament ? ORNAMENT_PICTURES : PIECE_PICTURES).has(itemId);
   const [url, setUrl] = useState<string | null>(null);
+  const [fallback, setFallback] = useState(false);
   const holder = useRef<HTMLSpanElement>(null);
+  const drawLive = !ready || fallback;
 
   useEffect(() => {
+    if (!drawLive) return;
     let cancelled = false;
     const el = holder.current;
     if (!el) return;
@@ -67,13 +76,14 @@ export function PieceShot({
       cancelled = true;
       io.disconnect();
     };
-  }, [itemId, color, on, ornament, live]);
+  }, [drawLive, itemId, color, on, ornament, live]);
 
+  const src = drawLive ? url : `/house/pictures/${ornament ? "ornament-" : ""}${itemId}.webp?v=${PICTURES_VERSION}`;
   return (
     <span ref={holder} className={`relative block ${className}`}>
-      {url ? (
+      {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={alt} className="h-full w-full object-contain" draggable={false} />
+        <img src={src} alt={alt} loading="lazy" decoding="async" className="h-full w-full object-contain" draggable={false} onError={() => !drawLive && setFallback(true)} />
       ) : (
         <span aria-hidden className="absolute inset-[18%] animate-pulse rounded-full bg-slate-200/60" />
       )}

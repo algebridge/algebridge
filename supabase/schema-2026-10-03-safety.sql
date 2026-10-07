@@ -358,8 +358,11 @@ create policy "Ring send within the contact rules"
     and public.may_ring(auth.uid(), (substring(realtime.topic() from 6))::uuid)
   );
 
--- A room topic is 'room-<uuidA>--<uuidB>'. Only those two, and only when
--- they may talk.
+-- A room topic is 'room-' and its members' ids, sorted, joined by '--':
+-- two people for a call, up to eight for a group call. Only those people,
+-- and only when they may talk: a tutor (or other staff) may be in a room
+-- with every member they may reach; a student only in a room with a staff
+-- member they may talk to. Students alone, with no staff, never.
 create or replace function public.room_topic_allowed(topic text)
 returns boolean
 language plpgsql security definer stable
@@ -367,16 +370,26 @@ set search_path = public
 as $$
 declare
   ids text[];
+  id text;
+  me uuid := auth.uid();
 begin
-  if topic is null or topic not like 'room-%' then return false; end if;
+  if me is null or topic is null or topic not like 'room-%' then return false; end if;
   ids := string_to_array(substring(topic from 6), '--');
-  if array_length(ids, 1) <> 2
-     or ids[1] !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-     or ids[2] !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
-    return false;
+  if array_length(ids, 1) is null or array_length(ids, 1) < 2 or array_length(ids, 1) > 8 then return false; end if;
+  foreach id in array ids loop
+    if id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return false; end if;
+  end loop;
+  if me::text <> all(ids) then return false; end if;
+  if public.profile_is_staff(me) then
+    foreach id in array ids loop
+      if id <> me::text and not public.pair_may_talk(me, id::uuid) then return false; end if;
+    end loop;
+    return true;
   end if;
-  if auth.uid()::text <> all(ids) then return false; end if;
-  return public.pair_may_talk(ids[1]::uuid, ids[2]::uuid);
+  foreach id in array ids loop
+    if id <> me::text and public.profile_is_staff(id::uuid) and public.pair_may_talk(me, id::uuid) then return true; end if;
+  end loop;
+  return false;
 end;
 $$;
 revoke all on function public.room_topic_allowed(text) from public;

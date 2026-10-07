@@ -33,11 +33,13 @@ import { requestHelperOpen } from "@/lib/helper-bridge";
 import { showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { setMusicEnabled } from "@/lib/progress";
+import { useAuth } from "@/lib/auth";
+import { getUnreadCount } from "@/lib/social";
 import type { GardenPick, HouseView, ScenePiece } from "@/lib/house3d/engine";
 import type { LiveData } from "@/lib/house3d/types";
 import type { HouseFloor, UserProgress } from "@/types";
 
-type View = "down" | "up" | "garden";
+type View = "front" | "down" | "up" | "garden";
 
 const USE_ICON: Record<UseKind, IconName> = {
   study: "course",
@@ -80,10 +82,17 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const scratchpad = useScratchpad();
   const [view, setView] = useState<View>("down");
   const [selected, setSelected] = useState<string | null>(null);
+  const { user } = useAuth();
+  /** Unread messages, for the mailbox's flag out front (null when signed out). */
+  const [unread, setUnread] = useState<number | null>(null);
   /** A part of the garden itself that was tapped: a unit's bed, the sprinkler, the tree. */
   const [gardenPick, setGardenPick] = useState<GardenPick | null>(null);
   const [showColors, setShowColors] = useState(false);
   const [ready, setReady] = useState(false);
+  /** The first frame is on screen (shaders compile in the background before it). */
+  const [drawn, setDrawn] = useState(false);
+  /** A new place is being prepared for its first showing (shaders compiling in the background). */
+  const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -132,7 +141,13 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         fit();
         ro = new ResizeObserver(fit);
         ro.observe(canvasRef.current);
+        v.onBusy = (b) => {
+          if (!disposed) setPreparing(b);
+        };
         setReady(true);
+        void v.firstFrame.then(() => {
+          if (!disposed) setDrawn(true);
+        });
       } catch (err) {
         // No WebGL: the list under the stage still does everything.
         console.error("The 3D house could not start:", err);
@@ -161,13 +176,29 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     const v = engine.current;
     if (!ready || !v) return;
     v.setLive(live);
-    if (view === "garden") {
+    if (view === "front") {
+      v.showFront(progress.houseStyleId, night, unread ?? 0);
+    } else if (view === "garden") {
       v.showGarden(garden, progress.houseStyleId, night, ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, z: o.z, on: !o.off })));
     } else {
       v.setRoom(progress.houseStyleId, view, night);
       v.setPieces(pieces);
     }
-  }, [ready, view, pieces, live, night, progress.houseStyleId, garden, ornaments]);
+  }, [ready, view, pieces, live, night, progress.houseStyleId, garden, ornaments, unread]);
+
+  // The mailbox out front reads the inbox when you go out there.
+  useEffect(() => {
+    if (view !== "front") return;
+    if (!user) {
+      setUnread(null);
+      return;
+    }
+    let live = true;
+    getUnreadCount().then((n) => live && setUnread(n));
+    return () => {
+      live = false;
+    };
+  }, [view, user]);
 
   useEffect(() => {
     engine.current?.select(selected);
@@ -262,7 +293,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       setShowColors(false);
       setSelected((s) => (g.id && s !== g.id ? g.id : null));
       // In the garden, a tap on a bed, the sprinkler or the tree opens its card; on the house, it takes you in.
-      const part = view === "garden" && !g.id ? v.pickGarden(e.clientX, e.clientY) : null;
+      const part = (view === "garden" || view === "front") && !g.id ? v.pickGarden(e.clientX, e.clientY) : null;
       if (part?.kind === "house") {
         setView("down");
         setGardenPick(null);
@@ -355,6 +386,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       if (res.ok) onUpdate();
       return;
     }
+    if (view === "front") return;
     const hangs = getFurnitureItem(itemId)?.mount === "wall";
     placed.current = { itemId, before: new Set(furniture.map((f) => f.instanceId)) };
     const res = placeFurnitureAt(itemId, hangs ? 50 : 40 + Math.random() * 20, hangs ? 40 : 50 + Math.random() * 15, view, hangs ? "wall" : "floor");
@@ -388,6 +420,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         <div role="tablist" aria-label="Where in the house" className="inline-flex rounded-xl bg-slate-100 p-1">
           {(
             [
+              ["front", "Porch"],
               ["down", "Downstairs"],
               ["up", "Upstairs"],
               ["garden", "Garden"],
@@ -437,10 +470,15 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
-          aria-label={view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
+          aria-label={view === "front" ? "The front of your house, in 3D. Tap the door to go in, or the mailbox for your messages." : view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
           className="absolute inset-0 h-full w-full touch-none select-none"
         />
-        {!ready && !failed && (
+        {drawn && preparing && (
+          <p className="pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" aria-live="polite">
+            Getting it ready…
+          </p>
+        )}
+        {!drawn && !failed && (
           <p className="absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500" aria-live="polite">
             Opening the house…
           </p>
@@ -451,7 +489,11 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </p>
         )}
         <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
-          {view === "garden"
+          {view === "front"
+            ? unread
+              ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"}. Tap the mailbox, or the door to go in.`
+              : "Tap the door to go inside, or the mailbox for your messages."
+            : view === "garden"
             ? garden.watered
               ? "Watered today. Tap a plant to open its unit, or the house to go in."
               : "Answer a problem today to water the garden. Tap a plant to open its unit."
@@ -511,10 +553,11 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             onClose={() => setSelected(null)}
           />
         )}
-        {view === "garden" && gardenPick && !selOrnament && (
+        {(view === "garden" || view === "front") && gardenPick && !selOrnament && (
           <GardenCard
             pick={gardenPick}
             garden={garden}
+            unread={unread}
             onGo={(href) => {
               setGardenPick(null);
               if (embedded) window.open(`https://learn.algebridge.org${href}`, "_top");
@@ -541,6 +584,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       )}
 
       {/* The tray: what you own and have not put out yet. */}
+      {view !== "front" && (
       <div className="border-t border-slate-200 bg-slate-50/80 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="eyebrow">{view === "garden" ? "Garden ornaments" : "Your pieces"}</p>
@@ -585,7 +629,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                   onClick={() => placeFromTray(id)}
                   className="flex w-24 shrink-0 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white p-2 transition hover:border-bridge-300 hover:shadow-panel"
                 >
-                  <PieceShot itemId={id} color={colors[id] ?? null} live={live} alt="" ornament={view === "garden"} className="h-14 w-full" />
+                  <PieceShot itemId={id} color={colors[id] ?? null} alt="" ornament={view === "garden"} className="h-14 w-full" />
                   <span className="w-full truncate text-center text-[11px] font-medium text-slate-700">{name}</span>
                 </button>
               );
@@ -593,6 +637,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -726,7 +771,7 @@ const STAGE_WORDS: Record<GardenState["beds"][number]["stage"], string> = {
 };
 
 /** The card for a part of the garden: a unit's bed opens the unit, the sprinkler and the tree the next skill. */
-function GardenCard({ pick, garden, learnHref, onGo, onClose }: { pick: GardenPick; garden: GardenState; learnHref: string; onGo: (href: string) => void; onClose: () => void }) {
+function GardenCard({ pick, garden, unread, learnHref, onGo, onClose }: { pick: GardenPick; garden: GardenState; unread: number | null; learnHref: string; onGo: (href: string) => void; onClose: () => void }) {
   let title: string;
   let note: string;
   let action: { label: string; icon: IconName; href: string };
@@ -740,6 +785,15 @@ function GardenCard({ pick, garden, learnHref, onGo, onClose }: { pick: GardenPi
     title = "Sprinkler";
     note = garden.watered ? "Watered today: you answered a problem right." : "Answer one problem right today and it waters the whole garden.";
     action = { label: USES.water.verb, icon: USE_ICON.water, href: learnHref };
+  } else if (pick.kind === "mailbox") {
+    title = "Mailbox";
+    note =
+      unread === null
+        ? "Sign in, and messages from your tutors arrive here. The flag goes up when one is waiting."
+        : unread > 0
+          ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"} waiting.`
+          : "All caught up. The flag goes up when a tutor writes to you.";
+    action = { label: "Open messages", icon: "messages", href: unread === null ? "/login" : "/messages" };
   } else if (pick.kind === "tree") {
     title = "The tree";
     const next = !garden.swing ? " A tire swing goes up halfway through the course." : !garden.birdhouse ? " A birdhouse comes at three quarters." : !garden.treehouse ? " The treehouse goes up when every skill is finished." : " The treehouse is up.";

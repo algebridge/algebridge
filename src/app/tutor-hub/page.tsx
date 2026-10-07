@@ -2,38 +2,64 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
-import { listAllStudents, ringUser } from "@/lib/social";
-import { roomIdFor } from "@/lib/call-utils";
-import type { StudentDirectoryEntry } from "@/types";
+import { NotificationsCard } from "@/components/NotificationsCard";
+import { listAllStudents, listTutors, ringUser } from "@/lib/social";
+import { MAX_CALL_MEMBERS, roomIdFor } from "@/lib/call-utils";
+import type { StudentDirectoryEntry, TutorDirectoryEntry } from "@/types";
 import { Icon } from "@/components/Icon";
+
+type Who = "students" | "tutors";
 
 export default function TutorHubPage() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<StudentDirectoryEntry[]>([]);
+  const [tutors, setTutors] = useState<TutorDirectoryEntry[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [query, setQuery] = useState("");
+  const [who, setWho] = useState<Who>("students");
+  /** People picked for a group call, by id, with their names for the bar. */
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
 
   const isTutor = profile?.role === "tutor" || (profile?.isAdmin ?? false);
   const myName = profile?.displayName || user?.email?.split("@")[0] || "Tutor";
+  const roomFull = picked.size >= MAX_CALL_MEMBERS - 1;
 
-  function callStudent(studentId: string) {
-    if (!user) return;
-    const roomId = roomIdFor(user.id, studentId);
-    ringUser(studentId, { roomId, callerId: user.id, callerName: myName });
-    router.push(`/room/${roomId}?with=${studentId}`);
+  /** Rings everyone in the call and opens the room. */
+  function call(ids: string[]) {
+    if (!user || !ids.length) return;
+    const roomId = roomIdFor(user.id, ...ids);
+    for (const id of ids) ringUser(id, { roomId, callerId: user.id, callerName: myName });
+    router.push(`/room/${roomId}`);
+  }
+
+  function togglePick(id: string, name: string) {
+    setPicked((m) => {
+      const next = new Map(m);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < MAX_CALL_MEMBERS - 1) next.set(id, name);
+      return next;
+    });
   }
 
   useEffect(() => {
     if (!isTutor) return;
     (async () => {
-      setStudents(await listAllStudents());
+      const [s, t] = await Promise.all([listAllStudents(), listTutors()]);
+      setStudents(s);
+      setTutors(t.filter((x) => x.id !== user?.id));
       setLoadingList(false);
     })();
-  }, [isTutor]);
+  }, [isTutor, user?.id]);
+
+  const rows = useMemo(() => {
+    const q = query.toLowerCase();
+    const list = who === "students" ? students.map((s) => ({ id: s.id, name: s.displayName ?? "Student", sub: s.email ?? "", avatar: s.avatarUrl })) : tutors.map((t) => ({ id: t.id, name: t.displayName ?? "Tutor", sub: t.bio ?? "", avatar: t.avatarUrl }));
+    return list.filter((r) => r.name.toLowerCase().includes(q) || r.sub.toLowerCase().includes(q));
+  }, [who, students, tutors, query]);
 
   if (loading) return <p className="text-center text-slate-500">Loading…</p>;
 
@@ -63,19 +89,13 @@ export default function TutorHubPage() {
     );
   }
 
-  const filtered = students.filter(
-    (s) =>
-      (s.displayName ?? "").toLowerCase().includes(query.toLowerCase()) ||
-      (s.email ?? "").toLowerCase().includes(query.toLowerCase())
-  );
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Tutor Hub</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Every student on AlgeBridge, message or call anyone who needs help.
+            Message or call any student. Tick a few people for a group call: students, tutors, or both.
           </p>
         </div>
         <Link href="/messages" className="btn-secondary text-sm">
@@ -84,51 +104,94 @@ export default function TutorHubPage() {
         </Link>
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search students by name or email…"
-        aria-label="Search students"
-        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
-      />
+      <NotificationsCard who="a student" />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="tablist" aria-label="Who to show" className="inline-flex rounded-xl bg-slate-100 p-1">
+          {(
+            [
+              ["students", `Students (${students.length})`],
+              ["tutors", `Tutors (${tutors.length})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={who === id}
+              onClick={() => setWho(id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${who === id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Search ${who} by name${who === "students" ? " or email" : ""}…`}
+          aria-label={`Search ${who}`}
+          className="min-w-[12rem] flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
+        />
+      </div>
 
       {loadingList ? (
-        <p className="text-center text-slate-400">Loading students…</p>
-      ) : filtered.length === 0 ? (
+        <p className="text-center text-slate-500">Loading…</p>
+      ) : rows.length === 0 ? (
         <div className="card text-center text-slate-600">
-          {students.length === 0
-            ? "No students have signed up yet."
-            : "No students match your search."}
+          {(who === "students" ? students : tutors).length === 0 ? `No ${who} here yet.` : `No ${who} match your search.`}
         </div>
       ) : (
-        <>
-          <p className="text-xs text-slate-400">{filtered.length} student{filtered.length === 1 ? "" : "s"}</p>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {filtered.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-                <Avatar name={s.displayName} url={s.avatarUrl} size={44} />
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {rows.map((r) => {
+            const on = picked.has(r.id);
+            return (
+              <li key={r.id} className={`flex items-center gap-3 px-4 py-3 ${on ? "bg-bridge-50/60" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={!on && roomFull}
+                  onChange={() => togglePick(r.id, r.name)}
+                  aria-label={`Add ${r.name} to a group call`}
+                  className="h-4 w-4 shrink-0 accent-bridge-600"
+                />
+                <Avatar name={r.name} url={r.avatar} size={44} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-slate-900">
-                    {s.displayName ?? "Student"}
-                  </p>
-                  <p className="truncate text-xs text-slate-400">{s.email}</p>
+                  <p className="truncate font-semibold text-slate-900">{r.name}</p>
+                  {r.sub && <p className="truncate text-xs text-slate-500">{r.sub}</p>}
                 </div>
-                <Link href={`/messages/${s.id}`} className="btn-secondary text-sm" title="Message" aria-label={`Message ${s.displayName ?? "student"}`}>
+                <Link href={`/messages/${r.id}`} className="btn-secondary text-sm" title="Message" aria-label={`Message ${r.name}`}>
                   <Icon name="messages" size={17} />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => callStudent(s.id)}
-                  className="btn-secondary text-sm"
-                  title="Start a video call"
-                  aria-label={`Start a video call with ${s.displayName ?? "student"}`}
-                >
+                <button type="button" onClick={() => call([r.id])} className="btn-secondary text-sm" title="Start a video call" aria-label={`Start a video call with ${r.name}`}>
                   <Icon name="video" size={17} />
                 </button>
               </li>
-            ))}
-          </ul>
-        </>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* The group call being put together. */}
+      {picked.size > 0 && (
+        <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+          <div className="flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+            <p className="min-w-0 flex-1 text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">
+                {picked.size + 1} in the call:
+              </span>{" "}
+              you, {[...picked.values()].join(", ")}
+              {roomFull && <span className="block text-xs text-slate-500">That is the most for one call ({MAX_CALL_MEMBERS}).</span>}
+            </p>
+            <button type="button" onClick={() => setPicked(new Map())} className="btn-ghost btn-sm">
+              Clear
+            </button>
+            <button type="button" onClick={() => call([...picked.keys()])} className="btn-primary btn-sm">
+              <Icon name="video" size={15} />
+              {picked.size === 1 ? "Call" : "Start group call"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

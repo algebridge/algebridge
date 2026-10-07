@@ -1,5 +1,6 @@
 "use client";
 
+import { NotificationsCard } from "@/components/NotificationsCard";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -52,6 +53,8 @@ export default function MessagesPage() {
           {isTutor ? "All students" : "Find a tutor"}
         </Link>
       </div>
+
+      <NotificationsCard compact who={isTutor ? "a student" : "your tutor"} />
 
       {loadingList ? (
         <p className="text-center text-slate-400">Loading conversations…</p>
