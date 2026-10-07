@@ -2043,6 +2043,28 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("room: a clock on the window slides to the nearer side", SP.clearOfOpenings(-1.1, 0.38, "square") < SP.BACK_WINDOW.x - 0.75 - 0.1);
 }
 
+// --- calls: rooms for two to eight, and the notifications (src/lib/call-utils.ts, push-shared.ts) ----
+{
+  const C = await import("../call-utils.ts");
+  const P = await import("../push-shared.ts");
+  const id = (n: number) => `${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}`;
+  const [a, b, c] = [id(3), id(1), id(2)];
+  ok("calls: the same people make the same room, whoever calls", C.roomIdFor(a, b, c) === C.roomIdFor(c, a, b) && C.roomIdFor(a, b) === C.roomIdFor(b, a));
+  ok("calls: a room lists its members", JSON.stringify(C.participantsFromRoom(C.roomIdFor(a, b, c))) === JSON.stringify([b, c, a]));
+  ok("calls: one person, nine people, repeats and junk are not rooms", C.participantsFromRoom(a) === null && C.participantsFromRoom([1, 2, 3, 4, 5, 6, 7, 8, 9].map(id).join("--")) === null && C.participantsFromRoom(`${a}--${a}`) === null && C.participantsFromRoom(`${a}--x`) === null);
+  ok("calls: eight is a room", C.participantsFromRoom(C.roomIdFor(...[1, 2, 3, 4, 5, 6, 7, 8].map(id)))?.length === 8);
+  // Every pair connects once: exactly one of the two makes the offer.
+  const ids = [1, 2, 3, 4, 5].map(id);
+  ok("calls: in a group, each pair has one offerer", ids.every((x) => ids.every((y) => x === y || C.offersTo(x, y) !== C.offersTo(y, x))));
+  const m = P.messagePush(a, "Ms Rivera", "  Your quiz\n looks great. " + "x".repeat(200));
+  ok("push: a message says who wrote and opens the chat", m.title === "Ms Rivera sent you a message" && m.url === `/messages/${a}` && m.body.length <= 140 && !m.body.includes("\n"));
+  const r1 = P.ringPush(C.roomIdFor(a, b), "Ms Rivera", 2);
+  const r3 = P.ringPush(C.roomIdFor(a, b, c), "Ms Rivera", 3);
+  ok("push: a call rings and opens the room", r1.kind === "ring" && r1.title === "Ms Rivera is calling you" && r1.url === `/room/${C.roomIdFor(a, b)}` && r1.seconds === 30);
+  ok("push: a group call says so", r3.kind === "ring" && r3.title === "Ms Rivera is calling you and 1 other" && P.ringPush("x", "T", 5).title.endsWith("and 3 others"));
+  ok("push: no em dashes", ![m, r1, r3].some((x) => /[\u2014\u2013]/.test(x.title + x.body)));
+}
+
 // --- two devices: an old tab never uploads over a newer day's work ------------------
 {
   const Pg = await import("../progress.ts");

@@ -12,7 +12,6 @@ import { primaryHex, swatchHex, USABLE } from "@/data/furniture-art";
 import { units } from "@/data/curriculum";
 import { hueVars, unitHue } from "@/lib/hues";
 import { PieceShot } from "@/components/house/PieceShot";
-import { useHouseLive } from "@/components/house/useHouseLive";
 import { RoomShot } from "@/components/house/RoomShot";
 import {
   HOUSE_STYLES,
@@ -68,8 +67,6 @@ export interface HouseConsoleProps {
  */
 export function HouseConsole({ progress, onUpdate, unlimited = false, school = false, embedded = false }: HouseConsoleProps) {
   const [tab, setTab] = useState<Tab>("house");
-  // The shop photographs each piece as it would be in this student's house: their books, their trophies.
-  const live = useHouseLive(progress);
   /** A tab picked here is written to the address, so a link to another tab is always a change to follow. */
   function chooseTab(next: Tab) {
     setTab(next);
@@ -364,7 +361,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                 return (
                   <article key={item.id} style={hue ? hueVars(hue) : undefined} className="card shop-card flex flex-col overflow-hidden p-0">
                     <div className={`hue-tint flex h-32 items-center justify-center border-b ${earned ? "" : "grayscale opacity-60"}`}>
-                      <PieceShot itemId={item.id} color={colorOf(item.id, earned)} live={live} alt={item.name} className="h-full w-full" />
+                      <PieceShot itemId={item.id} color={colorOf(item.id, earned)} alt={item.name} className="h-full w-full" />
                     </div>
                     <div className="flex flex-1 flex-col p-3.5">
                       <p className="hue-ink text-[11px] font-semibold uppercase tracking-[0.08em]">
@@ -437,15 +434,14 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                           >
                             {/* Same anatomy as a house-style card: art on a
                                 band tinted in the piece's own colour, then
-                                the details. The piece is drawn live, so what
-                                moves in the house moves here too. */}
+                                the details. */}
                             <div
                               className={`flex h-28 items-center justify-center border-b border-slate-100 ${
                                 !owned && !affordable ? "opacity-45" : ""
                               }`}
                               style={{ background: `linear-gradient(180deg, #f8fafc, ${hex}1a)` }}
                             >
-                              <PieceShot itemId={item.id} color={color} live={live} alt={item.name} className="h-full w-full" />
+                              <PieceShot itemId={item.id} color={color} alt={item.name} className="h-full w-full" />
                             </div>
 
                             <div className="flex flex-1 flex-col p-3.5">
@@ -535,7 +531,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                         affordable ? "" : "opacity-45"
                       }`}
                     >
-                      <PieceShot itemId={item.id} live={live} alt={item.name} ornament className="h-full w-full" />
+                      <PieceShot itemId={item.id} alt={item.name} ornament className="h-full w-full" />
                     </div>
 
                     <div className="flex flex-1 flex-col p-3.5">

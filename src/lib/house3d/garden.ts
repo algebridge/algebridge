@@ -1206,7 +1206,8 @@ function room(c: Ctx, night: boolean): THREE.MeshStandardMaterial {
 }
 
 /** The back of the house: its walls in the style's material, the roof, the door, windows, gutter, and the tap with its hose. */
-function buildHouse(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
+/** The house seen from outside; `front` is its street side (no garden tap and hose there). */
+function buildHouse(c: Ctx, theme: RoomTheme, night: boolean, front = false): THREE.Group {
   const { k } = c;
   const g = new THREE.Group();
   g.userData.gardenPart = "house";
@@ -1334,8 +1335,8 @@ function buildHouse(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
       g.add(l);
     }
 
-  // The outside tap, and a hose coiled on its hanger.
-  const tapX = 2.35;
+  // The outside tap, and a hose coiled on its hanger (round the back).
+  const tapX = front ? 99 : 2.35;
   const brass = k.metal("brass", 0.35);
   g.add(k.cyl(0.018, 0.018, 0.12, brass, { at: [tapX, 0.5, z0 + 0.06], rot: [PI / 2, 0, 0], seg: 12 }));
   g.add(k.cyl(0.014, 0.014, 0.06, brass, { at: [tapX, 0.47, z0 + 0.11], seg: 12 }));
@@ -2809,3 +2810,303 @@ export const ORNAMENT_MODELS: Record<string, ItemModel> = {
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// The front of the house: the porch, the walk, the street
+// ---------------------------------------------------------------------------
+
+/** Where the front yard's parts stand, for the engine's camera and its taps. */
+export const FRONT_LAYOUT = {
+  /** The street's near edge (the curb), and how far the view reaches past it. */
+  curbZ: 6.55,
+  reach: 8.5,
+  porch: { x0: L.doorX - 2.15, x1: L.doorX + 2.15, depth: 2.2, top: 0.32 },
+  mailbox: { x: L.doorX + 1.35, z: 6.25 },
+} as const;
+
+/** House numbers on a little plaque by the door. */
+function numberPlaque(c: Ctx): THREE.Mesh {
+  const t = paint("plaque:52", 256, 128, (g, w, h) => {
+    g.fillStyle = "#1f2326";
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = "#b08d57";
+    g.lineWidth = 6;
+    g.strokeRect(8, 8, w - 16, h - 16);
+    g.fillStyle = "#d9b77a";
+    g.font = "bold 84px Georgia, serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText("52", w / 2, h / 2 + 4);
+  });
+  return c.k.box(0.32, 0.16, 0.02, c.k.print(t, { roughness: 0.4 }));
+}
+
+/** A porch swing on two chains, hung from the porch ceiling. */
+function porchSwing(c: Ctx, ceilingY: number): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  const wood = k.wood("#8a6545", { gloss: 0.3 });
+  const seatY = 0.62;
+  g.add(k.box(1.3, 0.05, 0.5, wood, { at: [0, seatY, 0], r: 0.008 }));
+  for (let i = 0; i < 7; i += 1) g.add(k.box(1.26, 0.07, 0.022, wood, { at: [0, seatY + 0.12 + i * 0.075, -0.24], rot: [-0.18, 0, 0], r: 0.006 }));
+  for (const sx of [-1, 1]) {
+    g.add(k.box(0.05, 0.28, 0.5, wood, { at: [sx * 0.66, seatY + 0.14, 0], r: 0.006 }));
+    g.add(k.box(0.06, 0.04, 0.52, wood, { at: [sx * 0.66, seatY + 0.3, 0.01], r: 0.008 }));
+  }
+  const chain = k.metal("black", 0.5);
+  for (const sx of [-1, 1])
+    for (const sz of [-0.2, 0.2]) g.add(rod(k, [sx * 0.66, seatY + 0.3, sz], [sx * 0.7, ceilingY, 0], 0.008, 0.008, chain, 6));
+  // A cushion and a throw pillow.
+  g.add(k.box(1.18, 0.07, 0.44, k.fabric("#c9d3c5"), { at: [0, seatY + 0.06, 0.01], r: 0.03 }));
+  g.add(k.box(0.34, 0.3, 0.1, k.fabric("#b55d48"), { at: [-0.4, seatY + 0.26, -0.15], rot: [-0.25, 0.2, 0], r: 0.05 }));
+  return g;
+}
+
+/** The mailbox at the curb. Its red flag is up while there are unread messages. */
+function mailbox(c: Ctx, unread: number): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  g.userData.gardenPart = "mailbox";
+  const post = k.wood("#6f5039", { gloss: 0.2 });
+  g.add(k.box(0.1, 1.05, 0.1, post, { at: [0, 0.525, 0], r: 0.008 }));
+  g.add(k.box(0.12, 0.05, 0.5, post, { at: [0, 1.06, 0], r: 0.008 }));
+  const body = k.metal("#2f3a40", 0.45);
+  g.add(k.box(0.22, 0.14, 0.48, body, { at: [0, 1.155, 0], r: 0.01 }));
+  g.add(k.cyl(0.11, 0.11, 0.48, body, { at: [0, 1.225, 0], rot: [PI / 2, 0, 0], seg: 24 }));
+  // The door at the street end.
+  g.add(k.cyl(0.112, 0.112, 0.01, body, { at: [0, 1.2, 0.243], rot: [PI / 2, 0, 0], seg: 24 }));
+  g.add(k.box(0.06, 0.02, 0.02, k.metal("steel"), { at: [0, 1.27, 0.255], r: 0.005 }));
+  // The flag: up for mail, down when all is read.
+  const flag = new THREE.Group();
+  const red = k.paint("#c0392b", 0.35);
+  flag.add(k.box(0.012, 0.26, 0.025, red, { at: [0, 0.13, 0] }));
+  flag.add(k.box(0.012, 0.08, 0.11, red, { at: [0, 0.22, 0.055] }));
+  flag.position.set(0.118, 1.16, -0.05);
+  flag.rotation.x = unread > 0 ? 0 : -PI / 2;
+  g.add(flag);
+  // House numbers on the side.
+  const n = numberPlaque(c);
+  n.scale.set(0.5, 0.5, 1);
+  n.rotation.y = PI / 2;
+  n.position.set(0.113, 1.15, 0.08);
+  g.add(n);
+  return g;
+}
+
+/** The covered porch across the front door: deck, steps, posts, rail, roof, a light and a swing. */
+function buildPorch(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  g.userData.gardenPart = "house";
+  const P = FRONT_LAYOUT.porch;
+  const z0 = L.wallZ + 0.15;
+  const z1 = z0 + P.depth;
+  const w = P.x1 - P.x0;
+  const cx = (P.x0 + P.x1) / 2;
+  const trim = k.paint(theme.trim, 0.45);
+  const deckM = k.wood("#9b7a5b", { gloss: 0.25 });
+  // Deck boards run out from the house, with dark gaps between them.
+  g.add(k.box(w, 0.06, P.depth, deckM, { at: [cx, P.top - 0.03, (z0 + z1) / 2] }));
+  const gap = k.paint("#3b2f26", 0.9);
+  for (let x = P.x0 + 0.14; x < P.x1 - 0.05; x += 0.14) g.add(k.box(0.008, 0.004, P.depth, gap, { at: [x, P.top + 0.001, (z0 + z1) / 2] }));
+  // The skirt under the deck, latticed.
+  const lattice = paint("lattice", 256, 128, (gg, W, H) => {
+    gg.fillStyle = "#2a241f";
+    gg.fillRect(0, 0, W, H);
+    gg.strokeStyle = "#e9e4da";
+    gg.lineWidth = 10;
+    for (let i = -H; i < W + H; i += 36) {
+      gg.beginPath();
+      gg.moveTo(i, 0);
+      gg.lineTo(i + H, H);
+      gg.stroke();
+      gg.beginPath();
+      gg.moveTo(i + H, 0);
+      gg.lineTo(i, H);
+      gg.stroke();
+    }
+  }, [w / 0.9, 1]);
+  g.add(k.box(w, P.top - 0.06, 0.03, k.print(lattice, { roughness: 0.8 }), { at: [cx, (P.top - 0.06) / 2, z1 - 0.02] }));
+  for (const sx of [P.x0, P.x1]) g.add(k.box(0.03, P.top - 0.06, P.depth, k.print(lattice, { roughness: 0.8 }), { at: [sx, (P.top - 0.06) / 2, (z0 + z1) / 2] }));
+  g.add(k.box(w + 0.04, 0.06, 0.05, trim, { at: [cx, P.top - 0.03, z1 + 0.01] }));
+  // Two steps down to the walk.
+  const stepM = k.wood("#8f6f52", { gloss: 0.2 });
+  g.add(k.box(1.5, 0.05, 0.32, stepM, { at: [L.doorX, 0.2, z1 + 0.16], r: 0.006 }));
+  g.add(k.box(1.5, 0.05, 0.32, stepM, { at: [L.doorX, 0.09, z1 + 0.46], r: 0.006 }));
+  for (const sx of [-1, 1]) g.add(k.box(0.05, 0.22, 0.62, trim, { at: [L.doorX + sx * 0.77, 0.11, z1 + 0.3] }));
+  // Posts: the two corners and two either side of the steps.
+  const ceilingY = 2.72;
+  const postXs = [P.x0 + 0.08, L.doorX - 0.85, L.doorX + 0.85, P.x1 - 0.08];
+  for (const x of postXs) {
+    g.add(k.box(0.15, ceilingY - P.top, 0.15, trim, { at: [x, P.top + (ceilingY - P.top) / 2, z1 - 0.1], r: 0.01 }));
+    g.add(k.box(0.21, 0.16, 0.21, trim, { at: [x, P.top + 0.08, z1 - 0.1], r: 0.01 }));
+    g.add(k.box(0.21, 0.1, 0.21, trim, { at: [x, ceilingY - 0.05, z1 - 0.1], r: 0.01 }));
+  }
+  // Rails and balusters between the posts, open at the steps, and down the two sides.
+  const runs: [number, number, number, number][] = [
+    [postXs[0], z1 - 0.1, postXs[1], z1 - 0.1],
+    [postXs[2], z1 - 0.1, postXs[3], z1 - 0.1],
+    [P.x0 + 0.08, z0 + 0.1, P.x0 + 0.08, z1 - 0.1],
+    [P.x1 - 0.08, z0 + 0.1, P.x1 - 0.08, z1 - 0.1],
+  ];
+  for (const [ax, az, bx, bz] of runs) {
+    const top = P.top + 0.9;
+    g.add(board(k, [ax, top, az], [bx, top, bz], 0.09, 0.05, trim, [0, 1, 0]));
+    g.add(board(k, [ax, P.top + 0.1, az], [bx, P.top + 0.1, bz], 0.06, 0.04, trim, [0, 1, 0]));
+    const len = Math.hypot(bx - ax, bz - az);
+    const n = Math.max(1, Math.floor(len / 0.13));
+    for (let i = 1; i < n; i += 1) {
+      const t = i / n;
+      g.add(k.box(0.035, 0.78, 0.035, trim, { at: [ax + (bx - ax) * t, P.top + 0.51, az + (bz - az) * t] }));
+    }
+  }
+  // The ceiling, painted the old porch blue, a beam along the front, and the roof over it.
+  g.add(k.box(w, 0.02, P.depth, k.paint("#cfe2e2", 0.6), { at: [cx, ceilingY + 0.01, (z0 + z1) / 2] }));
+  g.add(k.box(w + 0.1, 0.24, 0.16, trim, { at: [cx, ceilingY + 0.1, z1 - 0.1] }));
+  const roofM = printed(c, "porch:roof", () => paint("shingles", 512, 512, drawShingles, [(w + 0.5) / 1.36, (P.depth + 0.5) / 1.12]), 0.86, theme.id === "treehouse" ? "#8b6a4a" : "#6e645c");
+  const fall = 0.26;
+  const roofLen = Math.hypot(P.depth + 0.45, fall);
+  const roof = k.box(w + 0.5, 0.1, roofLen, roofM, { at: [cx, ceilingY + 0.32, z0 + (P.depth + 0.45) / 2] });
+  roof.rotation.x = Math.atan2(fall, P.depth + 0.45);
+  g.add(roof);
+  g.add(k.box(w + 0.52, 0.16, 0.04, trim, { at: [cx, ceilingY + 0.17, z1 + 0.45] }));
+  // A hanging lantern by the door, lit at night.
+  const metal = k.metal("black");
+  const lx = L.doorX + 0.95;
+  const lz = z0 + 0.7;
+  g.add(rod(k, [lx, ceilingY, lz], [lx, ceilingY - 0.38, lz], 0.006, 0.006, metal, 6));
+  g.add(k.box(0.18, 0.24, 0.18, k.glass("#efe6cf", 0.35), { at: [lx, ceilingY - 0.52, lz] }));
+  g.add(k.cone(0.15, 0.09, metal, { at: [lx, ceilingY - 0.36, lz], rot: [0, PI / 4, 0], seg: 4 }));
+  g.add(k.sphere(0.04, k.glow("#ffd9a0", night, 3.5), { at: [lx, ceilingY - 0.52, lz], seg: 14 }));
+  if (night) {
+    const l = new THREE.PointLight("#ffcf8f", 9, 8, 2);
+    l.position.set(lx, ceilingY - 0.6, lz + 0.2);
+    g.add(l);
+  }
+  // The swing on the left, two pots of ferns by the steps, a plaque with the number.
+  const swing = porchSwing(c, ceilingY);
+  swing.position.set(P.x0 + 1.05, P.top, z0 + 1.05);
+  g.add(swing);
+  for (const sx of [-1, 1]) {
+    const pot = k.group([
+      k.lathe([[0, 0], [0.16, 0], [0.2, 0.34], [0.22, 0.36], [0.22, 0.4], [0.2, 0.4]], k.stone("terracotta"), { seg: 24 }),
+      k.sphere(1, foliage(c, "#4f7a3c", 0.3), { at: [0, 0.6, 0], scale: [0.36, 0.3, 0.36], seg: 18 }),
+      k.sphere(1, foliage(c, "#5f8a46", 0.25), { at: [0.06, 0.74, 0.03], scale: [0.26, 0.22, 0.26], seg: 16 }),
+    ]);
+    pot.position.set(L.doorX + sx * 1.15, P.top, z1 - 0.35);
+    g.add(pot);
+  }
+  const plaque = numberPlaque(c);
+  plaque.position.set(L.doorX - 0.85, 1.75, L.wallZ + 0.17);
+  g.add(plaque);
+  return g;
+}
+
+/** A white picket fence along the front, with the gate open on the walk. */
+function picketFence(c: Ctx, z: number): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  g.userData.gardenPart = "fence";
+  const white = k.paint("#f4f2ec", 0.5);
+  const gapX0 = L.doorX - 0.75;
+  const gapX1 = L.doorX + 0.75;
+  for (const [a, b] of [
+    [-L.half, gapX0],
+    [gapX1, L.half],
+  ]) {
+    g.add(k.box(b - a, 0.06, 0.03, white, { at: [(a + b) / 2, 0.28, z - 0.03] }));
+    g.add(k.box(b - a, 0.06, 0.03, white, { at: [(a + b) / 2, 0.78, z - 0.03] }));
+    for (let x = a + 0.06; x < b - 0.03; x += 0.16) {
+      g.add(k.box(0.075, 0.95, 0.022, white, { at: [x, 0.475, z] }));
+      g.add(k.cone(0.053, 0.08, white, { at: [x, 0.99, z], rot: [0, PI / 4, 0], seg: 4 }));
+    }
+    for (const x of [a, b]) g.add(k.box(0.1, 1.08, 0.1, white, { at: [x, 0.54, z - 0.02], r: 0.01 }));
+  }
+  // The gate, swung open into the yard.
+  const gate = new THREE.Group();
+  gate.add(k.box(1.36, 0.06, 0.03, white, { at: [0.68, 0.28, 0] }));
+  gate.add(k.box(1.36, 0.06, 0.03, white, { at: [0.68, 0.78, 0] }));
+  for (let x = 0.06; x < 1.36; x += 0.16) gate.add(k.box(0.075, 0.9, 0.022, white, { at: [x, 0.47, 0.02] }));
+  gate.position.set(gapX0 + 0.05, 0, z);
+  gate.rotation.y = 1.25;
+  g.add(gate);
+  return g;
+}
+
+/**
+ * The front of the house, from the street: the house's face in its style,
+ * a covered porch with a swing and a lantern, the walk, a picket fence, the
+ * sidewalk and the street. Two parts do something: the mailbox (its flag up
+ * while messages are unread) opens the messages, and the house takes you in.
+ */
+export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unread: number }): { group: THREE.Group; dispose(): void } {
+  const theme = themeFor(opts.styleId);
+  const [group, own] = k.collect(() => {
+    const c: Ctx = { k, cache: new Map() };
+    const g = new THREE.Group();
+    g.name = "front";
+    g.add(buildGround(c, opts.night));
+    g.add(buildHouse(c, theme, opts.night, true));
+    g.add(buildPorch(c, theme, opts.night));
+    const F = FRONT_LAYOUT;
+    const z1 = L.wallZ + 0.15 + F.porch.depth;
+    // The walk: big pavers from the steps to the sidewalk.
+    const paver = k.stone("concrete");
+    for (let z = z1 + 0.9; z < 5.25; z += 0.62) g.add(k.box(1.2, 0.04, 0.56, paver, { at: [L.doorX, 0.02, z], r: 0.01 }));
+    // Shrubs along the front of the house and the porch.
+    const shrubs: [number, number, number][] = [
+      [-5.3, -6.5, 0.55],
+      [-4.2, -6.4, 0.5],
+      [-2.0, -6.5, 0.45],
+      [4.3, -6.4, 0.5],
+      [5.4, -6.5, 0.55],
+      [F.porch.x0 - 0.45, z1 - 0.6, 0.5],
+      [F.porch.x1 + 0.45, z1 - 0.6, 0.5],
+    ];
+    for (const [x, z, r] of shrubs) {
+      g.add(k.sphere(1, foliage(c, "#4a6a39", r), { at: [x, r * 0.7, z], scale: [r, r * 0.8, r * 0.9], seg: 18 }));
+      g.add(k.sphere(1, foliage(c, "#5a7c42", r * 0.7), { at: [x + 0.1, r * 1.1, z + 0.05], scale: [r * 0.7, r * 0.55, r * 0.7], seg: 14 }));
+    }
+    // A shade tree in the front lawn, and the fence.
+    g.add(farTree(c, [-4.4, 0, 0.6], 6.8, 2.5, "#55803d", 31));
+    g.add(picketFence(c, 4.75));
+    // Sidewalk, curb and street, running past either way.
+    const conc = k.stone("concrete");
+    g.add(k.box(80, 0.05, 1.25, conc, { at: [0, 0.025, 5.75] }));
+    const joint = k.paint("#8d8a85", 0.9);
+    for (let x = -39; x <= 39; x += 1.5) g.add(k.box(0.012, 0.004, 1.25, joint, { at: [x, 0.051, 5.75] }));
+    g.add(k.box(80, 0.16, 0.18, conc, { at: [0, 0.03, F.curbZ] }));
+    const asphalt = k.paint("#3a3c3f", 0.92);
+    g.add(k.box(80, 0.02, 10, asphalt, { at: [0, -0.005, F.curbZ + 5.09] }));
+    const yellow = k.paint("#d9b23a", 0.6);
+    for (let x = -39; x <= 39; x += 4) g.add(k.box(2, 0.004, 0.12, yellow, { at: [x, 0.007, F.curbZ + 5] }));
+    g.add(k.box(80, 0.16, 0.18, conc, { at: [0, 0.03, F.curbZ + 10.1] }));
+    // The mailbox at the curb.
+    const box = mailbox(c, opts.unread);
+    box.position.set(F.mailbox.x, 0, F.mailbox.z);
+    box.rotation.y = 0;
+    g.add(box);
+    // A street lamp, lit at night.
+    const lampPole = k.metal("black", 0.5);
+    const sl = new THREE.Group();
+    sl.add(k.cyl(0.06, 0.09, 4.3, lampPole, { at: [0, 2.15, 0], seg: 12 }));
+    sl.add(board(k, [0, 4.2, 0], [0, 4.25, 0.9], 0.06, 0.06, lampPole));
+    sl.add(k.box(0.34, 0.12, 0.22, lampPole, { at: [0, 4.18, 1.0], r: 0.02 }));
+    sl.add(k.box(0.28, 0.02, 0.17, k.glow("#ffe2a8", opts.night, 4), { at: [0, 4.11, 1.0] }));
+    sl.position.set(-5.6, 0, F.curbZ - 0.25);
+    g.add(sl);
+    if (opts.night) {
+      const l = new THREE.PointLight("#ffd79a", 30, 16, 2);
+      l.position.set(-5.6, 3.9, F.curbZ + 0.75);
+      g.add(l);
+    }
+    if (opts.night) g.add(fireflies(k));
+    return g;
+  });
+  return {
+    group,
+    dispose() {
+      for (const d of own) d.dispose();
+    },
+  };
+}

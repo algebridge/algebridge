@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
+import { compileQuietly } from "./compile";
 import { liveSlice, watchReads } from "./live";
 import { modelFor, ornamentModelFor } from "./registry";
 import { DEFAULT_LIVE, type LiveData } from "./types";
@@ -24,7 +25,7 @@ export interface ShotOptions {
 }
 
 class Studio {
-  private renderer: THREE.WebGLRenderer;
+  readonly renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(28, 4 / 3, 0.05, 50);
   private kit: Kit;
@@ -41,6 +42,8 @@ class Studio {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setClearColor(0x000000, 0);
+    // Shaders compile in the background (compileQuietly below), never by stalling the page.
+    this.renderer.debug.checkShaderErrors = false;
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.envTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
     this.scene.environment = this.envTarget.texture;
@@ -62,7 +65,7 @@ class Studio {
     this.scene.add(this.ground, this.holder);
   }
 
-  shoot(itemId: string, o: ShotOptions): { url: string; reads: Set<string> } {
+  async shoot(itemId: string, o: ShotOptions): Promise<{ url: string; reads: Set<string> }> {
     const w = o.width ?? 320;
     const h = o.height ?? 240;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -105,8 +108,11 @@ class Studio {
     sc.bottom = -r;
     this.key.position.set(centre.x - 2, centre.y + 8, centre.z + 3);
     sc.updateProjectionMatrix();
+    await compileQuietly(this.renderer, this.scene, this.camera);
     this.renderer.render(this.scene, this.camera);
-    const url = this.renderer.domElement.toDataURL("image/png");
+    // Encoded off the main thread; the picture is a blob URL.
+    const blob = await new Promise<Blob | null>((r) => this.renderer.domElement.toBlob(r, "image/png"));
+    const url = blob ? URL.createObjectURL(blob) : this.renderer.domElement.toDataURL("image/png");
     this.holder.remove(obj);
     for (const d of own) d.dispose();
     return { url, reads };
@@ -118,6 +124,15 @@ const shots = new Map<string, string>();
 /** What each model read from the live data the first time it was photographed: only those fields key its picture. */
 const readsOf = new Map<string, Set<string>>();
 let queue: Promise<unknown> = Promise.resolve();
+
+/** Waits for a quiet moment, so pictures never compete with the page (or the room) for the main thread. */
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (ric) ric(() => resolve(), { timeout: 600 });
+    else setTimeout(resolve, 16);
+  });
+}
 
 function shotKey(itemId: string, o: ShotOptions): string {
   const model = `${o.ornament ? "ornament:" : ""}${itemId}`;
@@ -131,23 +146,18 @@ export function pieceShot(itemId: string, o: ShotOptions = {}): Promise<string> 
   const have = shots.get(shotKey(itemId, o));
   if (have) return Promise.resolve(have);
   const next = queue.then(
-    () =>
-      new Promise<string>((resolve) => {
-        // Taken while waiting in line, perhaps.
-        const ready = shots.get(shotKey(itemId, o));
-        if (ready) {
-          resolve(ready);
-          return;
-        }
-        // One render per frame, so a long shop fills in without freezing the page.
-        requestAnimationFrame(() => {
-          studio ??= new Studio();
-          const { url, reads } = studio.shoot(itemId, o);
-          readsOf.set(`${o.ornament ? "ornament:" : ""}${itemId}`, reads);
-          shots.set(shotKey(itemId, o), url);
-          resolve(url);
-        });
-      })
+    async () => {
+      // Taken while waiting in line, perhaps.
+      const ready = shots.get(shotKey(itemId, o));
+      if (ready) return ready;
+      // One picture at a time, in the page's quiet moments, so a long shop fills in without freezing anything.
+      await idle();
+      studio ??= new Studio();
+      const { url, reads } = await studio.shoot(itemId, o);
+      readsOf.set(`${o.ornament ? "ornament:" : ""}${itemId}`, reads);
+      shots.set(shotKey(itemId, o), url);
+      return url;
+    }
   );
   queue = next.catch(() => undefined);
   return next;
@@ -163,36 +173,37 @@ export function roomShot(styleId: string, o: { width?: number; height?: number }
   const key = `room:${styleId}:${w}x${h}`;
   const have = shots.get(key);
   if (have) return Promise.resolve(have);
-  const next = queue.then(
-    () =>
-      new Promise<string>((resolve) => {
-        requestAnimationFrame(async () => {
-          const { HouseView } = await import("./engine");
-          const canvas = document.createElement("canvas");
-          const view = new HouseView(canvas);
-          view.resize(w, h);
-          view.setRoom(styleId, "down", false);
-          view.setPieces(
-            [
-              ["rug", 50, 62],
-              ["desk", 22, 22],
-              ["chair", 24, 40],
-              ["bookshelf", 80, 18],
-              ["plant", 92, 60],
-              ["cloud-couch", 58, 70],
-              ["lamp", 34, 20],
-            ].map(([itemId, x, y], i) => ({ instanceId: `s${i}`, itemId: itemId as string, x: x as number, y: y as number, surface: "floor" as const, color: null, on: true }))
-          );
-          const url = view.snapshot();
-          view.dispose();
-          shots.set(key, url);
-          resolve(url);
-        });
-      })
-  );
+  const next = queue.then(async () => {
+    await idle();
+    studio ??= new Studio();
+    // One furnished room, on the studio's own renderer, restyled for each card.
+    if (!roomView) {
+      const { HouseView } = await import("./engine");
+      roomView = new HouseView(document.createElement("canvas"), { renderer: studio.renderer });
+      roomView.setPieces(
+        [
+          ["rug", 50, 62],
+          ["desk", 22, 22],
+          ["chair", 24, 40],
+          ["bookshelf", 80, 18],
+          ["plant", 92, 60],
+          ["cloud-couch", 58, 70],
+          ["lamp", 34, 20],
+        ].map(([itemId, x, y], i) => ({ instanceId: `s${i}`, itemId: itemId as string, x: x as number, y: y as number, surface: "floor" as const, color: null, on: true }))
+      );
+    }
+    studio.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    roomView.resize(w, h);
+    roomView.setRoom(styleId, "down", false);
+    const url = await roomView.snapshot();
+    shots.set(key, url);
+    return url;
+  });
   queue = next.catch(() => undefined);
   return next;
 }
+
+let roomView: import("./engine").HouseView | null = null;
 
 /** A picture already taken, if there is one, for the first paint. */
 export function cachedShot(itemId: string, o: ShotOptions = {}): string | undefined {

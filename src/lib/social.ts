@@ -1,5 +1,6 @@
 "use client";
 
+import { sendPush } from "@/lib/push";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { guardFreeText, isBlocked, readBlocked, sendErrorText } from "@/lib/safety";
 import { schoolModeNow } from "@/lib/school-mode";
@@ -404,6 +405,8 @@ export async function sendMessage(
     .single();
   // The database's refusals are Postgres's words; the student gets plain ones.
   if (error || !data) return { message: null, error: sendErrorText(error ? `${error.message} ${error.code ?? ""}` : null) };
+  // Their phone or computer gets it too, even with AlgeBridge closed.
+  void sendPush({ kind: "message", messageId: data.id });
   return { message: rowToMessage(data), error: null };
 }
 
@@ -819,6 +822,8 @@ export function ringUser(targetId: string, payload: RingPayload): void {
       }
     });
   })();
+  // And their phone or computer rings, even with AlgeBridge closed.
+  void sendPush({ kind: "ring", roomId: payload.roomId, targetId });
 }
 
 /** Tell the caller their call was declined. */

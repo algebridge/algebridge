@@ -11,8 +11,9 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { GardenState } from "@/lib/garden";
-import { buildGarden, GARDEN_LAYOUT } from "./garden";
+import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT } from "./garden";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
+import { compileQuietly } from "./compile";
 import { liveSlice, watchReads } from "./live";
 import { modelFor, ornamentModelFor } from "./registry";
 import { buildRoom, viewTexture, type RoomParts } from "./room";
@@ -23,7 +24,7 @@ import { DEFAULT_LIVE, type ItemModel, type LiveData } from "./types";
 export type Mount = "floor" | "wall" | "ceiling";
 
 /** A part of the garden itself that was tapped. */
-export type GardenPick = { kind: "bed"; unit: number } | { kind: "sprinkler" } | { kind: "tree" } | { kind: "house" };
+export type GardenPick = { kind: "bed"; unit: number } | { kind: "sprinkler" } | { kind: "tree" } | { kind: "house" } | { kind: "mailbox" };
 
 /** Ornaments stand within this many metres of the yard's middle (lib/dollhouse.ts PAD_LIMIT). */
 const YARD = 6.4;
@@ -32,6 +33,7 @@ const YARD = 6.4;
 const VIEWS = {
   room: { azimuth: 0.62, polar: 1.04, target: [0, 0.95, -0.15], azimuthRange: [0.12, 1.05], polarRange: [0.82, 1.25] },
   garden: { azimuth: 0.36, polar: 1.0, target: [0, 0.9, -1.2], azimuthRange: [-1.05, 1.05], polarRange: [0.62, 1.3] },
+  front: { azimuth: 0.26, polar: 1.12, target: [0.9, 1.4, -1.6], azimuthRange: [-1.0, 1.0], polarRange: [0.7, 1.32] },
 } as const;
 
 type Mode = keyof typeof VIEWS;
@@ -58,6 +60,16 @@ export interface ScenePiece {
 export function mountOf(model: ItemModel): Mount {
   return model.ceiling ? "ceiling" : model.wall ? "wall" : "floor";
 }
+
+interface SceneLight {
+  pos: THREE.Vector3;
+  color: THREE.Color;
+  intensity: number;
+  distance: number;
+}
+
+/** How many places to keep built. */
+const KEEP_BUILT = 8;
 
 interface Placed {
   piece: ScenePiece;
@@ -95,6 +107,11 @@ export class HouseView {
   readonly camera: THREE.PerspectiveCamera;
   private kit: Kit;
   private room: RoomParts | null = null;
+  /**
+   * The last few places built (rooms, the garden, the porch), kept whole:
+   * going back to one is instant, with nothing to rebuild or compile.
+   */
+  private built = new Map<string, { group: THREE.Object3D; dispose(): void; lights: SceneLight[]; room?: RoomParts }>();
   private roomKey = "";
   /** The room's window shape: hung pieces keep clear of the window and the door. */
   private windowShape: WindowShape = "square";
@@ -104,7 +121,17 @@ export class HouseView {
   private sun: THREE.DirectionalLight;
   private moon: THREE.DirectionalLight;
   private hemi: THREE.HemisphereLight;
-  private lamps: THREE.PointLight[] = [];
+  /**
+   * Every scene has exactly MAX_LAMPS point lights, the unused ones dark.
+   * three.js compiles a material once per number of lights, so a fixed
+   * number means day, night, a lamp switched on, the garden or the porch
+   * never compile anything again.
+   */
+  private pool: THREE.PointLight[] = [];
+  /** Lights the room, garden or porch asked for (a porch lantern, lit windows), taken out of their scene. */
+  private sceneLights: SceneLight[] = [];
+  /** Called when a new scene starts or finishes compiling, for a "getting ready" note. */
+  onBusy: (busy: boolean) => void = () => undefined;
   private blob: THREE.Texture;
   private blobMat: THREE.MeshBasicMaterial;
   private selection: THREE.Box3Helper | null = null;
@@ -122,9 +149,25 @@ export class HouseView {
   private mode: Mode = "room";
   private garden: { group: THREE.Group; own: (THREE.Material | THREE.Texture)[]; dispose(): void } | null = null;
   private gardenKey = "";
+  /** New materials wait to be compiled off the main thread before they are drawn (see step). */
+  private needsCompile = true;
+  private compiling = false;
+  private ownsRenderer = true;
+  private drawnOnce: () => void = () => undefined;
+  /** Resolves once the first frame is on the canvas. */
+  readonly firstFrame: Promise<void>;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+  /**
+   * `renderer`: draw with one that already exists (the picture studio shares
+   * one, so its shaders are compiled once for every picture).
+   */
+  constructor(canvas: HTMLCanvasElement, opts: { renderer?: THREE.WebGLRenderer } = {}) {
+    this.firstFrame = new Promise((resolve) => (this.drawnOnce = resolve));
+    this.ownsRenderer = !opts.renderer;
+    this.renderer = opts.renderer ?? new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+    // Asking whether each shader compiled stalls the page until the GPU is done
+    // (seconds on a first visit): the browser compiles them in parallel instead.
+    this.renderer.debug.checkShaderErrors = false;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
@@ -168,6 +211,12 @@ export class HouseView {
     this.moon.position.set(-7, 6, 2);
     this.scene.add(this.moon);
 
+    for (let i = 0; i < MAX_LAMPS; i += 1) {
+      const l = new THREE.PointLight("#ffffff", 0, 4, 2);
+      this.pool.push(l);
+      this.scene.add(l);
+    }
+
     this.blob = blobTexture();
     this.blobMat = new THREE.MeshBasicMaterial({ map: this.blob, transparent: true, depthWrite: false, toneMapped: false });
   }
@@ -184,6 +233,24 @@ export class HouseView {
   }
 
   private step(): void {
+    // New materials (a first visit, a piece just put in) compile in the
+    // background first; the last frame stays on screen meanwhile.
+    if (this.needsCompile) {
+      if (this.compiling) return;
+      this.compiling = true;
+      this.placeCamera();
+      // A note after a moment, in case this takes a while (a first visit on a slow computer).
+      const note = window.setTimeout(() => this.onBusy(true), 400);
+      const limit = new Promise((r) => window.setTimeout(r, 8000));
+      Promise.race([compileQuietly(this.renderer, this.scene, this.camera), limit]).then(() => {
+        window.clearTimeout(note);
+        this.onBusy(false);
+        this.compiling = false;
+        this.needsCompile = false;
+        this.invalidate();
+      });
+      return;
+    }
     // Ease the camera; keep drawing only while it is still moving.
     const o = this.orbit;
     const k = this.reduceMotion ? 1 : 0.22;
@@ -194,6 +261,7 @@ export class HouseView {
     const moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
     this.placeCamera();
     this.renderer.render(this.scene, this.camera);
+    this.drawnOnce();
     if (moving) this.invalidate();
   }
 
@@ -218,7 +286,9 @@ export class HouseView {
   private corners(): THREE.Vector3[] {
     const out: THREE.Vector3[] = [];
     const b =
-      this.mode === "garden"
+      this.mode === "front"
+        ? { x: [-4.6, 6.2], y: [0, 2.2], z: [GARDEN_LAYOUT.wallZ + 0.4, FRONT_LAYOUT.curbZ + 0.2] }
+        : this.mode === "garden"
         ? { x: [-GARDEN_LAYOUT.half, GARDEN_LAYOUT.half], y: [0, 2.4], z: [GARDEN_LAYOUT.wallZ, GARDEN_LAYOUT.half] }
         : { x: [-ROOM_W / 2 - 0.15, ROOM_W / 2], y: [-0.2, ROOM_H], z: [-ROOM_D / 2 - 0.15, ROOM_D / 2] };
     for (const x of b.x) for (const y of b.y) for (const z of b.z) out.push(new THREE.Vector3(x, y, z));
@@ -251,7 +321,7 @@ export class HouseView {
     this.orbit.polar = saved.polar;
     this.orbit.distance = snap ? hi / this.goal.zoom : saved.distance;
     // Outdoors the sky is a dome 120 m round.
-    this.camera.far = this.mode === "garden" ? 320 : 80;
+    this.camera.far = this.mode !== "room" ? 320 : 80;
     this.camera.updateProjectionMatrix();
     this.invalidate();
   }
@@ -263,16 +333,13 @@ export class HouseView {
     for (const p of [...this.placed.values()]) this.removePlaced(p);
     this.selectedId = null;
     this.refreshSelection();
-    if (mode === "garden") {
-      if (this.room) {
-        this.scene.remove(this.room.group);
-        this.room.dispose();
-        this.room = null;
-      }
-      this.roomKey = "";
-    } else {
-      this.dropGarden();
+    // The last place leaves the stage (it stays built); setRoom or show* puts the next one on.
+    if (this.room) {
+      this.scene.remove(this.room.group);
+      this.room = null;
     }
+    this.roomKey = "";
+    this.dropGarden();
     const v = VIEWS[mode];
     this.goal = { azimuth: v.azimuth, polar: v.polar, zoom: 1 };
     this.orbit.azimuth = v.azimuth;
@@ -285,7 +352,7 @@ export class HouseView {
   /** The sun: low through the side window indoors, high over the yard outside. */
   private placeSun(): void {
     const sc = this.sun.shadow.camera;
-    if (this.mode === "garden") {
+    if (this.mode !== "room") {
       // An afternoon sun from the south-west, over the house's shoulder.
       this.sun.position.set(-11, 14, 9);
       this.sun.target.position.set(0, 0, -1.5);
@@ -316,11 +383,14 @@ export class HouseView {
     this.setNightLight(night);
     if (key === this.roomKey) return;
     this.roomKey = key;
-    if (this.room) {
-      this.scene.remove(this.room.group);
-      this.room.dispose();
-    }
-    this.room = buildRoom(this.kit, themeFor(styleId), floor, night);
+    if (this.room) this.scene.remove(this.room.group);
+    const b = this.keep(`room:${key}`, () => {
+      const r = buildRoom(this.kit, themeFor(styleId), floor, night);
+      return { group: r.group, dispose: () => r.dispose(), lights: this.takeLights(r.group), room: r };
+    });
+    this.room = b.room!;
+    this.sceneLights = b.lights;
+    this.updateLamps();
     this.scene.add(this.room.group);
     // Another house has other windows: hung pieces find their wall again.
     this.windowShape = themeFor(styleId).window;
@@ -331,7 +401,7 @@ export class HouseView {
 
   private setNightLight(night: boolean): void {
     this.night = night;
-    const out = this.mode === "garden";
+    const out = this.mode !== "room";
     this.sun.intensity = night ? 0 : out ? 3.0 : 2.6;
     this.moon.intensity = night ? (out ? 0.55 : 0.35) : 0;
     this.hemi.intensity = night ? (out ? 0.14 : 0.05) : out ? 0.75 : 0.45;
@@ -358,21 +428,64 @@ export class HouseView {
       this.dropGarden();
       this.gardenKey = key;
       // The garden keeps its own pictures and frees them itself.
-      const made = buildGarden(this.kit, state, { night, styleId });
-      this.garden = { group: made.group, own: [], dispose: made.dispose };
-      this.scene.add(made.group);
+      this.showOutdoors(`garden:${key}`, () => buildGarden(this.kit, state, { night, styleId }));
     }
     this.setNightLight(night);
     this.setPieces(ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, y: o.z, surface: "floor" as const, color: null, on: o.on ?? true, ornament: true })));
   }
 
+  /** The front of the house from the street: the porch, and the mailbox with its flag up while messages are unread. */
+  showFront(styleId: string, night: boolean, unread: number): void {
+    this.enter("front");
+    const key = `front:${styleId}:${night}:${unread > 0}`;
+    if (key !== this.gardenKey) {
+      this.dropGarden();
+      this.gardenKey = key;
+      this.showOutdoors(key, () => buildFront(this.kit, { night, styleId, unread }));
+    }
+    this.setNightLight(night);
+    this.setPieces([]);
+  }
+
+  private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void }): void {
+    const b = this.keep(key, () => {
+      const made = make();
+      return { group: made.group, dispose: made.dispose, lights: this.takeLights(made.group) };
+    });
+    this.garden = { group: b.group as THREE.Group, own: [], dispose: () => undefined };
+    this.sceneLights = b.lights;
+    this.updateLamps();
+    this.scene.add(b.group);
+  }
+
+  /** The garden or porch leaves the stage; it stays built (see built). */
   private dropGarden(): void {
     if (!this.garden) return;
     this.scene.remove(this.garden.group);
-    this.garden.dispose();
-    for (const d of this.garden.own) d.dispose();
     this.garden = null;
     this.gardenKey = "";
+    this.sceneLights = [];
+  }
+
+  /** A place from the built ones, or built now (and then it has shaders to compile). */
+  private keep(key: string, make: () => { group: THREE.Object3D; dispose(): void; lights: SceneLight[]; room?: RoomParts }) {
+    let b = this.built.get(key);
+    if (b) {
+      this.built.delete(key);
+      this.built.set(key, b);
+      return b;
+    }
+    b = make();
+    this.needsCompile = true;
+    this.built.set(key, b);
+    // The oldest go, never the one being shown.
+    for (const [k, old] of this.built) {
+      if (this.built.size <= KEEP_BUILT) break;
+      if (old === b) continue;
+      old.dispose();
+      this.built.delete(k);
+    }
+    return b;
   }
 
   /** Where an ornament stands now, in metres east and north, for saving after a drag. */
@@ -393,6 +506,7 @@ export class HouseView {
       if (o.userData.gardenPart === "sprinkler") return { kind: "sprinkler" };
       if (o.userData.gardenPart === "tree") return { kind: "tree" };
       if (o.userData.gardenPart === "house") return { kind: "house" };
+      if (o.userData.gardenPart === "mailbox") return { kind: "mailbox" };
       o = o.parent;
     }
     return null;
@@ -429,6 +543,7 @@ export class HouseView {
   }
 
   private build(piece: ScenePiece): Placed {
+    this.needsCompile = true;
     const model = piece.ornament ? ornamentModelFor(piece.itemId) : modelFor(piece.itemId);
     const color = piece.color ? (SWATCH_HEX[piece.color] ?? null) : null;
     // Note what the model reads from the live data, so a new minute rebuilds the clock and nothing else.
@@ -498,17 +613,42 @@ export class HouseView {
 
   /** Real light from the pieces that give it, nearest the middle of the room first. */
   private updateLamps(): void {
-    for (const l of this.lamps) this.scene.remove(l);
-    this.lamps = [];
     const lit = [...this.placed.values()].filter((p) => p.piece.on && p.model.light);
     lit.sort((a, b) => a.root.position.lengthSq() - b.root.position.lengthSq());
-    for (const p of lit.slice(0, MAX_LAMPS)) {
-      const spec = p.model.light!;
-      const l = new THREE.PointLight(spec.color, spec.intensity * (this.night ? 1 : 0.35), spec.distance ?? 4, 2);
-      l.position.set(p.root.position.x + spec.at[0], p.root.position.y + spec.at[1], p.root.position.z + spec.at[2]);
-      this.scene.add(l);
-      this.lamps.push(l);
-    }
+    const want = [
+      ...this.sceneLights,
+      ...lit.map((p) => {
+        const spec = p.model.light!;
+        return {
+          pos: new THREE.Vector3(p.root.position.x + spec.at[0], p.root.position.y + spec.at[1], p.root.position.z + spec.at[2]),
+          color: new THREE.Color(spec.color),
+          intensity: spec.intensity * (this.night ? 1 : 0.35),
+          distance: spec.distance ?? 4,
+        };
+      }),
+    ];
+    this.pool.forEach((l, i) => {
+      const w = want[i];
+      l.intensity = w ? w.intensity : 0;
+      if (!w) return;
+      l.position.copy(w.pos);
+      l.color.copy(w.color);
+      l.distance = w.distance;
+    });
+  }
+
+  /** Takes a new scene's own point lights out of it, to be lit by the pool instead (see pool). */
+  private takeLights(group: THREE.Object3D): SceneLight[] {
+    const found: THREE.PointLight[] = [];
+    group.updateMatrixWorld(true);
+    group.traverse((o) => {
+      if ((o as THREE.PointLight).isPointLight) found.push(o as THREE.PointLight);
+    });
+    // The brightest first, if there are more than the pool holds.
+    found.sort((a, b) => b.intensity - a.intensity);
+    const lights = found.map((l) => ({ pos: l.getWorldPosition(new THREE.Vector3()), color: l.color.clone(), intensity: l.intensity, distance: l.distance }));
+    for (const l of found) l.parent?.remove(l);
+    return lights;
   }
 
   // --- Selecting and dragging -----------------------------------------------
@@ -637,22 +777,29 @@ export class HouseView {
     return { x: r.left + ((c.x + 1) / 2) * r.width, y: r.top + ((1 - c.y) / 2) * r.height };
   }
 
-  /** A still picture of the view, for sharing or a card. */
-  snapshot(): string {
-    this.step();
-    return this.renderer.domElement.toDataURL("image/png");
+  /** A still picture of the view, for a card: compiled, drawn, and encoded without holding up the page. */
+  async snapshot(): Promise<string> {
+    this.placeCamera();
+    await compileQuietly(this.renderer, this.scene, this.camera);
+    this.needsCompile = false;
+    this.placeCamera();
+    this.renderer.render(this.scene, this.camera);
+    const blob = await new Promise<Blob | null>((r) => this.renderer.domElement.toBlob(r, "image/png"));
+    return blob ? URL.createObjectURL(blob) : this.renderer.domElement.toDataURL("image/png");
   }
 
   dispose(): void {
     this.disposed = true;
     if (this.frame) cancelAnimationFrame(this.frame);
     for (const p of [...this.placed.values()]) this.removePlaced(p);
-    this.room?.dispose();
     this.dropGarden();
+    for (const b of this.built.values()) b.dispose();
+    this.built.clear();
+    this.room = null;
     this.blob.dispose();
     this.blobMat.dispose();
     this.envTarget.dispose();
     this.kit.dispose();
-    this.renderer.dispose();
+    if (this.ownsRenderer) this.renderer.dispose();
   }
 }
