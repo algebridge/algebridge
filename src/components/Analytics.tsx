@@ -60,6 +60,29 @@ function sendBeacon(body: Record<string, unknown>): void {
   );
 }
 
+/**
+ * One button click, counted in AlgeBridge's own daily totals like a page view
+ * and under the same rule (never framed, on a bare route, or with Global
+ * Privacy Control). `label` is short kebab-case, like "tour-start"; the admin
+ * console's Traffic tab names them.
+ */
+export function countClick(label: string): void {
+  if (typeof window === "undefined" || !/^[a-z0-9-]{1,40}$/.test(label)) return;
+  try {
+    const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+    const ctx: AnalyticsContext = {
+      framed: window.top !== window.self,
+      bareRoute: isBareRoute(window.location.pathname),
+      hostname: window.location.hostname,
+      globalPrivacyControl: nav.globalPrivacyControl === true,
+    };
+    if (!countingAllowed(ctx)) return;
+    sendBeacon({ t: "click", s: "app", v: visitorId(), l: label });
+  } catch {
+    /* a count is never worth an error */
+  }
+}
+
 function visitorId(): string {
   return dailyVisitorId(
     () => window.localStorage.getItem(VISITOR_KEY),

@@ -1546,6 +1546,7 @@ export function StudyHelper() {
         tabIndex={shown ? -1 : 0}
         title={shown ? undefined : "Ask Archie"}
         data-away={shown ? "" : undefined}
+        data-tour="archie"
         className="helper-launch fixed bottom-5 right-24 z-40 h-14 w-14 rounded-full"
       >
         <ArchieFace size={56} blink={!shown} />

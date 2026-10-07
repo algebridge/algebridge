@@ -8,6 +8,7 @@ import {
   lin,
   mcChoices,
   plusTerm,
+  PROBLEM_NAMES,
   PROBLEMS_PER_SKILL,
   quad,
   randInt,
@@ -205,7 +206,7 @@ const CONVERSION_FACTORS = [
 type SkillGenerator = (seeds: PracticeProblem[]) => PracticeProblem[];
 
 /** First names for word problems, picked with the seeded generator. */
-const NAMES = ["Maya", "Jordan", "Kai", "Ava", "Leo", "Zoe", "Sam", "Nia", "Eli", "Rosa", "Omar", "Lena"] as const;
+const NAMES = PROBLEM_NAMES;
 
 const generators: Record<string, SkillGenerator> = {
   "unit-basics": (seeds) =>

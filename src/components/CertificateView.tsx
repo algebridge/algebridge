@@ -20,6 +20,12 @@ import {
 import type { UserProgress } from "@/types";
 
 /** This device remembers the name typed for printing, so the next certificate has it already. */
+/**
+ * The name typed for printing, kept per account: one key for the whole
+ * device showed the last student's full name on the next student's
+ * certificate on a shared Chromebook. Sign-out clears every one of them
+ * (CERTIFICATE_NAME_PREFIX in lib/auth).
+ */
 const NAME_KEY = "ab-certificate-name";
 
 async function asDataUrl(url: string): Promise<string> {
@@ -81,24 +87,28 @@ async function savePicture(svg: SVGSVGElement, filename: string): Promise<void> 
  * the account).
  */
 export function useCertificateName(): [string, (next: string) => void] {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [name, setName] = useState("");
+  const key = `${NAME_KEY}:${user?.id ?? "guest"}`;
 
   useEffect(() => {
     let typed: string | null = null;
     try {
-      typed = localStorage.getItem(NAME_KEY);
+      // The old key was one for the whole device, so whose name it held is unknown.
+      localStorage.removeItem(NAME_KEY);
+      typed = localStorage.getItem(key);
     } catch {
       /* storage blocked: the account's name it is */
     }
     if (typed !== null) setName(typed);
     else if (profile?.displayName && isRealName(profile.displayName)) setName(formatName(profile.displayName));
-  }, [profile]);
+    else setName("");
+  }, [profile, key]);
 
   function changeName(next: string) {
     setName(next);
     try {
-      localStorage.setItem(NAME_KEY, next);
+      localStorage.setItem(key, next);
     } catch {
       /* kept for this visit */
     }

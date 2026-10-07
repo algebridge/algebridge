@@ -110,7 +110,9 @@ export function loadSeen(skillId: string): Set<string> {
   try {
     const raw = window.localStorage.getItem(seenKey(skillId));
     const list = raw ? (JSON.parse(raw) as unknown) : [];
-    return new Set(Array.isArray(list) ? list.filter((s): s is string => typeof s === "string") : []);
+    // Read through canonicalPrompt again: a key saved before names were taken
+    // out of it ("lena can spend...") still matches the question it was.
+    return new Set(Array.isArray(list) ? list.filter((s): s is string => typeof s === "string").map(canonicalPrompt) : []);
   } catch {
     return new Set();
   }

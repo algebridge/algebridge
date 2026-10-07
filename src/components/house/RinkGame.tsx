@@ -214,7 +214,7 @@ export function RinkGame({
     const [a, b] = skaters.current;
     const area = { kind: "ellipse" as const, cx: RINK.cx, cy: RINK.cy, rx: RINK.rx, ry: RINK.ry };
     if (b) {
-      setRing({ ...spotFairFor(area, a.pos, b.pos), item });
+      setRing({ ...spotFairFor(area, a.pos, b.pos, Math.random, 1.8), item });
       return;
     }
     // Somewhere on the rink, a fair skate away from her.
@@ -256,6 +256,10 @@ export function RinkGame({
     const isGameKey = (k: string) => ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D", " "].includes(k);
     function down(e: KeyboardEvent) {
       if (paused.current) return;
+      // Keys typed into a text box (Archie, while the game runs) are words,
+      // not moves: "what is a slope" came out "htilope", and Esc there quit.
+      const field = e.target as HTMLElement | null;
+      if (field?.isContentEditable || field?.closest?.("input, textarea, select")) return;
       if (e.key === "Escape") {
         onExit();
         return;
@@ -526,7 +530,10 @@ export function RinkGame({
         ref={stage}
         className="absolute inset-0 touch-none"
         onPointerDown={(e) => {
-          if (paused.current) return;
+          // A press on a button (Leave, the score) is for the button: captured
+          // by the stage, its click went to the stage instead, so Leave did
+          // nothing for a mouse or a Chromebook trackpad.
+          if (paused.current || (e.target as Element).closest("button, a, input")) return;
           try {
             (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
           } catch {

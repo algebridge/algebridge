@@ -532,6 +532,27 @@ const rate = await call({ mode: "tutor", action: "first-step", context: { ...uni
 ok("a rate conversion says one unit at a time", /one unit at a time/.test(String(rate.message)), String(rate.message));
 const notUnits = await call({ mode: "tutor", action: "first-step", context: solveCtx, messages: [{ role: "user", content: "What's the first step?" }] });
 ok("an equation does not get the conversion step", !/unit conversion/.test(String(notUnits.message)), String(notUnits.message));
+// "how many weeks" on a savings problem is an equation, not a conversion
+const savings = { skillTitle: "Writing linear equations", keyIdea: "A starting amount plus a rate times the number of steps.", problemPrompt: "Jordan has $40 saved and adds $15 each week. How many weeks until Jordan has $130?", hint: "Write 40 + 15w = 130.", explanation: "40 + 15w = 130, so 15w = 90 and w = 6.", answer: "6" };
+const weeks = await call({ mode: "tutor", action: "first-step", context: savings, messages: [{ role: "user", content: "What's the first step?" }] });
+ok("a weeks word problem does not get the conversion step", !/unit conversion/.test(String(weeks.message)), String(weeks.message));
+{
+  const TU = await import("../tutor.ts");
+  for (const [prompt, title, want] of [
+    ["Jordan has $40 saved and adds $15 each week. How many weeks until Jordan has $130?", "Writing linear equations", false],
+    ["A pool fills at 3 gallons per minute. How many minutes until it holds 90 gallons?", "Rates", false],
+    ["Convert 2x + 4y = 8 to slope-intercept form.", "Standard form", false],
+    ["Convert 3/4 to a decimal.", "Fractions", false],
+    ["A plant was 14 cm tall on day 2 and 24 cm tall on day 7. How many centimeters did it grow per day?", "Slope", false],
+    ["A colony of 120 bacteria doubles every 15 minutes. How many bacteria are there after 2 hours?", "Exponential growth", false],
+    ["Convert 229 inches to feet.", "Unit Conversion Basics", true],
+    ["Which conversion factor converts inches to feet?", "Unit Conversion Basics", true],
+    ["A car travels 60 miles in 1 hour. How many feet per second is that?", "Unit Conversion Basics", true],
+    ["How many minutes are in 3 hours?", "Rates", true],
+    ["A cooler holds 5 liters of water. How many 500-milliliter bottles can you fill from it?", "Unit Conversion Basics", true],
+    ["Every song on a playlist is 150 seconds long. How many songs fit in 3 hours?", "Dimensional Analysis", true],
+  ] as const) ok(`conversion? ${want}: ${prompt}`, TU.isUnitConversion(prompt, title) === want);
+}
 
 // an answer request is gated whatever button came with it
 const gated = await call({ mode: "tutor", action: "example", context: solveCtx, messages: [{ role: "user", content: "just tell me the answer" }] });
@@ -1472,9 +1493,18 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     const panel = renderToStaticMarkup(h(P.SchoolModePanel, { feature: "messages" }));
     ok("school mode: the panel says what to do instead", /ask your teacher/.test(panel) && /Back to the course/.test(panel) && /href="\/schools#school-mode"/.test(panel) && !/[—–]/.test(panel));
     const side = await import("../../components/SideNav.tsx");
-    const withHelp = [...nav, { title: "Help", items: [{ href: "/feedback", label: "Feedback", icon: "hint" as const }] }] as never;
-    ok("school mode on: the side menu and the phone menu drop the pages", hrefs(side.withSchoolsLink(withHelp)) === "/ /review /classes /achievements /house /feedback /schools", hrefs(side.withSchoolsLink(withHelp)));
-    ok("school mode off: the side menu keeps them", hrefs(side.withSchoolsLink(withHelp, false)).includes("/messages"));
+    const withMore = [...nav, { title: "More", items: [{ href: "/feedback", label: "Feedback", icon: "hint" as const }] }] as never;
+    ok("school mode on: the side menu and the phone menu drop the pages", hrefs(side.withSchoolsLink(withMore)) === "/ /review /classes /achievements /house /feedback /schools", hrefs(side.withSchoolsLink(withMore)));
+    ok("school mode off: the side menu keeps them", hrefs(side.withSchoolsLink(withMore, false)).includes("/messages"));
+    // The real menu, most used first, and what school mode leaves of it.
+    const NV = await import("../nav.ts");
+    const visitor = NV.buildNav({ signedIn: false, role: "student", isAdmin: false, reviewCount: 0, unreadCount: 0 });
+    ok("menu: most used first", hrefs(visitor) === "/ /games /review /house /leaderboard /achievements /classes /tutors /notebook /feedback /?tour=1", hrefs(visitor));
+    ok("menu: grouped Learn, Rewards, Classroom, More", visitor.map((x) => x.title).join() === "Learn,Rewards,Classroom,More");
+    const student = NV.buildNav({ signedIn: true, role: "student", isAdmin: false, reviewCount: 2, unreadCount: 1 });
+    ok("menu: a signed-in student has messages and no tour link", hrefs(student).includes("/messages") && !hrefs(student).includes("tour"), hrefs(student));
+    ok("menu: For schools joins More, at the end", hrefs(side.withSchoolsLink(visitor, false)).endsWith("/feedback /?tour=1 /schools"), hrefs(side.withSchoolsLink(visitor, false)));
+    ok("menu: school mode drops the games and the leaderboard", !/\/games|\/leaderboard|\/tutors/.test(hrefs(side.withSchoolsLink(visitor, true))), hrefs(side.withSchoolsLink(visitor, true)));
     if (before === undefined) delete process.env.NEXT_PUBLIC_SCHOOL_MODE;
     else process.env.NEXT_PUBLIC_SCHOOL_MODE = before;
   }

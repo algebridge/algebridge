@@ -17,6 +17,7 @@ import { units } from "@/data/curriculum";
 import { getSwatch, USABLE } from "@/data/furniture-art";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, tallyDaily, touchActivity } from "@/lib/progress";
+import { pieceUse } from "@/lib/house-functions";
 import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
@@ -491,6 +492,32 @@ export function placeOrnamentAt(itemId: string, x: number, z: number): PurchaseR
   ];
   store.save(progress);
   return { ok: true, message: `${item.name} placed.` };
+}
+
+/** Moves a placed ornament, keeping it the same ornament. */
+export function moveOrnament(instanceId: string, x: number, z: number): PurchaseResult {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  const placed = progress.placedOrnaments ?? [];
+  if (!placed.some((p) => p.instanceId === instanceId)) return { ok: false, message: "Nothing to move there." };
+  const spot = clampToYard({ x, z });
+  progress.placedOrnaments = placed.map((p) => (p.instanceId === instanceId ? { ...p, x: spot.x, z: spot.z } : p));
+  store.save(progress);
+  return { ok: true, message: "Moved." };
+}
+
+/** The lamp post's switch. */
+export function toggleOrnament(instanceId: string): PurchaseResult {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  const placed = progress.placedOrnaments ?? [];
+  const entry = placed.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That ornament is not in the garden." };
+  if (pieceUse(entry.itemId, "ornament") !== "light") return { ok: false, message: "That one has no switch." };
+  const off = !entry.off;
+  progress.placedOrnaments = placed.map((p) => (p.instanceId === instanceId ? { ...p, off } : p));
+  store.save(progress);
+  return { ok: true, message: `${getOrnament(entry.itemId)?.name ?? "It"} is ${off ? "off" : "on"}.` };
 }
 
 export function removePlacedOrnament(instanceId: string): PurchaseResult {

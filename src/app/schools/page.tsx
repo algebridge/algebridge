@@ -6,6 +6,7 @@ import { skillOffersCalculator } from "@/data/problem-banks";
 import {
   GRAPHING_STANDARDS,
   NOT_CLAIMED,
+  NOT_COVERED,
   SKILL_STANDARDS,
   citedStandards,
   levelLabel,
@@ -66,23 +67,6 @@ const GRAPH_LEFT_OFF = GRAPHING_STANDARDS.map((code) => ({
 const OTHER_LEFT_OFF = NOT_CLAIMED.filter((n) => !GRAPHING_STANDARDS.includes(n.code));
 const UNMAPPED = TOTAL_SKILLS - MAPPED;
 
-/**
- * Commonly taught Algebra 1 content the course does not have yet. Each code
- * was checked absent from SKILL_STANDARDS; the last two are gaps inside
- * skills the course does have.
- */
-const NOT_COVERED: { what: string; codes?: string }[] = [
-  { what: "Statistics: data displays, center and spread, scatter plots, correlation", codes: "HSS-ID" },
-  { what: "Transforming functions, such as shifting or stretching a graph", codes: "HSF-BF.B.3" },
-  { what: "Reading key features from graphs and tables, and comparing functions shown in different ways", codes: "HSF-IF.B.4, B.5, C.9" },
-  { what: "Comparing linear and exponential models", codes: "HSF-LE.A.1.a, A.1.b, A.3, B.5" },
-  { what: "Writing equations and inequalities from a situation", codes: "HSA-CED.A.1, A.2" },
-  { what: "Interpreting the parts of an expression in context", codes: "HSA-SSE.A.1" },
-  { what: "Using a polynomial's zeros to sketch its graph", codes: "HSA-APR.B.3" },
-  { what: "Sums and products of rational and irrational numbers", codes: "HSN-RN.B.3" },
-  { what: "Any graphing: no practice item draws a graph or asks a student to read one" },
-  { what: "Quadratic equations with irrational roots: every quadratic a student solves in practice has whole-number roots" },
-];
 
 type Glyph = { icon: IconName } | { glyph: SchoolIconName };
 
@@ -401,7 +385,7 @@ export default function SchoolsPage() {
           id="students"
           n={1}
           title="What students do"
-          intro={`The course runs from units and conversions to quadratics, absolute value and piecewise functions: ${units.length} units and ${TOTAL_SKILLS} skills. Every skill follows the same four steps.`}
+          intro={`The course runs from units and conversions to quadratics, absolute value, piecewise functions, data and modeling: ${units.length} units and ${TOTAL_SKILLS} skills. Every skill follows the same four steps.`}
         >
           <ol className="schools-steps grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s) => (

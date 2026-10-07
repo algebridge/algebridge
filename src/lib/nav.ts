@@ -35,10 +35,19 @@ export function buildNav({
   const isTeacher = role === "teacher";
   const isTutor = role === "tutor";
 
+  // Most used first. Course, the games and the house are where visitors go
+  // (the admin console's busiest pages, Oct 2026), so they lead; the pages
+  // few people open come last, under More.
   const learn: NavItem[] = [
     { href: "/", label: "Course", icon: "course" },
+    { href: "/games", label: "Games", icon: "play" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
-    { href: "/notebook", label: "Notebook", icon: "notebook" },
+  ];
+
+  const rewards: NavItem[] = [
+    { href: "/house", label: "Bridgey House", icon: "house" },
+    { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
+    { href: "/achievements", label: "Achievements", icon: "trophy" },
   ];
 
   const classroom: NavItem[] = [];
@@ -46,27 +55,25 @@ export function buildNav({
   else classroom.push({ href: "/classes", label: "My classes", icon: "classes" });
   if (isTutor) classroom.push({ href: "/tutor-hub", label: "Students", icon: "students" });
   else classroom.push({ href: "/tutors", label: "Find a tutor", icon: "tutors" });
-  // The shared tutoring calendar. Staff only, students have no view yet.
-  if (isTutor || isAdmin) classroom.push({ href: "/calendar", label: "Calendar", icon: "clock" });
   if (signedIn) {
     classroom.push({ href: "/messages", label: "Messages", icon: "messages", badge: unreadCount });
     classroom.push({ href: "/groups", label: "Group chats", icon: "groups" });
   }
+  // The shared tutoring calendar. Staff only, students have no view yet.
+  if (isTutor || isAdmin) classroom.push({ href: "/calendar", label: "Calendar", icon: "clock" });
 
-  const progress: NavItem[] = [
-    { href: "/achievements", label: "Achievements", icon: "trophy" },
-    { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
-    { href: "/house", label: "Bridgey House", icon: "house" },
-    { href: "/games", label: "Games", icon: "play" },
+  const more: NavItem[] = [
+    { href: "/notebook", label: "Notebook", icon: "notebook" },
+    { href: "/feedback", label: "Feedback", icon: "hint" },
   ];
-
-  const help: NavItem[] = [{ href: "/feedback", label: "Feedback", icon: "hint" }];
+  // The welcome tour again, for a visitor who skipped it (components/WelcomeTour.tsx).
+  if (!signedIn) more.push({ href: "/?tour=1", label: "Take the tour", icon: "spark" });
 
   const sections: NavSection[] = [
     { title: "Learn", items: learn },
+    { title: "Rewards", items: rewards },
     { title: "Classroom", items: classroom },
-    { title: "Progress", items: progress },
-    { title: "Help", items: help },
+    { title: "More", items: more },
   ];
 
   if (isTutor || isAdmin) {

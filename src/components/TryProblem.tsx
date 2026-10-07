@@ -236,7 +236,7 @@ export function TryProblem({
   // One root through loading, the problems and the finish, so the height
   // report follows the card the whole way.
   return (
-    <div ref={rootRef} className={shell} aria-busy={loading || undefined}>
+    <div ref={rootRef} className={shell} aria-busy={loading || undefined} data-tour="try">
       {loading ? (
         <p className="text-sm text-slate-500">Setting up a problem…</p>
       ) : done ? (

@@ -52,14 +52,24 @@ const SUPERSCRIPT_DIGITS: Record<string, string> = { "⁰": "0", "¹": "1", "²"
  * hand-written "5⁰" and a generated "5^0" were both served in the same bank,
  * as were "(x³)²" and "(x^3)^2", because the old check compared raw text.
  */
+/** The names word problems are written about. */
+export const PROBLEM_NAMES = ["Maya", "Jordan", "Kai", "Ava", "Leo", "Zoe", "Sam", "Nia", "Eli", "Rosa", "Omar", "Lena"] as const;
+const ANY_NAME = new RegExp(`\\b(?:${PROBLEM_NAMES.join("|")})\\b`, "gi");
+
 export function canonicalPrompt(prompt: string): string {
-  return String(prompt ?? "")
-    .replace(/\s*\((?:Set|Review|Variant) \d+\)\s*$/i, "")
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹ˣ]+/g, (m) => `^${[...m].map((ch) => SUPERSCRIPT_DIGITS[ch] ?? ch).join("")}`)
-    .replace(/[−–]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return (
+    String(prompt ?? "")
+      .replace(/\s*\((?:Set|Review|Variant) \d+\)\s*$/i, "")
+      .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹ˣ]+/g, (m) => `^${[...m].map((ch) => SUPERSCRIPT_DIGITS[ch] ?? ch).join("")}`)
+      .replace(/[−–]/g, "-")
+      // A name swapped for another is the same question: "Lena can spend at
+      // most $60" and "Ava can spend at most $60" were both served, as two
+      // kinds, and a question answered last time came back under a new name.
+      .replace(ANY_NAME, "@")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+  );
 }
 
 export function uniqueByPrompt(problems: PracticeProblem[]): PracticeProblem[] {

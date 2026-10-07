@@ -39,9 +39,16 @@ export default function HomePage() {
           </p>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {units.map((unit) => (
-            <UnitCard key={unit.id} unit={unit} />
-          ))}
+          {/* The welcome tour points at the first unit: where the path starts. */}
+          {units.map((unit, i) =>
+            i === 0 ? (
+              <div key={unit.id} data-tour="outline" className="grid">
+                <UnitCard unit={unit} />
+              </div>
+            ) : (
+              <UnitCard key={unit.id} unit={unit} />
+            )
+          )}
         </div>
       </section>
 

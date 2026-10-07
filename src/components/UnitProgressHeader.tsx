@@ -6,7 +6,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { useAuth } from "@/lib/auth";
 import { hueVars, unitHue } from "@/lib/hues";
 import { UnitMark } from "@/components/UnitMark";
-import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
+import { PieceShot } from "@/components/house/PieceShot";
 import { getUnitPrize } from "@/data/house-catalog";
 import { getProgress } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
@@ -64,7 +64,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
         {prize && (
           <div className="hue-chip mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2.5">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/90">
-              <CartoonFurnitureArt itemId={prize.id} size={40} variant="room" />
+              <PieceShot itemId={prize.id} alt="" className="h-11 w-11" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide">

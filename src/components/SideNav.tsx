@@ -12,7 +12,7 @@ import { navForSchool, schoolModeNow } from "@/lib/school-mode";
 import { useSchoolMode } from "@/components/SchoolModePanel";
 
 /**
- * "For schools" sits in Help, beside Feedback, for a visiting teacher or
+ * "For schools" sits in More, beside Feedback, for a visiting teacher or
  * district. Shared with the mobile sheet so the two lists stay the same.
  * In school mode the pages it turns off leave the menu too
  * (src/lib/school-mode.ts); the mobile sheet passes nothing and gets the
@@ -23,7 +23,7 @@ const FOR_SCHOOLS: NavItem = { href: "/schools", label: "For schools", icon: "sc
 
 export function withSchoolsLink(sections: NavSection[], school: boolean = schoolModeNow()): NavSection[] {
   return navForSchool(sections, school).map((section) =>
-    section.title === "Help" && !section.items.some((item) => item.href === FOR_SCHOOLS.href)
+    section.title === "More" && !section.items.some((item) => item.href === FOR_SCHOOLS.href)
       ? { ...section, items: [...section.items, FOR_SCHOOLS] }
       : section
   );

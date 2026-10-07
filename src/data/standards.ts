@@ -447,3 +447,34 @@ export function citedStandards(): Standard[] {
   const cited = new Set(Object.values(SKILL_STANDARDS).flat());
   return STANDARD_LIST.filter((s) => cited.has(s.code));
 }
+
+/**
+ * Commonly taught Algebra 1 content the course does not have yet, for the
+ * /schools page. A code here is never in SKILL_STANDARDS (a test holds that),
+ * so the page cannot say a topic is missing that a skill claims. Standards a
+ * skill teaches without its graph are in GRAPHING_STANDARDS instead, listed
+ * with their skills.
+ */
+export const NOT_COVERED: { what: string; codes?: string }[] = [
+  { what: "Statistics: judging a line of fit by its residuals, and fitting a line to a scatter plot", codes: "HSS-ID.B.6.b, B.6.c" },
+  { what: "Reading key features from graphs and tables, and comparing functions shown in different ways", codes: "HSF-IF.B.4, B.5, C.9" },
+  { what: "Interpreting the parameters of a linear or exponential model in context", codes: "HSF-LE.B.5" },
+  { what: "Writing equations and inequalities from a situation", codes: "HSA-CED.A.1, A.2" },
+  { what: "Interpreting the parts of an expression in context", codes: "HSA-SSE.A.1" },
+  { what: "Using a polynomial's zeros to sketch its graph", codes: "HSA-APR.B.3" },
+  { what: "Sums and products of rational and irrational numbers", codes: "HSN-RN.B.3" },
+  { what: "Any graphing: no practice item draws a graph or asks a student to read one" },
+];
+
+/** "HSF-IF.B.4, B.5, C.9" written out: HSF-IF.B.4, HSF-IF.B.5, HSF-IF.C.9. */
+export function expandCodes(codes: string): string[] {
+  let prefix = "";
+  return codes.split(/,\s*/).map((c) => {
+    const full = /^[A-Z0-9]+-[A-Z]+\./.exec(c);
+    if (full) {
+      prefix = full[0];
+      return c;
+    }
+    return prefix + c;
+  });
+}

@@ -9,6 +9,7 @@ import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { MistakeNote } from "@/components/MistakeNote";
 import { WorkedSteps } from "@/components/WorkedSteps";
 import { diagnoseMistake } from "@/lib/diagnose";
+import { gradeAnswer } from "@/lib/grading";
 import { hueVars, unitHue } from "@/lib/hues";
 import { stripVariantTag } from "@/lib/personalize";
 import { displayAnswer } from "@/lib/problem-utils";
@@ -69,6 +70,25 @@ export function GameProblemDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(dialogRef, true);
   const problem = open.problem;
+  // An unfinished entry ("3/" before the bottom is typed, an empty √()) or a
+  // typo is not an answer. In practice it gets a note and costs no try; here
+  // it ended the question, and in a match handed the steal to the other side.
+  const [typedNote, setTypedNote] = useState<string | null>(null);
+  useEffect(() => setTypedNote(null), [problem, turn?.name, turn?.steal]);
+  const checkTyped = () => {
+    if (!answer.trim()) return;
+    const read = gradeAnswer(problem, answer, { expressions: false });
+    if (read === "simplify" || read === "unreadable") {
+      setTypedNote(
+        read === "simplify"
+          ? "Finish the arithmetic, then type one number, like 12, -3 or 2/3."
+          : "Type your answer as a number, like 12, -3, 2/3 or 0.75."
+      );
+      return;
+    }
+    setTypedNote(null);
+    onCheck(answer);
+  };
   // A wrong answer is read for where it went wrong, in the student's own numbers.
   const mistake = verdict && !verdict.right && verdict.given !== undefined ? diagnoseMistake(problem, { given: verdict.given }) : null;
   return (
@@ -129,15 +149,19 @@ export function GameProblemDialog({
               <div key={turn ? `answer-${turn.name}-${turn.steal}` : "answer"} className="mt-4">
                 <AnswerField
                   value={answer}
-                  onChange={setAnswer}
-                  onEnter={() => onCheck(answer)}
+                  onChange={(v) => {
+                    setTypedNote(null);
+                    setAnswer(v);
+                  }}
+                  onEnter={checkTyped}
                   placeholder="Your answer"
                   full={false}
+                  note={typedNote}
                   autoFocus
                 />
                 <button
                   type="button"
-                  onClick={() => onCheck(answer)}
+                  onClick={checkTyped}
                   disabled={!answer.trim()}
                   className="hue-solid mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
                 >

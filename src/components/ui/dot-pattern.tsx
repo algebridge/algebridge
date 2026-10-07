@@ -1,7 +1,5 @@
 "use client";
 
-import { useId } from "react";
-
 import { cn } from "@/lib/utils";
 
 interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
@@ -33,9 +31,12 @@ function DotPattern({
   className,
   ...props
 }: DotPatternProps) {
-  // useId returns things like ":r0:" (React 18) or "«r0»" (React 19). Those are
-  // legal HTML ids but make a fragile url(#…) reference, so strip to word chars.
-  const id = `dots-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  // The id comes from what the pattern draws, not from useId: useId follows
+  // the tree, and any difference above this between the server render and the
+  // browser's (development adds nodes there) gave the two different ids, a
+  // hydration mismatch React leaves unpatched. Two patterns that draw the same
+  // dots in the same color can share an id; any difference gives a new one.
+  const id = `dots-${[width, height, x, y, cx, cy, cr, className ?? ""].join("-").replace(/[^a-zA-Z0-9]+/g, "_")}`;
 
   return (
     <svg

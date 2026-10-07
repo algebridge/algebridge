@@ -161,6 +161,10 @@ export interface UserProgress {
   updatedAt?: string;
   /** Today's right answers toward the daily goal, and whether its Bridgeys were paid. */
   daily?: { day: string; right: number; paid: boolean };
+  /** The days the daily goal was reached (YYYY-MM-DD, the latest 30): the house's plants grow with them. */
+  goalDays?: string[];
+  /** The week (its Monday) a bed's rest day was last used to keep the streak. */
+  restDayWeek?: string;
   /** The colour a student chose for a piece, by item id: a swatch id from furniture-art. */
   itemColors?: Record<string, string>;
   /** The house at night, with the lamps on. */
@@ -179,6 +183,8 @@ export interface PlacedOrnamentEntry {
   x: number;
   /** Metres north of the pad centre. */
   z: number;
+  /** Switched off (the lamp post). */
+  off?: boolean;
 }
 
 export interface PlacedFurnitureEntry {

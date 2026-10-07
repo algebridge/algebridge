@@ -1,17 +1,19 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { HouseRoom } from "@/components/HouseRoom";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { CartoonFurnitureArt } from "@/components/house/CartoonFurnitureArt";
-import { ColorDots } from "@/components/house/Dollhouse";
+import { ColorDots } from "@/components/house/ColorDots";
 import { primaryHex, swatchHex, USABLE } from "@/data/furniture-art";
 import { units } from "@/data/curriculum";
 import { hueVars, unitHue } from "@/lib/hues";
-import { HouseThumb } from "@/components/house/HouseThumb";
+import { PieceShot } from "@/components/house/PieceShot";
+import { useHouseLive } from "@/components/house/useHouseLive";
+import { RoomShot } from "@/components/house/RoomShot";
 import {
   HOUSE_STYLES,
   getFurnitureItem,
@@ -19,7 +21,7 @@ import {
   UNIT_PRIZES,
 } from "@/data/house-catalog";
 import { DISPLAY_TITLES } from "@/data/titles-catalog";
-import { ORNAMENTS, ornamentImage } from "@/data/ornament-catalog";
+import { ORNAMENTS } from "@/data/ornament-catalog";
 import { RINK_ITEMS } from "@/data/rink-catalog";
 import {
   buyFurniture,
@@ -66,11 +68,20 @@ export interface HouseConsoleProps {
  */
 export function HouseConsole({ progress, onUpdate, unlimited = false, school = false, embedded = false }: HouseConsoleProps) {
   const [tab, setTab] = useState<Tab>("house");
-  // A link can open a tab: /house?tab=titles from the account menu and the profile.
-  useEffect(() => {
-    const asked = new URLSearchParams(window.location.search).get("tab");
-    if (asked === "titles" || asked === "shop") setTab(asked);
-  }, []);
+  // The shop photographs each piece as it would be in this student's house: their books, their trophies.
+  const live = useHouseLive(progress);
+  /** A tab picked here is written to the address, so a link to another tab is always a change to follow. */
+  function chooseTab(next: Tab) {
+    setTab(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === "house") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url);
+    } catch {
+      /* the tab still changes */
+    }
+  }
   /** Colours tried on pieces not yet bought; a piece is bought in the colour it was tried in. */
   const [preview, setPreview] = useState<Record<string, string | null>>({});
   /** Links that leave the house open the whole window when the house is framed. */
@@ -136,6 +147,10 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
 
   return (
     <div className="space-y-6">
+      {/* A link can open a tab: /house?tab=titles from the account menu and the profile, also while the house is already open. */}
+      <Suspense fallback={null}>
+        <TabFromAddress onTab={setTab} />
+      </Suspense>
       {/* The page's name, for a screen reader's list of headings; the balance stays the largest thing on screen. */}
       <h1 className="sr-only">Bridgey House</h1>
       {/* ── Balance header ───────────────────────────────────────────
@@ -196,7 +211,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
             e.key === "ArrowRight" ? (at + 1) % tabs.length : e.key === "ArrowLeft" ? (at + tabs.length - 1) % tabs.length : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
           if (to < 0) return;
           e.preventDefault();
-          setTab(tabs[to].id);
+          chooseTab(tabs[to].id);
           (e.currentTarget.children[to] as HTMLElement | undefined)?.focus();
         }}
       >
@@ -209,7 +224,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
               role="tab"
               aria-selected={active}
               tabIndex={active ? 0 : -1}
-              onClick={() => setTab(t.id)}
+              onClick={() => chooseTab(t.id)}
               className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition sm:flex-none ${
                 active
                   ? "bg-white text-bridge-700 shadow-sm"
@@ -226,7 +241,9 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
         <div className="space-y-4">
           {/* Open the shop is in the house's own decorating bar, beside what
               the house holds, so the decorate step is said once. */}
-          <HouseRoom progress={progress} onUpdate={onUpdate} onShop={() => setTab("shop")} />
+          <div data-tour="house">
+            <HouseRoom progress={progress} onUpdate={onUpdate} onShop={() => chooseTab("shop")} embedded={embedded} />
+          </div>
 
           {/* The yard art used to be followed by a screen of empty page. This
               turns that space into the next step in the loop. */}
@@ -285,9 +302,9 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                     }`}
                   >
                     <div className="relative h-44 border-b border-slate-200 bg-slate-50">
-                      {/* Drawn, not photographed: the card shows the same house
+                      {/* The real room, rendered: the card shows the same room
                           the student will actually be standing in. */}
-                      <HouseThumb styleId={house.id} />
+                      <RoomShot styleId={house.id} alt={`Inside the ${house.name}`} className="h-full w-full" />
                       {equipped && (
                         <span className="badge-brand absolute left-3 top-3">Living here</span>
                       )}
@@ -346,8 +363,8 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                 const hue = unit ? unitHue(unit.id) : null;
                 return (
                   <article key={item.id} style={hue ? hueVars(hue) : undefined} className="card shop-card flex flex-col overflow-hidden p-0">
-                    <div className={`hue-tint flex h-28 items-center justify-center border-b ${earned ? "" : "grayscale opacity-60"}`}>
-                      <CartoonFurnitureArt itemId={item.id} size={84} variant="room" color={colorOf(item.id, earned)} />
+                    <div className={`hue-tint flex h-32 items-center justify-center border-b ${earned ? "" : "grayscale opacity-60"}`}>
+                      <PieceShot itemId={item.id} color={colorOf(item.id, earned)} live={live} alt={item.name} className="h-full w-full" />
                     </div>
                     <div className="flex flex-1 flex-col p-3.5">
                       <p className="hue-ink text-[11px] font-semibold uppercase tracking-[0.08em]">
@@ -426,9 +443,9 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                               className={`flex h-28 items-center justify-center border-b border-slate-100 ${
                                 !owned && !affordable ? "opacity-45" : ""
                               }`}
-                              style={{ background: `${hex}22` }}
+                              style={{ background: `linear-gradient(180deg, #f8fafc, ${hex}1a)` }}
                             >
-                              <CartoonFurnitureArt itemId={item.id} size={84} variant="room" color={color} />
+                              <PieceShot itemId={item.id} color={color} live={live} alt={item.name} className="h-full w-full" />
                             </div>
 
                             <div className="flex flex-1 flex-col p-3.5">
@@ -518,15 +535,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                         affordable ? "" : "opacity-45"
                       }`}
                     >
-                      <span className="relative block h-24 w-24">
-                        <Image
-                          src={ornamentImage(item.id)}
-                          alt={item.name}
-                          fill
-                          sizes="120px"
-                          className="object-contain object-bottom"
-                        />
-                      </span>
+                      <PieceShot itemId={item.id} live={live} alt={item.name} ornament className="h-full w-full" />
                     </div>
 
                     <div className="flex flex-1 flex-col p-3.5">
@@ -719,4 +728,19 @@ function HouseStyleAction({
       Buy
     </button>
   );
+}
+
+/**
+ * Follows ?tab= in the address. It used to be read once, on mount, and Next
+ * keeps a page mounted when only the query changes, so "Change your title"
+ * from the account menu did nothing while the house was already open. Its
+ * own Suspense boundary keeps the rest of the house rendering on the server.
+ */
+function TabFromAddress({ onTab }: { onTab: (tab: Tab) => void }) {
+  const asked = useSearchParams().get("tab");
+  useEffect(() => {
+    if (asked === "titles" || asked === "shop") onTab(asked);
+    else if (asked === null) onTab("house");
+  }, [asked, onTab]);
+  return null;
 }

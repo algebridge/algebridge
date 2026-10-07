@@ -81,12 +81,15 @@ export function parseNumericAnswer(raw: string): number | null {
   }
 
   // A power: "3^6" for 729, "2^(-3)" for 1/8. Exponent problems invite it.
-  const power = s.match(/^(-?\d+(?:\.\d+)?)\s*\^\s*\(?\s*(-?\d+(?:\/\d+)?)\s*\)?$/);
+  // A fraction exponent needs its brackets, "81^(3/4)": the answer box draws
+  // "81^3/4" as 81 cubed over 4, so that is what it means. And "-3^2" is the
+  // negative of 3 squared, -9, the way the box and the calculator read it.
+  const power = s.match(/^(-?)(\d+(?:\.\d+)?)\s*\^\s*(?:\(\s*(-?\d+(?:\/\d+)?)\s*\)|(-?\d+))$/);
   if (power) {
-    const [top, bottom] = power[2].split("/").map(Number);
+    const [top, bottom] = (power[3] ?? power[4]).split("/").map(Number);
     const exponent = bottom ? top / bottom : top;
-    const v = Math.pow(Number(power[1]), exponent);
-    return Number.isFinite(v) && Math.abs(exponent) <= 40 ? v : null;
+    const v = Math.pow(Number(power[2]), exponent);
+    return Number.isFinite(v) && Math.abs(exponent) <= 40 ? (power[1] ? -v : v) : null;
   }
 
   // Thousands separators: "15,840" and "1,000,000", never "1,5".
@@ -174,7 +177,9 @@ function compact(text: string): string {
     .replace(/(\d)x(?=\d)/g, "$1*")
     .replace(/\s+/g, "")
     // The √ key writes √(49); the problem prints √49.
-    .replace(/√\((\d+(?:\.\d+)?)\)/g, "√$1");
+    .replace(/√\((\d+(?:\.\d+)?)\)/g, "√$1")
+    // The power key writes 2^-3; the problem prints 2^(-3).
+    .replace(/\^\((-?\d+(?:\.\d+)?(?:\/\d+)?)\)/g, "^$1");
 }
 
 /**
@@ -185,7 +190,8 @@ function compact(text: string): string {
  * to one with slope 2/3".
  */
 export function copiesPrompt(given: string, prompt: string): boolean {
-  const typed = compact(given);
+  // "+5" is 5 with its sign written out, not the "+ 5" of "3x + 5 = 20" copied.
+  const typed = compact(given).replace(/^\+/, "");
   const work = /[\^√*+π]|\d-\d|\de[+-]?\d/.test(typed);
   return work && typed.length >= 2 && compact(prompt).includes(typed);
 }

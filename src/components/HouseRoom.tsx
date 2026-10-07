@@ -1,6 +1,6 @@
 "use client";
 
-import { Dollhouse } from "@/components/house/Dollhouse";
+import { House3D } from "@/components/house/House3D";
 import type { UserProgress } from "@/types";
 
 interface HouseRoomProps {
@@ -8,12 +8,14 @@ interface HouseRoomProps {
   onUpdate: () => void;
   /** Switches the page to the Shop. */
   onShop?: () => void;
+  /** Inside algebridge.org's frame (/demo/house): what a piece opens, opens in the app. */
+  embedded?: boolean;
 }
 
 /**
- * Inside and outside are one flat picture now, so there is nothing left to
- * switch between, the front of the house opens where it stands.
+ * The house as a real 3D place: your rooms, upstairs and down, and your
+ * garden, where every piece has a job (components/house/House3D.tsx).
  */
-export function HouseRoom({ progress, onUpdate, onShop }: HouseRoomProps) {
-  return <Dollhouse progress={progress} onUpdate={onUpdate} onShop={onShop} />;
+export function HouseRoom({ progress, onUpdate, onShop, embedded = false }: HouseRoomProps) {
+  return <House3D progress={progress} onUpdate={onUpdate} onShop={onShop} embedded={embedded} />;
 }

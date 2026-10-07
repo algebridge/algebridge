@@ -47,6 +47,7 @@ import {
   BATCH_SIZE,
   FIRST_BATCH_SIZE,
   canPersonalize,
+  checkRewrite,
   stripVariantTag,
   type PersonalizableProblem,
 } from "@/lib/personalize";
@@ -410,8 +411,16 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       };
       if (token !== requestTokenRef.current) return;
       const got: Record<string, Scene> = {};
+      // The server finds each problem by id in a bank it builds with its own
+      // copy of the generators. After a deploy that changed them, an id can
+      // name a different problem than the one this tab shows, and its story
+      // would be graded against this problem's key. Only a story that keeps
+      // this problem's own numbers and math is used.
+      const own = new Map(sessionProblems.map((sp) => [sp.id, sp]));
       for (const p of data.problems ?? []) {
         if (typeof p.id === "string" && typeof p.prompt === "string") {
+          const mine = own.get(p.id);
+          if (!mine || !checkRewrite(mine as PersonalizableProblem, p.prompt).ok) continue;
           got[p.id] = { prompt: p.prompt, topic: typeof p.topic === "string" ? p.topic : "" };
           if (typeof p.templateId === "string") seenTemplatesRef.current.push(p.templateId);
         }
@@ -623,7 +632,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         // A quick first try keeps the run going; a slow one or a second try starts it over.
         const quick = firstTry && Date.now() - shownAtRef.current <= FAST_SECONDS * 1000;
         fastRunRef.current = quick ? fastRunRef.current + 1 : 0;
-        if (fastRunRef.current >= FAST_RUN && onOpenSkill) setFastOffer(fastRunRef.current);
+        // A slow answer ends the run, and the offer with it: "4 in a row,
+        // each in under 45 seconds" stayed up after the run was over.
+        setFastOffer(fastRunRef.current >= FAST_RUN && onOpenSkill ? fastRunRef.current : null);
         return;
       }
 
@@ -693,6 +704,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       }
     } else {
       fastRunRef.current = 0;
+      setFastOffer(null);
       // The wrong pick is crossed out, so the next try is a new answer
       // rather than the same click again.
       if (problem.type === "multiple-choice" && selectedChoice !== null) {

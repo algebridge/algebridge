@@ -13,7 +13,7 @@ import { CourtScene, RinkScene } from "@/components/games/Scenes";
 import { pctX, pctY } from "@/lib/dollhouse";
 import { depthScale, GAME_CARDS, getCourtGame, getGameCard, isGameId, type CourtGameId, type GameCard, type GameId } from "@/lib/games";
 import { today } from "@/lib/path";
-import { ATHLETE_HEIGHT, DEFAULT_SETUP, readSetup, saveSetup, topicLabel, type GameSetup, type PlayerKind } from "@/lib/game-session";
+import { ATHLETE_HEIGHT, DEFAULT_SETUP, readSetup, saveSetup, sideName, topicLabel, type GameSetup, type PlayerKind } from "@/lib/game-session";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
@@ -169,7 +169,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       </header>
 
       {/* The team: pick who to play with. */}
-      <nav aria-label="Pick a game" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
+      <nav aria-label="Pick a game" data-tour="games" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
         {GAME_CARDS.map((g) => (
           <TeamTile key={g.id} card={g} active={g.id === picked} best={g.id === "rink" ? (progress?.rink?.best ?? 0) : (progress?.gameBest?.[g.id] ?? 0)} onPick={() => pick(g.id)} />
         ))}
@@ -188,7 +188,8 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         {picked === "rink" ? (
           <>
             {/* The scene moves only during play (and on screen); before it, a still picture. */}
-            <RinkScene live={playing} />
+            {/* In a match the video board names the two players, not Veronica, who sits it out. */}
+            <RinkScene live={playing} skating={setup.players === 2 ? `${sideName(setup, 0)} & ${sideName(setup, 1)}`.toUpperCase() : undefined} />
             {progress && (
               <RinkDecor
                 progress={progress}
