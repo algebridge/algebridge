@@ -311,6 +311,25 @@ function paint(key: string, w: number, h: number, draw: (g: CanvasRenderingConte
   return copy;
 }
 
+/**
+ * Draws onto a layer of its own and lays it down blurred, once. A canvas
+ * blurs every single shape drawn under a blur filter on its own, which for a
+ * sky of clouds or a treeline of crowns meant thousands of blurs: the first
+ * visit to the porch froze for seconds. One blur for the whole layer looks
+ * the same.
+ */
+function blurred(g: CanvasRenderingContext2D, w: number, h: number, px: number, draw: (l: CanvasRenderingContext2D) => void): void {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const l = c.getContext("2d", { willReadFrequently: true })!;
+  draw(l);
+  g.save();
+  g.filter = `blur(${px}px)`;
+  g.drawImage(c, 0, 0);
+  g.restore();
+}
+
 /** Draws `fn` at (x, y) and again across each edge it comes near, so a tiling picture has no seams. */
 function wrapped(w: number, h: number, x: number, y: number, reach: number, fn: (x: number, y: number) => void) {
   for (const dx of [-w, 0, w])
@@ -328,10 +347,10 @@ function drawLawn(g: CanvasRenderingContext2D, w: number, h: number) {
   g.fillRect(0, 0, w, h);
   // Broad patches, a little lusher here and drier there.
   const patch = ["86,116,56", "68,98,44", "108,122,60", "56,84,40", "96,110,52", "78,104,48"];
-  for (let i = 0; i < 520; i += 1) {
+  for (let i = 0; i < 260; i += 1) {
     const x = rnd() * w;
     const y = rnd() * h;
-    const r = 30 + rnd() * 200;
+    const r = 50 + rnd() * 230;
     const c = patch[Math.floor(rnd() * patch.length)];
     const grad = g.createRadialGradient(x, y, 0, x, y, r);
     grad.addColorStop(0, `rgba(${c},${0.14 + rnd() * 0.2})`);
@@ -346,25 +365,35 @@ function drawLawn(g: CanvasRenderingContext2D, w: number, h: number) {
     g.fillRect((b * w) / bands, 0, w / bands + 1, h);
   }
   // Blades: short strokes every way, dark ones in the shade between, light tips on top.
+  // Painted once on a small tile and laid across the lawn (the same density for a
+  // sixteenth of the strokes); the patches, stripes and clover above and below it
+  // are the whole lawn's, so the tile does not show.
+  const T = 512;
+  const tile = document.createElement("canvas");
+  tile.width = tile.height = T;
+  const tg = tile.getContext("2d", { willReadFrequently: true })!;
+  const scale = (T * T) / (2048 * 2048);
   const tones = ["#26401a", "#334f21", "#41602a", "#4f7232", "#5f843b", "#729848", "#88a955", "#a2b866"];
   const counts = [34000, 38000, 38000, 32000, 22000, 11000, 4000, 1000];
-  g.lineCap = "round";
+  tg.lineCap = "round";
   tones.forEach((tone, ti) => {
-    g.strokeStyle = tone;
-    g.lineWidth = ti < 3 ? 1.7 : 1.25;
-    g.globalAlpha = 0.5 + ti * 0.055;
-    g.beginPath();
-    for (let i = 0; i < counts[ti]; i += 1) {
-      const x = rnd() * w;
-      const y = rnd() * h;
+    tg.strokeStyle = tone;
+    tg.lineWidth = ti < 3 ? 1.7 : 1.25;
+    tg.globalAlpha = 0.5 + ti * 0.055;
+    tg.beginPath();
+    for (let i = 0; i < counts[ti] * scale; i += 1) {
+      const x = rnd() * T;
+      const y = rnd() * T;
       const a = rnd() * PI * 2;
       const l = 2 + rnd() * 4.5;
-      g.moveTo(x, y);
-      g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.8);
+      tg.moveTo(x, y);
+      tg.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.8);
     }
-    g.stroke();
+    tg.stroke();
   });
-  g.globalAlpha = 1;
+  tg.globalAlpha = 1;
+  g.fillStyle = g.createPattern(tile, "repeat")!;
+  g.fillRect(0, 0, w, h);
   // Clover in drifts, with a few white heads.
   for (let i = 0; i < 70; i += 1) {
     const cx = rnd() * w;
@@ -842,19 +871,19 @@ function drawSky(night: boolean) {
       g.arc(mx, my, 11, 0, PI * 2);
       g.fill();
     } else {
-      g.filter = "blur(14px)";
-      for (let i = 0; i < 46; i += 1) {
-        const x = rnd() * w;
-        const y = horizon * (0.25 + rnd() * 0.6);
-        const cw = 60 + rnd() * 160;
-        g.fillStyle = `rgba(255,255,255,${0.35 + rnd() * 0.4})`;
-        for (let j = 0; j < 4; j += 1) {
-          g.beginPath();
-          g.ellipse(x + (rnd() - 0.5) * cw, y + (rnd() - 0.5) * 12, cw * (0.3 + rnd() * 0.3), 10 + rnd() * 14, 0, 0, PI * 2);
-          g.fill();
+      blurred(g, w, h, 14, (l) => {
+        for (let i = 0; i < 46; i += 1) {
+          const x = rnd() * w;
+          const y = horizon * (0.25 + rnd() * 0.6);
+          const cw = 60 + rnd() * 160;
+          l.fillStyle = `rgba(255,255,255,${0.35 + rnd() * 0.4})`;
+          for (let j = 0; j < 4; j += 1) {
+            l.beginPath();
+            l.ellipse(x + (rnd() - 0.5) * cw, y + (rnd() - 0.5) * 12, cw * (0.3 + rnd() * 0.3), 10 + rnd() * 14, 0, 0, PI * 2);
+            l.fill();
+          }
         }
-      }
-      g.filter = "none";
+      });
     }
     // Distant trees, soft as if out of focus, bluer the further they are.
     const rows: [number, number, string, number][] = night
@@ -867,17 +896,17 @@ function drawSky(night: boolean) {
           [0.0, 24, "#5d7458", 2],
         ];
     for (const [lift, size, color, blur] of rows) {
-      g.filter = `blur(${blur}px)`;
-      g.fillStyle = color;
-      const base = horizon - lift * h;
-      g.fillRect(0, base - 4, w, h - base + 4);
-      for (let x = -20; x < w + 20; x += size * (0.45 + rnd() * 0.5)) {
-        const r = size * (0.55 + rnd() * 0.75);
-        g.beginPath();
-        g.ellipse(x, base - r * 0.55, r * 0.75, r, 0, 0, PI * 2);
-        g.fill();
-      }
-      g.filter = "none";
+      blurred(g, w, h, blur, (l) => {
+        l.fillStyle = color;
+        const base = horizon - lift * h;
+        l.fillRect(0, base - 4, w, h - base + 4);
+        for (let x = -20; x < w + 20; x += size * (0.45 + rnd() * 0.5)) {
+          const r = size * (0.55 + rnd() * 0.75);
+          l.beginPath();
+          l.ellipse(x, base - r * 0.55, r * 0.75, r, 0, 0, PI * 2);
+          l.fill();
+        }
+      });
     }
   };
 }
@@ -917,50 +946,48 @@ function drawTreeline(night: boolean) {
     const rnd = rng(night ? 131 : 137);
     g.clearRect(0, 0, w, h);
     const base = h * 0.97;
-    const crowns = (n: number, lo: number, hi: number, color: string, blur: number) => {
-      g.filter = `blur(${blur}px)`;
-      g.fillStyle = color;
-      for (let i = 0; i < n; i += 1) {
-        const x = rnd() * w;
-        const top = base - (lo + rnd() * (hi - lo)) * h;
-        const r = (base - top) * (0.32 + rnd() * 0.22);
-        wrapped(w, h, x, 0, r * 2, (px) => {
-          g.beginPath();
-          g.ellipse(px, top + r, r * 0.85, r, 0, 0, PI * 2);
-          g.fill();
-          g.beginPath();
-          g.ellipse(px + r * 0.45, top + r * 1.3, r * 0.7, r * 0.8, 0, 0, PI * 2);
-          g.fill();
-          g.fillRect(px - r * 0.9, top + r, r * 1.9, base - top - r + 4);
-        });
-      }
-      g.filter = "none";
-    };
-    const roofs = (n: number, color: string, lit: boolean) => {
-      for (let i = 0; i < n; i += 1) {
-        const x = rnd() * w;
-        const rw = 70 + rnd() * 90;
-        const top = base - (0.3 + rnd() * 0.14) * h;
-        const eaves = top + (0.1 + rnd() * 0.05) * h;
-        g.filter = "blur(1.5px)";
-        g.fillStyle = color;
-        g.beginPath();
-        g.moveTo(x - rw / 2 - 10, eaves);
-        g.lineTo(x - rw / 4, top);
-        g.lineTo(x + rw / 4, top);
-        g.lineTo(x + rw / 2 + 10, eaves);
-        g.closePath();
-        g.fill();
-        g.fillStyle = night ? "#1a1d24" : "#8c8a86";
-        g.fillRect(x - rw / 2, eaves, rw, base - eaves + 4);
-        if (lit && rnd() < 0.8) {
-          g.fillStyle = "rgba(255,206,140,0.85)";
-          g.fillRect(x - rw * 0.25, eaves + 10, 10, 9);
-          g.fillRect(x + rw * 0.12, eaves + 10, 10, 9);
+    const crowns = (n: number, lo: number, hi: number, color: string, blur: number) =>
+      blurred(g, w, h, blur, (l) => {
+        l.fillStyle = color;
+        for (let i = 0; i < n; i += 1) {
+          const x = rnd() * w;
+          const top = base - (lo + rnd() * (hi - lo)) * h;
+          const r = (base - top) * (0.32 + rnd() * 0.22);
+          wrapped(w, h, x, 0, r * 2, (px) => {
+            l.beginPath();
+            l.ellipse(px, top + r, r * 0.85, r, 0, 0, PI * 2);
+            l.fill();
+            l.beginPath();
+            l.ellipse(px + r * 0.45, top + r * 1.3, r * 0.7, r * 0.8, 0, 0, PI * 2);
+            l.fill();
+            l.fillRect(px - r * 0.9, top + r, r * 1.9, base - top - r + 4);
+          });
         }
-        g.filter = "none";
-      }
-    };
+      });
+    const roofs = (n: number, color: string, lit: boolean) =>
+      blurred(g, w, h, 1.5, (l) => {
+        for (let i = 0; i < n; i += 1) {
+          const x = rnd() * w;
+          const rw = 70 + rnd() * 90;
+          const top = base - (0.3 + rnd() * 0.14) * h;
+          const eaves = top + (0.1 + rnd() * 0.05) * h;
+          l.fillStyle = color;
+          l.beginPath();
+          l.moveTo(x - rw / 2 - 10, eaves);
+          l.lineTo(x - rw / 4, top);
+          l.lineTo(x + rw / 4, top);
+          l.lineTo(x + rw / 2 + 10, eaves);
+          l.closePath();
+          l.fill();
+          l.fillStyle = night ? "#1a1d24" : "#8c8a86";
+          l.fillRect(x - rw / 2, eaves, rw, base - eaves + 4);
+          if (lit && rnd() < 0.8) {
+            l.fillStyle = "rgba(255,206,140,0.85)";
+            l.fillRect(x - rw * 0.25, eaves + 10, 10, 9);
+            l.fillRect(x + rw * 0.12, eaves + 10, 10, 9);
+          }
+        }
+      });
     if (night) {
       crowns(70, 0.38, 0.75, "#101a22", 3);
       roofs(5, "#14171d", true);
@@ -1211,6 +1238,8 @@ function buildHouse(c: Ctx, theme: RoomTheme, night: boolean, front = false): TH
   const { k } = c;
   const g = new THREE.Group();
   g.userData.gardenPart = "house";
+  // The street side is a shell the porch view opens up (engine.ts, the dollhouse).
+  if (front) g.userData.shell = true;
   const finish = theme.down;
   const wall = wallMat(c, finish.backWall, finish.wallColor);
   // Outside, the whole house is in the back wall's material.
@@ -2817,6 +2846,10 @@ export const ORNAMENT_MODELS: Record<string, ItemModel> = {
 
 /** Where the front yard's parts stand, for the engine's camera and its taps. */
 export const FRONT_LAYOUT = {
+  /** The middle of the house, which the porch view turns round, and its size. */
+  house: { x: 0, z: L.wallZ - L.houseDepth / 2, w: L.houseWidth, d: L.houseDepth, eave: L.eave },
+  /** The two floors inside: where each room's middle stands, and the floor heights. */
+  inside: { x: -0.4, z: L.wallZ - 0.15 - 2.3 - 0.55, down: 0.32, up: 3.1 },
   /** The street's near edge (the curb), and how far the view reaches past it. */
   curbZ: 6.55,
   reach: 8.5,
@@ -2961,15 +2994,19 @@ function buildPorch(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
     }
   }
   // The ceiling, painted the old porch blue, a beam along the front, and the roof over it.
-  g.add(k.box(w, 0.02, P.depth, k.paint("#cfe2e2", 0.6), { at: [cx, ceilingY + 0.01, (z0 + z1) / 2] }));
-  g.add(k.box(w + 0.1, 0.24, 0.16, trim, { at: [cx, ceilingY + 0.1, z1 - 0.1] }));
+  const ceiling = k.box(w, 0.02, P.depth, k.paint("#cfe2e2", 0.6), { at: [cx, ceilingY + 0.01, (z0 + z1) / 2] });
+  const beam = k.box(w + 0.1, 0.24, 0.16, trim, { at: [cx, ceilingY + 0.1, z1 - 0.1] });
+  // The porch's top steps aside, with the house's roof, when the porch view looks inside.
+  ceiling.userData.porchTop = beam.userData.porchTop = true;
+  g.add(ceiling, beam);
   const roofM = printed(c, "porch:roof", () => paint("shingles", 512, 512, drawShingles, [(w + 0.5) / 1.36, (P.depth + 0.5) / 1.12]), 0.86, theme.id === "treehouse" ? "#8b6a4a" : "#6e645c");
   const fall = 0.26;
   const roofLen = Math.hypot(P.depth + 0.45, fall);
   const roof = k.box(w + 0.5, 0.1, roofLen, roofM, { at: [cx, ceilingY + 0.32, z0 + (P.depth + 0.45) / 2] });
   roof.rotation.x = Math.atan2(fall, P.depth + 0.45);
-  g.add(roof);
-  g.add(k.box(w + 0.52, 0.16, 0.04, trim, { at: [cx, ceilingY + 0.17, z1 + 0.45] }));
+  const fascia = k.box(w + 0.52, 0.16, 0.04, trim, { at: [cx, ceilingY + 0.17, z1 + 0.45] });
+  roof.userData.porchTop = fascia.userData.porchTop = true;
+  g.add(roof, fascia);
   // A hanging lantern by the door, lit at night.
   const metal = k.metal("black");
   const lx = L.doorX + 0.95;

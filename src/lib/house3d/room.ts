@@ -141,6 +141,18 @@ export function viewTexture(kind: ViewKind, night: boolean): THREE.Texture {
       s = (s * 16807) % 2147483647;
       return s / 2147483647;
     };
+    // Blurred parts are drawn on a layer and blurred once (a blur on every shape was slow).
+    const layer = (filter: string, draw: (c: CanvasRenderingContext2D) => void) => {
+      const cv = document.createElement("canvas");
+      cv.width = w;
+      cv.height = h;
+      const l = cv.getContext("2d", { willReadFrequently: true })!;
+      draw(l);
+      c.save();
+      c.filter = filter;
+      c.drawImage(cv, 0, 0);
+      c.restore();
+    };
     const sky = c.createLinearGradient(0, 0, 0, h * 0.62);
     if (night) {
       sky.addColorStop(0, "#0a1430");
@@ -164,14 +176,14 @@ export function viewTexture(kind: ViewKind, night: boolean): THREE.Texture {
       c.fillRect(w * 0.6, 0, w * 0.3, h * 0.4);
     } else {
       // Soft clouds.
-      c.filter = "blur(18px)";
-      for (let i = 0; i < 9; i += 1) {
-        c.fillStyle = `rgba(255,255,255,${0.55 + rnd() * 0.3})`;
-        c.beginPath();
-        c.ellipse(rnd() * w, 40 + rnd() * h * 0.28, 90 + rnd() * 140, 26 + rnd() * 30, 0, 0, Math.PI * 2);
-        c.fill();
-      }
-      c.filter = "none";
+      layer("blur(18px)", (c) => {
+        for (let i = 0; i < 9; i += 1) {
+          c.fillStyle = `rgba(255,255,255,${0.55 + rnd() * 0.3})`;
+          c.beginPath();
+          c.ellipse(rnd() * w, 40 + rnd() * h * 0.28, 90 + rnd() * 140, 26 + rnd() * 30, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+      });
     }
     const dim = (hex: string, f: number) => {
       const col = new THREE.Color(hex);
@@ -179,28 +191,28 @@ export function viewTexture(kind: ViewKind, night: boolean): THREE.Texture {
       return `#${col.getHexString()}`;
     };
     const hills = (y: number, amp: number, color: string, blur: number) => {
-      c.filter = `blur(${blur}px)`;
-      c.fillStyle = color;
-      c.beginPath();
-      c.moveTo(0, h);
-      for (let x = 0; x <= w; x += 20) c.lineTo(x, y + Math.sin(x * 0.004 + y) * amp + Math.sin(x * 0.011) * amp * 0.4);
-      c.lineTo(w, h);
-      c.closePath();
-      c.fill();
-      c.filter = "none";
-    };
-    const trees = (n: number, y: number, size: number, color: string, blur: number) => {
-      c.filter = `blur(${blur}px)`;
-      for (let i = 0; i < n; i += 1) {
-        const x = rnd() * w;
-        const s2 = size * (0.7 + rnd() * 0.6);
+      layer(`blur(${blur}px)`, (c) => {
         c.fillStyle = color;
         c.beginPath();
-        c.ellipse(x, y - s2 * 0.9, s2 * 0.7, s2, 0, 0, Math.PI * 2);
+        c.moveTo(0, h);
+        for (let x = 0; x <= w; x += 20) c.lineTo(x, y + Math.sin(x * 0.004 + y) * amp + Math.sin(x * 0.011) * amp * 0.4);
+        c.lineTo(w, h);
+        c.closePath();
         c.fill();
-        c.fillRect(x - s2 * 0.08, y - s2 * 0.2, s2 * 0.16, s2 * 0.5);
-      }
-      c.filter = "none";
+      });
+    };
+    const trees = (n: number, y: number, size: number, color: string, blur: number) => {
+      layer(`blur(${blur}px)`, (c) => {
+        for (let i = 0; i < n; i += 1) {
+          const x = rnd() * w;
+          const s2 = size * (0.7 + rnd() * 0.6);
+          c.fillStyle = color;
+          c.beginPath();
+          c.ellipse(x, y - s2 * 0.9, s2 * 0.7, s2, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillRect(x - s2 * 0.08, y - s2 * 0.2, s2 * 0.16, s2 * 0.5);
+        }
+      });
     };
     if (kind === "countryside") {
       hills(h * 0.55, 30, dim("#9db98a", 1), 6);
@@ -214,76 +226,76 @@ export function viewTexture(kind: ViewKind, night: boolean): THREE.Texture {
       trees(26, h * 0.8, 90, dim("#3c5a37", 1), 10);
       trees(14, h * 1.0, 160, dim("#2f4a2c", 1), 14);
     } else if (kind === "city") {
-      c.filter = "blur(4px)";
-      for (let layer = 0; layer < 3; layer += 1) {
-        const base = h * (0.62 + layer * 0.12);
-        for (let x = -20; x < w; ) {
-          const bw = 50 + rnd() * 120;
-          const bh = 80 + rnd() * (260 - layer * 40);
-          const tone = 150 - layer * 30 + rnd() * 30;
-          c.fillStyle = night ? `rgb(${tone * 0.18},${tone * 0.2},${tone * 0.3})` : `rgb(${tone},${tone + 8},${tone + 22})`;
-          c.fillRect(x, base - bh, bw, bh + h);
-          // Windows, many lit at night.
-          for (let wy = base - bh + 12; wy < base - 8; wy += 16)
-            for (let wx = x + 8; wx < x + bw - 8; wx += 14)
-              if (rnd() < (night ? 0.45 : 0.25)) {
-                c.fillStyle = night ? "rgba(255,214,140,0.9)" : "rgba(220,235,250,0.55)";
-                c.fillRect(wx, wy, 6, 8);
-              }
-          x += bw + 6;
+      layer("blur(4px)", (c) => {
+        for (let layer = 0; layer < 3; layer += 1) {
+          const base = h * (0.62 + layer * 0.12);
+          for (let x = -20; x < w; ) {
+            const bw = 50 + rnd() * 120;
+            const bh = 80 + rnd() * (260 - layer * 40);
+            const tone = 150 - layer * 30 + rnd() * 30;
+            c.fillStyle = night ? `rgb(${tone * 0.18},${tone * 0.2},${tone * 0.3})` : `rgb(${tone},${tone + 8},${tone + 22})`;
+            c.fillRect(x, base - bh, bw, bh + h);
+            // Windows, many lit at night.
+            for (let wy = base - bh + 12; wy < base - 8; wy += 16)
+              for (let wx = x + 8; wx < x + bw - 8; wx += 14)
+                if (rnd() < (night ? 0.45 : 0.25)) {
+                  c.fillStyle = night ? "rgba(255,214,140,0.9)" : "rgba(220,235,250,0.55)";
+                  c.fillRect(wx, wy, 6, 8);
+                }
+            x += bw + 6;
+          }
         }
-      }
-      c.filter = "none";
+      });
     } else if (kind === "ocean") {
       c.fillStyle = dim("#4f93b6", 1);
       c.fillRect(0, h * 0.5, w, h * 0.2);
-      c.filter = "blur(2px)";
-      for (let i = 0; i < 60; i += 1) {
-        c.fillStyle = `rgba(255,255,255,${night ? 0.08 : 0.35})`;
-        c.fillRect(rnd() * w, h * 0.52 + rnd() * h * 0.16, 30 + rnd() * 60, 2);
-      }
-      c.filter = "none";
-      hills(h * 0.7, 8, dim("#e7d3a8", 1), 6);
-      c.filter = "blur(8px)";
-      for (let i = 0; i < 5; i += 1) {
-        const x = rnd() * w;
-        c.strokeStyle = dim("#5a4a32", 1);
-        c.lineWidth = 12;
-        c.beginPath();
-        c.moveTo(x, h);
-        c.quadraticCurveTo(x + 30, h * 0.6, x + 60, h * 0.42);
-        c.stroke();
-        c.fillStyle = dim("#3f6b3a", 1);
-        for (let f = 0; f < 6; f += 1) {
-          c.beginPath();
-          c.ellipse(x + 60 + Math.cos(f) * 60, h * 0.42 + Math.sin(f) * 20, 70, 14, f, 0, Math.PI * 2);
-          c.fill();
+      layer("blur(2px)", (c) => {
+        for (let i = 0; i < 60; i += 1) {
+          c.fillStyle = `rgba(255,255,255,${night ? 0.08 : 0.35})`;
+          c.fillRect(rnd() * w, h * 0.52 + rnd() * h * 0.16, 30 + rnd() * 60, 2);
         }
-      }
-      c.filter = "none";
+      });
+      hills(h * 0.7, 8, dim("#e7d3a8", 1), 6);
+      layer("blur(8px)", (c) => {
+        for (let i = 0; i < 5; i += 1) {
+          const x = rnd() * w;
+          c.strokeStyle = dim("#5a4a32", 1);
+          c.lineWidth = 12;
+          c.beginPath();
+          c.moveTo(x, h);
+          c.quadraticCurveTo(x + 30, h * 0.6, x + 60, h * 0.42);
+          c.stroke();
+          c.fillStyle = dim("#3f6b3a", 1);
+          for (let f = 0; f < 6; f += 1) {
+            c.beginPath();
+            c.ellipse(x + 60 + Math.cos(f) * 60, h * 0.42 + Math.sin(f) * 20, 70, 14, f, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+      });
     } else {
       // Mountains, with snow, and pine forest below.
-      c.filter = "blur(5px)";
-      for (let layer = 0; layer < 3; layer += 1) {
-        const base = h * (0.55 + layer * 0.1);
-        c.fillStyle = dim(["#8f93b8", "#6f7499", "#565b7c"][layer], 1);
-        c.beginPath();
-        c.moveTo(0, h);
-        let x = 0;
-        while (x <= w) {
-          const peak = base - 120 - rnd() * 140 + layer * 40;
-          c.lineTo(x, base);
-          c.lineTo(x + 90, peak);
-          if (layer === 0 && !night) {
-            c.lineTo(x + 105, peak + 24);
+      layer("blur(5px)", (c) => {
+        for (let layer = 0; layer < 3; layer += 1) {
+          const base = h * (0.55 + layer * 0.1);
+          c.fillStyle = dim(["#8f93b8", "#6f7499", "#565b7c"][layer], 1);
+          c.beginPath();
+          c.moveTo(0, h);
+          let x = 0;
+          while (x <= w) {
+            const peak = base - 120 - rnd() * 140 + layer * 40;
+            c.lineTo(x, base);
+            c.lineTo(x + 90, peak);
+            if (layer === 0 && !night) {
+              c.lineTo(x + 105, peak + 24);
+            }
+            x += 180 + rnd() * 80;
           }
-          x += 180 + rnd() * 80;
+          c.lineTo(w, h);
+          c.closePath();
+          c.fill();
         }
-        c.lineTo(w, h);
-        c.closePath();
-        c.fill();
-      }
-      c.filter = "none";
+      });
       trees(30, h * 0.9, 50, dim("#2f4a3a", 1), 8);
     }
   });
