@@ -4,6 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { GOAL, NET_Y, type CourtGameId } from "@/lib/games";
 import { RINK } from "@/lib/rink";
 import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Ribbon, SideStands, Vignette, WoodFloor, toward } from "./Arena";
+import { GOAL_MOUTH, goalLineX, lineX, persp, PITCH, BOX_DEPTH, KICKOFF, NET, netTop, VCOURT } from "@/lib/match-rules";
+
+/** A match's names and score, for the arena's own boards. `now` is who is on the floor (cheer). */
+export interface MatchBoard {
+  names: [string, string];
+  score: [number, number];
+  now?: string;
+}
+
+const short = (name: string) => name.toUpperCase().slice(0, 10);
 
 /**
  * The four courts and the rink, as arenas seen from a broadcast camera high
@@ -111,7 +121,7 @@ function Person({ x, y, h, shirt, skin = "#b07a55", hair = "#1c1210", stripes = 
 
 /* ── Shaurya: a school gym and a wrestling mat ───────────────────── */
 
-export function WrestlingScene() {
+export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
   const id = "wr";
   // The mat and the platform it sits on, laid toward the vanishing point.
   const matFar = 405;
@@ -159,17 +169,17 @@ export function WrestlingScene() {
         </text>
         <rect x="16" y="24" width="150" height="62" rx="4" fill="#0b1220" />
         <rect x="190" y="24" width="150" height="62" rx="4" fill="#0b1220" />
-        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#4ade80" fontFamily={FONT} letterSpacing="2">
-          BRIDGES
+        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill={board ? "#93c5fd" : "#4ade80"} fontFamily={FONT} letterSpacing="2">
+          {board ? short(board.names[0]) : "BRIDGES"}
         </text>
-        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#f87171" fontFamily={FONT} letterSpacing="2">
-          GUEST
+        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill={board ? "#fdba74" : "#f87171"} fontFamily={FONT} letterSpacing="2">
+          {board ? short(board.names[1]) : "GUEST"}
         </text>
-        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#4ade80" fontFamily="ui-monospace, monospace">
-          0
+        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill={board ? "#60a5fa" : "#4ade80"} fontFamily="ui-monospace, monospace">
+          {board ? board.score[0] : 0}
         </text>
-        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#f87171" fontFamily="ui-monospace, monospace">
-          0
+        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill={board ? "#fb923c" : "#f87171"} fontFamily="ui-monospace, monospace">
+          {board ? board.score[1] : 0}
         </text>
       </Jumbotron>
       {/* The arena floor around the platform, dark, with the boards along the far side. */}
@@ -268,7 +278,7 @@ export function WrestlingScene() {
  * announcer and the trophies, and a banner over the lot. Jo throws her
  * passes for the judges, not a crowd on a sideline.
  */
-export function CheerScene() {
+export function CheerScene({ board }: { board?: MatchBoard }) {
   const id = "ch";
   // The spring floor: its far edge where the old mat began, its sides toward the vanishing point.
   const far = 478;
@@ -318,9 +328,14 @@ export function CheerScene() {
         <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
           NOW ON THE FLOOR
         </text>
-        <Fit x={178} y={70} w={290} size={34} fill="#ffffff">
-          ALGEBRIDGE ALLSTARS
+        <Fit x={178} y={70} w={board?.now ? Math.min(290, 40 + board.now.length * 22) : 290} size={34} fill="#ffffff">
+          {board?.now ? short(board.now) : "ALGEBRIDGE ALLSTARS"}
         </Fit>
+        {board && (
+          <text x="178" y="94" textAnchor="middle" fontSize="11" fontWeight="800" fill="#fbcfe8" fontFamily={FONT} letterSpacing="2">
+            {`${short(board.names[0])} ${board.score[0]} · ${board.score[1]} ${short(board.names[1])}`}
+          </text>
+        )}
         <rect x="128" y="80" width="100" height="3" rx="1.5" fill="#facc15" />
       </Jumbotron>
       {/* The competition floor, dark, with the boards along the far side. */}
@@ -421,7 +436,7 @@ function courtX(y: number, side: "l" | "r") {
   return side === "l" ? COURT.farL + (COURT.nearL - COURT.farL) * t : COURT.farR + (COURT.nearR - COURT.farR) * t;
 }
 
-export function VolleyballScene() {
+export function VolleyballScene({ board }: { board?: MatchBoard }) {
   const id = "vb";
   const line = (y: number) => <rect key={y} x={courtX(y, "l")} y={y - 2} width={courtX(y, "r") - courtX(y, "l")} height="4" fill="#ffffff" />;
   const courtPath = `M${COURT.farL} ${COURT.farY} L${COURT.farR} ${COURT.farY} L${COURT.nearR} ${COURT.nearY} L${COURT.nearL} ${COURT.nearY}Z`;
@@ -461,21 +476,21 @@ export function VolleyballScene() {
       <LightRig id={id} y={12} xs={[90, 260, 940, 1110]} />
       <Jumbotron id={id} ring="#7c3aed">
         <text x="178" y="16" textAnchor="middle" fontSize="10" fontWeight="800" fill="#c4b5fd" fontFamily={FONT} letterSpacing="2">
-          SET 3 · MATCH POINT
+          {board ? "RALLY POINT · LIVE" : "SET 3 · MATCH POINT"}
         </text>
         <rect x="16" y="24" width="150" height="62" rx="4" fill="#0b1220" />
         <rect x="190" y="24" width="150" height="62" rx="4" fill="#0b1220" />
-        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#a78bfa" fontFamily={FONT} letterSpacing="2">
-          BRIDGES
+        <text x="91" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill={board ? "#93c5fd" : "#a78bfa"} fontFamily={FONT} letterSpacing="2">
+          {board ? short(board.names[0]) : "BRIDGES"}
         </text>
-        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill="#5eead4" fontFamily={FONT} letterSpacing="2">
-          GUEST
+        <text x="265" y="40" textAnchor="middle" fontSize="10" fontWeight="800" fill={board ? "#fdba74" : "#5eead4"} fontFamily={FONT} letterSpacing="2">
+          {board ? short(board.names[1]) : "GUEST"}
         </text>
-        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#f97316" fontFamily="ui-monospace, monospace">
-          24
+        <text x="91" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill={board ? "#60a5fa" : "#f97316"} fontFamily="ui-monospace, monospace">
+          {board ? board.score[0] : 24}
         </text>
-        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill="#22c55e" fontFamily="ui-monospace, monospace">
-          23
+        <text x="265" y="80" textAnchor="middle" fontSize="40" fontWeight="800" fill={board ? "#fb923c" : "#22c55e"} fontFamily="ui-monospace, monospace">
+          {board ? board.score[1] : 23}
         </text>
       </Jumbotron>
       {/* The floor: maple, the painted free zone, the court. */}
@@ -557,7 +572,19 @@ export function VolleyballScene() {
       ))}
       <rect x="1078" y="566" width="6" height="10" fill="#111827" />
       <rect x="1152" y="566" width="6" height="10" fill="#111827" />
-      {/* The net: posts with their pads, antennae, mesh, tapes, and the referee on the stand. */}
+      {/* The net: posts with their pads, antennae, mesh, tapes, and the referee on the stand. In a match it is drawn on its own layer over the far player (VolleyNet). */}
+      {!board && <VolleyNetParts />}
+      {/* The net's shadow on the court. */}
+      <path d={`M${courtX(NET_Y + 4, "l")} ${NET_Y + 4} L${courtX(NET_Y + 4, "r")} ${NET_Y + 4} L${courtX(NET_Y + 22, "r")} ${NET_Y + 22} L${courtX(NET_Y + 22, "l")} ${NET_Y + 22}Z`} fill="#000000" opacity="0.08" />
+      <Vignette id={id} />
+    </Svg>
+  );
+}
+
+/** The volleyball net and its posts, the referee's stand: in a match, a layer of its own between the far player and the near one. */
+function VolleyNetParts() {
+  return (
+    <>
       {[196, 1004].map((x) => (
         <g key={x}>
           <ellipse cx={x + 2} cy={NET_Y + 6} rx="22" ry="5" fill="#020617" opacity="0.35" />
@@ -590,10 +617,18 @@ export function VolleyballScene() {
           ))}
         </g>
       ))}
-      {/* The net's shadow on the court. */}
-      <path d={`M${courtX(NET_Y + 4, "l")} ${NET_Y + 4} L${courtX(NET_Y + 4, "r")} ${NET_Y + 4} L${courtX(NET_Y + 22, "r")} ${NET_Y + 22} L${courtX(NET_Y + 22, "l")} ${NET_Y + 22}Z`} fill="#000000" opacity="0.08" />
-      <Vignette id={id} />
-    </Svg>
+    </>
+  );
+}
+
+/** The net on its own, over the far side of the court, for a match across it. */
+export function VolleyNet({ zIndex }: { zIndex: number }) {
+  return (
+    <div className="pointer-events-none absolute inset-0" style={{ zIndex }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" aria-hidden>
+        <VolleyNetParts />
+      </svg>
+    </div>
   );
 }
 
@@ -769,19 +804,391 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
 }
 
 /** A court. `live` says a game is being played on it; motion also waits until it is on screen. */
-export function CourtScene({ game, netHit, live = true }: { game: CourtGameId; netHit?: boolean; live?: boolean }) {
+/**
+ * A court. With `board`, it is a two-player match: the boards show the two
+ * names and the score, and soccer is seen from the touchline with a goal at
+ * each end (`goalHit` shakes the net a shot went into).
+ */
+export function CourtScene({ game, netHit, live = true, board, goalHit = null }: { game: CourtGameId; netHit?: boolean; live?: boolean; board?: MatchBoard; goalHit?: "left" | "right" | null }) {
   return (
     <SceneMotion live={live}>
       {game === "wrestling" ? (
-        <WrestlingScene />
+        <WrestlingScene board={board} />
       ) : game === "cheer" ? (
-        <CheerScene />
+        <CheerScene board={board} />
       ) : game === "volleyball" ? (
-        <VolleyballScene />
+        board ? <VolleyMatchScene board={board} /> : <VolleyballScene board={board} />
+      ) : board ? (
+        <SoccerMatchScene board={board} goalHit={goalHit} />
       ) : (
         <SoccerScene netHit={netHit} />
       )}
     </SceneMotion>
+  );
+}
+
+/**
+ * Soccer for two, from the touchline, as a match is shown on television: the
+ * far stand across the pitch, a goal at each end on goal lines that run into
+ * the picture, the halfway line and the centre circle, the boxes. The
+ * geometry is lib/match-rules.ts (PITCH, GOAL_MOUTH, BOX_DEPTH), the same the
+ * players and the ball move on.
+ */
+function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "left" | "right" | null }) {
+  const id = "scm";
+  const P = PITCH;
+  const pitchTop = 196;
+  const bands: { y: number; h: number }[] = [];
+  let y = pitchTop;
+  for (let i = 0; y < H; i += 1) {
+    const h = 26 + i * 8;
+    bands.push({ y, h });
+    y += h;
+  }
+  // Stripes mown across the pitch, along the lines that run into the picture.
+  const lanes = Array.from({ length: 16 }, (_, i) => -1000 + i * 200);
+  const L = (xFront: number, yy: number) => r2(lineX(xFront, yy));
+  const line = (pts: [number, number][]) => pts.map(([px, py], i) => `${i ? "L" : "M"}${r2(px)} ${r2(py)}`).join(" ");
+  const box = (end: "left" | "right", y0: number, y1: number, depth: number) => {
+    const dir = end === "left" ? 1 : -1;
+    return line([
+      [goalLineX(end, y0), y0],
+      [goalLineX(end, y0) + dir * depth * persp(y0), y0],
+      [goalLineX(end, y1) + dir * depth * persp(y1), y1],
+      [goalLineX(end, y1), y1],
+    ]);
+  };
+  /** A goal on a goal line: the net behind it, then the frame, posts lit from the left. */
+  const goal = (end: "left" | "right") => {
+    const out = end === "left" ? -1 : 1;
+    const g0 = { x: goalLineX(end, GOAL_MOUTH.y0), y: GOAL_MOUTH.y0 };
+    const g1 = { x: goalLineX(end, GOAL_MOUTH.y1), y: GOAL_MOUTH.y1 };
+    const h0 = 236 * persp(g0.y);
+    const h1 = 236 * persp(g1.y);
+    const d0 = 70 * persp(g0.y);
+    const d1 = 70 * persp(g1.y);
+    const b0 = { x: g0.x + out * d0, y: g0.y - 6 };
+    const b1 = { x: g1.x + out * d1, y: g1.y - 6 };
+    const mesh: string[] = [];
+    for (let i = 1; i < 9; i += 1) {
+      const t = i / 9;
+      // Down the back of the net, and across it.
+      mesh.push(line([[b0.x + (b1.x - b0.x) * t, b0.y + (b1.y - b0.y) * t - (h0 + (h1 - h0) * t) * 0.78], [b0.x + (b1.x - b0.x) * t, b0.y + (b1.y - b0.y) * t]]));
+    }
+    for (let i = 1; i < 6; i += 1) {
+      const t = i / 6;
+      mesh.push(line([[b0.x, b0.y - h0 * 0.78 * t], [b1.x, b1.y - h1 * 0.78 * t]]));
+    }
+    const top0 = { x: g0.x, y: g0.y - h0 };
+    const top1 = { x: g1.x, y: g1.y - h1 };
+    const backTop0 = { x: b0.x, y: b0.y - h0 * 0.78 };
+    const backTop1 = { x: b1.x, y: b1.y - h1 * 0.78 };
+    return (
+      <g key={end}>
+        <ellipse cx={(g0.x + g1.x) / 2 + out * 20} cy={(g0.y + g1.y) / 2 + 4} rx={56} ry={58} fill="#000000" opacity="0.22" />
+        <g className={goalHit === end ? "net-hit" : ""} style={{ transformOrigin: `${r2((g0.x + g1.x) / 2)}px ${r2((g0.y + g1.y) / 2)}px`, transformBox: "view-box" }}>
+          {/* The net: its back and its roof, white mesh. */}
+          <path d={line([[top0.x, top0.y], [top1.x, top1.y], [backTop1.x, backTop1.y], [backTop0.x, backTop0.y]]) + "Z"} fill="#e2e8f0" opacity="0.16" />
+          <path d={line([[backTop0.x, backTop0.y], [backTop1.x, backTop1.y], [b1.x, b1.y], [b0.x, b0.y]]) + "Z"} fill="#e2e8f0" opacity="0.2" />
+          <path d={mesh.join(" ")} stroke="#f8fafc" strokeWidth="1.1" opacity="0.55" fill="none" />
+          <path d={line([[top0.x, top0.y], [backTop0.x, backTop0.y], [b0.x, b0.y]]) + " " + line([[top1.x, top1.y], [backTop1.x, backTop1.y], [b1.x, b1.y]])} stroke="#e5e7eb" strokeWidth="2" fill="none" opacity="0.8" />
+        </g>
+        {/* The frame. */}
+        <path d={line([[g0.x, g0.y], [top0.x, top0.y], [top1.x, top1.y], [g1.x, g1.y]])} stroke="#ffffff" strokeWidth="8" fill="none" strokeLinejoin="round" />
+        <path d={line([[g0.x + 2, g0.y], [top0.x + 2, top0.y + 3]])} stroke="#cbd5e1" strokeWidth="2.5" fill="none" />
+      </g>
+    );
+  };
+  const corners: [number, number][] = [
+    [L(P.l, P.y0), P.y0],
+    [L(P.r, P.y0), P.y0],
+  ];
+  return (
+    <Svg label="Soccer stadium at night, seen from the touchline">
+      <defs>
+        <ArenaDefs id={id} glow="#4ade80" />
+        <CrowdTiles id={id} shirts={["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#1f2937", "#f8fafc", "#facc15"]} seat="#14301f" />
+        <linearGradient id="scm-night" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#020617" />
+          <stop offset="100%" stopColor="#0b1635" />
+        </linearGradient>
+        <radialGradient id="scm-pool" cx="50%" cy="62%" r="62%">
+          <stop offset="0%" stopColor="#f7fee7" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#f7fee7" stopOpacity="0" />
+        </radialGradient>
+        <pattern id="scm-grass" patternUnits="userSpaceOnUse" width="18" height="12">
+          <path d="M2 10 L3 6 M7 11 L7.6 7 M12 10 L11.2 6.4 M15.5 11 L16.4 7.2 M4.6 4 L5 1 M10 5 L10.8 1.6 M14 4.4 L13.6 1" stroke="#14532d" strokeWidth="0.9" opacity="0.35" />
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="url(#scm-night)" />
+      <rect x="-20" y="16" width={W + 40} height="22" fill="#0a0d16" />
+      <rect x="-20" y="36" width={W + 40} height="3" fill="#374151" />
+      {Array.from({ length: 11 }, (_, i) => (
+        <Glare key={i} id={id} x={60 + i * 108} y={30} r={52} core={3.8} />
+      ))}
+      {/* The main stand across the pitch, two tiers. */}
+      <FarStand id={id} front={94} top={40} rows={6} s0={0.34} s1={0.27} aisles={[300, 900]} tunnels={[]} wall="#0d1424" />
+      <Ribbon
+        id={id}
+        y={94}
+        h={14}
+        segments={[
+          { text: "ALGEBRIDGE", bg: "#111827", fg: "#facc15" },
+          { text: short(board.names[0]), bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "VS", bg: "#111827", fg: "#ffffff" },
+          { text: short(board.names[1]), bg: "#c2410c", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#86efac" },
+          { text: "MATCH DAY", bg: "#f8fafc", fg: "#15803d" },
+        ]}
+      />
+      <FarStand id={id} front={170} top={108} rows={8} s0={0.48} s1={0.38} aisles={[200, 500, 700, 1000]} tunnels={[360, 840]} wall="#0d1424" />
+      {/* The score on the big screen. */}
+      <rect x="482" y="44" width="236" height="62" rx="4" fill="#05070c" />
+      <rect x="488" y="50" width="224" height="50" fill={`url(#${id}-screen)`} />
+      <rect x="496" y="58" width="8" height="8" rx="2" fill="#3b82f6" />
+      <Fit x={556} y={66} w={Math.min(96, 16 + board.names[0].length * 9)} size={11} fill="#bfdbfe">
+        {short(board.names[0])}
+      </Fit>
+      <rect x="696" y="58" width="8" height="8" rx="2" fill="#f97316" />
+      <Fit x={644} y={66} w={Math.min(96, 16 + board.names[1].length * 9)} size={11} fill="#fed7aa">
+        {short(board.names[1])}
+      </Fit>
+      <text x="600" y="95" textAnchor="middle" fontSize="24" fontWeight="800" fill="#ffffff" fontFamily="ui-monospace, monospace">
+        {`${board.score[0]} – ${board.score[1]}`}
+      </text>
+      <CourtBoards
+        id={id}
+        y={174}
+        h={22}
+        x0={-20}
+        x1={W + 20}
+        reflect={false}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
+          { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#14532d" },
+          { text: "MATCH DAY", bg: "#0f172a", fg: "#86efac" },
+          { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
+          { text: "TOP CORNER", bg: "#0f172a", fg: "#ffffff" },
+          { text: "GO BRIDGES", bg: "#f8fafc", fg: "#15803d" },
+        ]}
+      />
+      {/* The pitch. */}
+      {bands.map((b, i) => (
+        <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#2f8f3c" : "#287f34"} />
+      ))}
+      {lanes.map((x, i) =>
+        i % 2 ? null : <path key={x} d={`M${r2(toward(x, H, pitchTop))} ${pitchTop} L${r2(toward(x + 200, H, pitchTop))} ${pitchTop} L${x + 200} ${H} L${x} ${H}Z`} fill="#ffffff" opacity="0.045" />
+      )}
+      <rect x="-20" y={pitchTop} width={W + 40} height={H - pitchTop + 20} fill="url(#scm-grass)" />
+      <rect x="-20" y={pitchTop} width={W + 40} height={H - pitchTop + 20} fill="url(#scm-pool)" />
+      {/* Benches on the far side, either side of the halfway line. */}
+      {[300, 900].map((bx, side) => (
+        <g key={bx}>
+          <ellipse cx={bx} cy="404" rx="96" ry="8" fill="#000000" opacity="0.3" />
+          <path d={`M${bx - 90} 352 Q${bx} 334 ${bx + 90} 352 L${bx + 90} 358 L${bx - 90} 358Z`} fill="#111827" />
+          <rect x={bx - 86} y="356" width="172" height="42" fill="#bae6fd" opacity="0.2" />
+          <rect x={bx - 80} y="390" width="160" height="10" rx="3" fill={side ? "#9a3412" : "#1e3a8a"} />
+          {[0, 1, 2].map((i) => (
+            <Person key={i} x={bx - 50 + i * 50} y={396} h={46} shirt={side ? "#ea580c" : "#2563eb"} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 1 + side) % HAIRS.length]} />
+          ))}
+        </g>
+      ))}
+      {/* The lines: touchlines, goal lines, halfway line, centre circle and spot, the boxes. */}
+      <g stroke="#f8fafc" strokeWidth="4" fill="none" strokeLinejoin="round">
+        <path d={line([[L(P.l, P.y0), P.y0], [L(P.r, P.y0), P.y0], [L(P.r, P.y1), P.y1], [L(P.l, P.y1), P.y1]]) + "Z"} />
+        <path d={line([[600, P.y0], [600, P.y1]])} />
+        <ellipse cx="600" cy={KICKOFF.ball.y} rx={r2(122 * persp(KICKOFF.ball.y))} ry="46" />
+        <path d={box("left", 500, 728, BOX_DEPTH)} />
+        <path d={box("right", 500, 728, BOX_DEPTH)} />
+        <path d={box("left", 576, 646, 74)} />
+        <path d={box("right", 576, 646, 74)} />
+      </g>
+      <ellipse cx="600" cy={KICKOFF.ball.y} rx="6" ry="3" fill="#f8fafc" />
+      {(["left", "right"] as const).map((end) => {
+        const yy = 612;
+        const x = goalLineX(end, yy) + (end === "left" ? 1 : -1) * 130 * persp(yy);
+        return <ellipse key={end} cx={r2(x)} cy={yy} rx="5" ry="2.5" fill="#f8fafc" />;
+      })}
+      {/* Corner flags. */}
+      {corners.map(([cx, cy], i) => (
+        <g key={i}>
+          <rect x={cx - 1.5} y={cy - 38} width="3" height="38" fill="#e5e7eb" />
+          <g className="sc-sway" style={{ transformOrigin: `${cx + 1.5}px ${cy - 38}px`, animationDelay: `${i * -1.6}s` }}>
+            <path d={`M${cx + 1.5} ${cy - 38} l15 6 l-15 6Z`} fill="#facc15" />
+          </g>
+        </g>
+      ))}
+      {goal("left")}
+      {goal("right")}
+      <Vignette id={id} />
+    </Svg>
+  );
+}
+
+/**
+ * Volleyball for two, from the sideline: the net across the middle, one
+ * player each side of it, the end lines running into the picture. The camera
+ * sits a step off the net, so the net shows as a panel. Geometry from
+ * lib/match-rules.ts (VCOURT, NET, HALF), the same the players move on.
+ */
+function VolleyMatchScene({ board }: { board: MatchBoard }) {
+  const id = "vbm";
+  const C = VCOURT;
+  const L = (xFront: number, yy: number) => r2(lineX(xFront, yy));
+  const line = (pts: [number, number][]) => pts.map(([px, py], i) => `${i ? "L" : "M"}${r2(px)} ${r2(py)}`).join(" ");
+  const court = line([[L(C.l, C.y0), C.y0], [L(C.r, C.y0), C.y0], [L(C.r, C.y1), C.y1], [L(C.l, C.y1), C.y1]]) + "Z";
+  const zone = line([[L(C.l - 150, 404), 404], [L(C.r + 150, 404), 404], [L(C.r + 150, H + 40), H + 40], [L(C.l - 150, H + 40), H + 40]]) + "Z";
+  // The net: a post on each sideline, the mesh hung from the top tape.
+  const far = { x: NET.far, y: C.y0 - 12 };
+  const near = { x: NET.near, y: C.y1 + 14 };
+  const farTop = { x: far.x, y: netTop(far.y) };
+  const nearTop = { x: near.x, y: netTop(near.y) };
+  const drop = (t: { x: number; y: number }, base: { y: number }) => ({ x: t.x, y: t.y + (base.y - t.y) * 0.42 });
+  const farLow = drop(farTop, far);
+  const nearLow = drop(nearTop, near);
+  const mesh: string[] = [];
+  for (let i = 1; i < 34; i += 1) {
+    const t = i / 34;
+    const a = { x: farTop.x + (nearTop.x - farTop.x) * t, y: farTop.y + (nearTop.y - farTop.y) * t };
+    const b = { x: farLow.x + (nearLow.x - farLow.x) * t, y: farLow.y + (nearLow.y - farLow.y) * t };
+    mesh.push(line([[a.x, a.y], [b.x, b.y]]));
+  }
+  for (let i = 1; i < 8; i += 1) {
+    const t = i / 8;
+    mesh.push(line([[farTop.x, farTop.y + (farLow.y - farTop.y) * t], [nearTop.x, nearTop.y + (nearLow.y - nearTop.y) * t]]));
+  }
+  const attack = (xFront: number) => line([[L(xFront, C.y0), C.y0], [L(xFront, C.y1), C.y1]]);
+  return (
+    <Svg label="Volleyball arena, seen from the sideline">
+      <defs>
+        <ArenaDefs id={id} glow="#a78bfa" />
+        <CrowdTiles id={id} shirts={["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#7c3aed", "#facc15", "#1f2937"]} seat="#3b1f6e" />
+        <linearGradient id="vbm-paint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fb923c" />
+          <stop offset="100%" stopColor="#ea580c" />
+        </linearGradient>
+        <linearGradient id="vbm-zone" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b5bdb" />
+          <stop offset="100%" stopColor="#1e3a8a" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="#070a14" />
+      <FarStand id={id} front={94} top={-10} rows={6} s0={0.34} s1={0.27} aisles={[300, 900]} tunnels={[]} />
+      <Ribbon
+        id={id}
+        y={94}
+        h={14}
+        segments={[
+          { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
+          { text: short(board.names[0]), bg: "#1d4ed8", fg: "#ffffff" },
+          { text: "VS", bg: "#111827", fg: "#ffffff" },
+          { text: short(board.names[1]), bg: "#c2410c", fg: "#ffffff" },
+          { text: "ALGEBRA 1", bg: "#111827", fg: "#a78bfa" },
+          { text: "DIG DEEP", bg: "#7c3aed", fg: "#ffffff" },
+        ]}
+      />
+      <FarStand id={id} front={300} top={108} rows={11} s0={0.5} s1={0.38} aisles={[200, 500, 700, 1000]} tunnels={[360, 840]} />
+      <LightRig id={id} y={12} xs={[90, 300, 900, 1110]} />
+      {/* The score on the big screen. */}
+      <rect x="482" y="30" width="236" height="62" rx="4" fill="#05070c" />
+      <rect x="488" y="36" width="224" height="50" fill={`url(#${id}-screen)`} />
+      <rect x="496" y="44" width="8" height="8" rx="2" fill="#3b82f6" />
+      <Fit x={556} y={52} w={Math.min(96, 16 + board.names[0].length * 9)} size={11} fill="#bfdbfe">
+        {short(board.names[0])}
+      </Fit>
+      <rect x="696" y="44" width="8" height="8" rx="2" fill="#f97316" />
+      <Fit x={644} y={52} w={Math.min(96, 16 + board.names[1].length * 9)} size={11} fill="#fed7aa">
+        {short(board.names[1])}
+      </Fit>
+      <text x="600" y="81" textAnchor="middle" fontSize="24" fontWeight="800" fill="#ffffff" fontFamily="ui-monospace, monospace">
+        {`${board.score[0]} – ${board.score[1]}`}
+      </text>
+      <CourtBoards
+        id={id}
+        y={300}
+        h={24}
+        x0={-20}
+        x1={W + 20}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
+          { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
+          { text: "SPIKE IT", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#facc15", fg: "#4c1d95" },
+          { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
+          { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#a78bfa" },
+        ]}
+      />
+      <WoodFloor id={id} top={324} />
+      <path d={zone} fill="url(#vbm-zone)" opacity="0.93" />
+      {[300, 900].map((x) => (
+        <FloorShine key={x} x={x} y={420} w={300} h={30} opacity={0.12} />
+      ))}
+      {/* Each player's bench on the far side of their own half. */}
+      {[0, 1].map((side) => {
+        const bx = side ? 900 : 300;
+        const shirt = side ? "#ea580c" : "#2563eb";
+        return (
+          <g key={side}>
+            <ellipse cx={bx} cy="440" rx="80" ry="7" fill="#020617" opacity="0.35" />
+            <rect x={bx - 70} y="418" width="140" height="10" rx="4" fill="#1f2937" />
+            <rect x={bx - 70} y="418" width="140" height="3" rx="1.5" fill="#4b5563" />
+            {[0, 1, 2].map((i) => (
+              <Person key={i} x={bx - 44 + i * 44} y={418} h={44} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} />
+            ))}
+          </g>
+        );
+      })}
+      {/* The court: paint, grain through it, lines, the attack lines either side of the net. */}
+      <path d={court} fill="url(#vbm-paint)" />
+      <path d={court} fill="none" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" />
+      <g stroke="#ffffff" strokeWidth="4" fill="none">
+        <path d={attack(460)} />
+        <path d={attack(740)} />
+        <path d={line([[far.x, C.y0], [near.x, C.y1]])} />
+      </g>
+      <g opacity="0.16">
+        <Fit x={360} y={724} w={170} size={26} fill="#ffffff">
+          ALGEBRIDGE
+        </Fit>
+        <Fit x={840} y={724} w={170} size={26} fill="#ffffff">
+          ALGEBRIDGE
+        </Fit>
+      </g>
+      {/* The referee's stand at the far post. */}
+      <g>
+        <rect x={far.x + 26} y={far.y - 96} width="5" height="96" fill="#94a3b8" />
+        <rect x={far.x + 50} y={far.y - 96} width="5" height="96" fill="#94a3b8" />
+        <rect x={far.x + 22} y={far.y - 100} width="38" height="6" rx="2" fill="#cbd5e1" />
+        <Person x={far.x + 42} y={far.y - 100} h={42} shirt="#111827" stripes skin={SKINS[2]} hair={HAIRS[0]} />
+      </g>
+      {/* The net. */}
+      <ellipse cx={near.x} cy={near.y + 2} rx="22" ry="5" fill="#000000" opacity="0.35" />
+      <path d={line([[farTop.x, farTop.y], [nearTop.x, nearTop.y], [nearLow.x, nearLow.y], [farLow.x, farLow.y]]) + "Z"} fill="#0f172a" opacity="0.5" />
+      <path d={mesh.join(" ")} stroke="#e2e8f0" strokeWidth="1.2" opacity="0.7" fill="none" />
+      <path d={line([[farTop.x, farTop.y], [nearTop.x, nearTop.y]])} stroke="#ffffff" strokeWidth="5" fill="none" />
+      <path d={line([[farLow.x, farLow.y], [nearLow.x, nearLow.y]])} stroke="#ffffff" strokeWidth="2.5" fill="none" opacity="0.85" />
+      {/* Antennas over each sideline, red and white. */}
+      {[farTop, nearTop].map((t, i) => (
+        <g key={i}>
+          <rect x={t.x - 1.5} y={t.y - 44 * (i ? 1 : 0.66)} width="3" height={44 * (i ? 1 : 0.66)} fill="#ffffff" />
+          {[0, 1, 2].map((j) => (
+            <rect key={j} x={t.x - 1.5} y={t.y - 44 * (i ? 1 : 0.66) + j * 14 * (i ? 1 : 0.66)} width="3" height={7 * (i ? 1 : 0.66)} fill="#dc2626" />
+          ))}
+        </g>
+      ))}
+      {[far, near].map((pt, i) => {
+        const top = i ? nearTop : farTop;
+        const w = i ? 12 : 8;
+        return (
+          <g key={i}>
+            <rect x={pt.x - w / 2} y={top.y - 6} width={w} height={pt.y - top.y + 6} rx={w / 2} fill="#e5e7eb" />
+            <rect x={pt.x - w / 2} y={top.y - 6} width={w * 0.35} height={pt.y - top.y + 6} fill="#94a3b8" opacity="0.6" />
+            <rect x={pt.x - w} y={pt.y - (i ? 70 : 46)} width={w * 2} height={i ? 70 : 46} rx="3" fill="#4c1d95" />
+          </g>
+        );
+      })}
+      <Vignette id={id} />
+    </Svg>
   );
 }
 
@@ -797,15 +1204,15 @@ export function CourtScene({ game, netHit, live = true }: { game: CourtGameId; n
  * decorations stand on the arena floor around the rink.
  */
 /** `skating` is who the video board names: Veronica, or the two players of a match. */
-export function RinkScene({ live = true, skating = "VERONICA" }: { live?: boolean; skating?: string }) {
+export function RinkScene({ live = true, skating = "VERONICA", judges = false }: { live?: boolean; skating?: string; judges?: boolean }) {
   return (
     <SceneMotion live={live}>
-      <RinkPicture skating={skating} />
+      <RinkPicture skating={skating} judges={judges} />
     </SceneMotion>
   );
 }
 
-function RinkPicture({ skating }: { skating: string }) {
+function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) {
   const id = "rk";
   const R = RINK;
   // The ice and the boards around it: the far boards' inner face shows above the ice,
@@ -907,6 +1314,19 @@ function RinkPicture({ skating }: { skating: string }) {
           <rect x={x - 1} y="436" width="2" height="8" fill="#15803d" />
         </g>
       ))}
+      {/* A match is judged: three judges at a table across from the kiss and cry (RINK_JUDGES). */}
+      {judges && (
+        <g>
+          {[70, 115, 160].map((x, i) => (
+            <Person key={x} x={x} y={398} h={46} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} />
+          ))}
+          <rect x="40" y="394" width="150" height="50" rx="4" fill="#0b0f19" />
+          <rect x="46" y="404" width="138" height="34" rx="3" fill="#1e40af" />
+          <Fit x={115} y={426} w={100} size={14} fill="#ffffff">
+            JUDGES
+          </Fit>
+        </g>
+      )}
       {/* The glass over the far boards: panes, their posts, light caught on them. */}
       <g clipPath="url(#rk-glass-clip)">
         <rect x={R.cx - glass.rx} y={glass.cy - glass.ry} width={glass.rx * 2} height={glass.ry + 80} fill="#dbeafe" opacity="0.1" />

@@ -1230,6 +1230,26 @@ html.lenis body {
   72% { opacity: 1; transform: translateY(-14px) scale(1); }
   100% { opacity: 0; transform: translateY(-34px) scale(0.96); }
 }
+/* Wrestling: the one taken down goes to the mat. */
+.match-down > svg {
+  transform-origin: 50% 96%;
+  animation: match-down 0.45s cubic-bezier(0.4, 0, 0.6, 1.4) forwards;
+}
+@keyframes match-down {
+  to { transform: rotate(var(--fall, -82deg)) translateY(8%); }
+}
+/* The judges' cards, flipped up one after another. */
+.judge-card {
+  animation: judge-card 0.5s ease-out both;
+}
+@keyframes judge-card {
+  0% { opacity: 0; transform: translateY(40%) rotateX(80deg); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-down > svg { animation-duration: 1ms; }
+  .judge-card { animation: none; }
+}
 @keyframes net-ripple {
   0%, 100% { transform: scale(1, 1); }
   30% { transform: scale(0.97, 1.06) translateY(3px); }

@@ -189,7 +189,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
           <>
             {/* The scene moves only during play (and on screen); before it, a still picture. */}
             {/* In a match the video board names the two players, not Veronica, who sits it out. */}
-            <RinkScene live={playing} skating={setup.players === 2 ? `${sideName(setup, 0)} & ${sideName(setup, 1)}`.toUpperCase() : undefined} />
+            <RinkScene live={playing} skating={setup.players === 2 ? `${sideName(setup, 0)} & ${sideName(setup, 1)}`.toUpperCase() : undefined} judges={setup.players === 2} />
             {progress && (
               <RinkDecor
                 progress={progress}
