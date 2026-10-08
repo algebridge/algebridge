@@ -12,6 +12,7 @@
     "test:practice": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/practice.test.ts",
     "stories:warm": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/warm-story-library.ts",
     "furniture:export": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs scripts/export-furniture-png.ts",
+    "test:match": "node --no-warnings --experimental-strip-types src/lib/__tests__/match.test.ts",
     "test:problems": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/problems.test.ts",
     "test:extension": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/extension.test.ts",
     "test:detect": "node extension/test/detect.test.mjs",

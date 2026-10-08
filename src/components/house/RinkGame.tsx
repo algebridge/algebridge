@@ -17,7 +17,8 @@ import { DAILY_GOAL } from "@/lib/gamification";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { clampToRink, onRink, RINK, RINK_DAILY_CAP, rinkRemainingToday, rinkSkillIds, type RinkProblem } from "@/lib/rink";
-import { ATHLETE_HEIGHT, DEFAULT_SETUP, matchWinner, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
+import { ATHLETE_HEIGHT, DEFAULT_SETUP, matchWinner, pickGameProblem, SIDE_COLORS, sideName, topicLabel, type GameSetup } from "@/lib/game-session";
+import { cardsTotal, judgeCards, roundWinner } from "@/lib/match-rules";
 import type { UserProgress } from "@/types";
 import { approach, gaitPose, GAITS, skatePose, strideLength, strokePeriod, type SkatePose } from "@/lib/gait";
 
@@ -109,6 +110,17 @@ const KEYS = {
   1: { left: ["arrowleft"], right: ["arrowright"], up: ["arrowup"], down: ["arrowdown"] },
 } as const;
 
+/** In a match, where the one waiting their turn stands: by the boards on their own side. */
+const WAITING: Record<0 | 1, { x: number; y: number }> = { 0: { x: RINK.cx - 330, y: RINK.cy - 10 }, 1: { x: RINK.cx + 330, y: RINK.cy - 10 } };
+
+/** A judged skate: who, the three cards, and how long from the ring appearing to the answer. */
+interface Skate {
+  side: 0 | 1;
+  cards: [number, number, number];
+  total: number;
+  seconds: number;
+}
+
 interface Ring {
   x: number;
   y: number;
@@ -167,7 +179,7 @@ export function RinkGame({
   const bodies = useRef<(HTMLDivElement | null)[]>([]);
   const skaters = useRef<Skater[]>(
     two
-      ? [makeSkater(0, { x: RINK.cx - 160, y: RINK.cy + 40 }, 1), makeSkater(1, { x: RINK.cx + 160, y: RINK.cy + 40 }, -1)]
+      ? [makeSkater(0, { x: RINK.cx, y: RINK.cy + 40 }, 1), makeSkater(1, WAITING[1], -1)]
       : [makeSkater(0, { x: RINK.cx, y: RINK.cy + 40 }, 1)]
   );
   const skateJoints = useRef<SkateJoints | null>(null);
@@ -183,7 +195,14 @@ export function RinkGame({
    */
   const routine = useRef<{ glide: number; move: "" | "spiral" | "duck" | "kneel"; until: number; wasMoving: boolean }>({ glide: 0, move: "", until: 0, wasMoving: false });
   const seen = useRef(new Set<string>());
-  const scorer = useRef<0 | 1 | null>(null);
+  /**
+   * A match is judged, as skating is: each round both skate in turn to the
+   * ring and answer, three judges hold up their marks, the higher total takes
+   * the round. `skater` is whose turn it is; `ringAt` when their ring appeared.
+   */
+  const skater = useRef<0 | 1>(0);
+  const ringAt = useRef(0);
+  const round = useRef<{ order: [0 | 1, 0 | 1]; done: Skate[] }>({ order: [0, 1], done: [] });
 
   const [ring, setRing] = useState<Ring | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
@@ -198,6 +217,9 @@ export function RinkGame({
   const [session, setSession] = useState({ solved: 0, earned: 0, run: 0 });
   const [score, setScore] = useState<[number, number]>([0, 0]);
   const [winner, setWinner] = useState<0 | 1 | null>(null);
+  const [cards, setCards] = useState<(Skate & { key: number }) | null>(null);
+  const [onIce, setOnIce] = useState<0 | 1>(0);
+  const [pop, setPop] = useState<{ text: string; key: number } | null>(null);
   const [remaining, setRemaining] = useState(() => rinkRemainingToday(progress, day));
   const source = rinkSkillIds(progress);
   const topic = topicLabel(progress, setup.topic);
@@ -211,12 +233,9 @@ export function RinkGame({
     }
     seen.current.add(item.problem.prompt);
     if (seen.current.size > 40) seen.current = new Set([...seen.current].slice(-20));
-    const [a, b] = skaters.current;
-    const area = { kind: "ellipse" as const, cx: RINK.cx, cy: RINK.cy, rx: RINK.rx, ry: RINK.ry };
-    if (b) {
-      setRing({ ...spotFairFor(area, a.pos, b.pos, Math.random, 1.8), item });
-      return;
-    }
+    // In a match, the one whose turn it is skates for it.
+    const a = skaters.current[two ? skater.current : 0];
+    ringAt.current = performance.now();
     // Somewhere on the rink, a fair skate away from her.
     let x = RINK.cx;
     let y = RINK.cy;
@@ -228,7 +247,7 @@ export function RinkGame({
       if (Math.hypot(x - a.pos.x, (y - a.pos.y) * 2.5) > 260) break;
     }
     setRing({ x, y, item });
-  }, [progress, setup.topic]);
+  }, [progress, setup.topic, two]);
 
   useEffect(() => {
     spawnRing();
@@ -306,12 +325,13 @@ export function RinkGame({
         let ay = 0;
         const k = keys.current;
         const set = two ? KEYS[sk.side] : KEYS.solo;
-        if (set.left.some((x) => k.has(x))) ax -= 1;
-        if (set.right.some((x) => k.has(x))) ax += 1;
-        if (set.up.some((x) => k.has(x))) ay -= 1;
-        if (set.down.some((x) => k.has(x))) ay += 1;
+        const benched = two && sk.side !== skater.current;
+        if (!benched && set.left.some((x) => k.has(x))) ax -= 1;
+        if (!benched && set.right.some((x) => k.has(x))) ax += 1;
+        if (!benched && set.up.some((x) => k.has(x))) ay -= 1;
+        if (!benched && set.down.some((x) => k.has(x))) ay += 1;
         for (const ptr of pointers.current.values()) {
-          if (ptr.side !== sk.side) continue;
+          if (benched || (two && ptr.side !== sk.side)) continue;
           const dx = ptr.x - p.x;
           const dy = ptr.y - p.y;
           const d = Math.hypot(dx, dy);
@@ -426,7 +446,7 @@ export function RinkGame({
 
       // Through the ring? The first one through takes the question.
       if (ring) {
-        const there = skaters.current.find((sk) => Math.hypot(sk.pos.x - ring.x, (sk.pos.y - ring.y) * 1.6) < REACH);
+        const there = skaters.current.find((sk) => (!two || sk.side === skater.current) && Math.hypot(sk.pos.x - ring.x, (sk.pos.y - ring.y) * 1.6) < REACH);
         if (there) {
           paused.current = true;
           skaters.current.forEach((sk) => (sk.vel = { x: 0, y: 0 }));
@@ -448,22 +468,13 @@ export function RinkGame({
     if (!open || verdict || !given.trim()) return;
     const right = answerIsRight(open.problem, given);
     if (two && turn) {
-      // A match: a point for a right answer, a steal for the other side after a miss.
-      if (right) {
-        playCorrect();
-        const next = scoreAfter(score, turn.side, true);
-        setScore(next);
-        scorer.current = turn.side;
-        setVerdict({ right: true, paid: 0, note: `${turn.steal ? "Stolen! " : ""}Point to ${names[turn.side]}. ${next[0]} to ${next[1]}.` });
-      } else if (!turn.steal) {
-        playWrong();
-        setTurn({ side: turn.side === 0 ? 1 : 0, steal: true, missedChoice: open.problem.type === "multiple-choice" ? given : undefined });
-        setAnswer("");
-      } else {
-        playWrong();
-        scorer.current = null;
-        setVerdict({ right: false, paid: 0, given });
-      }
+      // A match: the judges mark the skate; right and quick marks high.
+      if (right) playCorrect();
+      else playWrong();
+      const seconds = (performance.now() - ringAt.current) / 1000;
+      const c = judgeCards({ right, seconds });
+      round.current.done.push({ side: turn.side, cards: c, total: cardsTotal(c), seconds });
+      setVerdict({ right, paid: 0, given: right ? undefined : given, note: right ? `Clean landing! The judges: ${c.join(", ")}.` : undefined });
       return;
     }
     if (right) {
@@ -498,30 +509,79 @@ export function RinkGame({
     setTurn(null);
     setRing(null);
     if (two) {
-      if (wasRight && scorer.current !== null) doMove(scorer.current);
-      const won = matchWinner(score, setup.toWin);
-      if (won !== null) {
-        window.setTimeout(() => {
-          setWinner(won);
-          fireConfetti("big");
-        }, wasRight ? 700 : 200);
-        return;
-      }
+      judged(wasRight);
+      return;
     }
     paused.current = false;
     window.setTimeout(spawnRing, 400);
   }
 
+  /** Puts `side` on the ice and the other by the boards. */
+  function takeTheIce(side: 0 | 1) {
+    skater.current = side;
+    setOnIce(side);
+    for (const sk of skaters.current) {
+      sk.vel = { x: 0, y: 0 };
+      sk.pos = sk.side === side ? { x: RINK.cx, y: RINK.cy + 40 } : { ...WAITING[sk.side] };
+      sk.facing = sk.side === 0 ? 1 : -1;
+    }
+    paused.current = false;
+    spawnRing();
+  }
+
+  /** A match skate is over: the marks go up; after both, the round is scored. */
+  function judged(wasRight: boolean) {
+    const r = round.current;
+    const last = r.done[r.done.length - 1];
+    if (wasRight && last) doMove(last.side);
+    if (last) setCards({ ...last, key: Date.now() });
+    if (r.done.length < 2) {
+      window.setTimeout(() => takeTheIce(r.order[1]), 2200);
+      return;
+    }
+    const a = r.done.find((d) => d.side === 0)!;
+    const b = r.done.find((d) => d.side === 1)!;
+    const w = roundWinner(a, b);
+    window.setTimeout(() => {
+      let next = score;
+      if (w !== null) {
+        next = w === 0 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
+        setScore(next);
+        setPop({ text: `${names[w]} takes the round, ${(w === 0 ? a : b).total.toFixed(1)} to ${(w === 0 ? b : a).total.toFixed(1)}`, key: Date.now() });
+      } else setPop({ text: "A tie! Again.", key: Date.now() });
+      const won = matchWinner(next, setup.toWin);
+      if (won !== null) {
+        window.setTimeout(() => {
+          setWinner(won);
+          fireConfetti("big");
+        }, 1500);
+        return;
+      }
+      // The next round, the other one skates first.
+      const order: [0 | 1, 0 | 1] = r.order[0] === 0 ? [1, 0] : [0, 1];
+      round.current = { order, done: [] };
+      window.setTimeout(() => {
+        setCards(null);
+        takeTheIce(order[0]);
+      }, 1800);
+    }, 2400);
+  }
+
   function rematch() {
     setScore([0, 0]);
     setWinner(null);
-    scorer.current = null;
+    setCards(null);
+    round.current = { order: [0, 1], done: [] };
+    if (two) {
+      takeTheIce(0);
+      return;
+    }
     paused.current = false;
     spawnRing();
   }
 
   const dialogTurn: GameTurn | undefined =
-    two && turn ? { name: names[turn.side], color: SIDE_COLORS[turn.side], steal: turn.steal, missedBy: names[turn.side === 0 ? 1 : 0], missedChoice: turn.missedChoice } : undefined;
+    two && turn ? { name: names[turn.side], color: SIDE_COLORS[turn.side], steal: turn.steal } : undefined;
 
   return (
     <>
@@ -541,8 +601,8 @@ export function RinkGame({
           }
           const at = scenePoint(e.clientX, e.clientY);
           if (!at) return;
-          // In a match, each player steers on their own half.
-          pointers.current.set(e.pointerId, { side: two && at.x > SCENE_W / 2 ? 1 : 0, ...at });
+          // In a match, a finger steers whoever is on the ice.
+          pointers.current.set(e.pointerId, { side: two ? skater.current : 0, ...at });
         }}
         onPointerMove={(e) => {
           const ptr = pointers.current.get(e.pointerId);
@@ -605,10 +665,32 @@ export function RinkGame({
           </div>
         ))}
 
+        {/* The judges' marks, held up over their table. */}
+        {two && cards && (
+          <div key={cards.key} className="pointer-events-none absolute flex gap-[0.6%]" style={{ left: pctX(30), top: pctY(316), width: pctX(170), zIndex: 260 }} aria-live="polite">
+            {cards.cards.map((c, i) => (
+              <div key={i} className="judge-card flex-1 rounded-md border-2 bg-white py-[3%] text-center font-black tabular-nums shadow-lg" style={{ borderColor: SIDE_COLORS[cards.side], color: "#0f172a", animationDelay: `${i * 140}ms`, fontSize: "clamp(10px, 1.7vw, 22px)" }}>
+                {c.toFixed(1)}
+              </div>
+            ))}
+          </div>
+        )}
+        {two && pop && (
+          <p key={pop.key} aria-live="polite" className="pointer-events-none absolute inset-x-0 text-center" style={{ top: pctY(470), zIndex: 900 }}>
+            <span className="court-pop inline-block whitespace-nowrap rounded-full bg-slate-900/85 px-3 py-1 text-base font-black text-white shadow-lg sm:px-4 sm:text-2xl">{pop.text}</span>
+          </p>
+        )}
+
         {/* HUD: the score or the take, and the way out. Small, so the rink stays the picture. */}
         <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1.5 sm:left-3 sm:top-3 sm:gap-2">
           {two ? (
-            <MatchScore names={names} score={score} toWin={setup.toWin} />
+            <>
+              <MatchScore names={names} score={score} toWin={setup.toWin} />
+              <GameChip>
+                <span className="size-2 rounded-full" style={{ background: SIDE_COLORS[onIce] }} />
+                <span>{names[onIce]} skating</span>
+              </GameChip>
+            </>
           ) : (
             <>
               <GameChip>
@@ -642,9 +724,9 @@ export function RinkGame({
         <GameHowTo id={two ? "rink-match" : "rink"} demo={demo}>
           {two ? (
             <>
-              <span className="sm:hidden">Each player drags on their own half. First through the ring answers.</span>
+              <span className="sm:hidden">Take turns: drag to skate through the ring and answer. Three judges mark each skate.</span>
               <span className="hidden sm:inline">
-                {names[0]}: W A S D. {names[1]}: arrow keys. First through the ring answers. {topic}.
+                {names[0]}: W A S D. {names[1]}: arrow keys. Take turns on the ice: through the ring and answer. Three judges mark each skate, quick and right marks high. {topic}.
               </span>
             </>
           ) : (

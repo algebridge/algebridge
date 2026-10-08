@@ -34,6 +34,8 @@ export interface GameTurn {
   missedBy?: string;
   /** The choice they missed with, crossed out for the steal. */
   missedChoice?: string;
+  /** A heading of its own in place of the usual one (a keeper's save). */
+  label?: string;
 }
 
 /**
@@ -113,7 +115,7 @@ export function GameProblemDialog({
               role="status"
             >
               <Icon name={turn.steal ? "flame" : "versus"} size={16} />
-              {turn.steal ? `${turn.missedBy ?? "That"} missed. ${turn.name}, steal it!` : `${turn.name}'s question`}
+              {turn.label ?? (turn.steal ? `${turn.missedBy ?? "That"} missed. ${turn.name}, steal it!` : `${turn.name}'s question`)}
             </p>
           )}
           <div className="flex items-center justify-between gap-2">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { useScratchpadSurface } from "@/components/Scratchpad";
+import { CourtMatch } from "@/components/games/CourtMatch";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { GameChip, GameHowTo, GameProblemDialog, type GameTurn, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { MatchEnd, MatchScore, SideMarks } from "@/components/games/Match";
@@ -77,7 +78,14 @@ function makeMover(side: 0 | 1, figure: CourtGameId, height: number, at: { x: nu
   return { side, figure, height, pos: { ...at }, vel: { x: 0, y: 0 }, facing, gait: { phase: 0, side: 1, push: 0, fx: facing, speed: 0, last: { ...at } }, joints: null };
 }
 
-export function CourtGame({
+/** One player runs the court's loop; two play the sport itself (CourtMatch). */
+export function CourtGame(props: Parameters<typeof CourtSolo>[0]) {
+  const setup = props.setup ?? DEFAULT_SETUP;
+  if (setup.players === 2) return <CourtMatch gameId={props.gameId} progress={props.progress} onExit={props.onExit} setup={setup} demo={props.demo} />;
+  return <CourtSolo {...props} />;
+}
+
+function CourtSolo({
   gameId,
   progress,
   onExit,
@@ -635,7 +643,7 @@ export function CourtGame({
 }
 
 /** What to run to: a ring on the mat, a star, a ball. Each with a question mark over it. */
-function TargetMark({ game, accent }: { game: CourtGameId; accent: string }) {
+export function TargetMark({ game, accent }: { game: CourtGameId; accent: string }) {
   const badge = (
     <g className="rink-ring-mark">
       <rect x="55" y="0" width="40" height="28" rx="9" fill="#ffffff" />
@@ -691,7 +699,7 @@ function TargetMark({ game, accent }: { game: CourtGameId; accent: string }) {
 }
 
 /** A volleyball: white, with blue and yellow panels. `raw` draws it into an existing SVG. */
-function Volleyball({ raw = false }: { raw?: boolean }) {
+export function Volleyball({ raw = false }: { raw?: boolean }) {
   const g = (
     <g>
       <circle cx="22" cy="22" r="21" fill="#f8fafc" />
@@ -704,7 +712,7 @@ function Volleyball({ raw = false }: { raw?: boolean }) {
 }
 
 /** A soccer ball: white with black patches. */
-function SoccerBall({ raw = false }: { raw?: boolean }) {
+export function SoccerBall({ raw = false }: { raw?: boolean }) {
   const g = (
     <g>
       <circle cx="18" cy="18" r="17" fill="#f8fafc" />
