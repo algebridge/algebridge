@@ -28,6 +28,7 @@ import {
   toggleOrnament,
 } from "@/lib/bridgeys";
 import { gardenState, type GardenState } from "@/lib/garden";
+import { PICTURES_VERSION, PORCH_PICTURES } from "@/data/house-pictures";
 import { ornamentNote, pieceNote, pieceUse, restDayAvailable, USES, type UseKind } from "@/lib/house-functions";
 import { requestHelperOpen } from "@/lib/helper-bridge";
 import { showToast } from "@/lib/notify";
@@ -80,7 +81,12 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const router = useRouter();
   const { continueTarget } = useAppNavState();
   const scratchpad = useScratchpad();
-  const [view, setView] = useState<View>("down");
+  // The porch first; a link can open another place (/house?view=garden).
+  const [view, setView] = useState<View>(() => {
+    if (typeof window === "undefined") return "front";
+    const asked = new URLSearchParams(window.location.search).get("view");
+    return asked === "down" || asked === "up" || asked === "garden" || asked === "front" ? asked : "front";
+  });
   const [selected, setSelected] = useState<string | null>(null);
   const { user } = useAuth();
   /** Unread messages, for the mailbox's flag out front (null when signed out). */
@@ -108,6 +114,8 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const spareFurniture = useMemo(() => getUnplacedFurnitureIds(progress.ownedFurniture ?? [], furniture), [progress.ownedFurniture, furniture]);
   const spareOrnaments = useMemo(() => getUnplacedOrnamentIds(progress.ownedOrnaments ?? [], ornaments), [progress.ownedOrnaments, ornaments]);
   const garden = useMemo(() => gardenState(progress, today()), [progress]);
+  const styleForPicture = progress.houseStyleId ?? "cottage";
+  const porchPicture = view === "front" && !drawn && !night && PORCH_PICTURES.has(styleForPicture) ? `/house/pictures/porch-${styleForPicture}.jpg?v=${PICTURES_VERSION}` : null;
 
   // What the pieces show: the student's real day, refreshed each minute for the clocks.
   const live = useHouseLive(progress, { tick: true });
@@ -168,8 +176,9 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       view === "garden"
         ? []
         : furniture
-            .filter((f) => floorOf(f) === view)
-            .map((f) => ({ instanceId: f.instanceId, itemId: f.itemId, x: f.x, y: f.y, surface: surfaceOf(f), color: colors[f.itemId] ?? null, on: !f.off })),
+            // The porch view's dollhouse shows both floors at once.
+            .filter((f) => view === "front" || floorOf(f) === view)
+            .map((f) => ({ instanceId: f.instanceId, itemId: f.itemId, x: f.x, y: f.y, surface: surfaceOf(f), color: colors[f.itemId] ?? null, on: !f.off, floor: floorOf(f) })),
     [furniture, colors, view]
   );
   useEffect(() => {
@@ -178,6 +187,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     v.setLive(live);
     if (view === "front") {
       v.showFront(progress.houseStyleId, night, unread ?? 0);
+      v.setPieces(pieces);
     } else if (view === "garden") {
       v.showGarden(garden, progress.houseStyleId, night, ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, z: o.z, on: !o.off })));
     } else {
@@ -207,7 +217,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   // A piece picked up or moved away underneath the card closes it.
   useEffect(() => {
     if (!selected) return;
-    const still = view === "garden" ? ornaments.some((o) => o.instanceId === selected) : furniture.some((f) => f.instanceId === selected && floorOf(f) === view);
+    const still = view === "garden" ? ornaments.some((o) => o.instanceId === selected) : furniture.some((f) => f.instanceId === selected && (view === "front" || floorOf(f) === view));
     if (!still) setSelected(null);
   }, [furniture, ornaments, selected, view]);
 
@@ -262,7 +272,8 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     if (!g) return;
     if (!g.moved && Math.hypot(e.clientX - g.x, e.clientY - g.y) < 6) return;
     g.moved = true;
-    if (g.id) {
+    // In the porch view a drag always turns the house; pieces are moved in their room.
+    if (g.id && view !== "front") {
       g.stored = v.dragTo(e.clientX, e.clientY);
       setSelected(null);
     } else {
@@ -463,6 +474,11 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
 
       {/* The room. */}
       <div ref={stageRef} className="relative aspect-[4/5] w-full bg-gradient-to-b from-[#eef1f5] to-[#e3e7ec] sm:aspect-[16/10]">
+        {/* The porch at once, as a picture rendered ahead of time, while the 3D view gets ready behind it. */}
+        {porchPicture && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={porchPicture} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full object-cover" draggable={false} />
+        )}
         <canvas
           ref={canvasRef}
           onPointerDown={onPointerDown}
@@ -479,7 +495,10 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </p>
         )}
         {!drawn && !failed && (
-          <p className="absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500" aria-live="polite">
+          <p
+            className={porchPicture ? "pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" : "absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500"}
+            aria-live="polite"
+          >
             Opening the house…
           </p>
         )}
@@ -491,8 +510,8 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
           {view === "front"
             ? unread
-              ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"}. Tap the mailbox, or the door to go in.`
-              : "Tap the door to go inside, or the mailbox for your messages."
+              ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"}. Tap the mailbox. Drag to walk round the house, zoom in to see inside.`
+              : "Drag to walk round the house. Zoom in to see inside. The mailbox holds your messages."
             : view === "garden"
             ? garden.watered
               ? "Watered today. Tap a plant to open its unit, or the house to go in."
@@ -524,8 +543,8 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             showColors={showColors}
             onShowColors={() => setShowColors((s) => !s)}
             onColor={(swatch) => act(() => setItemColor(selFurniture.itemId, swatch))}
-            floorLabel={view === "up" ? "Downstairs" : "Upstairs"}
-            onFloor={() => act(() => moveFurnitureToFloor(selFurniture.instanceId, view === "up" ? "down" : "up"))}
+            floorLabel={floorOf(selFurniture) === "up" ? "Downstairs" : "Upstairs"}
+            onFloor={() => act(() => moveFurnitureToFloor(selFurniture.instanceId, floorOf(selFurniture) === "up" ? "down" : "up"))}
             onPutAway={() => {
               const name = getFurnitureItem(selFurniture.itemId)?.name ?? "It";
               removePlacedFurniture(selFurniture.instanceId);

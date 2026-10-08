@@ -1965,6 +1965,11 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   }
   ok("house note: the clock is today's goal", HF.pieceNote("clock", live).includes("6 of 10"));
   ok("house note: the shelf counts skills", HF.pieceNote("bookshelf", live).includes("19 of"));
+  // Every piece and ornament is a real 3D model (none falls back to the plain crate), with a shop picture.
+  const REG = await import("../house3d/registry.ts");
+  const PICS = await import("../../data/house-pictures.ts");
+  ok("house: every piece has a 3D model", ids.every((id) => REG.hasModel(id)), ids.filter((id) => !REG.hasModel(id)).join(" "));
+  ok("house: every piece has a shop picture", ids.every((id) => PICS.PIECE_PICTURES.has(id)), ids.filter((id) => !PICS.PIECE_PICTURES.has(id)).join(" "));
   // Garden ornaments have jobs too.
   const { ORNAMENTS } = await import("../../data/ornament-catalog.ts");
   const ornIds = ORNAMENTS.map((o) => o.id);

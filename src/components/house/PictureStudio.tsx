@@ -32,11 +32,17 @@ export function PictureStudio() {
       pieces: FURNITURE_ITEMS.map((f) => f.id),
       ornaments: ORNAMENTS.map((o) => o.id),
       rooms: Object.keys(THEMES),
+      porches: Object.keys(THEMES),
     };
-    w.__shoot = async (kind: "piece" | "ornament" | "room", id: string) => {
+    w.__shoot = async (kind: "piece" | "ornament" | "room" | "porch", id: string) => {
       const studio = await import("@/lib/house3d/studio");
-      const url = kind === "room" ? await studio.roomShot(id, { width: 520, height: 320 }) : await studio.pieceShot(id, { ornament: kind === "ornament", live: SAMPLE, width: 320, height: 240 });
-      return asDataUrl(url, "image/webp");
+      const url =
+        kind === "porch"
+          ? await studio.porchShot(id, { width: 1280, height: 800 })
+          : kind === "room"
+            ? await studio.roomShot(id, { width: 520, height: 320 })
+            : await studio.pieceShot(id, { ornament: kind === "ornament", live: SAMPLE, width: 320, height: 240 });
+      return asDataUrl(url, kind === "porch" ? "image/jpeg" : "image/webp");
     };
     w.__picturesReady = true;
   }, []);

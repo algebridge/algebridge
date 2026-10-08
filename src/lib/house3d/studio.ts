@@ -205,6 +205,26 @@ export function roomShot(styleId: string, o: { width?: number; height?: number }
 
 let roomView: import("./engine").HouseView | null = null;
 
+/** The front of the house in a style, from the street, as the porch view first shows it (a picture for the first moment). */
+export function porchShot(styleId: string, o: { width?: number; height?: number } = {}): Promise<string> {
+  const w = o.width ?? 1280;
+  const h = o.height ?? 800;
+  const next = queue.then(async () => {
+    await idle();
+    studio ??= new Studio();
+    const { HouseView } = await import("./engine");
+    const view = new HouseView(document.createElement("canvas"), { renderer: studio.renderer });
+    studio.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    view.resize(w, h);
+    view.showFront(styleId, false, 0);
+    const url = await view.snapshot();
+    view.dispose();
+    return url;
+  });
+  queue = next.catch(() => undefined);
+  return next;
+}
+
 /** A picture already taken, if there is one, for the first paint. */
 export function cachedShot(itemId: string, o: ShotOptions = {}): string | undefined {
   return shots.get(shotKey(itemId, o));

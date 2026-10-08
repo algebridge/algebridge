@@ -71,6 +71,10 @@ function makeCanvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
+  // Painted on the CPU. A GPU canvas queues every stroke for the graphics
+  // card, and handing the picture to WebGL then waited for all of them: the
+  // porch's lawn, sky and shingles froze the first visit for seconds.
+  c.getContext("2d", { willReadFrequently: true });
   return c;
 }
 

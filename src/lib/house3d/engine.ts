@@ -33,7 +33,8 @@ const YARD = 6.4;
 const VIEWS = {
   room: { azimuth: 0.62, polar: 1.04, target: [0, 0.95, -0.15], azimuthRange: [0.12, 1.05], polarRange: [0.82, 1.25] },
   garden: { azimuth: 0.36, polar: 1.0, target: [0, 0.9, -1.2], azimuthRange: [-1.05, 1.05], polarRange: [0.62, 1.3] },
-  front: { azimuth: 0.26, polar: 1.12, target: [0.9, 1.4, -1.6], azimuthRange: [-1.0, 1.0], polarRange: [0.7, 1.32] },
+  // The porch view turns all the way round the house.
+  front: { azimuth: 0.26, polar: 1.12, target: [0.4, 2.2, -6.0], azimuthRange: [-1000, 1000], polarRange: [0.62, 1.32] },
 } as const;
 
 type Mode = keyof typeof VIEWS;
@@ -54,6 +55,8 @@ export interface ScenePiece {
   on: boolean;
   /** A garden ornament: x metres east and y metres north of the yard's middle. */
   ornament?: boolean;
+  /** Which floor it is on, for the porch view's dollhouse (both floors at once). */
+  floor?: "down" | "up";
 }
 
 /** Where a piece really goes, from its model: hung pieces always on the wall, hanging ones from the ceiling. */
@@ -71,6 +74,28 @@ interface SceneLight {
 /** How many places to keep built. */
 const KEEP_BUILT = 8;
 
+/** How close (as a zoom) the porch view comes before the walls in the way open up. */
+const DOLLHOUSE_ZOOM = 1.45;
+/** How close the porch view may come. */
+const ZOOM_MAX: Record<string, number> = { room: 1.9, garden: 1.9, front: 3.4 };
+
+/** A part of a wall that steps aside when the camera is on its side (normal points out of the house). */
+interface Cutaway {
+  obj: THREE.Object3D;
+  normal: THREE.Vector3;
+  /** The roof and the upper walls: out of the way whenever you look inside. */
+  always?: boolean;
+}
+
+/** The inside of the house in the porch view: both rooms, built the first time you zoom in. */
+interface Dollhouse {
+  key: string;
+  group: THREE.Group;
+  floors: { down: THREE.Group; up: THREE.Group };
+  rooms: RoomParts[];
+  cut: Cutaway[];
+}
+
 interface Placed {
   piece: ScenePiece;
   model: ItemModel;
@@ -83,7 +108,7 @@ interface Placed {
 }
 
 
-const MAX_LAMPS = 6;
+const MAX_LAMPS = 4;
 
 /** The soft dark patch under a piece, shared by all of them. */
 function blobTexture(): THREE.Texture {
@@ -149,6 +174,12 @@ export class HouseView {
   private mode: Mode = "room";
   private garden: { group: THREE.Group; own: (THREE.Material | THREE.Texture)[]; dispose(): void } | null = null;
   private gardenKey = "";
+  /** The porch view's open house: the shell's walls that open, and the rooms inside. */
+  private shellCut: Cutaway[] = [];
+  private dollhouse: Dollhouse | null = null;
+  private dollhouseShown = false;
+  private frontStyle = "cottage";
+  private pendingPieces: ScenePiece[] | null = null;
   /** New materials wait to be compiled off the main thread before they are drawn (see step). */
   private needsCompile = true;
   private compiling = false;
@@ -173,7 +204,7 @@ export class HouseView {
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
@@ -241,7 +272,7 @@ export class HouseView {
       this.placeCamera();
       // A note after a moment, in case this takes a while (a first visit on a slow computer).
       const note = window.setTimeout(() => this.onBusy(true), 400);
-      const limit = new Promise((r) => window.setTimeout(r, 8000));
+      const limit = new Promise((r) => window.setTimeout(r, 20000));
       Promise.race([compileQuietly(this.renderer, this.scene, this.camera), limit]).then(() => {
         window.clearTimeout(note);
         this.onBusy(false);
@@ -260,6 +291,11 @@ export class HouseView {
     o.distance += (want - o.distance) * k;
     const moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
     this.placeCamera();
+    if (this.mode === "front" && this.applyCutaway()) {
+      // The inside was just built: its shaders compile first.
+      this.invalidate();
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
     this.drawnOnce();
     if (moving) this.invalidate();
@@ -287,7 +323,7 @@ export class HouseView {
     const out: THREE.Vector3[] = [];
     const b =
       this.mode === "front"
-        ? { x: [-4.6, 6.2], y: [0, 2.2], z: [GARDEN_LAYOUT.wallZ + 0.4, FRONT_LAYOUT.curbZ + 0.2] }
+        ? { x: [-5.6, 6.2], y: [0, 3.2], z: [FRONT_LAYOUT.house.z - FRONT_LAYOUT.house.d / 2, FRONT_LAYOUT.curbZ + 0.2] }
         : this.mode === "garden"
         ? { x: [-GARDEN_LAYOUT.half, GARDEN_LAYOUT.half], y: [0, 2.4], z: [GARDEN_LAYOUT.wallZ, GARDEN_LAYOUT.half] }
         : { x: [-ROOM_W / 2 - 0.15, ROOM_W / 2], y: [-0.2, ROOM_H], z: [-ROOM_D / 2 - 0.15, ROOM_D / 2] };
@@ -340,6 +376,10 @@ export class HouseView {
     }
     this.roomKey = "";
     this.dropGarden();
+    this.shellCut = [];
+    this.dollhouse = null;
+    this.dollhouseShown = false;
+    this.pendingPieces = null;
     const v = VIEWS[mode];
     this.goal = { azimuth: v.azimuth, polar: v.polar, zoom: 1 };
     this.orbit.azimuth = v.azimuth;
@@ -442,9 +482,124 @@ export class HouseView {
       this.dropGarden();
       this.gardenKey = key;
       this.showOutdoors(key, () => buildFront(this.kit, { night, styleId, unread }));
+      this.frontStyle = styleId;
+      this.shellCut = this.findShell(this.garden!.group);
+      this.dollhouse = null;
+      this.dollhouseShown = false;
+      // A dollhouse already built for this house comes back with it.
+      const kept = this.garden!.group.children.find((c) => c.userData.dollhouseKey === `${styleId}:${night}`);
+      if (kept) {
+        kept.visible = false;
+        this.dollhouse = kept.userData.dollhouse as Dollhouse;
+      }
     }
     this.setNightLight(night);
-    this.setPieces([]);
+    this.invalidate();
+  }
+
+  /** The house shell's parts, each with the side it faces, so the ones in the way can step aside. */
+  private findShell(group: THREE.Object3D): Cutaway[] {
+    let shell: THREE.Object3D | null = null;
+    group.traverse((o) => {
+      if (!shell && o.userData.shell) shell = o;
+    });
+    if (!shell) return [];
+    const H = FRONT_LAYOUT.house;
+    const out: Cutaway[] = [];
+    // The porch's roof and ceiling.
+    group.traverse((o) => {
+      if (o.userData.porchTop) out.push({ obj: o, normal: new THREE.Vector3(0, 1, 0), always: true });
+    });
+    const box = new THREE.Box3();
+    const c = new THREE.Vector3();
+    (shell as THREE.Object3D).updateMatrixWorld(true);
+    for (const o of (shell as THREE.Object3D).children) {
+      box.setFromObject(o);
+      if (box.isEmpty() || box.max.y < 0.45) continue;
+      box.getCenter(c);
+      const front = H.z + H.d / 2;
+      const back = H.z - H.d / 2;
+      if (c.y > H.eave - 0.35) out.push({ obj: o, normal: new THREE.Vector3(0, 1, 0), always: true });
+      else if (c.z > front - 0.7) out.push({ obj: o, normal: new THREE.Vector3(0, 0, 1) });
+      else if (c.z < back + 0.7) out.push({ obj: o, normal: new THREE.Vector3(0, 0, -1) });
+      else if (c.x > H.x + H.w / 2 - 0.7) out.push({ obj: o, normal: new THREE.Vector3(1, 0, 0) });
+      else if (c.x < H.x - H.w / 2 + 0.7) out.push({ obj: o, normal: new THREE.Vector3(-1, 0, 0) });
+    }
+    return out;
+  }
+
+  /** Builds the two rooms inside the house, furnished, and which of their walls open. */
+  private buildDollhouse(night: boolean): Dollhouse {
+    const I = FRONT_LAYOUT.inside;
+    const group = new THREE.Group();
+    const floors = { down: new THREE.Group(), up: new THREE.Group() };
+    const rooms: RoomParts[] = [];
+    const cut: Cutaway[] = [];
+    const box = new THREE.Box3();
+    const c = new THREE.Vector3();
+    for (const floor of ["down", "up"] as const) {
+      const r = buildRoom(this.kit, themeFor(this.frontStyle), floor, night);
+      this.takeLights(r.group);
+      // Its walls, by the side they face, before it is moved into place.
+      r.group.updateMatrixWorld(true);
+      for (const o of r.group.children) {
+        box.setFromObject(o);
+        if (box.isEmpty()) continue;
+        box.getCenter(c);
+        if (c.z < -ROOM_D / 2 + 0.35 && box.max.y > 0.3) cut.push({ obj: o, normal: new THREE.Vector3(0, 0, -1) });
+        else if (c.x < -ROOM_W / 2 + 0.35 && box.max.y > 0.3) cut.push({ obj: o, normal: new THREE.Vector3(-1, 0, 0) });
+      }
+      const f = floors[floor];
+      f.add(r.group);
+      f.position.set(I.x, floor === "down" ? I.down : I.up, I.z);
+      group.add(f);
+      rooms.push(r);
+    }
+    group.visible = false;
+    return { key: `${this.frontStyle}:${night}`, group, floors, rooms, cut };
+  }
+
+  /**
+   * The porch view, zoomed in: the roof and the walls between you and the
+   * inside step aside and the furnished rooms show, like an open dollhouse.
+   * Returns true when the inside was built just now (it compiles first).
+   */
+  private applyCutaway(): boolean {
+    const inside = this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
+    let built = false;
+    if (inside && !this.dollhouse && this.garden) {
+      this.dollhouse = this.buildDollhouse(this.night);
+      this.dollhouse.group.userData.dollhouseKey = this.dollhouse.key;
+      this.dollhouse.group.userData.dollhouse = this.dollhouse;
+      this.garden.group.add(this.dollhouse.group);
+      // Free the rooms with the porch scene when it goes.
+      const entry = this.built.get(this.gardenKey);
+      if (entry) {
+        const before = entry.dispose;
+        const rooms = this.dollhouse.rooms;
+        entry.dispose = () => {
+          before();
+          for (const r of rooms) r.dispose();
+        };
+      }
+      if (this.pendingPieces) this.setPieces(this.pendingPieces);
+      this.needsCompile = true;
+      built = true;
+    }
+    if (inside !== this.dollhouseShown) {
+      this.dollhouseShown = inside;
+      // Going in, the view comes down a little, to see both floors like an open dollhouse.
+      if (inside) this.goal.polar = Math.max(this.goal.polar, 1.24);
+      if (this.dollhouse) this.dollhouse.group.visible = inside;
+      for (const p of this.placed.values()) p.root.visible = inside;
+      this.updateLamps();
+    }
+    // Which walls face the camera.
+    const H = FRONT_LAYOUT.house;
+    const eye = this.camera.position.clone().sub(new THREE.Vector3(H.x, 2, H.z)).normalize();
+    for (const part of this.shellCut) part.obj.visible = !inside || (!part.always && part.normal.dot(eye) < 0.2);
+    if (this.dollhouse) for (const part of this.dollhouse.cut) part.obj.visible = !inside || part.normal.dot(eye) < 0.2;
+    return built;
   }
 
   private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void }): void {
@@ -521,6 +676,11 @@ export class HouseView {
 
   /** Shows these pieces (the ones on this floor), rebuilding only what changed. */
   setPieces(pieces: ScenePiece[]): void {
+    // In the porch view the pieces live in the dollhouse, which is built the first time you zoom in.
+    if (this.mode === "front") {
+      this.pendingPieces = pieces;
+      if (!this.dollhouse) return;
+    }
     const seen = new Set<string>();
     for (const piece of pieces) {
       seen.add(piece.instanceId);
@@ -557,22 +717,30 @@ export class HouseView {
     const root = new THREE.Group();
     root.add(obj);
     root.userData.instanceId = piece.instanceId;
-    this.scene.add(root);
+    const parent = this.parentFor(piece);
+    parent.add(root);
+    if (this.mode === "front") root.visible = this.dollhouseShown;
     let shadow: THREE.Mesh | null = null;
     if (mountOf(model) === "floor") {
       shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.blobMat);
       shadow.rotation.x = -Math.PI / 2;
       shadow.scale.set(model.size[0] * 1.35 + 0.15, model.size[2] * 1.35 + 0.15, 1);
       shadow.renderOrder = 1;
-      this.scene.add(shadow);
+      parent.add(shadow);
     }
     return { piece, model, root, shadow, disposables, key: "", reads };
   }
 
+  /** Where a piece's group goes: the scene, or its floor of the porch view's dollhouse. */
+  private parentFor(piece: ScenePiece): THREE.Object3D {
+    if (this.mode === "front" && this.dollhouse && !piece.ornament) return this.dollhouse.floors[piece.floor ?? "down"];
+    return this.scene;
+  }
+
   private removePlaced(p: Placed): void {
-    this.scene.remove(p.root);
+    p.root.parent?.remove(p.root);
     if (p.shadow) {
-      this.scene.remove(p.shadow);
+      p.shadow.parent?.remove(p.shadow);
       p.shadow.geometry.dispose();
     }
     for (const d of p.disposables) d.dispose();
@@ -613,14 +781,15 @@ export class HouseView {
 
   /** Real light from the pieces that give it, nearest the middle of the room first. */
   private updateLamps(): void {
-    const lit = [...this.placed.values()].filter((p) => p.piece.on && p.model.light);
+    const shown = this.mode !== "front" || this.dollhouseShown;
+    const lit = shown ? [...this.placed.values()].filter((p) => p.piece.on && p.model.light) : [];
     lit.sort((a, b) => a.root.position.lengthSq() - b.root.position.lengthSq());
     const want = [
       ...this.sceneLights,
       ...lit.map((p) => {
         const spec = p.model.light!;
         return {
-          pos: new THREE.Vector3(p.root.position.x + spec.at[0], p.root.position.y + spec.at[1], p.root.position.z + spec.at[2]),
+          pos: p.root.localToWorld(new THREE.Vector3(spec.at[0], spec.at[1], spec.at[2])),
           color: new THREE.Color(spec.color),
           intensity: spec.intensity * (this.night ? 1 : 0.35),
           distance: spec.distance ?? 4,
@@ -693,7 +862,8 @@ export class HouseView {
   /** Starts moving a piece; the point it was grabbed by stays under the pointer. */
   beginDrag(instanceId: string, clientX: number, clientY: number): void {
     const p = this.placed.get(instanceId);
-    if (!p) return;
+    // Pieces are moved in their own room, not in the porch view's dollhouse.
+    if (!p || this.mode === "front") return;
     const hit = this.hitSurface(mountOf(p.model), clientX, clientY);
     this.dragFrom = { instanceId, offset: hit ? p.root.position.clone().sub(hit) : new THREE.Vector3() };
   }
@@ -755,7 +925,7 @@ export class HouseView {
   }
 
   zoom(factor: number): void {
-    this.goal.zoom = Math.max(0.85, Math.min(1.9, this.goal.zoom * factor));
+    this.goal.zoom = Math.max(0.85, Math.min(ZOOM_MAX[this.mode] ?? 1.9, this.goal.zoom * factor));
     this.invalidate();
   }
 

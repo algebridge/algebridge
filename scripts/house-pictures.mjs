@@ -1,7 +1,7 @@
 // Renders the Bridgey House shop pictures ahead of time, so the shop does no 3D work.
 // Run with the dev server up: node scripts/house-pictures.mjs [http://localhost:3215]
 // Writes public/house/pictures/*.webp and src/data/house-pictures.ts. Re-run after changing a model.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,31 +44,37 @@ const ev = async (x) => (await send("Runtime.evaluate", { expression: x, awaitPr
 await send("Page.navigate", { url: `${BASE}/demo/pictures` }, s);
 for (let i = 0; i < 240 && !(await ev("!!window.__picturesReady")); i++) await sleep(500);
 const ids = await ev("window.__pictureIds");
-const jobs = [...ids.pieces.map((x) => ["piece", x]), ...ids.ornaments.map((x) => ["ornament", x]), ...ids.rooms.map((x) => ["room", x])];
-const done = { piece: [], ornament: [], room: [] };
+const only = process.env.ONLY; // e.g. ONLY=porch to redo just those
+const jobs = [...ids.pieces.map((x) => ["piece", x]), ...ids.ornaments.map((x) => ["ornament", x]), ...ids.rooms.map((x) => ["room", x]), ...ids.porches.map((x) => ["porch", x])].filter(([k]) => !only || k === only);
+const done = { piece: [], ornament: [], room: [], porch: [] };
 const hash = createHash("sha1");
 for (const [kind, x] of jobs) {
   const data = await ev(`window.__shoot(${JSON.stringify(kind)}, ${JSON.stringify(x)})`);
-  if (!data?.startsWith("data:image/webp")) {
+  if (!data?.startsWith("data:image/")) {
     console.log("skipped", kind, x);
     continue;
   }
   const buf = Buffer.from(data.split(",")[1], "base64");
   hash.update(buf);
-  const file = kind === "piece" ? `${x}.webp` : kind === "ornament" ? `ornament-${x}.webp` : `room-${x}.webp`;
+  const file = kind === "piece" ? `${x}.webp` : kind === "ornament" ? `ornament-${x}.webp` : kind === "porch" ? `porch-${x}.jpg` : `room-${x}.webp`;
   writeFileSync(path.join(outDir, file), buf);
+  // The porch picture is shown big but only for a moment: 1280 wide, plain JPEG quality (macOS sips).
+  if (kind === "porch") spawnSync("sips", ["-Z", "1280", "-s", "formatOptions", "72", path.join(outDir, file), "--out", path.join(outDir, file)]);
   done[kind].push(x);
   process.stdout.write(".");
 }
 const version = hash.digest("hex").slice(0, 10);
-writeFileSync(
+// A partial run (ONLY=...) leaves the list of pictures as it was.
+if (!only) writeFileSync(
   path.join(root, "src/data/house-pictures.ts"),
   `/** Made by scripts/house-pictures.mjs: the pieces with a picture rendered ahead of time in public/house/pictures. */\n` +
     `export const PICTURES_VERSION = ${JSON.stringify(version)};\n` +
     `export const PIECE_PICTURES = new Set<string>(${JSON.stringify(done.piece)});\n` +
     `export const ORNAMENT_PICTURES = new Set<string>(${JSON.stringify(done.ornament)});\n` +
-    `export const ROOM_PICTURES = new Set<string>(${JSON.stringify(done.room)});\n`
+    `export const ROOM_PICTURES = new Set<string>(${JSON.stringify(done.room)});\n` +
+    `/** The porch view's first picture in each house style, shown until the 3D view has drawn. */\n` +
+    `export const PORCH_PICTURES = new Set<string>(${JSON.stringify(done.porch)});\n`
 );
-console.log(`\n${done.piece.length} pieces, ${done.ornament.length} ornaments, ${done.room.length} rooms; version ${version}`);
+console.log(`\n${done.piece.length} pieces, ${done.ornament.length} ornaments, ${done.room.length} rooms, ${done.porch.length} porches; version ${version}`);
 ws.close();
 proc.kill();
