@@ -10,7 +10,7 @@ import { useHouseLive } from "@/components/house/useHouseLive";
 import { useScratchpad } from "@/components/Scratchpad";
 import { units } from "@/data/curriculum";
 import { USABLE } from "@/data/furniture-art";
-import { getFurnitureItem, getUnplacedFurnitureIds } from "@/data/house-catalog";
+import { getFurnitureItem, getHouseStyle, getUnplacedFurnitureIds } from "@/data/house-catalog";
 import { getOrnament, getUnplacedOrnamentIds, ORNAMENTS } from "@/data/ornament-catalog";
 import {
   floorOf,
@@ -25,6 +25,8 @@ import {
   setItemColor,
   surfaceOf,
   toggleFurniture,
+  turnFurniture,
+  turnOrnament,
   toggleOrnament,
 } from "@/lib/bridgeys";
 import { gardenState, type GardenState } from "@/lib/garden";
@@ -35,6 +37,7 @@ import { showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { setMusicEnabled } from "@/lib/progress";
 import { useAuth } from "@/lib/auth";
+import { fetchNeighbours, type Neighbour } from "@/lib/leaderboard";
 import { getUnreadCount } from "@/lib/social";
 import type { GardenPick, HouseView, ScenePiece } from "@/lib/house3d/engine";
 import type { LiveData } from "@/lib/house3d/types";
@@ -178,7 +181,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         : furniture
             // The porch view's dollhouse shows both floors at once.
             .filter((f) => view === "front" || floorOf(f) === view)
-            .map((f) => ({ instanceId: f.instanceId, itemId: f.itemId, x: f.x, y: f.y, surface: surfaceOf(f), color: colors[f.itemId] ?? null, on: !f.off, floor: floorOf(f) })),
+            .map((f) => ({ instanceId: f.instanceId, itemId: f.itemId, x: f.x, y: f.y, surface: surfaceOf(f), color: colors[f.itemId] ?? null, on: !f.off, floor: floorOf(f), turn: f.turn })),
     [furniture, colors, view]
   );
   useEffect(() => {
@@ -189,12 +192,35 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       v.showFront(progress.houseStyleId, night, unread ?? 0);
       v.setPieces(pieces);
     } else if (view === "garden") {
-      v.showGarden(garden, progress.houseStyleId, night, ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, z: o.z, on: !o.off })));
+      v.showGarden(garden, progress.houseStyleId, night, ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, z: o.z, on: !o.off, turn: o.turn })));
     } else {
       v.setRoom(progress.houseStyleId, view, night);
       v.setPieces(pieces);
     }
   }, [ready, view, pieces, live, night, progress.houseStyleId, garden, ornaments, unread]);
+
+  // Your street: other students on the board, each in their own house (lib/leaderboard.ts).
+  const [neighbours, setNeighbours] = useState<Neighbour[]>([]);
+  useEffect(() => {
+    // Development only: ?street=Maya R.:loft,Leo P.:castle shows a street without signing in.
+    const preview = process.env.NODE_ENV !== "production" ? new URLSearchParams(window.location.search).get("street") : null;
+    if (preview) {
+      setNeighbours(preview.split(",").map((p) => ({ name: p.split(":")[0], styleId: p.split(":")[1] ?? "cottage" })));
+      return;
+    }
+    if (!user) {
+      setNeighbours([]);
+      return;
+    }
+    let live = true;
+    fetchNeighbours().then((n) => live && setNeighbours(n));
+    return () => {
+      live = false;
+    };
+  }, [user]);
+  useEffect(() => {
+    if (ready) engine.current?.setNeighbours(neighbours);
+  }, [ready, neighbours]);
 
   // The mailbox out front reads the inbox when you go out there.
   useEffect(() => {
@@ -232,6 +258,21 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // R turns the selected piece a step clockwise, Shift+R back the other way.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "r" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const field = e.target as HTMLElement | null;
+      if (field?.isContentEditable || field?.closest?.("input, textarea, select")) return;
+      const by = e.shiftKey ? 45 : -45;
+      const res = view === "garden" ? turnOrnament(selected, by) : turnFurniture(selected, by);
+      if (res.ok) onUpdate();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, view, onUpdate]);
 
   // ── Pointer: tap a piece for its card, drag it to move it, drag the room to look round ──
 
@@ -543,6 +584,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             showColors={showColors}
             onShowColors={() => setShowColors((s) => !s)}
             onColor={(swatch) => act(() => setItemColor(selFurniture.itemId, swatch))}
+            onTurn={surfaceOf(selFurniture) === "wall" ? undefined : () => turnFurniture(selFurniture.instanceId, -45).ok && onUpdate()}
             floorLabel={floorOf(selFurniture) === "up" ? "Downstairs" : "Upstairs"}
             onFloor={() => act(() => moveFurnitureToFloor(selFurniture.instanceId, floorOf(selFurniture) === "up" ? "down" : "up"))}
             onPutAway={() => {
@@ -563,6 +605,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             useKind={pieceUse(selOrnament.itemId, "ornament")}
             on={!selOrnament.off}
             onUse={() => use(selOrnament.itemId, selOrnament.instanceId, "ornament")}
+            onTurn={() => turnOrnament(selOrnament.instanceId, -45).ok && onUpdate()}
             onPutAway={() => {
               const res = removePlacedOrnament(selOrnament.instanceId);
               showToast({ icon: "review", tone: "info", title: res.message });
@@ -675,6 +718,7 @@ function PieceCard({
   onColor,
   floorLabel,
   onFloor,
+  onTurn,
   onPutAway,
   onClose,
   live,
@@ -692,6 +736,8 @@ function PieceCard({
   onColor: (swatch: string | null) => void;
   floorLabel: string;
   onFloor: () => void;
+  /** Turns it round where it stands; hung pieces have none. */
+  onTurn?: () => void;
   onPutAway: () => void;
   onClose: () => void;
   live: LiveData;
@@ -732,6 +778,7 @@ function PieceCard({
             {on ? "Turn off" : "Turn on"}
           </button>
         )}
+        {onTurn && <TurnButton onTurn={onTurn} />}
         <button type="button" onClick={onFloor} className="btn-secondary btn-sm">
           {floorLabel}
         </button>
@@ -750,7 +797,17 @@ function PieceCard({
 
 const CARD = "animate-pop-in absolute inset-x-3 bottom-3 z-10 mx-auto max-w-md rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg sm:inset-x-auto sm:left-3";
 
-function OrnamentCard({ itemId, note, useKind, on, onUse, onPutAway, onClose }: { itemId: string; note: string; useKind: UseKind; on: boolean; onUse: () => void; onPutAway: () => void; onClose: () => void }) {
+/** Turns the piece a step round. Pressing R does the same; the title says so. */
+function TurnButton({ onTurn }: { onTurn: () => void }) {
+  return (
+    <button type="button" onClick={onTurn} className="btn-secondary btn-sm" title="Turn (R)" aria-keyshortcuts="R">
+      <Icon name="turn" size={15} />
+      Turn
+    </button>
+  );
+}
+
+function OrnamentCard({ itemId, note, useKind, on, onUse, onTurn, onPutAway, onClose }: { itemId: string; note: string; useKind: UseKind; on: boolean; onUse: () => void; onTurn: () => void; onPutAway: () => void; onClose: () => void }) {
   const item = getOrnament(itemId);
   if (!item) return null;
   const label = useKind === "light" ? (on ? "Turn off" : "Turn on") : USES[useKind].verb;
@@ -773,6 +830,7 @@ function OrnamentCard({ itemId, note, useKind, on, onUse, onPutAway, onClose }: 
           <Icon name={USE_ICON[useKind]} size={15} />
           {label}
         </button>
+        <TurnButton onTurn={onTurn} />
         <button type="button" onClick={onPutAway} className="btn-ghost btn-sm">
           Put away
         </button>
@@ -813,6 +871,10 @@ function GardenCard({ pick, garden, unread, learnHref, onGo, onClose }: { pick: 
           ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"} waiting.`
           : "All caught up. The flag goes up when a tutor writes to you.";
     action = { label: "Open messages", icon: "messages", href: unread === null ? "/login" : "/messages" };
+  } else if (pick.kind === "neighbour") {
+    title = `${pick.name}'s house`;
+    note = `${pick.name} lives here, in the ${getHouseStyle(pick.styleId)?.name ?? "house"} they picked. Your neighbors are other students on the leaderboard; you see their houses from the street.`;
+    action = { label: "See the leaderboard", icon: "leaderboard", href: "/leaderboard" };
   } else if (pick.kind === "tree") {
     title = "The tree";
     const next = !garden.swing ? " A tire swing goes up halfway through the course." : !garden.birdhouse ? " A birdhouse comes at three quarters." : !garden.treehouse ? " The treehouse goes up when every skill is finished." : " The treehouse is up.";

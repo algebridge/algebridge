@@ -3,7 +3,7 @@
 // Writes public/house/pictures/*.webp and src/data/house-pictures.ts. Re-run after changing a model.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -75,6 +75,13 @@ if (!only) writeFileSync(
     `/** The porch view's first picture in each house style, shown until the 3D view has drawn. */\n` +
     `export const PORCH_PICTURES = new Set<string>(${JSON.stringify(done.porch)});\n`
 );
+// A partial run still changes pictures: a new version, so browsers fetch them again instead of keeping the old ones.
+if (only) {
+  const file = path.join(root, "src/data/house-pictures.ts");
+  const old = readFileSync(file, "utf8");
+  const bumped = createHash("sha1").update(old).update(version).digest("hex").slice(0, 10);
+  writeFileSync(file, old.replace(/PICTURES_VERSION = "[0-9a-f]+"/, `PICTURES_VERSION = "${bumped}"`));
+}
 console.log(`\n${done.piece.length} pieces, ${done.ornament.length} ornaments, ${done.room.length} rooms, ${done.porch.length} porches; version ${version}`);
 ws.close();
 proc.kill();

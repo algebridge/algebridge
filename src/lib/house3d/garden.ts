@@ -26,8 +26,9 @@
  */
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { canvasTexture, TEX, type Kit, type V3 } from "./kit";
-import { themeFor, type RoomTheme, type WallKind, type WindowShape } from "./themes";
+import { THEMES, themeFor, type RoomTheme, type WallKind, type WindowShape } from "./themes";
 import type { ItemModel } from "./types";
 import type { Flower, GardenBed, GardenState } from "@/lib/garden";
 
@@ -2434,10 +2435,11 @@ function fireflies(k: Kit): THREE.Group {
  * (the unit number), and the tree's and the sprinkler's groups have
  * `gardenPart` ("tree", "sprinkler"; also "house", "bed", "fence", "lawn").
  */
-export function buildGarden(k: Kit, state: GardenState, opts: { night: boolean; styleId: string }): { group: THREE.Group; dispose(): void } {
+export function buildGarden(k: Kit, state: GardenState, opts: { night: boolean; styleId: string }): Outdoors {
   const theme = themeFor(opts.styleId);
+  const later = { geos: [] as THREE.BufferGeometry[], mats: [] as (THREE.Material | THREE.Texture)[] };
+  const c: Ctx = { k, cache: new Map() };
   const [group, own] = k.collect(() => {
-    const c: Ctx = { k, cache: new Map() };
     const g = new THREE.Group();
     g.name = "garden";
     g.add(buildGround(c, opts.night));
@@ -2447,10 +2449,10 @@ export function buildGarden(k: Kit, state: GardenState, opts: { night: boolean; 
     // Trees in the neighbours' yards, beyond the fence and behind the house.
     g.add(farTree(c, [-10.6, 0, -4.5], 9.5, 2.8, "#55803d", 11));
     g.add(farTree(c, [-11.5, 0, 3.5], 8.0, 2.5, "#5f8742", 12));
-    g.add(farTree(c, [10.8, 0, -8.5], 10.5, 3.1, "#4f7a3a", 13));
+    g.add(farTree(c, [9.4, 0, -4.6], 10.5, 3.1, "#4f7a3a", 13));
     g.add(farTree(c, [-1.5, 0, -18.5], 12.0, 3.8, "#577f3d", 14));
     g.add(farSpruce(c, [10.4, 0, 1.5], 9.0));
-    g.add(farSpruce(c, [-9.8, 0, -11.5], 10.5));
+    g.add(farSpruce(c, [-8.6, 0, -17.5], 10.5));
     // Stepping stones from the back door down to the bed.
     const flags = ["#a69d90", "#9a958d"].map((tint) =>
       printed(c, `flag:${tint}`, () => {
@@ -2488,8 +2490,12 @@ export function buildGarden(k: Kit, state: GardenState, opts: { night: boolean; 
   });
   return {
     group,
+    // The houses next door, over the fence.
+    street: (list) => streetLots(k, c, opts.night, true, later, list),
     dispose() {
       for (const d of own) d.dispose();
+      for (const d of later.mats) d.dispose();
+      for (const d of later.geos) d.dispose();
     },
   };
 }
@@ -2858,8 +2864,8 @@ export const FRONT_LAYOUT = {
 } as const;
 
 /** House numbers on a little plaque by the door. */
-function numberPlaque(c: Ctx): THREE.Mesh {
-  const t = paint("plaque:52", 256, 128, (g, w, h) => {
+function numberPlaque(c: Ctx, number = 52): THREE.Mesh {
+  const t = paint(`plaque:${number}`, 256, 128, (g, w, h) => {
     g.fillStyle = "#1f2326";
     g.fillRect(0, 0, w, h);
     g.strokeStyle = "#b08d57";
@@ -2869,7 +2875,7 @@ function numberPlaque(c: Ctx): THREE.Mesh {
     g.font = "bold 84px Georgia, serif";
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillText("52", w / 2, h / 2 + 4);
+    g.fillText(String(number), w / 2, h / 2 + 4);
   });
   return c.k.box(0.32, 0.16, 0.02, c.k.print(t, { roughness: 0.4 }));
 }
@@ -2896,7 +2902,7 @@ function porchSwing(c: Ctx, ceilingY: number): THREE.Group {
 }
 
 /** The mailbox at the curb. Its red flag is up while there are unread messages. */
-function mailbox(c: Ctx, unread: number): THREE.Group {
+function mailbox(c: Ctx, unread: number, number = 52): THREE.Group {
   const { k } = c;
   const g = new THREE.Group();
   g.userData.gardenPart = "mailbox";
@@ -2918,7 +2924,7 @@ function mailbox(c: Ctx, unread: number): THREE.Group {
   flag.rotation.x = unread > 0 ? 0 : -PI / 2;
   g.add(flag);
   // House numbers on the side.
-  const n = numberPlaque(c);
+  const n = numberPlaque(c, number);
   n.scale.set(0.5, 0.5, 1);
   n.rotation.y = PI / 2;
   n.position.set(0.113, 1.15, 0.08);
@@ -2927,7 +2933,7 @@ function mailbox(c: Ctx, unread: number): THREE.Group {
 }
 
 /** The covered porch across the front door: deck, steps, posts, rail, roof, a light and a swing. */
-function buildPorch(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
+function buildPorch(c: Ctx, theme: RoomTheme, night: boolean, number = 52): THREE.Group {
   const { k } = c;
   const g = new THREE.Group();
   g.userData.gardenPart = "house";
@@ -3033,7 +3039,7 @@ function buildPorch(c: Ctx, theme: RoomTheme, night: boolean): THREE.Group {
     pot.position.set(L.doorX + sx * 1.15, P.top, z1 - 0.35);
     g.add(pot);
   }
-  const plaque = numberPlaque(c);
+  const plaque = numberPlaque(c, number);
   plaque.position.set(L.doorX - 0.85, 1.75, L.wallZ + 0.17);
   g.add(plaque);
   return g;
@@ -3070,16 +3076,248 @@ function picketFence(c: Ctx, z: number): THREE.Group {
   return g;
 }
 
+// ---------------------------------------------------------------------------
+// The neighbours
+// ---------------------------------------------------------------------------
+
+/** Lots along the street are this far apart, middle to middle. */
+export const LOT = 16;
+/** The street's middle line: a house across the street is this lot turned round it. */
+const STREET_MID = FRONT_LAYOUT.curbZ + 5.05;
+
+/** Someone who lives on your street: another student on the board, and their house style (lib/leaderboard.ts). */
+export interface StreetNeighbour {
+  name: string;
+  styleId: string;
+}
+
+/** A name painted on a yard sign, so you can tell whose house is whose. */
+function nameSign(c: Ctx, name: string): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  const t = paint(`sign:${name}`, 512, 160, (gg, w, h) => {
+    gg.fillStyle = "#f6f1e4";
+    gg.fillRect(0, 0, w, h);
+    gg.strokeStyle = "#3d5a45";
+    gg.lineWidth = 10;
+    gg.strokeRect(10, 10, w - 20, h - 20);
+    gg.fillStyle = "#24392b";
+    gg.textAlign = "center";
+    gg.textBaseline = "middle";
+    let size = 78;
+    gg.font = `bold ${size}px Georgia, serif`;
+    while (gg.measureText(name).width > w - 60 && size > 30) {
+      size -= 4;
+      gg.font = `bold ${size}px Georgia, serif`;
+    }
+    gg.fillText(name, w / 2, h / 2 + 4);
+  });
+  const post = k.wood("#6f5039", { gloss: 0.2 });
+  for (const sx of [-1, 1]) g.add(k.box(0.07, 1.0, 0.07, post, { at: [sx * 0.62, 0.5, 0], r: 0.008 }));
+  g.add(k.box(1.4, 0.44, 0.04, k.print(t, { roughness: 0.6 }), { at: [0, 0.82, 0.02], r: 0.01 }));
+  return g;
+}
+
+/** A family car, nose along +z, standing on the ground at its middle. */
+function car(c: Ctx, color: string): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  const body = k.paint(color, 0.18);
+  const glass = k.glass("#1f2a33", 0.82);
+  const trimBlack = k.plastic("#16181b", 0.6);
+  g.add(k.box(1.8, 0.55, 4.4, body, { at: [0, 0.6, 0], r: 0.14 }));
+  g.add(k.box(1.62, 0.5, 2.3, glass, { at: [0, 1.1, -0.25], r: 0.16 }));
+  g.add(k.box(1.56, 0.06, 2.0, body, { at: [0, 1.36, -0.3], r: 0.03 }));
+  g.add(k.box(1.84, 0.12, 4.46, trimBlack, { at: [0, 0.36, 0], r: 0.05 }));
+  for (const sx of [-1, 1]) {
+    g.add(k.box(0.3, 0.12, 0.04, k.glow("#fff4dc", false), { at: [sx * 0.62, 0.68, 2.2], r: 0.03 }));
+    g.add(k.box(0.32, 0.1, 0.04, k.paint("#8e1b1b", 0.3), { at: [sx * 0.62, 0.72, -2.2], r: 0.03 }));
+    g.add(k.box(0.14, 0.06, 0.04, trimBlack, { at: [sx * 0.95, 1.0, 0.75], r: 0.02 }));
+    for (const sz of [-1.42, 1.38]) {
+      g.add(k.cyl(0.34, 0.34, 0.24, k.rubber(), { at: [sx * 0.8, 0.34, sz], rot: [0, 0, PI / 2], seg: 20 }));
+      g.add(k.cyl(0.2, 0.2, 0.25, k.metal("silver", 0.3), { at: [sx * 0.8, 0.34, sz], rot: [0, 0, PI / 2], seg: 16 }));
+    }
+  }
+  g.add(k.box(1.2, 0.18, 0.05, trimBlack, { at: [0, 0.5, 2.21], r: 0.02 }));
+  return g;
+}
+
+/**
+ * Every mesh under a group, merged into one mesh per material: a whole
+ * house drawn in a few dozen calls instead of hundreds, so a street of them
+ * costs about what one used to. Lights and taps are dropped; the merged
+ * geometry is returned to free later.
+ */
+function mergeStatic(root: THREE.Object3D): { group: THREE.Group; geos: THREE.BufferGeometry[] } {
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert();
+  const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const m4 = new THREE.Matrix4();
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.visible) return;
+    let geo = mesh.geometry.clone();
+    m4.multiplyMatrices(inv, mesh.matrixWorld);
+    geo.applyMatrix4(m4);
+    if (geo.index) geo = geo.toNonIndexed();
+    // A mirrored piece winds its triangles backwards: turn them round.
+    if (m4.determinant() < 0) {
+      for (const name of Object.keys(geo.attributes)) {
+        const a = geo.getAttribute(name) as THREE.BufferAttribute;
+        const n = a.itemSize;
+        for (let t = 0; t < a.count; t += 3)
+          for (let j = 0; j < n; j += 1) {
+            const v1 = a.array[(t + 1) * n + j];
+            (a.array as Float32Array)[(t + 1) * n + j] = a.array[(t + 2) * n + j];
+            (a.array as Float32Array)[(t + 2) * n + j] = v1;
+          }
+      }
+    }
+    for (const name of Object.keys(geo.attributes)) if (name !== "position" && name !== "normal" && name !== "uv") geo.deleteAttribute(name);
+    if (!geo.getAttribute("normal")) geo.computeVertexNormals();
+    if (!geo.getAttribute("uv")) geo.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(geo.getAttribute("position").count * 2), 2));
+    geo.clearGroups();
+    const list = buckets.get(mesh.material) ?? [];
+    list.push(geo);
+    buckets.set(mesh.material, list);
+  });
+  const group = new THREE.Group();
+  const geos: THREE.BufferGeometry[] = [];
+  for (const [mat, list] of buckets) {
+    const merged = mergeGeometries(list, false);
+    for (const g of list) g.dispose();
+    if (!merged) continue;
+    geos.push(merged);
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  return { group, geos };
+}
+
+/**
+ * A neighbour's lot, laid out like yours (the house, the porch, the walk,
+ * the mailbox at the curb) in your lot's measurements, then moved along the
+ * street or across it. `drive` is the side the driveway runs up. Seen from
+ * the back (`back`), it is the house over the fence and its lawn.
+ */
+function neighbourLot(c: Ctx, who: StreetNeighbour, night: boolean, number: number, drive: 1 | -1, back: boolean): THREE.Group {
+  const { k } = c;
+  const theme = themeFor(who.styleId);
+  const g = new THREE.Group();
+  g.add(buildHouse(c, theme, night, !back));
+  const lawn = k.plane(LOT - 0.4, 14, printed(c, "lawn", () => paint("lawn", 2048, 2048, drawLawn), 0.96), { at: [0, 0.002, -0.2], rot: [-PI / 2, 0, 0] });
+  lawn.castShadow = false;
+  g.add(lawn);
+  if (back) {
+    g.add(farTree(c, [drive * -4.5, 0, -2.5], 6.2, 2.3, "#557d3f", 40 + number));
+    return g;
+  }
+  g.add(buildPorch(c, theme, night, number));
+  const F = FRONT_LAYOUT;
+  const z1 = L.wallZ + 0.15 + F.porch.depth;
+  const paver = k.stone("concrete");
+  for (let z = z1 + 0.9; z < 5.25; z += 0.62) g.add(k.box(1.2, 0.04, 0.56, paver, { at: [L.doorX, 0.02, z], r: 0.01 }));
+  // The driveway up the side of the house.
+  const dx = drive * (HOUSE.w / 2 + 1.45);
+  g.add(k.box(2.5, 0.03, 13.4, k.stone("concrete"), { at: [dx, 0.015, -0.15] }));
+  // A clipped hedge along the front, open at the walk and the drive.
+  const hedge = printed(c, "boxwood", () => paint("boxwood", 256, 256, drawBoxwood, [5, 2.5]), 0.82, "#5c7f45");
+  const runs: [number, number][] = drive > 0 ? [[-LOT / 2 + 0.3, L.doorX - 0.8], [L.doorX + 0.8, dx - 1.5]] : [[dx + 1.5, L.doorX - 0.8], [L.doorX + 0.8, LOT / 2 - 0.3]];
+  for (const [a, b] of runs) if (b - a > 0.3) g.add(k.box(b - a, 0.85, 0.6, hedge, { at: [(a + b) / 2, 0.425, 4.75], r: 0.12 }));
+  // Shrubs by the porch, a shade tree, the mailbox.
+  for (const [x, z, r] of [
+    [F.porch.x0 - 0.45, z1 - 0.6, 0.5],
+    [F.porch.x1 + 0.45, z1 - 0.6, 0.45],
+  ] as [number, number, number][]) {
+    g.add(k.sphere(1, foliage(c, "#4a6a39", r), { at: [x, r * 0.7, z], scale: [r, r * 0.8, r * 0.9], seg: 16 }));
+  }
+  g.add(farTree(c, [-drive * 4.6, 0, 0.8], 6.4 + (number % 3) * 0.5, 2.4, number % 2 ? "#5c8a43" : "#4f7a3a", 30 + number));
+  const box = mailbox(c, 0, number);
+  box.position.set(L.doorX + 1.35, 0, F.mailbox.z);
+  g.add(box);
+  // Whose house it is, on a sign by the walk.
+  const sign = nameSign(c, who.name);
+  sign.position.set(L.doorX - 2.0, 0, 4.1);
+  sign.rotation.y = -0.18;
+  sign.scale.setScalar(1.7);
+  g.add(sign);
+  return g;
+}
+
+/** A lot nobody lives on yet: lawn and a couple of trees. */
+function openLot(c: Ctx, number: number): THREE.Group {
+  const { k } = c;
+  const g = new THREE.Group();
+  const lawn = k.plane(LOT - 0.4, 14, printed(c, "lawn", () => paint("lawn", 2048, 2048, drawLawn), 0.96), { at: [0, 0.002, -0.2], rot: [-PI / 2, 0, 0] });
+  lawn.castShadow = false;
+  g.add(lawn);
+  g.add(farTree(c, [-3.2, 0, -5.5], 7.2, 2.6, "#557d3f", 60 + number));
+  g.add(farTree(c, [3.6, 0, -1.2], 6.0, 2.2, "#5f8742", 70 + number));
+  return g;
+}
+
+/** What the outdoor builders hand back: the scene now, and a builder for the street once its neighbours are known. */
+export interface Outdoors {
+  group: THREE.Group;
+  dispose(): void;
+  /** One job per lot for these neighbours (empty lots for the rest), each merged for drawing; the engine runs them while the page is idle. */
+  street(neighbours: StreetNeighbour[]): (() => THREE.Object3D)[];
+}
+
+/**
+ * Your street: a lot either side and three across the road (from the back,
+ * the two next door). Each lot is a real student's house, in their own
+ * style with their name on a sign, or an open lot: there are never houses
+ * that belong to nobody. A house lot carries where it stands, so the engine
+ * can step it out of the way when it is between the camera and your house,
+ * and who lives there, for its card.
+ */
+function streetLots(k: Kit, c: Ctx, night: boolean, back: boolean, own: { geos: THREE.BufferGeometry[]; mats: (THREE.Material | THREE.Texture)[] }, neighbours: StreetNeighbour[]): (() => THREE.Object3D)[] {
+  const lots: { x: number; across: boolean; number: number }[] = [
+    { x: -LOT, across: false, number: 50 },
+    { x: LOT, across: false, number: 54 },
+    ...(back
+      ? []
+      : [
+          { x: 0, across: true, number: 53 },
+          { x: -LOT, across: true, number: 55 },
+          { x: LOT, across: true, number: 51 },
+        ]),
+  ];
+  return lots.map((lot, i) => () => {
+    const who = neighbours[i] ?? null;
+    const [made, mats] = k.collect(() => mergeStatic(who ? neighbourLot(c, who, night, lot.number, lot.x < 0 ? -1 : 1, back) : openLot(c, lot.number)));
+    own.mats.push(...mats);
+    own.geos.push(...made.geos);
+    const g = made.group;
+    if (lot.across) {
+      g.rotation.y = PI;
+      g.position.set(lot.x, 0, 2 * STREET_MID);
+    } else g.position.set(lot.x, 0, 0);
+    g.userData.lot = true;
+    if (who) {
+      const hz = L.wallZ - L.houseDepth / 2;
+      g.userData.neighbour = { x: lot.x, z: lot.across ? 2 * STREET_MID - hz : hz, r: 7.2 };
+      g.userData.gardenPart = "neighbour";
+      g.userData.who = who;
+    }
+    return g;
+  });
+}
+
 /**
  * The front of the house, from the street: the house's face in its style,
  * a covered porch with a swing and a lantern, the walk, a picket fence, the
  * sidewalk and the street. Two parts do something: the mailbox (its flag up
  * while messages are unread) opens the messages, and the house takes you in.
  */
-export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unread: number }): { group: THREE.Group; dispose(): void } {
+export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unread: number }): Outdoors {
   const theme = themeFor(opts.styleId);
+  const later = { geos: [] as THREE.BufferGeometry[], mats: [] as (THREE.Material | THREE.Texture)[] };
+  const c: Ctx = { k, cache: new Map() };
   const [group, own] = k.collect(() => {
-    const c: Ctx = { k, cache: new Map() };
     const g = new THREE.Group();
     g.name = "front";
     g.add(buildGround(c, opts.night));
@@ -3138,12 +3376,22 @@ export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unre
       g.add(l);
     }
     if (opts.night) g.add(fireflies(k));
+    // The sidewalk across the road, a car parked at the curb, and the neighbours.
+    g.add(k.box(80, 0.05, 1.25, conc, { at: [0, 0.025, 2 * STREET_MID - 5.75] }));
+    for (let x = -39; x <= 39; x += 1.5) g.add(k.box(0.012, 0.004, 1.25, joint, { at: [x, 0.051, 2 * STREET_MID - 5.75] }));
+    const parked = car(c, "#5b6f7c");
+    parked.rotation.y = PI / 2;
+    parked.position.set(-8.6, 0, F.curbZ + 1.25);
+    g.add(parked);
     return g;
   });
   return {
     group,
+    street: (list) => streetLots(k, c, opts.night, false, later, list),
     dispose() {
       for (const d of own) d.dispose();
+      for (const d of later.mats) d.dispose();
+      for (const d of later.geos) d.dispose();
     },
   };
 }

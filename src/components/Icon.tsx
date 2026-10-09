@@ -8,6 +8,7 @@
 export type IconName =
   | "course"
   | "review"
+  | "turn"
   | "classes"
   | "teach"
   | "tutors"
@@ -70,6 +71,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2 2 0 0 1 2 2 2 2 0 0 1 2-2h4.5A1.5 1.5 0 0 1 20 5.5v11a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 0 0-2 2 2 2 0 0 0-2-2H5.5A1.5 1.5 0 0 1 4 16.5Z" />
       <path d="M12 6v14" />
+    </>
+  ),
+  turn: (
+    <>
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+      <path d="M21 4v4.5h-4.5" />
     </>
   ),
   review: (
