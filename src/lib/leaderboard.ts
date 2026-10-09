@@ -39,27 +39,101 @@ export async function syncLeaderboardStats(
     bestFurnitureName: string | null;
     equippedTitle: string | null;
     leaderboardOptIn: boolean;
+    houseStyle?: string | null;
   }
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = createClient();
   if (!supabase) return;
 
-  await supabase.from(LEADERBOARD_TABLE).upsert(
-    {
-      user_id: userId,
-      display_name: publicLeaderboardName(displayName),
-      bridgeys: snapshot.bridgeys,
-      completed_skills: snapshot.completedSkills,
-      best_furniture_value: snapshot.bestFurnitureValue,
-      best_furniture_name: snapshot.bestFurnitureName,
-      equipped_title: snapshot.equippedTitle,
-      // Opt-in, off by default; and school mode keeps everyone off the board.
-      leaderboard_opt_in: snapshot.leaderboardOptIn === true && !schoolModeNow(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  const row = {
+    user_id: userId,
+    display_name: publicLeaderboardName(displayName),
+    bridgeys: snapshot.bridgeys,
+    completed_skills: snapshot.completedSkills,
+    best_furniture_value: snapshot.bestFurnitureValue,
+    best_furniture_name: snapshot.bestFurnitureName,
+    equipped_title: snapshot.equippedTitle,
+    // Opt-in, off by default; and school mode keeps everyone off the board.
+    leaderboard_opt_in: snapshot.leaderboardOptIn === true && !schoolModeNow(),
+    updated_at: new Date().toISOString(),
+  };
+  const style = snapshot.houseStyle && STREET_STYLES.has(snapshot.houseStyle) ? snapshot.houseStyle : null;
+  if (hasHouseStyle) {
+    const { error } = await supabase.from(LEADERBOARD_TABLE).upsert({ ...row, house_style: style }, { onConflict: "user_id" });
+    if (!error || !/house_style/.test(error.message ?? "")) return;
+    // Before schema-2026-10-08-neighbours.sql there is no house_style column: send the row without it from now on.
+    hasHouseStyle = false;
+  }
+  await supabase.from(LEADERBOARD_TABLE).upsert(row, { onConflict: "user_id" });
+}
+
+/** Whether leaderboard_stats has its house_style column yet (false after the first save says it does not). */
+let hasHouseStyle = true;
+
+/** The house styles a street can show (the check on leaderboard_stats.house_style). */
+const STREET_STYLES = new Set(["cottage", "treehouse", "loft", "beach", "castle"]);
+
+/** A neighbour on the street outside a student's house: another student on the board, and their house. */
+export interface Neighbour {
+  name: string;
+  styleId: string;
+}
+
+/** A small fixed hash, so the same student sees the same neighbours from one visit to the next. */
+function mix(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/**
+ * Picks who lives on a student's street from the other students on the
+ * board: the same ones every visit (ordered by a hash of the student and
+ * each neighbour), so the street feels like a place rather than a shuffle.
+ * Pure, so it is tested.
+ */
+export function pickNeighbours(rows: { name: string; styleId: string }[], seed: string, count: number): Neighbour[] {
+  const seen = new Set<string>();
+  return rows
+    .filter((r) => STREET_STYLES.has(r.styleId) && r.name.trim())
+    .filter((r) => {
+      const key = `${r.name}|${r.styleId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((r) => ({ r, k: mix(`${seed}|${r.name}|${r.styleId}`) }))
+    .sort((a, b) => a.k - b.k)
+    .slice(0, count)
+    .map(({ r }) => ({ name: r.name, styleId: r.styleId }));
+}
+
+/**
+ * The students who live on your street: others on the leaderboard (only
+ * they are visible to other students), "First L." and their house style.
+ * Empty when signed out, before the neighbours migration, or when nobody
+ * else is on the board yet: the street then has open lots, never houses
+ * that belong to nobody.
+ */
+export async function fetchNeighbours(count = 5): Promise<Neighbour[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = createClient();
+  if (!supabase) return [];
+  const { data: auth } = await supabase.auth.getUser();
+  const me = auth.user?.id;
+  if (!me) return [];
+  // The most recently active students first, then a fixed pick among them.
+  const read = (from: string, columns: string) =>
+    supabase.from(from).select(columns).eq("leaderboard_opt_in", true).not("house_style", "is", null).order("updated_at", { ascending: false }).limit(60);
+  let res = await read(LEADERBOARD_VIEW, "display_name, house_style, is_me");
+  if (res.error) res = await read(LEADERBOARD_TABLE, "display_name, house_style, user_id");
+  if (res.error || !res.data) return [];
+  type Row = { display_name: string | null; house_style: string | null; is_me?: boolean; user_id?: string };
+  const rows = (res.data as unknown as Row[])
+    .filter((r) => !r.is_me && r.user_id !== me)
+    .map((r) => ({ name: publicLeaderboardName(r.display_name), styleId: r.house_style ?? "" }));
+  return pickNeighbours(rows, me, count);
 }
 
 const SORT_COLUMN: Record<LeaderboardSort, "bridgeys" | "best_furniture_value" | "completed_skills"> = {

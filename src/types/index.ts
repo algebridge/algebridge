@@ -185,6 +185,8 @@ export interface PlacedOrnamentEntry {
   z: number;
   /** Switched off (the lamp post). */
   off?: boolean;
+  /** Turned round, in degrees, a multiple of 45 (0 faces the street). */
+  turn?: number;
 }
 
 export interface PlacedFurnitureEntry {
@@ -200,6 +202,8 @@ export interface PlacedFurnitureEntry {
   surface?: HouseSurface;
   /** Switched off: a lamp dark, a screen blank. Pieces that light up only. */
   off?: boolean;
+  /** Turned round, in degrees, a multiple of 45 (0 faces the room's open side). Standing and hanging-from-the-ceiling pieces only. */
+  turn?: number;
 }
 
 export type HouseFloor = "down" | "up";

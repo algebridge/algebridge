@@ -357,6 +357,25 @@ export function toggleFurniture(instanceId: string): PurchaseResult {
   return { ok: true, message: `${item?.name ?? "It"} is ${off ? "off" : "on"}.` };
 }
 
+/** The next way round for a turn: a quarter of a quarter turn (45 degrees) at a time, in either direction. */
+export function nextTurn(turn: number | undefined, by: number): number {
+  return ((((turn ?? 0) + by) % 360) + 360) % 360;
+}
+
+/** Turns a placed piece round where it stands. Hung pieces face out of the wall and stay that way. */
+export function turnFurniture(instanceId: string, by = 45): PurchaseResult {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  const entry = progress.placedFurnitureItems!.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That piece is not in the house." };
+  const item = getFurnitureItem(entry.itemId);
+  if (surfaceOf(entry) === "wall") return { ok: false, message: `The ${item?.name ?? "piece"} faces out of the wall.` };
+  const turn = nextTurn(entry.turn, by);
+  progress.placedFurnitureItems = progress.placedFurnitureItems!.map((p) => (p.instanceId === instanceId ? { ...p, turn } : p));
+  store.save(progress);
+  return { ok: true, message: `${item?.name ?? "It"} turned.` };
+}
+
 /** Night falls on the house, or morning comes. */
 export function setHouseNight(night: boolean): void {
   const progress = store.get();
@@ -446,6 +465,8 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
     bestFurnitureName: best?.name ?? null,
     equippedTitle: getEquippedTitleLabel(progress),
     leaderboardOptIn: progress.leaderboardOptIn === true,
+    // The house others see on their street (lib/leaderboard.ts fetchNeighbours).
+    houseStyle: progress.houseStyleId ?? null,
   };
 }
 
@@ -504,6 +525,19 @@ export function moveOrnament(instanceId: string, x: number, z: number): Purchase
   progress.placedOrnaments = placed.map((p) => (p.instanceId === instanceId ? { ...p, x: spot.x, z: spot.z } : p));
   store.save(progress);
   return { ok: true, message: "Moved." };
+}
+
+/** Turns a yard ornament round where it stands. */
+export function turnOrnament(instanceId: string, by = 45): PurchaseResult {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  const placed = progress.placedOrnaments ?? [];
+  const entry = placed.find((p) => p.instanceId === instanceId);
+  if (!entry) return { ok: false, message: "That ornament is not in the garden." };
+  const turn = nextTurn(entry.turn, by);
+  progress.placedOrnaments = placed.map((p) => (p.instanceId === instanceId ? { ...p, turn } : p));
+  store.save(progress);
+  return { ok: true, message: `${getOrnament(entry.itemId)?.name ?? "It"} turned.` };
 }
 
 /** The lamp post's switch. */

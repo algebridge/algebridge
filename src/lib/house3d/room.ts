@@ -3,7 +3,9 @@
  * (so the sun through the side window lands on the floor), window frames and
  * glass, the door, baseboards, a cut along the top of the walls like a real
  * dollhouse, and what you see outside, painted soft as a camera focused on
- * the room would see it.
+ * the room would see it. And what a lived-in room has that nobody buys:
+ * curtains, crown molding, a radiator, switches and outlets, sconces, a
+ * plant on the sill, coats by the door (roomDetails).
  */
 
 import * as THREE from "three";
@@ -428,6 +430,8 @@ export function buildRoom(k: Kit, theme: RoomTheme, which: "down" | "up", night:
   views.push(sideView);
   g.add(sideView);
 
+  g.add(roomDetails(k, theme, which, night, win, sideWin));
+
   const floorTop = new THREE.Object3D();
   floorTop.position.y = 0;
   const backFace = new THREE.Object3D();
@@ -444,4 +448,283 @@ export function buildRoom(k: Kit, theme: RoomTheme, which: "down" | "up", night:
       side.geometry.dispose();
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// What a lived-in room has
+// ---------------------------------------------------------------------------
+
+/** Each house's curtains: linen in the cottage, canvas in the treehouse, grey in the loft, sheer by the sea, velvet in the castle. */
+const CURTAINS: Record<string, { color: string; kind: "fabric" | "velvet"; full: boolean }> = {
+  cottage: { color: "#b7c4ad", kind: "fabric", full: true },
+  treehouse: { color: "#c9a46c", kind: "fabric", full: false },
+  loft: { color: "#5f656d", kind: "fabric", full: true },
+  beach: { color: "#f4f1ea", kind: "fabric", full: true },
+  castle: { color: "#7a2836", kind: "velvet", full: true },
+};
+
+/**
+ * One curtain panel, gathered: a row of soft folds hanging from the rod,
+ * built along x (its width) and down from y = 0 to -drop. `tied` pulls it in
+ * at a tie-back two-thirds of the way down.
+ */
+function curtainPanel(k: Kit, m: THREE.Material, width: number, drop: number, tied: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const folds = Math.max(4, Math.round(width / 0.075));
+  const r = width / folds / 1.6;
+  for (let i = 0; i < folds; i += 1) {
+    const x = -width / 2 + (i + 0.5) * (width / folds);
+    // Each fold a tall, slightly flattened column, alternately forward and back.
+    const fold = k.cyl(r, r * (tied ? 0.8 : 1.05), drop, m, { at: [x, -drop / 2, (i % 2 ? 0.012 : -0.008)], seg: 10 });
+    fold.scale.z = 0.7;
+    g.add(fold);
+  }
+  if (tied) g.add(k.box(width + 0.03, 0.035, r * 2 + 0.03, m, { at: [0, -drop * 0.62, 0.004], r: 0.012 }));
+  return g;
+}
+
+/** A rod above a window with a curtain each side, the window's plane (x across, +z into the room, y = the rod). */
+function curtains(k: Kit, theme: RoomTheme, winW: number, drop: number): THREE.Group {
+  const spec = CURTAINS[theme.id] ?? CURTAINS.cottage;
+  const g = new THREE.Group();
+  const cloth = spec.kind === "velvet" ? k.velvet(spec.color) : k.fabric(spec.color);
+  const rodM = theme.id === "loft" || theme.id === "castle" ? k.metal("black", 0.4) : k.metal("brass", 0.35);
+  const span = winW + 0.62;
+  g.add(k.cyl(0.013, 0.013, span, rodM, { at: [0, 0, 0.1], rot: [0, 0, Math.PI / 2], seg: 10 }));
+  for (const sx of [-1, 1]) {
+    g.add(k.sphere(0.03, rodM, { at: [(sx * span) / 2, 0, 0.1], seg: 12 }));
+    g.add(k.box(0.025, 0.06, 0.1, rodM, { at: [sx * (span / 2 - 0.08), 0.01, 0.05] }));
+    const panel = curtainPanel(k, cloth, 0.36, drop, spec.full);
+    panel.position.set(sx * (winW / 2 + 0.08), -0.02, 0.1);
+    g.add(panel);
+  }
+  return g;
+}
+
+/** A cast-iron column radiator, standing on the floor against a wall (built along x, facing +z). */
+function radiator(k: Kit, width: number, height: number, color: string): THREE.Group {
+  const g = new THREE.Group();
+  const m = k.paint(color, 0.55);
+  const cols = Math.round(width / 0.065);
+  for (let i = 0; i < cols; i += 1) {
+    const x = -width / 2 + (i + 0.5) * (width / cols);
+    g.add(k.box(0.045, height, 0.14, m, { at: [x, 0.08 + height / 2, 0.11], r: 0.018 }));
+  }
+  // The pipes along the top and bottom, the feet, and the valve.
+  for (const y of [0.13, 0.03 + height]) g.add(k.cyl(0.025, 0.025, width, m, { at: [0, y, 0.11], rot: [0, 0, Math.PI / 2], seg: 10 }));
+  for (const sx of [-1, 1]) g.add(k.box(0.05, 0.08, 0.12, m, { at: [sx * (width / 2 - 0.05), 0.04, 0.11] }));
+  g.add(k.cyl(0.018, 0.018, 0.08, k.metal("brass", 0.3), { at: [-width / 2 - 0.05, 0.12, 0.11], seg: 10 }));
+  g.add(k.cyl(0.035, 0.035, 0.03, k.metal("brass", 0.3), { at: [-width / 2 - 0.05, 0.17, 0.11], seg: 14 }));
+  return g;
+}
+
+/** A switch or an outlet plate on a wall (facing +z). */
+function plate(k: Kit, kind: "switch" | "outlet", trim: string): THREE.Group {
+  const g = new THREE.Group();
+  const face = k.plastic("#f6f4ef", 0.5);
+  g.add(k.box(0.075, 0.12, 0.008, face, { at: [0, 0, 0.004], r: 0.004 }));
+  if (kind === "switch") g.add(k.box(0.018, 0.035, 0.014, face, { at: [0, 0.006, 0.012], rot: [0.25, 0, 0], r: 0.003 }));
+  else
+    for (const y of [-0.026, 0.026]) {
+      g.add(k.box(0.006, 0.014, 0.003, k.paint("#2a2a2a", 0.9), { at: [-0.011, y, 0.009] }));
+      g.add(k.box(0.006, 0.014, 0.003, k.paint("#2a2a2a", 0.9), { at: [0.011, y, 0.009] }));
+    }
+  void trim;
+  return g;
+}
+
+/** A wall sconce: a backplate, an arm and a shade that glows at night (facing +z). */
+function sconce(k: Kit, theme: RoomTheme, night: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const metal = theme.id === "loft" || theme.id === "castle" ? k.metal("black", 0.4) : k.metal("brass", 0.3);
+  g.add(k.cyl(0.05, 0.05, 0.015, metal, { at: [0, 0, 0.008], rot: [Math.PI / 2, 0, 0], seg: 16 }));
+  g.add(k.cyl(0.008, 0.008, 0.12, metal, { at: [0, 0.03, 0.07], rot: [Math.PI / 2 - 0.5, 0, 0], seg: 8 }));
+  g.add(k.lathe([[0.03, 0], [0.075, 0], [0.05, 0.13], [0.035, 0.13]], k.glow("#f8e9cc", night, 1.8), { at: [0, 0.03, 0.13], seg: 20 }));
+  g.add(k.sphere(0.022, k.glow("#ffd9a0", night, 4), { at: [0, 0.08, 0.13], seg: 10 }));
+  return g;
+}
+
+/** A pot of trailing ivy for the window sill. */
+function sillPlant(k: Kit): THREE.Group {
+  const g = new THREE.Group();
+  g.add(k.lathe([[0, 0], [0.06, 0], [0.075, 0.12], [0.082, 0.13]], k.ceramic("#e9e3d6"), { seg: 18 }));
+  g.add(k.cyl(0.072, 0.072, 0.01, k.soil(), { at: [0, 0.12, 0], seg: 16 }));
+  const leaf = k.leaf(0.9);
+  const rnd = (() => {
+    let x = 7;
+    return () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+  })();
+  for (let i = 0; i < 16; i += 1) {
+    const a = (i / 16) * Math.PI * 2;
+    const out = 0.05 + rnd() * 0.06;
+    const y = 0.13 + rnd() * 0.1 - (out > 0.09 ? 0.06 : 0);
+    g.add(k.sphere(0.028, leaf, { at: [Math.cos(a) * out, y, Math.sin(a) * out], scale: [1, 0.35, 0.7], rot: [0, a, 0.4], seg: 8 }));
+  }
+  // A few strands trailing over the edge.
+  for (const a of [0.4, 2.2, 3.9]) for (let j = 0; j < 4; j += 1) g.add(k.sphere(0.022, leaf, { at: [Math.cos(a) * 0.085, 0.1 - j * 0.045, Math.sin(a) * 0.085], scale: [1, 0.35, 0.7], rot: [0, a, 0.9], seg: 8 }));
+  return g;
+}
+
+/** Hooks by the door with a coat, a scarf and a cap on them (facing +z). */
+function coatHooks(k: Kit, theme: RoomTheme): THREE.Group {
+  const g = new THREE.Group();
+  const board = theme.id === "loft" ? k.metal("black", 0.5) : k.wood("walnut", { gloss: 0.3 });
+  g.add(k.box(0.42, 0.09, 0.02, board, { at: [0, 0, 0.01], r: 0.006 }));
+  const hookM = k.metal(theme.id === "loft" ? "steel" : "brass", 0.35);
+  for (const x of [-0.13, 0, 0.13]) g.add(k.cyl(0.008, 0.008, 0.07, hookM, { at: [x, -0.01, 0.05], rot: [Math.PI / 2 - 0.4, 0, 0], seg: 8 }));
+  // The coat: shoulders on the hook, falling to a hem.
+  const coat = k.fabric("#3f5a6e");
+  g.add(k.box(0.24, 0.62, 0.07, coat, { at: [-0.13, -0.36, 0.06], r: 0.035 }));
+  g.add(k.box(0.06, 0.5, 0.06, coat, { at: [-0.25, -0.33, 0.065], rot: [0, 0, 0.06], r: 0.025 }));
+  g.add(k.box(0.06, 0.5, 0.06, coat, { at: [-0.01, -0.33, 0.065], rot: [0, 0, -0.06], r: 0.025 }));
+  // A striped scarf hanging double.
+  const scarf = k.fabric("#b5523b");
+  g.add(k.box(0.07, 0.48, 0.02, scarf, { at: [0.11, -0.27, 0.07], rot: [0, 0, 0.03], r: 0.01 }));
+  g.add(k.box(0.07, 0.4, 0.02, scarf, { at: [0.15, -0.23, 0.08], rot: [0, 0, -0.04], r: 0.01 }));
+  // A cap.
+  const cap = k.fabric("#d8b04a");
+  g.add(k.sphere(0.075, cap, { at: [0.13, -0.05, 0.075], scale: [1, 0.7, 1], seg: 14 }));
+  g.add(k.box(0.09, 0.008, 0.07, cap, { at: [0.13, -0.08, 0.14], r: 0.004 }));
+  return g;
+}
+
+/** A small mirror in a frame (facing +z). */
+function mirror(k: Kit, theme: RoomTheme): THREE.Group {
+  const g = new THREE.Group();
+  const frame = theme.id === "loft" ? k.metal("black", 0.4) : k.wood("oak", { gloss: 0.4 });
+  g.add(k.box(0.36, 0.56, 0.03, frame, { at: [0, 0, 0.015], r: 0.01 }));
+  g.add(k.box(0.3, 0.5, 0.005, k.metal("chrome", 0.04), { at: [0, 0, 0.032] }));
+  return g;
+}
+
+/** Three framed prints, hung as a group (facing +z, centred on the origin): simple shapes in each house's colours. */
+function prints(k: Kit, theme: RoomTheme): THREE.Group {
+  const g = new THREE.Group();
+  const frame = theme.id === "loft" ? k.metal("black", 0.4) : theme.id === "castle" ? k.metal("gold", 0.35) : k.wood("oak", { gloss: 0.4 });
+  const mat = k.paper("#f7f4ec");
+  const palette: Record<string, [string, string, string]> = {
+    cottage: ["#c9784f", "#7f9a6a", "#e5c66b"],
+    treehouse: ["#6b8f4e", "#c58b4a", "#3f6070"],
+    loft: ["#d14b3a", "#2d3a4a", "#e8b84a"],
+    beach: ["#3c8fb0", "#f0c27a", "#e47f6a"],
+    castle: ["#7a2836", "#3b4f7a", "#c9a24a"],
+  };
+  const [a, b, c] = palette[theme.id] ?? palette.cottage;
+  const one = (w: number, h: number, x: number, y: number, art: (cx: number, cy: number) => void) => {
+    g.add(k.box(w, h, 0.025, frame, { at: [x, y, 0.0125], r: 0.006 }));
+    g.add(k.box(w - 0.05, h - 0.05, 0.004, mat, { at: [x, y, 0.027] }));
+    art(x, y);
+  };
+  // A sun over hills, a tall print in two blocks, a small round one.
+  one(0.42, 0.32, -0.26, 0.06, (x, y) => {
+    g.add(k.box(0.3, 0.09, 0.003, k.paint(b, 0.8), { at: [x, y - 0.06, 0.03] }));
+    g.add(k.cyl(0.05, 0.05, 0.003, k.paint(c, 0.8), { at: [x + 0.07, y + 0.04, 0.03], rot: [Math.PI / 2, 0, 0], seg: 20 }));
+  });
+  one(0.26, 0.46, 0.14, 0.12, (x, y) => {
+    g.add(k.box(0.15, 0.17, 0.003, k.paint(a, 0.8), { at: [x, y + 0.08, 0.03] }));
+    g.add(k.box(0.15, 0.13, 0.003, k.paint(b, 0.8), { at: [x, y - 0.1, 0.03] }));
+  });
+  one(0.22, 0.22, -0.2, -0.24, (x, y) => {
+    g.add(k.cyl(0.06, 0.06, 0.003, k.paint(a, 0.8), { at: [x, y, 0.03], rot: [Math.PI / 2, 0, 0], seg: 20 }));
+  });
+  return g;
+}
+
+/**
+ * The room's own things, the same in every save: crown molding where the
+ * walls meet the ceiling, curtains on both windows, a radiator under the side
+ * window (where the sill is high enough), switches and outlets, sconces
+ * either side of the side window, a plant on the back sill, and by the door
+ * the coats downstairs and a mirror upstairs. Nothing here is placed on the
+ * back wall where pieces hang, except right by the door.
+ */
+function roomDetails(k: Kit, theme: RoomTheme, which: "down" | "up", night: boolean, win: { w: number; h: number; sill: number }, sideWin: { w: number; h: number; sill: number }): THREE.Group {
+  const g = new THREE.Group();
+  const trimM = k.paint(theme.trim, 0.45);
+  const back = -ROOM_D / 2;
+  const side = -ROOM_W / 2;
+
+  // Crown molding: a cove and a fillet along both walls.
+  const crown = (len: number, at: [number, number, number], alongZ: boolean) => {
+    const size = (a: number, b: number, c: number): [number, number, number] => (alongZ ? [c, b, a] : [a, b, c]);
+    const [w1, h1, d1] = size(len, 0.11, 0.05);
+    g.add(k.box(w1, h1, d1, trimM, { at: [at[0] + (alongZ ? 0.025 : 0), ROOM_H - 0.055, at[2] + (alongZ ? 0 : 0.025)] }));
+    const [w2, h2, d2] = size(len, 0.035, 0.085);
+    g.add(k.box(w2, h2, d2, trimM, { at: [at[0] + (alongZ ? 0.042 : 0), ROOM_H - 0.12, at[2] + (alongZ ? 0 : 0.042)], r: 0.008 }));
+  };
+  crown(ROOM_W, [0, 0, back], false);
+  crown(ROOM_D, [side, 0, 0], true);
+
+  // Curtains: on the back window and the side window.
+  const backRod = Math.min(win.sill + win.h + 0.16, ROOM_H - 0.2);
+  const spec = CURTAINS[theme.id] ?? CURTAINS.cottage;
+  const dropFor = (rod: number, sill: number) => (spec.full ? rod - 0.04 : rod - sill + 0.12);
+  const bc = curtains(k, theme, win.w, dropFor(backRod, win.sill));
+  bc.position.set(BACK_WINDOW.x, backRod, back);
+  g.add(bc);
+  const sideRod = Math.min(sideWin.sill + sideWin.h + 0.16, ROOM_H - 0.2);
+  const sc = curtains(k, theme, sideWin.w, dropFor(sideRod, sideWin.sill));
+  sc.rotation.y = Math.PI / 2;
+  sc.position.set(side, sideRod, SIDE_WINDOW.z);
+  g.add(sc);
+
+  // A radiator under the side window, if there is room under the sill.
+  if (sideWin.sill >= 0.8) {
+    const rad = radiator(k, Math.min(1.1, sideWin.w - 0.2), Math.min(0.55, sideWin.sill - 0.3), theme.id === "loft" ? "#2c2f33" : "#f1efe9");
+    rad.rotation.y = Math.PI / 2;
+    rad.position.set(side, 0, SIDE_WINDOW.z);
+    g.add(rad);
+  }
+
+  // Sconces either side of the side window.
+  for (const dz of [-1, 1]) {
+    const s = sconce(k, theme, night);
+    s.rotation.y = Math.PI / 2;
+    s.position.set(side, 1.75, SIDE_WINDOW.z + dz * (sideWin.w / 2 + 0.42));
+    g.add(s);
+  }
+
+  // A group of framed prints on the side wall, towards the front.
+  const art = prints(k, theme);
+  art.rotation.y = Math.PI / 2;
+  art.position.set(side, 1.55, Math.min(ROOM_D / 2 - 0.55, SIDE_WINDOW.z + sideWin.w / 2 + 1.25));
+  g.add(art);
+
+  // A switch by the door, outlets low on the walls.
+  const sw = plate(k, "switch", theme.trim);
+  sw.position.set(DOOR.x - DOOR.w / 2 - 0.22, 1.2, back);
+  g.add(sw);
+  for (const x of [-2.3, 1.0]) {
+    const o = plate(k, "outlet", theme.trim);
+    o.position.set(x, 0.32, back);
+    g.add(o);
+  }
+  const so = plate(k, "outlet", theme.trim);
+  so.rotation.y = Math.PI / 2;
+  so.position.set(side, 0.32, 1.4);
+  g.add(so);
+
+  // A plant on the back window's sill.
+  const plant = sillPlant(k);
+  plant.position.set(BACK_WINDOW.x - win.w / 2 + 0.16, win.sill + 0.001, back + 0.07);
+  g.add(plant);
+
+  // By the door: coats downstairs, a mirror upstairs, on the strip of wall past it.
+  const strip = DOOR.x + DOOR.w / 2 + 0.08 + (ROOM_W / 2 - (DOOR.x + DOOR.w / 2 + 0.08)) / 2;
+  if (which === "down") {
+    const hooks = coatHooks(k, theme);
+    hooks.position.set(strip, 1.72, back);
+    g.add(hooks);
+    // A doormat in front of the door.
+    g.add(k.box(0.86, 0.012, 0.52, k.fabric(theme.id === "beach" ? "#c8b48a" : "#6b5a46"), { at: [DOOR.x, 0.006, back + 0.36], r: 0.004 }));
+  } else {
+    const m = mirror(k, theme);
+    m.position.set(strip, 1.45, back);
+    g.add(m);
+  }
+  g.traverse((o) => {
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+  return g;
 }

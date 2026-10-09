@@ -2094,5 +2094,40 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("schools: graph-only standards are not also called missing", St.NOT_COVERED.every((r) => !(r.codes ? St.expandCodes(r.codes) : []).some((c) => St.GRAPHING_STANDARDS.includes(c))));
 }
 
+// The house: pieces turn round where they stand, in steps of 45 degrees, and the turn is saved.
+{
+  const B = await import("../bridgeys.ts");
+  ok("turn: a step either way", B.nextTurn(undefined, 45) === 45 && B.nextTurn(0, -45) === 315);
+  ok("turn: wraps round", B.nextTurn(315, 45) === 0 && B.nextTurn(45, -90) === 315);
+  const p = getProgress();
+  p.ownedFurniture = [...(p.ownedFurniture ?? []), "chair", "poster"];
+  p.placedFurnitureItems = [
+    { instanceId: "turn-chair", itemId: "chair", x: 50, y: 50, floor: "down" },
+    { instanceId: "turn-poster", itemId: "poster", x: 50, y: 50, floor: "down", surface: "wall" },
+  ];
+  saveProgress(p);
+  ok("turn: a chair turns", B.turnFurniture("turn-chair").ok && getProgress().placedFurnitureItems!.find((f) => f.instanceId === "turn-chair")!.turn === 45);
+  ok("turn: kept when moved", B.moveFurniture("turn-chair", 30, 40).ok && getProgress().placedFurnitureItems!.find((f) => f.instanceId === "turn-chair")!.turn === 45);
+  ok("turn: a hung poster faces out of the wall", !B.turnFurniture("turn-poster").ok);
+}
+
+// The street: neighbours are other students on the board, the same ones each visit, never made up.
+{
+  const { pickNeighbours } = await import("../leaderboard.ts");
+  const rows = [
+    { name: "Maya R.", styleId: "loft" },
+    { name: "Leo P.", styleId: "castle" },
+    { name: "Ana K.", styleId: "beach" },
+    { name: "Ana K.", styleId: "beach" },
+    { name: "Sam T.", styleId: "spaceship" },
+    { name: "  ", styleId: "cottage" },
+  ];
+  const a = pickNeighbours(rows, "user-1", 5);
+  ok("street: only real styles and names, each once", a.length === 3 && a.every((n) => ["loft", "castle", "beach"].includes(n.styleId)));
+  ok("street: the same neighbours every visit", JSON.stringify(pickNeighbours(rows, "user-1", 5)) === JSON.stringify(a));
+  ok("street: fewer students than lots leaves lots open", pickNeighbours([], "user-1", 5).length === 0);
+  ok("street: capped at the lots", pickNeighbours(rows, "user-1", 2).length === 2);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

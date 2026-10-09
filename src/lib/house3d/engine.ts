@@ -11,7 +11,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { GardenState } from "@/lib/garden";
-import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT } from "./garden";
+import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, type StreetNeighbour } from "./garden";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
 import { compileQuietly } from "./compile";
 import { liveSlice, watchReads } from "./live";
@@ -24,7 +24,7 @@ import { DEFAULT_LIVE, type ItemModel, type LiveData } from "./types";
 export type Mount = "floor" | "wall" | "ceiling";
 
 /** A part of the garden itself that was tapped. */
-export type GardenPick = { kind: "bed"; unit: number } | { kind: "sprinkler" } | { kind: "tree" } | { kind: "house" } | { kind: "mailbox" };
+export type GardenPick = { kind: "bed"; unit: number } | { kind: "sprinkler" } | { kind: "tree" } | { kind: "house" } | { kind: "mailbox" } | { kind: "neighbour"; name: string; styleId: string };
 
 /** Ornaments stand within this many metres of the yard's middle (lib/dollhouse.ts PAD_LIMIT). */
 const YARD = 6.4;
@@ -57,6 +57,8 @@ export interface ScenePiece {
   ornament?: boolean;
   /** Which floor it is on, for the porch view's dollhouse (both floors at once). */
   floor?: "down" | "up";
+  /** Turned round, in degrees (standing, ceiling and garden pieces). */
+  turn?: number;
 }
 
 /** Where a piece really goes, from its model: hung pieces always on the wall, hanging ones from the ceiling. */
@@ -78,6 +80,8 @@ const KEEP_BUILT = 8;
 const DOLLHOUSE_ZOOM = 1.45;
 /** How close the porch view may come. */
 const ZOOM_MAX: Record<string, number> = { room: 1.9, garden: 1.9, front: 3.4 };
+/** How far out each view may go: the porch view backs off down the street to show the neighbours. */
+const ZOOM_MIN: Record<string, number> = { room: 0.85, garden: 0.85, front: 0.55 };
 
 /** A part of a wall that steps aside when the camera is on its side (normal points out of the house). */
 interface Cutaway {
@@ -94,6 +98,15 @@ interface Dollhouse {
   floors: { down: THREE.Group; up: THREE.Group };
   rooms: RoomParts[];
   cut: Cutaway[];
+}
+
+/** A place kept built: the room, the garden or the porch, and for the last two the builder of their street. */
+interface Built {
+  group: THREE.Object3D;
+  dispose(): void;
+  lights: SceneLight[];
+  room?: RoomParts;
+  street?: (neighbours: StreetNeighbour[]) => (() => THREE.Object3D)[];
 }
 
 interface Placed {
@@ -136,7 +149,11 @@ export class HouseView {
    * The last few places built (rooms, the garden, the porch), kept whole:
    * going back to one is instant, with nothing to rebuild or compile.
    */
-  private built = new Map<string, { group: THREE.Object3D; dispose(): void; lights: SceneLight[]; room?: RoomParts }>();
+  private built = new Map<string, Built>();
+  /** Who lives on the street (other students on the board), for the porch and the garden. */
+  private neighbours: StreetNeighbour[] = [];
+  /** The garden or porch on show, for filling its street when the neighbours arrive. */
+  private outdoors: Built | null = null;
   private roomKey = "";
   /** The room's window shape: hung pieces keep clear of the window and the door. */
   private windowShape: WindowShape = "square";
@@ -291,6 +308,7 @@ export class HouseView {
     o.distance += (want - o.distance) * k;
     const moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
     this.placeCamera();
+    this.clearNeighbours();
     if (this.mode === "front" && this.applyCutaway()) {
       // The inside was just built: its shaders compile first.
       this.invalidate();
@@ -461,7 +479,7 @@ export class HouseView {
   // --- The garden ---------------------------------------------------------------
 
   /** The backyard: the beds, the tree and the sprinkler as the student's progress has grown them, and the ornaments put out. */
-  showGarden(state: GardenState, styleId: string, night: boolean, ornaments: { instanceId: string; itemId: string; x: number; z: number; on?: boolean }[]): void {
+  showGarden(state: GardenState, styleId: string, night: boolean, ornaments: { instanceId: string; itemId: string; x: number; z: number; on?: boolean; turn?: number }[]): void {
     this.enter("garden");
     const key = `${styleId}:${night}:${JSON.stringify(state)}`;
     if (key !== this.gardenKey) {
@@ -471,7 +489,7 @@ export class HouseView {
       this.showOutdoors(`garden:${key}`, () => buildGarden(this.kit, state, { night, styleId }));
     }
     this.setNightLight(night);
-    this.setPieces(ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, y: o.z, surface: "floor" as const, color: null, on: o.on ?? true, ornament: true })));
+    this.setPieces(ornaments.map((o) => ({ instanceId: o.instanceId, itemId: o.itemId, x: o.x, y: o.z, surface: "floor" as const, color: null, on: o.on ?? true, ornament: true, turn: o.turn })));
   }
 
   /** The front of the house from the street: the porch, and the mailbox with its flag up while messages are unread. */
@@ -602,11 +620,90 @@ export class HouseView {
     return built;
   }
 
-  private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void }): void {
+  /**
+   * The neighbours, one house at a time once the page is idle: the porch or
+   * the garden is on screen first, then the street fills in, and no single
+   * task is long enough to freeze anything.
+   */
+  /** Who lives on the street; the lots are rebuilt when that changes. */
+  setNeighbours(neighbours: StreetNeighbour[]): void {
+    this.neighbours = neighbours;
+    if (this.outdoors && this.garden) this.fillStreet(this.outdoors);
+  }
+
+  /** Builds the street of a garden or porch for the neighbours known now, unless it already shows them. */
+  private fillStreet(b: Built): void {
+    if (!b.street) return;
+    const key = JSON.stringify(this.neighbours);
+    const group = b.group;
+    if (group.userData.streetKey === key) return;
+    group.userData.streetKey = key;
+    for (const lot of group.children.filter((o) => o.userData.lot)) {
+      group.remove(lot);
+      lot.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    }
+    delete group.userData.neighbours;
+    this.buildLater(group, b.street(this.neighbours), key);
+  }
+
+  private buildLater(group: THREE.Object3D, jobs: (() => THREE.Object3D)[], key: string): void {
+    const queue = [...jobs];
+    const idle = (fn: () => void) => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 1500 }) : window.setTimeout(fn, 60));
+    const next = () => {
+      // A newer street (the neighbours changed) has taken over.
+      if (this.disposed || !queue.length || group.userData.streetKey !== key) return;
+      // Wait for the first frame of this place, and for any compiling to finish.
+      if (this.compiling || this.needsCompile) {
+        window.setTimeout(() => idle(next), 120);
+        return;
+      }
+      const obj = queue.shift()!;
+      group.add(obj());
+      delete group.userData.neighbours;
+      this.needsCompile = true;
+      this.invalidate();
+      idle(next);
+    };
+    this.firstFrame.then(() => idle(next));
+  }
+
+  /**
+   * A neighbour's house standing between the camera and yours (or round the
+   * camera itself, when it swings out over their lawn) steps out of the way,
+   * like a wall in a game: you always see your own house.
+   */
+  private clearNeighbours(): void {
+    if (!this.garden) return;
+    const list = (this.garden.group.userData.neighbours ??= (() => {
+      const found: THREE.Object3D[] = [];
+      this.garden!.group.traverse((o) => {
+        if (o.userData.neighbour) found.push(o);
+      });
+      return found;
+    })()) as THREE.Object3D[];
+    const cx = this.camera.position.x;
+    const cz = this.camera.position.z;
+    const tx = this.orbit.target.x;
+    const tz = this.orbit.target.z;
+    const dx = tx - cx;
+    const dz = tz - cz;
+    const len2 = dx * dx + dz * dz || 1;
+    for (const o of list) {
+      const n = o.userData.neighbour as { x: number; z: number; r: number };
+      // The nearest point to the house's middle on the line from the camera to what it looks at.
+      const t = Math.max(0, Math.min(1, ((n.x - cx) * dx + (n.z - cz) * dz) / len2));
+      const near = Math.hypot(cx + dx * t - n.x, cz + dz * t - n.z);
+      o.visible = near > n.r;
+    }
+  }
+
+  private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void; street?: (neighbours: StreetNeighbour[]) => (() => THREE.Object3D)[] }): void {
     const b = this.keep(key, () => {
       const made = make();
-      return { group: made.group, dispose: made.dispose, lights: this.takeLights(made.group) };
+      return { group: made.group, dispose: made.dispose, lights: this.takeLights(made.group), street: made.street };
     });
+    this.outdoors = b;
+    this.fillStreet(b);
     this.garden = { group: b.group as THREE.Group, own: [], dispose: () => undefined };
     this.sceneLights = b.lights;
     this.updateLamps();
@@ -654,7 +751,12 @@ export class HouseView {
   pickGarden(clientX: number, clientY: number): GardenPick | null {
     if (!this.garden) return null;
     this.raycaster.setFromCamera(this.ndc(clientX, clientY), this.camera);
-    const hit = this.raycaster.intersectObject(this.garden.group, true).find((h) => h.object.visible);
+    // Only what is shown: a neighbour stepped out of the way is no target.
+    const shown = (o: THREE.Object3D | null): boolean => {
+      for (let p = o; p; p = p.parent) if (!p.visible) return false;
+      return true;
+    };
+    const hit = this.raycaster.intersectObject(this.garden.group, true).find((h) => shown(h.object));
     let o: THREE.Object3D | null = hit?.object ?? null;
     while (o && o !== this.garden.group) {
       if (typeof o.userData.gardenUnit === "number") return { kind: "bed", unit: o.userData.gardenUnit };
@@ -662,6 +764,7 @@ export class HouseView {
       if (o.userData.gardenPart === "tree") return { kind: "tree" };
       if (o.userData.gardenPart === "house") return { kind: "house" };
       if (o.userData.gardenPart === "mailbox") return { kind: "mailbox" };
+      if (o.userData.gardenPart === "neighbour") return { kind: "neighbour", name: o.userData.who.name, styleId: o.userData.who.styleId };
       o = o.parent;
     }
     return null;
@@ -749,6 +852,10 @@ export class HouseView {
 
   /** Where a piece stands, hangs or is hung, from its stored percentages. */
   private position(p: Placed): void {
+    // Turned round its own middle; the soft shadow under it turns with it.
+    const turn = mountOf(p.model) === "wall" ? 0 : ((p.piece.turn ?? 0) * Math.PI) / 180;
+    p.root.rotation.y = turn;
+    p.shadow?.rotation.set(-Math.PI / 2, 0, turn);
     if (p.piece.ornament) {
       // Metres in the yard: x east, y north (north is away from the camera, -z).
       const x = clamp(p.piece.x, -YARD, YARD);
@@ -769,9 +876,12 @@ export class HouseView {
       p.root.position.set(spot.x, ROOM_H, spot.z);
     } else {
       const spot = floorToWorld(x, y);
-      // Keep the whole piece inside the room, not just its middle.
-      const hw = p.model.size[0] / 2;
-      const hd = p.model.size[2] / 2;
+      // Keep the whole piece inside the room, not just its middle, however it is turned.
+      const [w, , d] = p.model.size;
+      const cos = Math.abs(Math.cos(turn));
+      const sin = Math.abs(Math.sin(turn));
+      const hw = (w * cos + d * sin) / 2;
+      const hd = (w * sin + d * cos) / 2;
       const px = Math.max(-ROOM_W / 2 + hw + 0.02, Math.min(ROOM_W / 2 - hw - 0.02, spot.x));
       const pz = Math.max(-ROOM_D / 2 + hd + 0.02, Math.min(ROOM_D / 2 - hd - 0.02, spot.z));
       p.root.position.set(px, 0, pz);
@@ -788,6 +898,8 @@ export class HouseView {
       ...this.sceneLights,
       ...lit.map((p) => {
         const spec = p.model.light!;
+        // A turned lamp gives its light from where its bulb now is.
+        p.root.updateMatrixWorld(true);
         return {
           pos: p.root.localToWorld(new THREE.Vector3(spec.at[0], spec.at[1], spec.at[2])),
           color: new THREE.Color(spec.color),
@@ -925,7 +1037,7 @@ export class HouseView {
   }
 
   zoom(factor: number): void {
-    this.goal.zoom = Math.max(0.85, Math.min(ZOOM_MAX[this.mode] ?? 1.9, this.goal.zoom * factor));
+    this.goal.zoom = Math.max(ZOOM_MIN[this.mode] ?? 0.85, Math.min(ZOOM_MAX[this.mode] ?? 1.9, this.goal.zoom * factor));
     this.invalidate();
   }
 
