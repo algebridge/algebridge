@@ -15,7 +15,7 @@ function nz(max: number): number {
   return randInt(0, 1) === 0 ? v : -v;
 }
 
-const SUP = ["", "", "²", "³", "⁴", "⁵", "⁶", "⁷"];
+const SUP = ["", "", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
 const xpow = (n: number) => (n === 0 ? "" : n === 1 ? "x" : `x${SUP[n]}`);
 
 /** One term of a polynomial, as the first term or as a later one: (−3, 2, false) → " − 3x²". */
@@ -324,7 +324,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(high[0] * k * k * k + high[1] * k * k + high[2] * k + high[3] * k, "The constant term is not multiplied by x."),
             trap(high[0] * k * 3 + high[1] * k * 2 + high[2] * k + high[3], "x³ means x × x × x, not 3x."),
           ]),
-          explanation: `P(${k}) = ${high[0]}(${k})³${plusTerm(high[1], `(${k})²`)}${plusTerm(high[2], `(${k})`)}${plusTerm(high[3])} = ${high[0] * k * k * k}${plusTerm(high[1] * k * k)}${plusTerm(high[2] * k)}${plusTerm(high[3])} = ${value}`,
+          explanation: `P(${k}) = ${high[0] === 1 ? "" : high[0] === -1 ? "-" : high[0]}(${k})³${plusTerm(high[1], `(${k})²`)}${plusTerm(high[2], `(${k})`)}${plusTerm(high[3])} = ${high[0] * k * k * k}${plusTerm(high[1] * k * k)}${plusTerm(high[2] * k)}${plusTerm(high[3])} = ${value}`,
         };
       }
       if (kind === 3) {
@@ -340,7 +340,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const [a, b, c, d] = high;
         const [q2, q1, q0, r] = row;
         const slip = randInt(0, 2);
-        const line = (left: number, prod: number, sum: number) => `${left} × ${k} = ${prod}; ${sum}`;
+        const line = (left: number, prod: number, sum: string) => `${left} × ${k} = ${prod}; ${sum}`;
         const steps = [
           `Coefficients ${a}, ${b}, ${c}, ${d}; the divisor ${divisor(k)} puts ${slip === 0 ? -k : k} in the box.`,
           `Bring down ${q2}. ${line(q2, q2 * k, `${b}${plusTerm(q2 * k)} = ${slip === 1 ? b - q2 * k : q1}`)}`,
@@ -388,10 +388,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         // Is x − k a factor?
         const roots = threeRoots();
         const isFactor = randInt(0, 2) > 0;
-        const high = isFactor ? fromRoots(roots) : [1, nz(5), nz(9), nz(9)];
-        const k = isFactor ? pick(roots) : nz(4);
+        let high = isFactor ? fromRoots(roots) : [1, nz(5), nz(9), nz(9)];
+        let k = isFactor ? pick(roots) : nz(4);
+        while (!isFactor && polyAt(high, k) === 0) {
+          high = [1, nz(5), nz(9), nz(9)];
+          k = nz(4);
+        }
         const r = polyAt(high, k);
-        if (!isFactor && r === 0) return { ...generators["remainder-factor-theorem"]([])[0] };
         const answer = r === 0 ? "Yes, the remainder is 0" : `No, the remainder is ${r}`;
         const other = polyAt(high, -k);
         const wrongs = [other, r === 0 ? high[3] : -r, r === 0 ? k * k : high[3], r + 2 * k, r === 0 ? 1 : 0];

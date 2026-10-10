@@ -1,6 +1,6 @@
 "use client";
 
-import { units } from "@/data/curriculum";
+import { allUnits, units } from "@/data/curriculum";
 import { Icon } from "@/components/Icon";
 import { topicSkills, type GameSetup, type GameTopic } from "@/lib/game-session";
 import { rinkSkillIds } from "@/lib/rink";
@@ -33,7 +33,7 @@ export function GameSetupBar({
   disabled: boolean;
 }) {
   const here = progress ? rinkSkillIds(progress) : null;
-  const unitTitle = here ? units.find((u) => u.id === here.unitId)?.title : null;
+  const unitTitle = here ? allUnits().find((u) => u.id === here.unitId)?.title : null;
   const byUnit = units
     .map((u) => ({ unit: u, skills: topicSkills().filter((t) => t.unitId === u.id) }))
     .filter((g) => g.skills.length);

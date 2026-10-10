@@ -1,5 +1,8 @@
 import type { PracticeProblem, Trap } from "@/types";
-import { PROBLEMS_PER_SKILL, fillToCount, fmtNum, frac, lin, mcChoices, randInt, trapsFor } from "@/lib/problem-utils";
+import { PROBLEMS_PER_SKILL, fillToCount, fmtNum, frac, fractionText, lin, mcChoices, randInt, trapsFor } from "@/lib/problem-utils";
+
+/** A ratio as a student writes it: 2/3 stays a fraction, 1.5 stays a decimal. */
+const ratioText = (r: number) => fractionText(r) ?? fmtNum(r);
 
 function trap(value: number | string, why: string): Trap {
   return { value, why };
@@ -185,7 +188,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(a1 * r ** n, `a₁rⁿ is a single term. Add the ${n} terms or use S = a₁(1 − rⁿ)/(1 − r).`),
             trap((a1 * (r ** n - 1)) / (1 + r), "The formula divides by 1 − r, not 1 + r."),
           ]),
-          explanation: `S = ${a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${a1}(1 − ${r ** n})/${1 - r < 0 ? `(${1 - r})` : 1 - r} = ${S}`,
+          explanation: `S = ${a1 === 1 ? "" : a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${a1 === 1 ? "" : a1}(1 − ${r ** n < 0 ? `(${r ** n})` : r ** n})/${1 - r < 0 ? `(${1 - r})` : 1 - r} = ${S}`,
         };
       }
       if (kind === 1) {
@@ -218,7 +221,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(a1 * (1 - p / q), "Divide a₁ by 1 − r; the formula is a₁/(1 − r), not a₁(1 − r)."),
             trap((a1 * q) / p, "Dividing by r is a different operation. Divide by 1 − r."),
           ]),
-          explanation: `S = ${a1}/(1 − ${rText}) = ${a1}/(${frac(q - p, q)}) = ${frac(a1 * q, q - p)}`,
+          explanation: `S = ${a1}/(1 − ${p < 0 ? `(${rText})` : rText}) = ${a1}/(${frac(q - p, q)}) = ${frac(a1 * q, q - p)}`,
         };
       }
       if (kind === 2) {
@@ -254,8 +257,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Divide the second term by the first to get r. The series converges when |r| < 1 and diverges when |r| ≥ 1.",
           answer,
           choices: mcChoices(answer, wrong.map(series)),
-          traps: trapsFor(answer, wrong.map((w) => trap(series(w), wantConverge ? `Its ratio is ${fmtNum(w[1])}, and |r| ≥ 1 means the terms never shrink, so the sum diverges.` : `Its ratio is ${fmtNum(w[1])}, and |r| < 1 means the terms shrink toward 0, so the sum converges.`))),
-          explanation: `${answer} has r = ${fmtNum(right[1])}, so |r| ${wantConverge ? "< 1 and it converges" : "≥ 1 and it diverges"}.`,
+          traps: trapsFor(answer, wrong.map((w) => trap(series(w), wantConverge ? `Its ratio is ${ratioText(w[1])}, and |r| ≥ 1 means the terms never shrink, so the sum diverges.` : `Its ratio is ${ratioText(w[1])}, and |r| < 1 means the terms shrink toward 0, so the sum converges.`))),
+          explanation: `${answer} has r = ${ratioText(right[1])}, so |r| ${wantConverge ? "< 1 and it converges" : "≥ 1 and it diverges"}.`,
         };
       }
       if (kind === 3) {
@@ -277,7 +280,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(S + terms[n - 1] * r, `The series stops at ${terms[n - 1]}; there are ${n} terms, not ${n + 1}.`),
             trap(terms[n - 1], "That is only the last term. Add every term."),
           ]),
-          explanation: `${n} terms, r = ${r} → S = ${a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${S}`,
+          explanation: `${n} terms, r = ${r} → S = ${a1 === 1 ? "" : a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${S}`,
         };
       }
       if (kind === 4) {
@@ -326,7 +329,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         type: "error-analysis",
         prompt: `Find the error in this sum of the infinite geometric series ${a} + ${t2} + ${t3} + ...`,
         hint: "r is the second term divided by the first. The sum formula divides a₁ by 1 − r.",
-        wrongStepIndex: slip,
+        wrongStepIndex: slip === 0 ? 0 : 2,
         steps,
         explanation: slip === 0 ? `r is the next term divided by the one before: ${t2}/${a} = ${rText}. Then S = ${a}/(1 − ${rText}) = ${fmtNum(S)}.` : `The formula is S = a₁/(1 − r): ${a}/(1 − ${rText}) = ${a}/(${frac(q - p, q)}) = ${fmtNum(S)}.`,
       };
@@ -338,9 +341,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       if (kind === 0) {
         // Evaluate a linear sigma.
         const a = pick([1, 2, 3, 4, 5, 6, -2, -3]);
-        const b = randInt(-5, 9);
+        let b = randInt(-5, 9);
         const n = randInt(4, 10);
+        // A zero term reads as "+ 0" in the worked sum; nudge b off it.
+        while (Array.from({ length: n }, (_, k) => a * (k + 1) + b).some((v) => v === 0)) b += 1;
         const S = (a * n * (n + 1)) / 2 + b * n;
+        const vals = Array.from({ length: n }, (_, k) => a * (k + 1) + b);
+        const signed = (v: number) => (v < 0 ? `− ${fmtNum(-v)}` : `+ ${fmtNum(v)}`);
         return {
           id: "",
           type: "numeric",
@@ -353,13 +360,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap((a * n * (n + 1)) / 2 + b, `The constant ${b} appears in every term, so it is added ${n} times, not once.`),
             trap((a * n * (n - 1)) / 2 + b * (n - 1), `k runs from 1 through ${n}: that is ${n} terms, including k = ${n}.`),
           ]),
-          explanation: `${Array.from({ length: Math.min(n, 4) }, (_, k) => fmtNum(a * (k + 1) + b)).join(" + ")}${n > 4 ? ` + ... + ${fmtNum(a * n + b)}` : ""} = ${S}`,
+          explanation: `${joinSigned(vals.slice(0, 4))}${n > 4 ? ` ${signed(vals[n - 1]).slice(0, 1)} ... ${signed(vals[n - 1])}` : ""} = ${S}`,
         };
       }
       if (kind === 1) {
         // Write a listed sum in sigma notation.
         const a = randInt(2, 7);
-        const b = randInt(-4, 8);
+        const b = randInt(1 - a, 8);
         const n = randInt(4, 6);
         const terms = Array.from({ length: n }, (_, k) => a * (k + 1) + b);
         const sig = (lo: number, hi: number, m: number, c: number) => `Σ from k = ${lo} to ${hi} of (${lin(m, c, "k")})`;
@@ -446,7 +453,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       }
       // Error analysis: expanding a sigma term by term.
       const a = randInt(2, 6);
-      const b = randInt(-3, 7);
+      const b = randInt(1 - a, 7);
       const n = randInt(3, 4);
       const vals = Array.from({ length: n }, (_, k) => a * (k + 1) + b);
       const S = vals.reduce((s, v) => s + v, 0);
@@ -455,7 +462,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const steps = vals.map((v, k) => `k = ${k + 1}: ${a}(${k + 1})${b === 0 ? "" : b > 0 ? ` + ${b}` : ` − ${-b}`} = ${k === badK ? v + a : v}`);
       const shownVals = vals.map((v, k) => (k === badK ? v + a : v));
       const shownSum = shownVals.reduce((s, v) => s + v, 0);
-      steps.push(`Sum: ${shownVals.map(fmtNum).join(" + ")} = ${slip === n ? shownSum - vals[n - 1] : shownSum}`);
+      // The last slip leaves the final term out of the addition.
+      steps.push(slip === n ? `Sum: ${vals.slice(0, n - 1).map(fmtNum).join(" + ")} = ${S - vals[n - 1]}` : `Sum: ${shownVals.map(fmtNum).join(" + ")} = ${shownSum}`);
       return {
         id: "",
         type: "error-analysis",
@@ -463,7 +471,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: "Recompute each term by plugging in its k, then check that every term made it into the final addition.",
         wrongStepIndex: slip,
         steps,
-        explanation: slip < n ? `For k = ${slip + 1}, ${a} × ${slip + 1}${b === 0 ? "" : b > 0 ? ` + ${b}` : ` − ${-b}`} = ${vals[slip]}, not ${vals[slip] + a}. The sum is ${S}.` : `All ${n} terms must be added: ${vals.map(fmtNum).join(" + ")} = ${S}.`,
+        explanation: slip < n ? `For k = ${slip + 1}, ${a} × ${slip + 1}${b === 0 ? "" : b > 0 ? ` + ${b}` : ` − ${-b}`} = ${vals[slip]}, not ${vals[slip] + a}. The sum is ${S}.` : `The k = ${n} term, ${vals[n - 1]}, was left out. All ${n} terms must be added: ${vals.map(fmtNum).join(" + ")} = ${S}.`,
       };
     }),
 };

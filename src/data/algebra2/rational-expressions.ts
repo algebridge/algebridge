@@ -107,7 +107,7 @@ export const unit: Unit = {
         {
           id: "a2-re-p6",
           type: "numeric",
-          prompt: "Maya can paint a room in 3 hours and Kai can paint it in 6 hours. Working together, how many hours do they need? (round to the nearest tenth)",
+          prompt: "Maya can paint a room in 3 hours and Kai can do it in 6 hours. Working together, how many hours do they need? (round to the nearest tenth)",
           hint: "In one hour Maya does 1/3 of the room and Kai does 1/6. Together they do 1/3 + 1/6 of it per hour; the time is 1 over that.",
           answer: 2,
           decimalPlaces: 1,

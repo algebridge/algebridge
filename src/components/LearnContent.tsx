@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MasteryLevel, Skill, Unit } from "@/types";
-import { getNextSkill, getPrevSkill } from "@/data/curriculum";
+import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
@@ -153,10 +153,15 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   // through the video too, they've shown they know it.
   const videoStepSatisfied = videoWatched || isSkillComplete;
 
+  // The crumb leads back to the course this unit belongs to.
+  const inAlgebra2 = courseOfUnit(unitId)?.id === "algebra-2";
+  const courseHome = inAlgebra2 ? "/algebra-2" : "/";
+  const courseName = inAlgebra2 ? "Algebra 2" : "Home";
+
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href="/" className="hover:text-bridge-600">Home</Link>
+        <Link href={courseHome} className="hover:text-bridge-600">{courseName}</Link>
         <span aria-hidden className="mx-2">/</span>
         <Link href={`/unit/${unitId}`} className="hover:text-bridge-600">
           Unit {unit.number}

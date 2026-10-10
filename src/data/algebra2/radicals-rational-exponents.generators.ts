@@ -28,7 +28,7 @@ const CUBE_FREE = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15];
 const RATIONAL_POWERS: { b: number; p: number; q: number; r: number }[] = [];
 for (const [r, q] of [[2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [10, 2], [2, 3], [3, 3], [4, 3], [5, 3], [2, 4], [3, 4], [2, 5]]) {
   for (const p of [2, 3, 5]) {
-    if (p === q) continue;
+    if (p === q || (p === 2 && q % 2 === 0)) continue;
     const v = r ** p;
     if (v <= 1000) RATIONAL_POWERS.push({ b: r ** q, p, q, r });
   }
@@ -41,7 +41,7 @@ for (let c = -6; c <= 6; c += 1) {
     const bad = 1 - 2 * c - good;
     if (bad >= good) continue;
     const a = c * c - good * bad;
-    if (a === 0 || Math.abs(a) > 20) continue;
+    if (a === 0 || c === 0 || Math.abs(a) > 20) continue;
     if (good + c < 0 || good + a < 0 || bad + c >= 0 || bad + a < 0) continue;
     EXTRANEOUS.push({ a, c, good, bad });
   }
@@ -76,7 +76,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       if (kind === 1) {
         // Pull the perfect cube out.
         const k = randInt(2, 5);
-        const m = pick(CUBE_FREE);
+        const m = pick(CUBE_FREE.filter((v) => v !== k));
         const n = k ** 3 * m;
         const answer = `${k}∛${m}`;
         const wrong = [`${m}∛${k}`, `${k * k}∛${m}`, `${k}√${m}`];
@@ -207,7 +207,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       if (kind === 2) {
         // Radical to rational exponent.
         const q = randInt(2, 5);
-        const p = pick([2, 3, 5, 7].filter((x) => x !== q));
+        const p = pick([2, 3, 5, 7].filter((x) => x !== q && (x !== 2 || q % 2 !== 0)));
         const answer = `x^(${p}/${q})`;
         const wrong = [`x^(${q}/${p})`, `x^${p * q}`, `x^${p + q}`];
         return {
@@ -228,7 +228,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       if (kind === 3) {
         // Rational exponent to radical.
         const q = randInt(2, 5);
-        const p = pick([2, 3, 5, 7].filter((x) => x !== q));
+        const p = pick([2, 3, 5, 7].filter((x) => x !== q && (x !== 2 || q % 2 !== 0)));
         const answer = `${rootSym(q)}(x^${p})`;
         const wrong = [`${rootSym(p)}(x^${q})`, `${p}${rootSym(q)}x`, `x^${p}${rootSym(q)}x`];
         return {
@@ -340,8 +340,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         };
       }
       if (kind === 2) {
-        // Error analysis: solving √(x + a) = b.
-        const b = randInt(2, 9);
+        // Error analysis: solving √(x + a) = b (b = 2 is left out: 2b and b² agree there).
+        const b = randInt(3, 9);
         const a = pick([-9, -7, -6, -5, -3, -2, 2, 3, 4, 5, 6, 7, 8, 10]);
         const x = b * b - a;
         const slip = randInt(0, 2);

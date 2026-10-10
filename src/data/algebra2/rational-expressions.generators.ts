@@ -266,7 +266,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(k, `${k}x is the simplified expression. The question asks for its value at x = ${v}.`),
             trap(k * v * v, "One x on top cancels with the x on the bottom, so only one x is left."),
             trap(-k * v, "Check the sign of x when you substitute."),
-            trap((p * rr * v * v) / (q * s * v) + (q * s), "Simplify the coefficient by dividing: " + p * rr + " ÷ " + q * s + "."),
+            trap(p * rr * v, `Divide the numbers as well: ${p * rr} ÷ ${q * s}.`),
           ]),
           explanation: `${expr} = ${p * rr}x²/(${q * s}x) = ${k}x, and ${k} × (${v}) = ${want}`,
         };
@@ -315,7 +315,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(k / a, `That is ${k}/${a}, upside down. x = ${a} ÷ ${k}.`),
             trap(a / (c + b), `Subtract ${b} from both sides, do not add it.`),
           ]),
-          explanation: `${a}/x${plusTerm(b)} = ${c} → ${a}/x = ${k} → ${a} = ${k}x → x = ${x}`,
+          explanation: `${a}/x${plusTerm(b)} = ${c} → ${a}/x = ${k} → ${a} = ${lin(k, 0)} → x = ${x}`,
         };
       }
       if (kind === 1) {
@@ -417,14 +417,14 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         id: "",
         type: "numeric",
         prompt: `Solve ${a}/${f(p)} = ${b}/${f(q)}.`,
-        hint: `Cross-multiply: ${a}${f(q)} = ${b}${f(p)}. Expand both sides, collect the x terms, and solve.`,
+        hint: `Cross-multiply: ${a === 1 ? "" : a}${f(q)} = ${b === 1 ? "" : b}${f(p)}. Expand both sides, collect the x terms, and solve.`,
         answer: x,
         traps: trapsFor(x, [
           trap(-x, "Check the signs when you move the x terms to one side."),
-          trap((b * q - a * p) / (a - b), `Cross-multiplying pairs ${a} with ${f(q)} and ${b} with ${f(p)}.`),
+          trap((b * q - a * p) / (a - b), `Cross-multiplying pairs the ${a} with ${f(q)} and the ${b} with ${f(p)}.`),
           trap(p - q, "Expand both sides before collecting terms; the constants multiply too."),
         ]),
-        explanation: `${a}${f(q)} = ${b}${f(p)} → ${a}x${plusTerm(a * q)} = ${b}x${plusTerm(b * p)} → ${a - b}x = ${b * p - a * q} → x = ${x}`,
+        explanation: `${a === 1 ? "" : a}${f(q)} = ${b === 1 ? "" : b}${f(p)} → ${lin(a, a * q)} = ${lin(b, b * p)} → ${lin(a - b, 0)} = ${b * p - a * q} → x = ${x}`,
       };
     }),
 };
