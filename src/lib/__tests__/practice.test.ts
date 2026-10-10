@@ -132,6 +132,18 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
   ok("markup is not an interest", sanitizeTopics([{ label: "<b>Soccer</b>", details: "" }]).length === 0);
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
+{
+  const { topicKey, validSpecifics, describeTopic, mergeTopics } = await import("../interests.ts");
+  const own = topicsFromPicks(["soccer", "creators"], { soccer: "Arsenal, Messi", creators: "MrBeast", music: "ignored" });
+  ok("picks carry their specifics", own[0].specifics === "Arsenal, Messi" && own[1].specifics === "MrBeast");
+  ok("specifics only for tapped chips", Object.keys(validSpecifics({ soccer: "Arsenal", music: "Drake" }, ["soccer"])).join() === "soccer");
+  ok("unsafe or personal specifics are dropped", !topicsFromPicks(["soccer"], { soccer: "my coach jake@school.com" })[0].specifics && !topicsFromPicks(["soccer"], { soccer: "beer league" })[0].specifics);
+  ok("specific topics get their own story pool", topicKey(own[0]) === "Soccer|arsenal messi" && topicKey({ label: "Soccer", details: "" }) === "Soccer");
+  ok("sanitize keeps specifics", sanitizeTopics([{ label: "Anime", details: "episodes", specifics: "One Piece, Luffy" }])[0].specifics === "One Piece, Luffy");
+  ok("describe names the specifics", describeTopic(own[0]) === "Soccer (Arsenal, Messi)");
+  const merged = mergeTopics(topicsFromPicks(["soccer"]), [{ label: "Soccer", details: "", specifics: "Real Madrid" }]);
+  ok("the note can add specifics to a tap", merged.length === 1 && merged[0].specifics === "Real Madrid");
+}
 for (const fine of ["skills", "bass guitar", "class", "method", "heroine", "a stable orbit", "free throw shot", "threes", "Sussex"]) {
   ok(`school-safe: "${fine}"`, isSchoolSafe(fine));
 }

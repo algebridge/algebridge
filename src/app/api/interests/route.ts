@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { aiConfigured, callJson, clientKey, makeRateLimiter } from "@/lib/ai-provider";
-import { cleanText, mergeTopics, NOTE_MAX, sanitizeTopics, topicsFromPicks, validPicks } from "@/lib/interests";
+import { cleanText, mergeTopics, NOTE_MAX, sanitizeTopics, topicsFromPicks, validPicks, validSpecifics } from "@/lib/interests";
 import { parseModelJson } from "@/lib/personalize";
 import { detectCrisis } from "@/lib/helper";
 
@@ -32,13 +32,15 @@ Rules:
 - Turn what they WROTE into topics: include every separate interest they mention, up to 4 ("I bake cookies and post on TikTok" is two: Baking and TikTok). The options they tapped are already kept separately, so only add a tapped one if their writing adds detail to it.
 - label: 1 to 3 words, Title Case, like "Basketball", "Formula 1", "Baking".
 - details: 3 to 5 concrete things from that world that problems can count or measure, comma separated, like "lap times, pit stops, grid positions".
+- specifics: the named things they follow in that world, exactly as they wrote them, comma separated: teams and players, shows and characters, games, artists, creators, brands ("Arsenal, Messi"; "One Piece, Luffy"). Empty string when they named none. Never a person they know personally.
+- For a tapped option, you may return it with only specifics filled, when their writing names teams, players, characters or the like for it.
 - Leave out anything that is not an interest, anything unkind or not school-appropriate, and anything personal such as names of people they know, their school, or where they live.
 - If nothing usable is left, return an empty list.
 
-Reply with JSON only: {"topics":[{"label":"...","details":"..."}]}`;
+Reply with JSON only: {"topics":[{"label":"...","details":"...","specifics":"..."}]}`;
 
 export async function POST(request: Request) {
-  let body: { picks?: unknown; note?: unknown };
+  let body: { picks?: unknown; note?: unknown; specifics?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -47,7 +49,8 @@ export async function POST(request: Request) {
 
   const picks = validPicks(body.picks);
   const note = cleanText(body.note, NOTE_MAX);
-  const fromPicks = topicsFromPicks(picks);
+  const specifics = validSpecifics(body.specifics, picks);
+  const fromPicks = topicsFromPicks(picks, specifics);
 
   if (!note) return NextResponse.json({ topics: fromPicks, source: "picks" });
   if (detectCrisis(note)) return NextResponse.json({ topics: fromPicks, source: "picks", crisis: true });
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ topics: fromPicks, source: "picks" });
   }
 
-  const tapped = fromPicks.map((t) => t.label);
+  const tapped = fromPicks.map((t) => (t.specifics ? { interest: t.label, their_specifics: t.specifics } : { interest: t.label }));
   const result = await callJson({
     system: SYSTEM,
     user: JSON.stringify({ tapped, wrote: note }),

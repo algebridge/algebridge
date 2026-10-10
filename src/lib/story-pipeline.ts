@@ -26,7 +26,7 @@
 import { units } from "@/data/curriculum";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { callJson } from "@/lib/ai-provider";
-import type { InterestTopic } from "@/lib/interests";
+import { topicKey, type InterestTopic } from "@/lib/interests";
 import {
   BATCH_SIZE,
   canPersonalize,
@@ -394,10 +394,10 @@ export async function personalizeProblems(opts: {
   // --- 1. The library ------------------------------------------------------
   // Stored templates are re-checked against today's rules, so tightening a
   // rule in code also retires every stored template that breaks it.
-  const keys = [...new Set(items.flatMap((p) => topics.map((t) => templateKey(shapeOf(p).signature, t.label))))];
+  const keys = [...new Set(items.flatMap((p) => topics.map((t) => templateKey(shapeOf(p).signature, topicKey(t)))))];
   const library = await getTemplates(keys);
   const storedFor = (signature: string, topic: InterestTopic): StoredTemplate[] =>
-    (library.get(templateKey(signature, topic.label)) ?? []).filter(
+    (library.get(templateKey(signature, topicKey(topic))) ?? []).filter(
       (t) => checkTemplate(signature, t.template, shapeSpans(signature)).ok
     );
 
@@ -446,7 +446,7 @@ export async function personalizeProblems(opts: {
     for (const shape of shapes) {
       const got = accepted.get(shape.id);
       if (!got) continue;
-      await saveTemplate(templateKey(shape.signature, got.topic.label), shape.signature, {
+      await saveTemplate(templateKey(shape.signature, topicKey(got.topic)), shape.signature, {
         template: got.template,
         topic: got.topic.label,
       });

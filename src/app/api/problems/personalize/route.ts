@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   // profile, so improving an option's facts improves every student's problems.
   const topics = sanitizeTopics(body.topics).map((t) => {
     const option = INTEREST_OPTIONS.find((o) => o.label === t.label);
-    return option ? { label: t.label, details: option.details } : t;
+    return option ? { label: t.label, details: option.details, ...(t.specifics ? { specifics: t.specifics } : {}) } : t;
   });
   const offset = Number.isInteger(body.offset) ? Math.max(0, Number(body.offset)) : 0;
   // Templates this student already saw this session, so none repeats.

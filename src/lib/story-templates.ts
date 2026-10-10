@@ -204,6 +204,7 @@ Write it the way a good textbook writer would:
 - Natural English in complete sentences. Read it aloud: every phrase is something a person would really say. No telegraph style ("Build a rail line for a redstone contraption."), no chains of orders, no odd phrases ("ball weight you are hauling").
 - A real reason for the math. Someone in that moment would actually need this number. Never invent an app, form, log, coach or sponsor that "needs the value in feet" or "wants the length in milliseconds": that is a made-up reason and it reads wrong. For a plain conversion, describe something in that world that really is measured that way (a stretch of track, a route, a song, a bag of flour) and ask for it in the other unit because the story needs it.
 - Go deep into the interest. Use its real places, roles, rules, gear and moments from things_in_this_world, so a fan recognizes the scene: a specific moment with a goal, not the interest's name pasted onto an ordinary problem.
+- When an interest comes with the_students_own_favorites (their teams, players, characters, games, artists), set the story among those by name: Messi lining up the penalty, Luffy's crew counting supplies. Those names are the point. Use what they wrote; invent no facts about real people beyond what the problem's numbers say.
 - The answer has a job: the number the student finds is something they need inside the story. A few words of stakes help: a deadline, a record, the last seconds of a game.
 - Units must make sense for what they measure, whatever the number: track in feet, a song in seconds, flour in cups.
 - End on the question someone in that moment would ask, in plain words: "How many chests do you need to fill?", "How many feet of track is that?". Where the number is an estimate or a decision, "do you think" reads fine. Never "Your call:", "What is your call on...", or "What do you think the total is?". Exactly one right answer.
@@ -270,10 +271,14 @@ export interface TemplateWriterItem {
 
 export function templateWriterMessage(
   items: TemplateWriterItem[],
-  interests: { label: string; details: string }[]
+  interests: { label: string; details: string; specifics?: string }[]
 ): string {
   return JSON.stringify({
-    student_interests: interests.map((t) => ({ interest: t.label, things_in_this_world: t.details })),
+    student_interests: interests.map((t) => ({
+      interest: t.label,
+      things_in_this_world: t.details,
+      ...(t.specifics ? { the_students_own_favorites: t.specifics } : {}),
+    })),
     problems: items.map((i) => ({
       id: i.id,
       original: i.signature,
