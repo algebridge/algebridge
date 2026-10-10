@@ -2129,5 +2129,57 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("street: capped at the lots", pickNeighbours(rows, "user-1", 2).length === 2);
 }
 
+// The character, walking the street, and the ten houses.
+{
+  const A = await import("../avatar.ts");
+  const W = await import("../house3d/walk.ts");
+  const lcg = (seed: number) => {
+    let x = seed >>> 0;
+    return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  };
+  ok("avatar: the default passes its own check", JSON.stringify(A.sanitizeAvatar(A.DEFAULT_AVATAR)) === JSON.stringify(A.DEFAULT_AVATAR));
+  const junk = A.sanitizeAvatar({ skin: "#000000", hair: "mohawk", extras: ["jetpack", "cap", "cap"], build: "huge", topColor: "#2563EB" });
+  ok("avatar: junk falls back, a known value is kept", junk.hair === "short" && junk.skin === A.DEFAULT_AVATAR.skin && junk.extras.join() === "cap" && junk.build === "medium" && junk.topColor === "#2563eb");
+  ok("avatar: nothing at all is the default", JSON.stringify(A.sanitizeAvatar(null)) === JSON.stringify(A.DEFAULT_AVATAR));
+  ok("avatar: a random one passes the check", [1, 2, 3, 4, 5].every((i) => { const r = A.randomAvatar(lcg(i)); return JSON.stringify(A.sanitizeAvatar(r)) === JSON.stringify(r); }));
+  ok("avatar: the key tells specs apart", A.avatarKey(A.DEFAULT_AVATAR) !== A.avatarKey({ ...A.DEFAULT_AVATAR, top: "tee" }) && A.avatarKey({ ...A.DEFAULT_AVATAR, extras: ["cap", "glasses"] }) === A.avatarKey({ ...A.DEFAULT_AVATAR, extras: ["glasses", "cap"] }));
+  ok("avatar: every colour has a name", [...A.SKIN_TONES, ...A.HAIR_COLORS, ...A.EYE_COLORS, ...A.CLOTHES_COLORS].every((c) => A.COLOR_NAMES[c]));
+
+  const lots: import("../house3d/walk.ts").StreetLot[] = [
+    { x: 0, across: false, house: true, drive: 1, own: true },
+    { x: 16, across: false, house: true, drive: 1 },
+    { x: 0, across: true, house: true, drive: 1 },
+    { x: -16, across: false, house: false, drive: -1 },
+  ];
+  const rects = lots.flatMap(W.lotBlockers);
+  ok("walk: the sidewalk and an open lot are clear", !W.blocked(1, 5.75, rects, 0.32) && !W.blocked(-16, -8, rects, 0.32));
+  ok("walk: your house and the one next door are solid", W.blocked(0, -8, rects, 0.32) && W.blocked(16, -8, rects, 0.32));
+  ok("walk: the house across the road is solid, turned round", W.blocked(0, 2 * W.STREET_MID + 8, rects, 0.32) && !W.blocked(0, 2 * W.STREET_MID - 8, rects, 0.32));
+  ok("walk: the gate is open and the fence is not", !W.blocked(1, 4.75, rects, 0.1) && W.blocked(4, 4.75, rects, 0.1));
+  ok("walk: the neighbour's hedge stops at their walk", !W.blocked(17, 4.75, rects, 0.1) && W.blocked(14, 4.75, rects, 0.1));
+  const stuck = W.slideMove({ x: 1, z: -3.5 }, 0, -1, rects, 0.32);
+  ok("walk: a step into the house goes nowhere", stuck.x === 1 && stuck.z === -3.5);
+  const slid = W.slideMove({ x: 1, z: -3.5 }, 0.5, -1, rects, 0.32);
+  ok("walk: a step along the house slides", slid.x === 1.5 && slid.z === -3.5);
+  ok("walk: the street ends", W.slideMove({ x: 57.9, z: 5 }, 1, 0, rects, 0.32).x === W.STREET_BOUNDS.x1);
+  const G = await import("../house3d/garden.ts");
+  ok("walk: its street is the one the yard builds", W.LOT_PITCH === G.LOT && Math.abs(W.STREET_MID - G.STREET_MID) < 1e-9 && G.STREET_LOTS.length === 13);
+
+  const T = await import("../house3d/terrain.ts");
+  ok("land: flat across the neighbourhood and along the street", [[0, 0], [60, -15], [-60, 40], [120, 11.6], [-125, 20]].every(([x, z]) => T.terrainHeight(x, z) === 0));
+  ok("land: hills beyond", T.terrainHeight(150, 150) > 2 && T.terrainHeight(-200, -180) > 8 && T.terrainHeight(0, 200) > 2);
+  ok("land: the same hill every time", T.terrainHeight(173.3, -91.2) === T.terrainHeight(173.3, -91.2) && Math.abs(T.terrainHeight(173.3, -91.2) - T.terrainHeight(173.4, -91.2)) < 0.5);
+  ok("land: the lake lies under its water, with a shore", T.terrainHeight(T.LAKE.x, T.LAKE.z) < -2 && T.terrainHeight(T.LAKE.x, T.LAKE.z - T.LAKE.r - 12) > T.WATER_Y && T.lakeDepth(T.LAKE.x, T.LAKE.z) === 1 && T.lakeDepth(0, 0) === 0);
+  ok("land: lush is a share", [[0, 0], [99, 7], [-180, 160]].every(([x, z]) => { const l = T.terrainLush(x, z); return l >= 0 && l <= 1; }));
+
+  const { THEMES } = await import("../house3d/themes.ts");
+  const { HOUSE_STYLES: STYLES } = await import("../../data/house-catalog.ts");
+  const ids = STYLES.map((h) => h.id);
+  ok("houses: ten in the shop, each with a room theme", ids.length === 10 && ids.every((id) => THEMES[id]?.id === id) && Object.keys(THEMES).length === 10);
+  const street = readFileSync("supabase/schema-2026-10-09-street.sql", "utf8");
+  ok("houses: the street's check names every style", ids.every((id) => street.includes(`'${id}'`)));
+  ok("houses: prices rise through the shop", STYLES.every((h, i) => i === 0 || h.price > STYLES[i - 1].price));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
