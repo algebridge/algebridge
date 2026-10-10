@@ -47,8 +47,6 @@ export class Post {
     const hdr = renderer.extensions.has("EXT_color_buffer_float") || renderer.extensions.has("EXT_color_buffer_half_float");
     this.target = new THREE.WebGLRenderTarget(Math.round(width * dpr), Math.round(height * dpr), { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: 4 });
     this.composer = new EffectComposer(renderer, this.target);
-    this.composer.setPixelRatio(dpr);
-    this.composer.setSize(width, height);
     this.composer.addPass(new RenderPass(scene, camera));
     this.gtao = new GTAOPass(scene, camera, Math.round(width * dpr), Math.round(height * dpr));
     this.gtao.output = GTAOPass.OUTPUT.Default;
@@ -82,6 +80,7 @@ export class Post {
     this.vignette = new ShaderPass(VIGNETTE);
     this.composer.addPass(this.output);
     this.composer.addPass(this.vignette);
+    this.setSize(width, height, dpr);
   }
 
   /**
@@ -113,9 +112,14 @@ export class Post {
     this.ready = true;
   }
 
-  setSize(width: number, height: number): void {
-    this.composer.setPixelRatio(Math.min(this.renderer.getPixelRatio(), 1.5));
+  /** `ratio`: pixels per CSS pixel for the frame at rest (the engine's full count; the renderer's own may be lower while the view moves). */
+  setSize(width: number, height: number, ratio = Math.min(this.renderer.getPixelRatio(), 1.5)): void {
+    this.composer.setPixelRatio(Math.min(ratio, 1.5));
     this.composer.setSize(width, height);
+    // The occlusion is worked out at half size (its denoise smooths the rest): a quarter of the work, the same soft corners.
+    const w = Math.round(width * Math.min(ratio, 1.5));
+    const h = Math.round(height * Math.min(ratio, 1.5));
+    this.gtao.setSize(Math.max(2, Math.round(w / 2)), Math.max(2, Math.round(h / 2)));
   }
 
   /** What the finish is for: indoors the occlusion is tight (a room's corners), outdoors broader (the land); bloom only at night. */
