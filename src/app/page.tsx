@@ -1,4 +1,5 @@
-import { units } from "@/data/curriculum";
+import Link from "next/link";
+import { COURSES, units } from "@/data/curriculum";
 import { CourseHeader } from "@/components/CourseHeader";
 import { AssignedWork } from "@/components/AssignedWork";
 import { CourseGate } from "@/components/CourseGate";
@@ -10,6 +11,7 @@ import { QuoteCard } from "@/components/QuoteCard";
 import { HOME_QUOTES } from "@/data/quotes";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
+const ALGEBRA_2 = COURSES.find((c) => c.id === "algebra-2")!;
 
 const HOW_IT_WORKS: { icon: IconName; title: string; desc: string; tone: string }[] = [
   { icon: "play", title: "Watch", desc: "A short video picked for the skill, from a channel like Khan Academy or Math Antics.", tone: "bg-sky-50 text-sky-700" },
@@ -49,6 +51,22 @@ export default function HomePage() {
               <UnitCard key={unit.id} unit={unit} />
             )
           )}
+        </div>
+      </section>
+
+      {/* The next course, for a student who finished this one or is placed past it. */}
+      <section id="algebra-2" className="panel">
+        <div className="panel-head">
+          <p className="panel-title">Algebra 2</p>
+          <span className="badge-brand">New course</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="max-w-xl text-sm text-slate-600">
+            {ALGEBRA_2.units.length} units, from complex numbers to the unit circle. Same lessons, same practice, same path.
+          </p>
+          <Link href="/algebra-2" className="btn-primary text-sm">
+            See the Algebra 2 outline
+          </Link>
         </div>
       </section>
 

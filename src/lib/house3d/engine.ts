@@ -11,10 +11,10 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { GardenState } from "@/lib/garden";
-import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, skyTexture, type StreetNeighbour } from "./garden";
+import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, skyTexture, type StreetNeighbour, buildInside } from "./garden";
 import { Post } from "./post";
 import { buildFigure, poseFigure, type Figure } from "./figure";
-import { lotBlockers, slideMove, type Rect, type StreetLot } from "./walk";
+import { floorAt, HOME, homeBlockers, levelAfter, lotBlockers, slideMove, type Level, type Rect, type StreetLot } from "./walk";
 import { avatarKey } from "@/lib/avatar";
 import type { AvatarSpec } from "@/types";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
@@ -100,6 +100,8 @@ const WALK_DISTANCE = 5.4;
 /** Where the character stands on the porch, and where a walk starts (the gate). */
 const PORCH_SPOT = { x: GARDEN_LAYOUT.doorX + 1.7, y: FRONT_LAYOUT.porch.top, z: GARDEN_LAYOUT.wallZ + 0.15 + 0.95 };
 const GATE_SPOT = { x: GARDEN_LAYOUT.doorX, z: 5.75 };
+/** Where a walk starts: on the front walk a few steps inside the gate, facing the house. */
+const START_SPOT = { x: GARDEN_LAYOUT.doorX, z: 2.4, heading: Math.PI };
 /** How far out each view may go: the porch view backs off down the street to show the neighbours. */
 const ZOOM_MIN: Record<string, number> = { room: 0.85, garden: 0.85, front: 0.55 };
 
@@ -224,7 +226,10 @@ export class HouseView {
   private figureSpec: AvatarSpec | null = null;
   private figureShadow: THREE.Mesh | null = null;
   /** Walking: where the character is and faces, the stride, and what the keys or the stick are asking. */
-  private walk = { on: false, x: 0, z: 0, heading: 0, phase: 0, input: { x: 0, y: 0 }, run: false, moving: false, last: 0 };
+  private walk = { on: false, x: 0, z: 0, y: 0, level: "ground" as Level, heading: 0, phase: 0, input: { x: 0, y: 0 }, run: false, moving: false, last: 0 };
+  /** The front door's leaf (garden.ts marks it), and how far open it is, 0 to 1: it swings for a character at the door. */
+  private doorLeaf: THREE.Object3D | null = null;
+  private doorOpen = 0;
   /** Everything solid on the street, from the lots built so far. */
   private blockers: Rect[] = [];
   /** The finishing passes for a frame at rest (null until the first one, or where WebGL 2 is missing). */
@@ -746,6 +751,8 @@ export class HouseView {
       group.add(f);
       rooms.push(r);
     }
+    // The hall, the stair and the landing between and beside the rooms, for walking through.
+    group.add(buildInside(this.kit, themeFor(this.frontStyle)));
     group.visible = false;
     return { key: `${this.frontStyle}:${night}`, group, floors, rooms, cut };
   }
@@ -778,7 +785,8 @@ export class HouseView {
    * Returns true when the inside was built just now (it compiles first).
    */
   private applyCutaway(): boolean {
-    const inside = !this.walk.on && this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
+    // Zoomed in, or walked in through the front door.
+    const inside = this.walk.on ? this.walk.level !== "ground" : this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
     let built = false;
     if (inside && !this.dollhouse && this.garden) {
       this.attachDollhouse();
@@ -922,7 +930,7 @@ export class HouseView {
     shadow.renderOrder = 1;
     this.figureShadow = shadow;
     this.scene.add(shadow);
-    if (this.walk.on) this.placeFigure(this.walk.x, 0, this.walk.z, this.walk.heading);
+    if (this.walk.on) this.placeFigure(this.walk.x, this.walk.y, this.walk.z, this.walk.heading);
     else this.placeFigure(PORCH_SPOT.x, PORCH_SPOT.y, PORCH_SPOT.z, 0.2);
     this.needsCompile = true;
     this.invalidate();
@@ -953,9 +961,11 @@ export class HouseView {
   startWalk(): boolean {
     if (this.mode !== "front" || !this.figure) return false;
     this.walk.on = true;
-    this.walk.x = GATE_SPOT.x;
-    this.walk.z = GATE_SPOT.z;
-    this.walk.heading = Math.PI / 2;
+    this.walk.x = START_SPOT.x;
+    this.walk.z = START_SPOT.z;
+    this.walk.y = 0;
+    this.walk.level = "ground";
+    this.walk.heading = START_SPOT.heading;
     this.walk.phase = 0;
     this.walk.input = { x: 0, y: 0 };
     this.walk.moving = false;
@@ -983,6 +993,10 @@ export class HouseView {
     if (!this.walk.on) return;
     this.walk.on = false;
     this.walk.input = { x: 0, y: 0 };
+    this.walk.level = "ground";
+    this.walk.y = 0;
+    this.doorOpen = 0;
+    if (this.doorLeaf) this.doorLeaf.rotation.y = 0;
     if (this.figure) {
       poseFigure(this.figure, "stand");
       this.placeFigure(PORCH_SPOT.x, PORCH_SPOT.y, PORCH_SPOT.z, 0.2);
@@ -1026,10 +1040,14 @@ export class HouseView {
       mx /= len;
       mz /= len;
       const speed = (this.walk.run ? 4.4 : 2.4) * Math.min(1, mag);
-      const to = slideMove({ x: this.walk.x, z: this.walk.z }, mx * speed * dt, mz * speed * dt, this.blockers, 0.32);
+      // The street's houses and hedges, and your own house inside and out for the floor you are on.
+      const rects = this.blockers.concat(homeBlockers(this.walk.level, this.walk.x, this.walk.z, this.furnitureRects(this.walk.level)));
+      const to = slideMove({ x: this.walk.x, z: this.walk.z }, mx * speed * dt, mz * speed * dt, rects, 0.32);
       moved = Math.hypot(to.x - this.walk.x, to.z - this.walk.z);
       this.walk.x = to.x;
       this.walk.z = to.z;
+      this.walk.level = levelAfter(this.walk.level, to.x, to.z);
+      this.walk.y = floorAt(this.walk.level, to.x, to.z);
       // Turn towards the way they are going, the short way round.
       const want = Math.atan2(mx, mz);
       let d = want - this.walk.heading;
@@ -1042,7 +1060,9 @@ export class HouseView {
       this.walk.moving = false;
       poseFigure(fig, "stand");
     }
-    this.placeFigure(this.walk.x, 0, this.walk.z, this.walk.heading);
+    this.placeFigure(this.walk.x, this.walk.y, this.walk.z, this.walk.heading);
+    // The front door swings open as they come to it, from either side, and closes behind them.
+    const swinging = this.swingDoor(Math.hypot(this.walk.x - HOME.doorX, this.walk.z - HOME.wallZ) < 1.7 ? 1 : 0, dt);
     // The sun's shadows come along, so the street round them is lit like the house was.
     if (moved > 0) {
       this.sun.position.set(this.walk.x - 11, 14, this.walk.z + 9);
@@ -1054,8 +1074,43 @@ export class HouseView {
     const ease = 1 - Math.exp(-dt * 9);
     t.x += (this.walk.x - t.x) * ease;
     t.z += (this.walk.z - t.z) * ease;
-    t.y += (1.25 - t.y) * ease;
-    return mag > 0.05 || Math.hypot(this.walk.x - t.x, this.walk.z - t.z) > 0.01;
+    t.y += (1.25 + this.walk.y - t.y) * ease;
+    return mag > 0.05 || swinging || Math.hypot(this.walk.x - t.x, this.walk.z - t.z) > 0.01 || Math.abs(1.25 + this.walk.y - t.y) > 0.01;
+  }
+
+  /** Eases the front door towards open (1) or shut (0); true while it is still moving. */
+  private swingDoor(target: number, dt: number): boolean {
+    if (!this.doorLeaf) {
+      this.garden?.group.traverse((o) => {
+        if (!this.doorLeaf && o.userData.doorLeaf) this.doorLeaf = o;
+      });
+      if (!this.doorLeaf) return false;
+    }
+    const before = this.doorOpen;
+    this.doorOpen += (target - this.doorOpen) * Math.min(1, dt * 7);
+    if (Math.abs(target - this.doorOpen) < 0.005) this.doorOpen = target;
+    this.doorLeaf.rotation.y = this.doorOpen * 1.9;
+    return this.doorOpen !== before;
+  }
+
+  /** The footprints of the pieces standing on this floor, in world metres, for walking round them. */
+  private furnitureRects(level: Level): Rect[] {
+    if (level === "ground") return [];
+    const I = FRONT_LAYOUT.inside;
+    const out: Rect[] = [];
+    for (const p of this.placed.values()) {
+      if (p.piece.ornament || (p.piece.floor ?? "down") !== level || mountOf(p.model) !== "floor") continue;
+      const turn = ((p.piece.turn ?? 0) * Math.PI) / 180;
+      const [w, , d] = p.model.size;
+      const cos = Math.abs(Math.cos(turn));
+      const sin = Math.abs(Math.sin(turn));
+      const hw = (w * cos + d * sin) / 2;
+      const hd = (w * sin + d * cos) / 2;
+      const x = I.x + p.root.position.x;
+      const z = I.z + p.root.position.z;
+      out.push({ x0: x - hw, x1: x + hw, z0: z - hd, z1: z + hd });
+    }
+    return out;
   }
 
   /** Everything solid on the street now: your house, and every lot with a house on it. */
@@ -1114,6 +1169,7 @@ export class HouseView {
   /** The garden or porch leaves the stage; it stays built (see built). */
   private dropGarden(): void {
     if (!this.garden) return;
+    this.doorLeaf = null;
     this.scene.remove(this.garden.group);
     this.garden = null;
     this.gardenKey = "";

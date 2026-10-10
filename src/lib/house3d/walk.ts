@@ -43,11 +43,15 @@ function placed(lot: StreetLot, r: Rect): Rect {
   return { x0: lot.x - r.x1, x1: lot.x - r.x0, z0: 2 * STREET_MID - r.z1, z1: 2 * STREET_MID - r.z0 };
 }
 
-/** Everything solid on a lot: the house, and the fence or hedge along the front with its gap at the walk. */
+/**
+ * Everything solid on a lot: the house, and the fence or hedge along the
+ * front with its gap at the walk. Your own house is left out: it has a door
+ * to walk in through, and homeBlockers knows its inside.
+ */
 export function lotBlockers(lot: StreetLot): Rect[] {
   const out: Rect[] = [];
   if (!lot.house) return out;
-  out.push({ x0: -HOUSE.halfW, x1: HOUSE.halfW, z0: HOUSE.zBack, z1: HOUSE.zFront });
+  if (!lot.own) out.push({ x0: -HOUSE.halfW, x1: HOUSE.halfW, z0: HOUSE.zBack, z1: HOUSE.zFront });
   const z0 = FENCE_Z - 0.2;
   const z1 = FENCE_Z + 0.2;
   if (lot.own) {
@@ -73,3 +77,127 @@ export function slideMove(from: { x: number; z: number }, dx: number, dz: number
   for (const t of tries) if (!blocked(t.x, t.z, rects, radius)) return t;
   return { x: from.x, z: from.z };
 }
+
+/**
+ * Your own house, inside and out, for walking in: the front wall with its
+ * door, the porch and its two steps, the room on each floor, the hall
+ * inside the door and down the right-hand side, the stair up that hall and
+ * the landing it tops out on. World metres; they match garden.ts
+ * (GARDEN_LAYOUT, FRONT_LAYOUT) and space.ts (ROOM_W, ROOM_D), and a test
+ * checks that.
+ */
+export const HOME = {
+  /** The front wall's face, its thickness, and the doorway's middle and half-width. */
+  wallZ: -7.2,
+  wallT: 0.3,
+  doorX: 1.0,
+  doorHalf: 0.62,
+  /** The porch deck and the steps down to the walk, which end at stepsEnd. */
+  porch: { x0: -1.15, x1: 3.15, z0: -7.05, z1: -4.85, top: 0.32, stepsEnd: -4.23 },
+  /** The room box on either floor. */
+  room: { x0: -3.5, x1: 2.7, z0: -12.5, z1: -7.9 },
+  /** The shell's inner walls, left and right of everything. */
+  innerX0: -5.2,
+  innerX1: 5.2,
+  /** The floor heights. */
+  down: 0.32,
+  up: 3.1,
+  /** The stair up the right-hand hall, foot at the front and head at the back, and the landing at its head. */
+  stair: { x0: 4.0, x1: 5.1, zFoot: -7.6, zHead: -11.5 },
+  landing: { x0: 2.7, x1: 5.2, z0: -12.5, z1: -11.5 },
+};
+
+/** Where a character is: out on the ground (the porch and its steps included), or on either floor of the house. */
+export type Level = "ground" | "down" | "up";
+
+/** Whether a spot is on the stair itself (either floor's character climbs or comes down it). */
+export function onStair(x: number, z: number): boolean {
+  const S = HOME.stair;
+  return x >= S.x0 && x <= S.x1 && z <= S.zFoot && z >= S.zHead;
+}
+
+/** The height a character stands at, on this level at this spot: the floor, the ramp of the stair, the deck or the steps. */
+export function floorAt(level: Level, x: number, z: number): number {
+  const H = HOME;
+  if (level !== "ground") {
+    if (onStair(x, z)) {
+      const t = (H.stair.zFoot - z) / (H.stair.zFoot - H.stair.zHead);
+      return H.down + (H.up - H.down) * Math.min(1, Math.max(0, t));
+    }
+    return level === "up" ? H.up : H.down;
+  }
+  const P = H.porch;
+  if (x < P.x0 || x > P.x1) return 0;
+  // The deck runs from the wall (the doorway's depth included) to the steps.
+  if (z >= H.wallZ - H.wallT && z <= P.z1) return P.top;
+  // The two steps: a ramp from the deck down to the walk.
+  if (z > P.z1 && z <= P.stepsEnd) return (P.top * (P.stepsEnd - z)) / (P.stepsEnd - P.z1);
+  return 0;
+}
+
+/**
+ * The level after a step to (x, z): in through the doorway and out again,
+ * and up or down the stair (the floor changes a little before the stair's
+ * end, so the step off it lands on the floor's own rules).
+ */
+export function levelAfter(level: Level, x: number, z: number): Level {
+  const H = HOME;
+  const doorLine = H.wallZ - H.wallT / 2;
+  if (level === "ground") return z < doorLine && Math.abs(x - H.doorX) < H.doorHalf ? "down" : "ground";
+  if (z > doorLine) return "ground";
+  if (!onStair(x, z)) return level;
+  if (level === "down" && z < H.stair.zHead + 0.3) return "up";
+  if (level === "up" && z > H.stair.zFoot - 0.3) return "down";
+  return level;
+}
+
+/**
+ * Everything solid about your house for a character at (x, z) on this
+ * level. Outside: the house but for its doorway, and the porch rail but for
+ * the steps. Inside: the walls, the edges of the floor (upstairs has none
+ * over the hall), the stair's sides while on it and its underside while
+ * not, and the pieces standing on that floor (`pieces`, world metres).
+ */
+export function homeBlockers(level: Level, x: number, z: number, pieces: readonly Rect[] = []): Rect[] {
+  const H = HOME;
+  const R = H.room;
+  const S = H.stair;
+  const wallIn = H.wallZ - H.wallT;
+  const gapX0 = H.doorX - H.doorHalf;
+  const gapX1 = H.doorX + H.doorHalf;
+  if (level === "ground") {
+    const P = H.porch;
+    return [
+      { x0: -5.9, x1: gapX0, z0: -15.1, z1: H.wallZ },
+      { x0: gapX1, x1: 5.9, z0: -15.1, z1: H.wallZ },
+      { x0: P.x0 - 0.1, x1: P.x0 + 0.05, z0: P.z0, z1: P.z1 },
+      { x0: P.x1 - 0.05, x1: P.x1 + 0.1, z0: P.z0, z1: P.z1 },
+      { x0: P.x0, x1: H.doorX - 0.78, z0: P.z1 - 0.08, z1: P.z1 },
+      { x0: H.doorX + 0.78, x1: P.x1, z0: P.z1 - 0.08, z1: P.z1 },
+    ];
+  }
+  // The front wall from inside but for the doorway, the back wall, and the shell's right-hand wall: on either floor.
+  const walls: Rect[] = [
+    { x0: H.innerX0 - 0.4, x1: gapX0, z0: wallIn, z1: H.wallZ },
+    { x0: gapX1, x1: H.innerX1 + 0.4, z0: wallIn, z1: H.wallZ },
+    { x0: H.innerX0 - 0.4, x1: H.innerX1 + 0.4, z0: R.z0 - 0.4, z1: R.z0 },
+    { x0: H.innerX1, x1: H.innerX1 + 0.4, z0: R.z0, z1: wallIn },
+  ];
+  if (onStair(x, z)) {
+    // On the stair: its open side is railed, its other side is the wall.
+    return walls.concat([{ x0: S.x0 - 0.5, x1: S.x0, z0: S.zHead, z1: S.zFoot }]);
+  }
+  // The room's left wall, and the side of it beyond that has no floor.
+  walls.push({ x0: H.innerX0 - 0.4, x1: R.x0, z0: R.z0, z1: R.z1 });
+  if (level === "down") {
+    // The hall inside the door starts at the room's left wall; the stair's underside is too low to walk.
+    walls.push({ x0: H.innerX0 - 0.4, x1: R.x0 - 0.14, z0: R.z1, z1: wallIn });
+    walls.push({ x0: S.x0, x1: S.x1, z0: R.z0, z1: S.zFoot - 0.6 });
+  } else {
+    // Upstairs there is no floor in front of the room, and none over the hall but the landing (and the stair's head).
+    walls.push({ x0: H.innerX0 - 0.4, x1: R.x1, z0: R.z1, z1: wallIn });
+    walls.push({ x0: R.x1, x1: H.innerX1 + 0.4, z0: H.landing.z1 + 0.4, z1: wallIn });
+  }
+  return walls.concat(pieces);
+}
+

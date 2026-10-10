@@ -1891,7 +1891,13 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("certificates: the last answer finishes the unit and the course", r.unitJustCompleted && r.courseJustCompleted);
   ok("certificates: the unit's date is kept", !!after.certificates?.[lastUnit.id] && C.unitCertificateDate(after, lastUnit) === after.certificates?.[lastUnit.id]);
   ok("certificates: the course is dated the moment it was finished", !!after.courseCompletedAt && C.courseCertificateDate(after) === after.courseCompletedAt);
-  ok("certificates: one per unit and one for the course, all earned", C.certificateList(after).length === units.length + 1 && C.certificateList(after).every((c) => !!c.earnedAt));
+  {
+    // Algebra 1's units and the course are all earned; Algebra 2's units are listed too, unearned.
+    const list = C.certificateList(after);
+    const algebra1 = list.filter((c) => c.id === C.COURSE_ID || units.some((u) => u.id === c.id));
+    ok("certificates: one per unit and one for the course, all earned", algebra1.length === units.length + 1 && algebra1.every((c) => !!c.earnedAt));
+    ok("certificates: the other course's units are on offer, not yet earned", list.length > algebra1.length && list.filter((c) => !algebra1.includes(c)).every((c) => c.unit && !c.earnedAt));
+  }
 
   const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });
   ok("certificates: the course finishes once", !again.courseJustCompleted && Pg.getProgress().courseCompletedAt === after.courseCompletedAt);
@@ -2163,19 +2169,41 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     { x: 0, across: true, house: true, drive: 1 },
     { x: -16, across: false, house: false, drive: -1 },
   ];
-  const rects = lots.flatMap(W.lotBlockers);
+  const rects = lots.flatMap(W.lotBlockers).concat(W.homeBlockers("ground", 1, 0, []));
   ok("walk: the sidewalk and an open lot are clear", !W.blocked(1, 5.75, rects, 0.32) && !W.blocked(-16, -8, rects, 0.32));
   ok("walk: your house and the one next door are solid", W.blocked(0, -8, rects, 0.32) && W.blocked(16, -8, rects, 0.32));
   ok("walk: the house across the road is solid, turned round", W.blocked(0, 2 * W.STREET_MID + 8, rects, 0.32) && !W.blocked(0, 2 * W.STREET_MID - 8, rects, 0.32));
   ok("walk: the gate is open and the fence is not", !W.blocked(1, 4.75, rects, 0.1) && W.blocked(4, 4.75, rects, 0.1));
   ok("walk: the neighbour's hedge stops at their walk", !W.blocked(17, 4.75, rects, 0.1) && W.blocked(14, 4.75, rects, 0.1));
-  const stuck = W.slideMove({ x: 1, z: -3.5 }, 0, -1, rects, 0.32);
-  ok("walk: a step into the house goes nowhere", stuck.x === 1 && stuck.z === -3.5);
-  const slid = W.slideMove({ x: 1, z: -3.5 }, 0.5, -1, rects, 0.32);
-  ok("walk: a step along the house slides", slid.x === 1.5 && slid.z === -3.5);
+  const stuck = W.slideMove({ x: -4, z: -6 }, 0, -1.5, rects, 0.32);
+  ok("walk: a step into the house wall goes nowhere", stuck.x === -4 && stuck.z === -6);
+  const slid = W.slideMove({ x: -4, z: -6 }, 0.5, -1.5, rects, 0.32);
+  ok("walk: a step along the house slides", slid.x === -3.5 && slid.z === -6);
   ok("walk: the street ends", W.slideMove({ x: 57.9, z: 5 }, 1, 0, rects, 0.32).x === W.STREET_BOUNDS.x1);
   const G = await import("../house3d/garden.ts");
   ok("walk: its street is the one the yard builds", W.LOT_PITCH === G.LOT && Math.abs(W.STREET_MID - G.STREET_MID) < 1e-9 && G.STREET_LOTS.length === 13);
+
+  // Walking into your own house: the door, the porch steps, both floors, the stair, the furniture.
+  const H = W.HOME;
+  const F = G.FRONT_LAYOUT;
+  const SP = await import("../house3d/space.ts");
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+  ok("home: the house walked through is the one the yard builds", H.wallZ === G.GARDEN_LAYOUT.wallZ && H.doorX === G.GARDEN_LAYOUT.doorX && near(H.room.x0, F.inside.x - SP.ROOM_W / 2) && near(H.room.x1, F.inside.x + SP.ROOM_W / 2) && near(H.room.z0, F.inside.z - SP.ROOM_D / 2) && near(H.room.z1, F.inside.z + SP.ROOM_D / 2) && H.down === F.inside.down && H.up === F.inside.up && H.porch.top === F.porch.top && H.porch.x0 === F.porch.x0 && H.porch.x1 === F.porch.x1 && near(H.innerX1, G.GARDEN_LAYOUT.houseWidth / 2 - 0.3) && typeof G.buildInside === "function");
+  const own = W.lotBlockers({ x: 0, across: false, house: true, drive: 1, own: true });
+  ok("home: your own lot keeps its gate and leaves the house to its door", !W.blocked(0, -8, own, 0.32) && !W.blocked(1, 4.75, own, 0.1) && W.blocked(4, 4.75, own, 0.1));
+  const out = W.homeBlockers("ground", 1, -4, []);
+  ok("home: the doorway is the only way in", !W.blocked(1, -7.3, out, 0.32) && W.blocked(3, -7.3, out, 0.32) && W.blocked(-2, -9, out, 0.32) && !W.blocked(1, -6, out, 0.32));
+  ok("home: the steps climb to the deck, and the deck runs to the door", W.floorAt("ground", 1, -4) === 0 && Math.abs(W.floorAt("ground", 1, -4.54) - 0.16) < 0.02 && W.floorAt("ground", 1, -6) === H.porch.top && W.floorAt("ground", 1, -7.3) === H.porch.top && W.floorAt("ground", 5, -6) === 0);
+  ok("home: through the doorway you are downstairs, and back out again", W.levelAfter("ground", 1, -7.4) === "down" && W.levelAfter("ground", 4, -7.4) === "ground" && W.levelAfter("down", 1, -7.2) === "ground" && W.floorAt("down", 0, -10) === H.down);
+  const down = W.homeBlockers("down", 0, -10, []);
+  ok("home: downstairs the room and the hall are open and the walls hold", !W.blocked(0, -10, down, 0.32) && !W.blocked(4.5, -7.85, down, 0.32) && !W.blocked(3.2, -10, down, 0.32) && W.blocked(-3.6, -10, down, 0.32) && W.blocked(0, -12.6, down, 0.32) && W.blocked(5.4, -9, down, 0.32) && W.blocked(4.5, -10, down, 0.32) && W.blocked(0, -7.4, down, 0.32));
+  const sofa = { x0: -1, x1: 1, z0: -11, z1: -9.5 };
+  ok("home: a piece on the floor is walked round", W.blocked(0, -10, W.homeBlockers("down", 2, -10, [sofa]), 0.32) && !W.blocked(2, -10, W.homeBlockers("down", 2, -10, [sofa]), 0.32));
+  ok("home: the stair climbs from its foot to its head", W.onStair(4.5, -9) && !W.onStair(3.5, -9) && Math.abs(W.floorAt("down", 4.5, -9) - (H.down + (H.up - H.down) * (1.4 / 3.9))) < 1e-9 && W.floorAt("down", 4.5, -11.5) === H.up && W.levelAfter("down", 4.5, -11.3) === "up" && W.levelAfter("up", 4.5, -7.8) === "down" && W.levelAfter("down", 4.5, -9) === "down");
+  const onIt = W.homeBlockers("down", 4.5, -9, []);
+  ok("home: on the stair the rail holds and the way up is open", W.blocked(3.9, -9, onIt, 0.32) && !W.blocked(4.5, -10, onIt, 0.32) && !W.blocked(4.5, -11.3, onIt, 0.32));
+  const up = W.homeBlockers("up", 0, -10, []);
+  ok("home: upstairs the landing joins the room, and the edges hold", W.floorAt("up", 0, -10) === H.up && !W.blocked(0, -10, up, 0.32) && !W.blocked(3.2, -12, W.homeBlockers("up", 3.2, -12, []), 0.32) && W.blocked(0, -7.7, up, 0.32) && W.blocked(3.5, -9.5, up, 0.32) && !W.blocked(4.5, -11.45, W.homeBlockers("up", 4.5, -12, []), 0.32) && W.onStair(4.5, -11.45) && !W.blocked(4.5, -11.0, W.homeBlockers("up", 4.5, -11.45, []), 0.32));
 
   const T = await import("../house3d/terrain.ts");
   ok("land: flat across the neighbourhood and along the street", [[0, 0], [60, -15], [-60, 40], [120, 11.6], [-125, 20]].every(([x, z]) => T.terrainHeight(x, z) === 0));

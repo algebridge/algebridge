@@ -8,7 +8,7 @@
  * finished work comes back to: spaced review that feels like a game.
  */
 
-import { units } from "@/data/curriculum";
+import { allUnits, units } from "@/data/curriculum";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { SCENE_W } from "@/lib/dollhouse";
@@ -162,7 +162,7 @@ export function pickRinkProblem(progress: UserProgress, avoid = new Set<string>(
   const { ids } = rinkSkillIds(progress);
   const order = [...ids].sort(() => Math.random() - 0.5);
   for (const skillId of order) {
-    const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
+    const unit = allUnits().find((u) => u.skills.some((s) => s.id === skillId));
     const skill = unit?.skills.find((s) => s.id === skillId);
     if (!unit || !skill) continue;
     const pool = getFreshProblemsForSkill(skillId, skill.problems).filter((p) => isHeadMath(p) && !avoid.has(p.prompt));

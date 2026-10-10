@@ -1,5 +1,5 @@
 import type { MasteryLevel, UserProgress } from "@/types";
-import { units, TOTAL_SKILLS } from "@/data/curriculum";
+import { allUnits, courseOfUnit, units, TOTAL_SKILLS } from "@/data/curriculum";
 
 /** How many of the most recent attempts count toward mastery accuracy. */
 export const RECENT_WINDOW = 5;
@@ -45,10 +45,15 @@ export const BRIDGEY_REWARDS = {
  */
 export const DAILY_GOAL = 10;
 
-/** What finishing a skill pays: 10 in Unit 1, 34 by Unit 13, 38 by Unit 15. */
+/**
+ * What finishing a skill pays: 10 in Unit 1, 34 by Unit 13, 38 by Unit 15.
+ * Algebra 2 carries on from there (its Unit 1 pays like a 16th unit), so a
+ * student who moves up never earns less than the unit they just finished.
+ */
 export function bridgeysForSkill(skillId: string): number {
-  const unit = units.find((u) => u.skills.some((s) => s.id === skillId));
-  return BRIDGEY_REWARDS.skillComplete + BRIDGEY_REWARDS.perUnitStep * Math.max(0, (unit?.number ?? 1) - 1);
+  const unit = allUnits().find((u) => u.skills.some((s) => s.id === skillId));
+  const offset = unit && courseOfUnit(unit.id)?.id === "algebra-2" ? units.length : 0;
+  return BRIDGEY_REWARDS.skillComplete + BRIDGEY_REWARDS.perUnitStep * Math.max(0, offset + (unit?.number ?? 1) - 1);
 }
 
 export interface LevelInfo {

@@ -1,4 +1,5 @@
 import type { IconName } from "@/components/Icon";
+import { courseOfUnit } from "@/data/curriculum";
 import type { UserRole } from "@/types";
 
 export interface NavItem {
@@ -40,6 +41,7 @@ export function buildNav({
   // few people open come last, under More.
   const learn: NavItem[] = [
     { href: "/", label: "Course", icon: "course" },
+    { href: "/algebra-2", label: "Algebra 2", icon: "course" },
     { href: "/games", label: "Games", icon: "play" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
   ];
@@ -88,6 +90,12 @@ export function buildNav({
 /** Is `href` the section the user is currently in? */
 export function isActivePath(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
-  if (href === "/") return pathname === "/" || pathname.startsWith("/unit") || pathname.startsWith("/learn");
+  // A unit or lesson page lights up its own course's entry.
+  if (href === "/" || href === "/algebra-2") {
+    const page = pathname.match(/^\/(?:unit|learn)\/([^/]+)/);
+    const course = page ? courseOfUnit(page[1])?.id : null;
+    if (href === "/") return pathname === "/" || course === "algebra-1";
+    return pathname === "/algebra-2" || course === "algebra-2";
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

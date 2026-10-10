@@ -32,6 +32,7 @@ import { themeFor, type HouseLook, type RoomTheme, type WallKind, type WindowSha
 import { boardsTexture } from "./room";
 import { buildFigure, poseFigure } from "./figure";
 import { LAKE, TERRAIN, terrainHeight, terrainLush, WATER_Y } from "./terrain";
+import { HOME } from "./walk";
 import type { AvatarSpec } from "@/types";
 import type { ItemModel } from "./types";
 import type { Flower, GardenBed, GardenState } from "@/lib/garden";
@@ -1217,39 +1218,49 @@ function backDoor(c: Ctx, theme: RoomTheme, trim: THREE.Material, night: boolean
   const hole = arch ? openingOutline("arch", w, h) : openingOutline("square", w, h);
   // Casing round the opening.
   g.add(k.extrude(openingOutline(arch ? "arch" : "square", w + 0.18, h + 0.09), 0.05, trim, { holes: [shift(hole, 0, -0.045).reverse()], at: [0, 0.045, 0.015], bevel: 0.008 }));
-  // The door leaf, set back in the opening.
-  const leaf = k.extrude(shift(openingOutline(arch ? "arch" : "square", w - 0.01, h - 0.005), 0, 0), 0.05, leafM, { at: [0, 0, -0.12], bevel: 0.004 });
-  g.add(leaf);
+  // The door leaf, set back in the opening, and all that is on it: hung on
+  // a hinge at its left edge, so it swings open for a character walking in
+  // (engine.ts turns the group marked doorLeaf).
+  const hinge = new THREE.Group();
+  hinge.position.set(-w / 2, 0, -0.12);
+  hinge.userData.doorLeaf = true;
+  g.add(hinge);
+  const onLeaf = (o: THREE.Object3D) => {
+    o.position.x += w / 2;
+    o.position.z += 0.12;
+    hinge.add(o);
+  };
+  onLeaf(k.extrude(shift(openingOutline(arch ? "arch" : "square", w - 0.01, h - 0.005), 0, 0), 0.05, leafM, { at: [0, 0, -0.12], bevel: 0.004 }));
   const metal = k.metal("black");
   if (plankDoor) {
     // Planks, and iron straps across them.
-    for (let i = -3; i <= 3; i += 1) g.add(k.box(0.006, h - 0.1, 0.008, k.paint("#2b1d14"), { at: [i * 0.125, -0.03, -0.093] }));
+    for (let i = -3; i <= 3; i += 1) onLeaf(k.box(0.006, h - 0.1, 0.008, k.paint("#2b1d14"), { at: [i * 0.125, -0.03, -0.093] }));
     for (const y of [-0.62, 0.55]) {
-      g.add(k.box(w * 0.82, 0.05, 0.01, metal, { at: [-0.04, y, -0.088], r: 0.003 }));
-      for (let i = 0; i < 4; i += 1) g.add(k.sphere(0.009, metal, { at: [-0.38 + i * 0.22, y, -0.082], seg: 8 }));
+      onLeaf(k.box(w * 0.82, 0.05, 0.01, metal, { at: [-0.04, y, -0.088], r: 0.003 }));
+      for (let i = 0; i < 4; i += 1) onLeaf(k.sphere(0.009, metal, { at: [-0.38 + i * 0.22, y, -0.082], seg: 8 }));
     }
-    g.add(k.torus(0.04, 0.007, metal, { at: [0.33, 0.0, -0.078], seg: 16 }));
+    onLeaf(k.torus(0.04, 0.007, metal, { at: [0.33, 0.0, -0.078], seg: 16 }));
   } else {
     // Two panels below, and nine lights of glass above.
     for (const [py, ph] of [
       [-0.62, 0.62],
       [0.08, 0.36],
     ] as const) {
-      g.add(k.box(w - 0.24, ph, 0.012, leafM, { at: [0, py, -0.091], r: 0.004 }));
-      g.add(k.box(w - 0.3, ph - 0.06, 0.006, leafM, { at: [0, py, -0.084], r: 0.003 }));
+      onLeaf(k.box(w - 0.24, ph, 0.012, leafM, { at: [0, py, -0.091], r: 0.004 }));
+      onLeaf(k.box(w - 0.3, ph - 0.06, 0.006, leafM, { at: [0, py, -0.084], r: 0.003 }));
     }
     const glassW = w - 0.22;
     const glassH = 0.72;
     const gy = 0.6;
     const glass = k.box(glassW, glassH, 0.006, k.glass("#c9d7df", 0.3), { at: [0, gy, -0.095] });
     glass.castShadow = false;
-    g.add(glass);
-    g.add(k.plane(glassW, glassH, room(c, night), { at: [0, gy, -0.2] }));
-    for (const fx of [-1 / 6, 1 / 6]) g.add(k.box(0.025, glassH, 0.02, leafM, { at: [fx * glassW * 2, gy, -0.092] }));
-    for (const fy of [-1 / 6, 1 / 6]) g.add(k.box(glassW, 0.025, 0.02, leafM, { at: [0, gy + fy * glassH * 2, -0.092] }));
+    onLeaf(glass);
+    onLeaf(k.plane(glassW, glassH, room(c, night), { at: [0, gy, -0.2] }));
+    for (const fx of [-1 / 6, 1 / 6]) onLeaf(k.box(0.025, glassH, 0.02, leafM, { at: [fx * glassW * 2, gy, -0.092] }));
+    for (const fy of [-1 / 6, 1 / 6]) onLeaf(k.box(glassW, 0.025, 0.02, leafM, { at: [0, gy + fy * glassH * 2, -0.092] }));
     // Lever handle and its plate.
-    g.add(k.box(0.035, 0.16, 0.012, k.metal(theme.look.darkMetal ? "steel" : "brass"), { at: [0.36, -0.08, -0.088], r: 0.004 }));
-    g.add(k.box(0.11, 0.018, 0.018, k.metal(theme.look.darkMetal ? "steel" : "brass"), { at: [0.32, -0.04, -0.072], r: 0.008 }));
+    onLeaf(k.box(0.035, 0.16, 0.012, k.metal(theme.look.darkMetal ? "steel" : "brass"), { at: [0.36, -0.08, -0.088], r: 0.004 }));
+    onLeaf(k.box(0.11, 0.018, 0.018, k.metal(theme.look.darkMetal ? "steel" : "brass"), { at: [0.32, -0.04, -0.072], r: 0.008 }));
   }
   // Hinges on the left.
   for (const y of [-0.85, 0.0, 0.85]) g.add(k.box(0.02, 0.09, 0.012, metal, { at: [-w / 2 + 0.01, y, -0.09], r: 0.003 }));
@@ -3439,6 +3450,57 @@ function mailbox(c: Ctx, unread: number, number = 52): THREE.Group {
   n.rotation.y = PI / 2;
   n.position.set(0.113, 1.15, 0.08);
   g.add(n);
+  return g;
+}
+
+/**
+ * The inside of your house beyond its two rooms, for walking through: the
+ * hall floor inside the front door and down the right-hand side, the stair
+ * up that hall, the landing at its head, and the rails. Where everything
+ * stands comes from lib/house3d/walk.ts (HOME), which the character walks
+ * by, so the two always agree.
+ */
+export function buildInside(k: Kit, theme: RoomTheme): THREE.Group {
+  const g = new THREE.Group();
+  const I = FRONT_LAYOUT.inside;
+  const H = HOME;
+  const R = H.room;
+  const S = H.stair;
+  const wallIn = H.wallZ - H.wallT;
+  const boards = k.wood("#8a6a4c", { gloss: 0.25, repeat: [6, 2] });
+  const trim = k.paint(theme.trim, 0.45);
+  const T = 0.1;
+  const slab = (x0: number, x1: number, z0: number, z1: number, top: number) => k.box(x1 - x0, T, z1 - z0, boards, { at: [(x0 + x1) / 2, top - T / 2, (z0 + z1) / 2] });
+  // The hall floors: inside the front door, and down the right-hand side under the stair.
+  g.add(slab(R.x0 - 0.14, H.innerX1, R.z1, wallIn, I.down));
+  g.add(slab(R.x1, H.innerX1, R.z0, R.z1, I.down));
+  // The stair: fourteen treads up the right-hand wall, with risers and a stringer along the open side.
+  const steps = 14;
+  const rise = (I.up - I.down) / steps;
+  const run = (S.zFoot - S.zHead) / steps;
+  const tread = k.wood("#9b7a5b", { gloss: 0.3 });
+  const sx = (S.x0 + S.x1) / 2;
+  for (let i = 0; i < steps; i += 1) {
+    const z = S.zFoot - run * (i + 0.5);
+    const top = I.down + rise * (i + 1);
+    g.add(k.box(S.x1 - S.x0, 0.04, run, tread, { at: [sx, top - 0.02, z], r: 0.006 }));
+    g.add(k.box(S.x1 - S.x0, rise, 0.03, trim, { at: [sx, I.down + rise * i + rise / 2, z + run / 2 - 0.015] }));
+  }
+  const slope = Math.atan2(I.up - I.down, S.zFoot - S.zHead);
+  const length = Math.hypot(S.zFoot - S.zHead, I.up - I.down);
+  g.add(k.box(0.04, 0.3, length + 0.2, trim, { at: [S.x0 + 0.02, (I.down + I.up) / 2 - 0.1, (S.zFoot + S.zHead) / 2], rot: [slope, 0, 0] }));
+  // The landing at the head, across the hall's width.
+  const Ld = H.landing;
+  g.add(slab(Ld.x0, Ld.x1, Ld.z0, Ld.z1, I.up));
+  // Rails: posts and a handrail up the stair's open side, and along the landing's edge to the stair.
+  const post = (x: number, y: number, z: number) => k.box(0.06, 0.95, 0.06, trim, { at: [x, y + 0.475, z] });
+  for (let i = 0; i <= 4; i += 1) {
+    const t = i / 4;
+    g.add(post(S.x0 + 0.03, I.down + (I.up - I.down) * t, S.zFoot - (S.zFoot - S.zHead) * t));
+  }
+  g.add(k.box(0.05, 0.05, length, trim, { at: [S.x0 + 0.03, (I.down + I.up) / 2 + 0.95, (S.zFoot + S.zHead) / 2], rot: [slope, 0, 0] }));
+  g.add(post(Ld.x0 + 0.05, I.up, Ld.z1 + 0.03));
+  g.add(k.box(S.x0 - Ld.x0 - 0.04, 0.05, 0.05, trim, { at: [(Ld.x0 + S.x0) / 2, I.up + 0.95, Ld.z1 + 0.03] }));
   return g;
 }
 
