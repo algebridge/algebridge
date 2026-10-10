@@ -491,6 +491,7 @@ What makes one good:
 - Some problems are ideas, not numbers ("When do you flip the inequality sign?"). Put the idea in a moment where it matters, and ask it in the story's words.
 - If a problem comes with your_rejected_version and rejected_because, write a new version that fixes exactly that.
 - For each problem, pick whichever of the student's interests fits its numbers best. Spread the interests out when several fit.
+- When an interest comes with the_students_own_favorites (their teams, players, characters, games, artists), set the story among those by name: Messi lining up the penalty, Luffy's crew counting supplies. Those names are the point. Use what they wrote; invent no facts about real people beyond what the problem's numbers say.
 - Open with the moment and its stakes, never with "Your X is": "Two minutes left and you're down by 3...", "The server resets at midnight...", "The drop sells out in an hour...".
 - End with a question in the story's words ("How many rails do you need to craft?"), never a textbook one: no "What is the 10th term?", "How many feet is that?", "Which factor converts pounds to ounces?".
 - The student is "you". At most 2 sentences and 40 words, easy words.
@@ -556,10 +557,14 @@ export interface WriterItem {
 
 export function writerUserMessage(
   items: WriterItem[],
-  interests: { label: string; details: string }[]
+  interests: { label: string; details: string; specifics?: string }[]
 ): string {
   return JSON.stringify({
-    student_interests: interests.map((t) => ({ interest: t.label, things_in_this_world: t.details })),
+    student_interests: interests.map((t) => ({
+      interest: t.label,
+      things_in_this_world: t.details,
+      ...(t.specifics ? { the_students_own_favorites: t.specifics } : {}),
+    })),
     problems: items.map((i) => ({
       id: i.id,
       original: i.prompt,

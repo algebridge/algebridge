@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  cleanSpecifics,
+  describeTopic,
   INTEREST_OPTIONS,
   NOTE_MAX,
   sanitizeTopics,
+  SPECIFICS_MAX,
   topicsFromPicks,
   type InterestProfile,
   type InterestTopic,
@@ -45,6 +48,8 @@ export function InterestsPicker({
 }: InterestsPickerProps) {
   const [picks, setPicks] = useState<string[]>(initial?.skipped ? [] : initial?.picks ?? []);
   const [note, setNote] = useState(initial?.skipped ? "" : initial?.note ?? "");
+  /** Per tapped chip: the teams, players, characters, games they name. */
+  const [specifics, setSpecifics] = useState<Record<string, string>>(initial?.skipped ? {} : initial?.specifics ?? {});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<InterestTopic[] | null>(null);
@@ -78,7 +83,22 @@ export function InterestsPicker({
     }
     setError("");
 
-    if (detectCrisis(trimmed)) {
+    // Every interest goes into specifics: "soccer" alone writes generic
+    // problems; "Arsenal, Messi" writes problems a fan recognizes.
+    const own: Record<string, string> = {};
+    for (const id of picks) {
+      const line = cleanSpecifics(specifics[id]);
+      if (!line) {
+        const o = INTEREST_OPTIONS.find((x) => x.id === id);
+        setError(`${o?.label ?? "Each interest"}: ${o?.ask.toLowerCase() ?? "name a few specifics."} Name at least one.`);
+        document.getElementById(`specifics-${id}`)?.focus();
+        return;
+      }
+      own[id] = line;
+    }
+    const text = [trimmed, ...Object.values(own)].join(" ");
+
+    if (detectCrisis(text)) {
       // Nothing written goes to the server or into saved progress. The taps
       // are kept, or the ask is marked as answered so it does not come back.
       setCrisis(true);
@@ -87,6 +107,7 @@ export function InterestsPicker({
       saveInterests({
         picks,
         note: "",
+        specifics: {},
         topics: fromTaps,
         source: "picks",
         updatedAt: new Date().toISOString(),
@@ -96,13 +117,13 @@ export function InterestsPicker({
     }
 
     setSaving(true);
-    let topics = topicsFromPicks(picks);
+    let topics = topicsFromPicks(picks, own);
     let source: InterestProfile["source"] = "picks";
     try {
       const res = await fetch("/api/interests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ picks, note: trimmed }),
+        body: JSON.stringify({ picks, note: trimmed, specifics: own }),
       });
       const data = (await res.json()) as { topics?: unknown; source?: unknown; crisis?: unknown };
       if (data.crisis === true) {
@@ -125,7 +146,7 @@ export function InterestsPicker({
       setError("Tap one or two of the options too, so there is something to set problems in.");
       return;
     }
-    saveInterests({ picks, note: trimmed, topics, source, updatedAt: new Date().toISOString() });
+    saveInterests({ picks, note: trimmed, specifics: own, topics, source, updatedAt: new Date().toISOString() });
     setSaved(topics);
   }
 
@@ -173,7 +194,7 @@ export function InterestsPicker({
           <div className="mt-2 flex flex-wrap gap-2">
             {saved.map((t) => (
               <span key={t.label} className="badge-brand">
-                {t.label}
+                {describeTopic(t)}
               </span>
             ))}
           </div>
@@ -227,6 +248,38 @@ export function InterestsPicker({
           );
         })}
       </div>
+
+      {picks.length > 0 && (
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-800">Now get specific. Your problems get written about these by name.</p>
+          {picks.map((id) => {
+            const o = INTEREST_OPTIONS.find((x) => x.id === id);
+            if (!o) return null;
+            const value = specifics[id] ?? "";
+            return (
+              <div key={id}>
+                <label htmlFor={`specifics-${id}`} className="label">
+                  {o.label}: {o.ask}
+                </label>
+                <input
+                  id={`specifics-${id}`}
+                  type="text"
+                  value={value}
+                  maxLength={SPECIFICS_MAX}
+                  placeholder={o.example}
+                  autoComplete="off"
+                  onChange={(e) => {
+                    setError("");
+                    setSpecifics((prev) => ({ ...prev, [id]: e.target.value.slice(0, SPECIFICS_MAX) }));
+                  }}
+                  className="field mt-1.5"
+                />
+              </div>
+            );
+          })}
+          <p className="text-xs text-slate-500">Teams, players, characters, games, artists. Not people you know.</p>
+        </div>
+      )}
 
       <div>
         <label htmlFor="interest-note" className="label">
