@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getSkill, getUnit, units } from "@/data/curriculum";
+import { allUnits, getSkill, getUnit } from "@/data/curriculum";
 import { LearnContent } from "@/components/LearnContent";
 
 export function generateStaticParams() {
-  return units.flatMap((unit) =>
+  return allUnits().flatMap((unit) =>
     unit.skills.map((skill) => ({
       unitId: unit.id,
       skillId: skill.id,

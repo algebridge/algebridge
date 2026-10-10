@@ -23,7 +23,7 @@
  * own free allowance.
  */
 
-import { units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { callJson } from "@/lib/ai-provider";
 import { topicKey, type InterestTopic } from "@/lib/interests";
@@ -98,7 +98,7 @@ export interface PipelineStats {
   skipped?: string[];
 }
 
-const skills = new Map(units.flatMap((u) => u.skills).map((s) => [s.id, s]));
+const skills = new Map(allUnits().flatMap((u) => u.skills).map((s) => [s.id, s]));
 
 export interface Shape {
   id: string;

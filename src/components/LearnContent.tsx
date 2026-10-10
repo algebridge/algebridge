@@ -266,12 +266,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   </h2>
                   {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
                 </div>
-                <VideoPlayer
-                  video={video}
-                  backupVideo={backupVideo}
-                  // In practice mode the watch shows on this page and goes no further.
-                  onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
-                />
+                {video.youtubeId ? (
+                  <VideoPlayer
+                    video={video}
+                    backupVideo={backupVideo}
+                    // In practice mode the watch shows on this page and goes no further.
+                    onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
+                    <p className="mt-1">No lesson video is sourced for this skill yet. Read the key idea, then practice; the problems explain every step.</p>
+                  </div>
+                )}
               </section>
 
               <section>

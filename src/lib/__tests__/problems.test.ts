@@ -21,7 +21,11 @@ Object.assign(globalThis, {
   },
 });
 
-const { units } = await import("../../data/curriculum.ts");
+const { COURSES } = await import("../../data/curriculum.ts");
+const { algebra2Checks } = await import("./algebra2-checks.ts");
+// COURSE=algebra-2 npm run test:problems reads one course; the default reads every course.
+const only = process.env.COURSE;
+const units = COURSES.filter((c) => !only || c.id === only).flatMap((c) => c.units);
 const { generateProblemBank } = await import("../../data/skill-problem-generators.ts");
 const { answerIsRight } = await import("../grading.ts");
 
@@ -251,6 +255,7 @@ type Check = (p: any) => string | null | "unread";
 const UNITS_ABBR: Record<string, string> = { pounds: "lb", ounces: "oz", feet: "ft", inches: "in", hours: "h", minutes: "min", meters: "m", centimeters: "cm", kilograms: "kg", grams: "g", yards: "yd", gallons: "gal", quarts: "qt" };
 
 const checks: Record<string, Check> = {
+  ...algebra2Checks({ expectAnswer, onlyRight, close, evaluate, answerIsRight }),
   "unit-basics": (p) => {
     let m;
     if ((m = p.prompt.match(/^A hiking trail is ([\d.]+) miles long\. You have walked ([\d,]+) feet of it\. How many feet are left\? \(1 mile = 5,280 ft\)$/))) return expectAnswer(p, +m[1] * 5280 - +m[2].replace(/,/g, ""));

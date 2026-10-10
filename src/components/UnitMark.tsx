@@ -122,6 +122,66 @@ const MARKS: Record<string, React.ReactNode> = {
       <path d="M15 5h5M18 3l2 2-2 2" />
     </>
   ),
+
+  // Algebra 2
+  // The complex plane: a point off the real line.
+  "complex-numbers": (
+    <>
+      <path d="M4 12h16M12 4v16" />
+      <path d="M12 12l5-5" strokeDasharray="2 2.5" />
+      <circle cx="17" cy="7" r="1.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // A cubic's wave.
+  "polynomial-functions": (
+    <>
+      <path d="M3 17c4-13 6-13 9-1s5 12 9-12" />
+    </>
+  ),
+  // A parabola with its vertex marked.
+  "quadratics-revisited": (
+    <>
+      <path d="M4 5c3 12 13 12 16 0" />
+      <circle cx="12" cy="14" r="1.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // A fraction with x above and below the bar.
+  "rational-expressions": (
+    <>
+      <path d="M6 12h12" />
+      <path d="M9.5 4.5l5 5M14.5 4.5l-5 5" />
+      <path d="M9.5 14.5l5 5M14.5 14.5l-5 5" />
+    </>
+  ),
+  // A root sign with its index.
+  "radicals-rational-exponents": (
+    <>
+      <path d="M3 12l3 7L11 4h10" />
+      <path d="M14 8h4" />
+    </>
+  ),
+  // An exponential curve and its mirror, the log.
+  "exponential-logarithmic": (
+    <>
+      <path d="M4 20c6 0 10-4 12-14" />
+      <path d="M4 18c3-6 8-9 16-10" strokeDasharray="2 2.5" />
+    </>
+  ),
+  // Terms adding up.
+  "sequences-series": (
+    <>
+      <path d="M3 20h18" />
+      <path d="M5.5 20v-3M10 20v-6M14.5 20v-9M19 20v-12" />
+    </>
+  ),
+  // The unit circle, a radius and the angle it makes.
+  trigonometry: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 12h8M12 12l5.7-5.7" />
+      <path d="M16 12a4 4 0 0 0-1.2-2.8" />
+    </>
+  ),
 };
 
 /** A unit's mark as bare paths on the 24-grid, to draw inside a larger SVG (a certificate's seal). */

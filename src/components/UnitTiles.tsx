@@ -1,4 +1,5 @@
-import { units } from "@/data/curriculum";
+import { units as algebra1Units } from "@/data/curriculum";
+import type { Unit } from "@/types";
 import { UnitMark } from "@/components/UnitMark";
 import { unitHue } from "@/lib/hues";
 
@@ -7,7 +8,7 @@ import { unitHue } from "@/lib/hues";
  * at a glance, in the colors a student will meet unit by unit. "mosaic" is
  * three staggered columns for beside the hero text; "row" wraps for phones.
  */
-export function UnitTiles({ variant }: { variant: "mosaic" | "row" }) {
+export function UnitTiles({ variant, units = algebra1Units }: { variant: "mosaic" | "row"; units?: Unit[] }) {
   if (variant === "row") {
     return (
       <ul aria-label="The course's units" className="flex flex-wrap gap-1.5">
