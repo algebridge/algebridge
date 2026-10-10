@@ -477,7 +477,7 @@ function completeObjects(text: string): unknown[] | null {
   return out.length ? out : null;
 }
 
-export const WRITER_SYSTEM = `You turn Algebra 1 practice problems into tiny stories a 12 to 16 year old actually wants to solve. You get the student's interests and a few problems. Return one story for every problem.
+export const WRITER_SYSTEM = `You turn algebra practice problems (Algebra 1 and Algebra 2) into tiny stories a 12 to 16 year old actually wants to solve. You get the student's interests and a few problems. Return one story for every problem.
 
 What makes one good:
 - The answer has a job. The number the student finds is something they need inside the story: how many rails to craft, how many chests to fill, what to charge, how many threes they sank. Never end on a dry "how many feet is that?".
@@ -522,7 +522,7 @@ Original: "Find the slope between (1, 2) and (4, 8)." (YouTube)
 
 Reply with JSON only: {"items":[{"id":"...","topic":"<one of the student's interests, exactly as given>","text":"..."}]}`;
 
-export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as short stories for students aged 12 to 16. For each one, do five things.
+export const SOLVER_SYSTEM = `You check algebra practice problems (Algebra 1 and Algebra 2) written as short stories for students aged 12 to 16. For each one, do five things.
 
 1. Solve it exactly as written. Questions may be phrased as the student's call ("What do you think...?"); answer what they are really asking. If a question has no single right answer, set fits to false. For a multiple-choice problem, answer with the letter of the correct choice (A, B, C or D). Otherwise answer with the number only, no units. If the problem says how to round, round that way. For a problem of kind "steps", whose steps are shown with it, answer "-".
 2. "fits" is true only if ALL of these hold, otherwise false:

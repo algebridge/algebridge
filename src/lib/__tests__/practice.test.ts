@@ -23,7 +23,7 @@ const { forbiddenValues, leaksAnswer, leaksAnswerText } = await import("../helpe
 const { recordProblemAttempt, getSkillPracticeStats, solvedCount, getProgress, saveProgress } = await import(
   "../progress.ts"
 );
-const { units } = await import("../../data/curriculum.ts");
+const { units, allUnits } = await import("../../data/curriculum.ts");
 const { generateProblemBank } = await import("../../data/skill-problem-generators.ts");
 const { skillOffersCalculator } = await import("../../data/problem-banks.ts");
 
@@ -511,7 +511,7 @@ ok("no calculator for exponent rules", !calc("exponent-rules") && !calc("negativ
 ok("no calculator for the special products done by hand", !calc("special-products"));
 {
   const { CALCULATOR_WITHHELD, CALCULATOR_OFFERED } = await import("../../data/problem-banks.ts");
-  const ids = new Set(units.flatMap((u) => u.skills.map((s) => s.id)));
+  const ids = new Set(allUnits().flatMap((u) => u.skills.map((s) => s.id)));
   const stray = [...CALCULATOR_WITHHELD, ...CALCULATOR_OFFERED].filter((id) => !ids.has(id));
   ok("every calculator override names a real skill", stray.length === 0, stray.join(", "));
   ok("no skill is both offered and withheld", [...CALCULATOR_OFFERED].every((id) => !CALCULATOR_WITHHELD.has(id)));
@@ -1668,7 +1668,11 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
 {
   const S = await import("../../data/standards.ts");
   const skillIds = units.flatMap((u) => u.skills.map((s) => s.id));
-  const known = new Set(skillIds);
+  // Both courses' skills may carry standards; the coverage checks below read Algebra 1.
+  const known = new Set(allUnits().flatMap((u) => u.skills.map((s) => s.id)));
+  const algebra2Ids = allUnits().flatMap((u) => u.skills.map((s) => s.id)).filter((id) => !known.has(id) || !skillIds.includes(id));
+  ok("every Algebra 2 skill has a standards entry", algebra2Ids.every((id) => id in S.SKILL_STANDARDS), algebra2Ids.filter((id) => !(id in S.SKILL_STANDARDS)).join(", "));
+  ok("an Algebra 2 skill that cites nothing is left off for graphing", algebra2Ids.filter((id) => !S.SKILL_STANDARDS[id]?.length).every((id) => S.NOT_CLAIMED.some((n) => n.skillId === id && S.GRAPHING_STANDARDS.includes(n.code))));
   const cited = Object.values(S.SKILL_STANDARDS).flat();
   // A skill may cite nothing only when NOT_CLAIMED says why (graphing, for now).
   const unmapped = skillIds.filter(
