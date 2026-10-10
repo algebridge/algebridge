@@ -19,6 +19,16 @@ import { CrisisCard } from "@/components/helper/CrisisCard";
 /** Enough to rotate through, few enough that each one comes up. */
 const MAX_PICKS = 4;
 
+const splitSpecifics = (line: string) => line.split(",").map((s) => s.trim()).filter(Boolean);
+const hasSpecific = (line: string, name: string) =>
+  splitSpecifics(line).some((s) => s.toLowerCase() === name.toLowerCase());
+/** Adds a tapped suggestion to the line, or takes it back out. */
+function toggleSpecific(line: string, name: string): string {
+  const parts = splitSpecifics(line);
+  const next = hasSpecific(line, name) ? parts.filter((s) => s.toLowerCase() !== name.toLowerCase()) : [...parts, name];
+  return next.join(", ").slice(0, SPECIFICS_MAX);
+}
+
 interface InterestsPickerProps {
   initial?: InterestProfile | null;
   /** Shown after saving, to close whatever holds the picker. */
@@ -76,8 +86,8 @@ export function InterestsPicker({
   }
 
   async function save() {
-    const trimmed = note.trim();
-    if (!picks.length && !trimmed) {
+    const written = note.trim();
+    if (!picks.length && !written) {
       setError("Tap at least one, or write a few words.");
       return;
     }
@@ -96,9 +106,10 @@ export function InterestsPicker({
       }
       own[id] = line;
     }
-    const text = [trimmed, ...Object.values(own)].join(" ");
+    // Everything they typed, the note and every specifics line, read for danger together.
+    const trimmed = [written, ...Object.values(own)].join(" ").trim();
 
-    if (detectCrisis(text)) {
+    if (detectCrisis(trimmed)) {
       // Nothing written goes to the server or into saved progress. The taps
       // are kept, or the ask is marked as answered so it does not come back.
       setCrisis(true);
@@ -123,7 +134,7 @@ export function InterestsPicker({
       const res = await fetch("/api/interests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ picks, note: trimmed, specifics: own }),
+        body: JSON.stringify({ picks, note: written, specifics: own }),
       });
       const data = (await res.json()) as { topics?: unknown; source?: unknown; crisis?: unknown };
       if (data.crisis === true) {
@@ -146,7 +157,7 @@ export function InterestsPicker({
       setError("Tap one or two of the options too, so there is something to set problems in.");
       return;
     }
-    saveInterests({ picks, note: trimmed, specifics: own, topics, source, updatedAt: new Date().toISOString() });
+    saveInterests({ picks, note: written, specifics: own, topics, source, updatedAt: new Date().toISOString() });
     setSaved(topics);
   }
 
@@ -261,18 +272,41 @@ export function InterestsPicker({
                 <label htmlFor={`specifics-${id}`} className="label">
                   {o.label}: {o.ask}
                 </label>
+                <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`${o.label} suggestions`}>
+                  {o.suggestions.map((name) => {
+                    const on = hasSpecific(value, name);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => {
+                          setError("");
+                          setSpecifics((prev) => ({ ...prev, [id]: toggleSpecific(prev[id] ?? "", name) }));
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                          on
+                            ? "border-bridge-600 bg-bridge-600 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   id={`specifics-${id}`}
                   type="text"
                   value={value}
                   maxLength={SPECIFICS_MAX}
-                  placeholder={o.example}
+                  placeholder={value ? "Add your own, comma separated" : o.example}
                   autoComplete="off"
                   onChange={(e) => {
                     setError("");
                     setSpecifics((prev) => ({ ...prev, [id]: e.target.value.slice(0, SPECIFICS_MAX) }));
                   }}
-                  className="field mt-1.5"
+                  className="field mt-2"
                 />
               </div>
             );
@@ -309,7 +343,7 @@ export function InterestsPicker({
 
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void save()} disabled={saving} className="btn-primary flex-1">
-          {saving ? (note.trim() ? "Reading your answer..." : "Saving...") : "Save"}
+          {saving ? "Reading your answer..." : "Save"}
         </button>
         {onSkip && (
           <button type="button" onClick={onSkip} disabled={saving} className="btn-ghost">

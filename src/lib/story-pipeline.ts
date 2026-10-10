@@ -26,7 +26,7 @@
 import { units } from "@/data/curriculum";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { callJson } from "@/lib/ai-provider";
-import { topicKey, type InterestTopic } from "@/lib/interests";
+import { namesFavorite, topicKey, type InterestTopic } from "@/lib/interests";
 import {
   BATCH_SIZE,
   canPersonalize,
@@ -264,6 +264,12 @@ export async function writeTemplates(
       fail(shape, draft.template, structural.reason, structural.detail);
       continue;
     }
+    // A student who named Arsenal and Messi gets Arsenal and Messi, not "the championship".
+    const topicFor = draft.topic ?? topics[0];
+    if (!namesFavorite(structural.template, topicFor)) {
+      fail(shape, structural.template, "favorites", topicFor.specifics);
+      continue;
+    }
     let broken: { reason: string; detail?: string } | null = null;
     const filled: Candidate[] = [];
     for (const [k, sample] of shape.samples.entries()) {
@@ -398,7 +404,7 @@ export async function personalizeProblems(opts: {
   const library = await getTemplates(keys);
   const storedFor = (signature: string, topic: InterestTopic): StoredTemplate[] =>
     (library.get(templateKey(signature, topicKey(topic))) ?? []).filter(
-      (t) => checkTemplate(signature, t.template, shapeSpans(signature)).ok
+      (t) => checkTemplate(signature, t.template, shapeSpans(signature)).ok && namesFavorite(t.template, topic)
     );
 
   // A problem's stored stories across the student's interests, starting from
