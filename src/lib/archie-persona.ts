@@ -88,7 +88,7 @@ export function archiePersonaPrompt(
   const topics = (student.interests ?? []).filter((t) => t && typeof t.label === "string").slice(0, 6);
   if (topics.length)
     lines.push(
-      `They told AlgeBridge they are into ${listTopics(topics)}. Bring one up at most once every few replies, only when it truly fits the math, and never guess what they did today.`
+      `They told AlgeBridge they are into ${listTopics(topics)}${topics.some((t) => t.specifics) ? " (the names in brackets are the teams, players, characters or games they follow; use those names when one comes up)" : ""}. Bring one up at most once every few replies, only when it truly fits the math, and never guess what they did today.`
     );
   return lines.join("\n");
 }

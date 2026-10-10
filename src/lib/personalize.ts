@@ -501,7 +501,7 @@ Hard rules, because a program checks your work and throws out anything that brea
 2. Copy every equation, expression, function and point, like 3x + 4 = 19, f(x) = 2x - 1 or (1, 4), exactly as written. Mention each point only once.
 3. The answer must be exactly the same number as the original's. Your question can and should use completely different words: never end on the original's sentence, like "Convert 7 miles to feet." or "Solve for x." A rounding rule or unit fact in parentheses stays word for word; labels like (adult) are just words, write them naturally.
 4. Never state or hint at the answer, and never list the answer choices in your text.
-5. School-appropriate: no violence, weapons, dating, alcohol, drugs or gambling, and no claims about real people.
+5. School-appropriate: no violence, weapons, dating, alcohol, drugs or gambling. A real player, team, creator or character the student named may do in the story what they do in their world, with the problem's numbers; nothing about anyone's private life, and no made-up records or quotes.
 6. Plain text. No emoji, no markdown, no em dashes.
 
 Examples of the standard:
@@ -530,6 +530,7 @@ export const SOLVER_SYSTEM = `You check Algebra 1 practice problems written as s
    - Every number means what the math uses it for, and the units agree. No adding streams to beats per minute, no calling rebounds points.
    - Any point like (1, 4) says what its two numbers measure.
    - The interest is really part of the situation, not just a name pasted onto an ordinary problem.
+   - A story set among the student's own favorites by name (a real player taking the problem's shots, a real team's match, a character's crew) fits when the facts of that world are right. The numbers are the problem's, not a claim about the person.
    - For a "steps" problem, the story asks for exactly its task (ordering the steps, or finding the wrong one), and matches the steps shown with it.
    - Numbers read naturally: no "you scored -2x points", no "1 are".
    - The closing question reads the way a person would say it. "What is your call on the total seconds?" and "What do you think the answer is?" are stilted; a stilted or bolted-on question means fits is false, with why "stilted question".
