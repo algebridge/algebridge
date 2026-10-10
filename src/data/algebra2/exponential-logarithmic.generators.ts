@@ -123,8 +123,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: form === 0 ? "ln is the log with base e, so ln(e^k) asks: e to what power gives e^k?" : form === 1 ? "log with no base written is base 10, so log(10^k) asks: 10 to what power gives 10^k?" : form === 2 ? `ln ${c} is the exponent that e needs to make ${c}. Raising e to that exponent gives back ${c}.` : `log ${c} is the exponent that 10 needs to make ${c}. Raising 10 to that exponent gives back ${c}.`,
           answer: want,
           traps: trapsFor(want, [
-            form < 2 ? trap(-k, "The exponent comes out exactly as written, sign included.") : trap(Math.round(Math.log(c) * 100) / 100, `That is ln ${c} on its own. The power undoes the log and leaves the original number.`),
-            form < 2 ? trap(form === 0 ? Math.round(Math.E ** k * 1000) / 1000 : 10 ** k, "ln and log undo the power: the answer is the exponent, not the value of the power.") : trap(Math.round(Math.log10(c) * 100) / 100, `That is log ${c} on its own. The power undoes the log and leaves the original number.`),
+            form < 2 ? trap(-k, "The exponent comes out exactly as written, sign included.") : trap(Math.round(Math.log(c) * 100) / 100, "That is the natural log on its own. The power undoes the log and leaves the original number."),
+            form < 2 ? trap(form === 0 ? Math.round(Math.E ** k * 1000) / 1000 : 10 ** k, "ln and log undo the power: the answer is the exponent, not the value of the power.") : trap(Math.round(Math.log10(c) * 100) / 100, "That is the log on its own. The power undoes the log and leaves the original number."),
             form < 2 ? trap(1, "A log of a power equals the exponent, which here is not 1.") : trap(form === 2 ? 2.718 : 10, "The base and its log cancel each other and leave the number inside."),
           ]),
           explanation: form === 0 ? `ln(e^(${signed(k)})) = ${signed(k)} because ln undoes e^x.` : form === 1 ? `log(10^(${signed(k)})) = ${signed(k)} because log undoes 10^x.` : form === 2 ? `e^(ln ${c}) = ${c} because e^x undoes ln.` : `10^(log ${c}) = ${c} because 10^x undoes log.`,
@@ -350,13 +350,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = pick(BASES);
         const m = randInt(1, 3);
         const a = pick([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]);
-        let x = randInt(-3, 4);
-        let k = m * x + a;
-        const top = maxExp(b);
-        while (k < 0 || k > top) {
-          x = randInt(-3, 4);
-          k = m * x + a;
-        }
+        // Exponents that make x a whole number.
+        const ks: number[] = [];
+        for (let e = 0; e <= maxExp(b); e += 1) if ((e - a) % m === 0) ks.push(e);
+        const k = ks.length ? pick(ks) : a;
+        const x = (k - a) / m;
         const n = b ** k;
         const expo = lin(m, a);
         return {
@@ -472,12 +470,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       // Error analysis: matching bases.
       const b = pick([2, 3, 5]);
       const a = pick([-4, -3, -2, -1, 1, 2, 3, 4]);
-      let x = randInt(-3, 5);
-      let k = x + a;
-      while (k < 1 || k > maxExp(b)) {
-        x = randInt(-3, 5);
-        k = x + a;
-      }
+      const k = randInt(1, maxExp(b));
+      const x = k - a;
       const n = b ** k;
       const expo = lin(1, a);
       const slip = randInt(0, 2);

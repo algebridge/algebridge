@@ -17,7 +17,7 @@
  * student who clicked through every unit would otherwise keep all of it.
  */
 
-import { COURSES, units } from "@/data/curriculum";
+import { allUnits, COURSES, units } from "@/data/curriculum";
 import type { SkillProgress, UserProgress } from "@/types";
 
 export interface PathStep {
@@ -77,7 +77,7 @@ export function skillAccess(progress: UserProgress, skillId: string, ctx: Access
 
 /** A unit is open when any of its skills is. */
 export function unitIsOpen(progress: UserProgress, unitId: string, ctx: AccessContext = {}): boolean {
-  const unit = units.find((u) => u.id === unitId);
+  const unit = allUnits().find((u) => u.id === unitId);
   return !!unit && unit.skills.some((s) => skillAccess(progress, s.id, ctx).open);
 }
 

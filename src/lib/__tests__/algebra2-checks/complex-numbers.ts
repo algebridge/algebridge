@@ -72,7 +72,7 @@ export default function checks(h: CheckHelpers): Checks {
         const want = I_POWER[Number(m[1]) % 4];
         return onlyRight(p, (c) => norm(c) === want);
       }
-      if ((m = p.prompt.match(/^Simplify \((\d+)i\)²\. Write a plain number\.$/))) return expectAnswer(p, -Number(m[1]) ** 2);
+      if ((m = p.prompt.match(/^Simplify \((\d+)i\)²\. Write a plain number\.$/))) return expectAnswer(p, -(Number(m[1]) ** 2));
       if ((m = p.prompt.match(/^Simplify \((\d+)i\)\((\d+)i\)\. Write a plain number\.$/))) return expectAnswer(p, -Number(m[1]) * Number(m[2]));
       if ((m = p.prompt.match(/^Simplify √\(−(\d+)\) · √\(−(\d+)\)\. Write a plain number\.$/))) {
         const [a, b] = [Math.sqrt(Number(m[1])), Math.sqrt(Number(m[2]))];

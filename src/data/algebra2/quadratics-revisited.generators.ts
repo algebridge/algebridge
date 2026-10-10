@@ -273,7 +273,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             trap(want === 2 ? 1 : 2, want === 2 ? "A positive discriminant means two different x-values where they meet." : "Two shared points need a positive discriminant for " + quad(1, B, C) + " = 0."),
             trap(want === 0 ? 1 : 0, want === 0 ? "A negative discriminant means no real x solves it, so no shared points." : "Compute the discriminant of " + quad(1, B, C) + " = 0 again: it is not negative."),
           ]),
-          explanation: `${quad(1, b, c)} = ${lin(m, d)} → ${quad(1, B, C)} = 0 → discriminant ${B * B} − ${4 * C} = ${D} → ${want === 2 ? "positive, two points" : want === 1 ? "zero, one point" : "negative, no points"}`,
+          explanation: `${quad(1, b, c)} = ${lin(m, d)} → ${quad(1, B, C)} = 0 → discriminant (${B})² − 4(1)(${C}) = ${D} → ${want === 2 ? "positive, two points" : want === 1 ? "zero, one point" : "negative, no points"}`,
         };
       }
       if (kind === 1) {

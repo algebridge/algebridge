@@ -56,14 +56,14 @@ export const unit: Unit = {
         {
           id: "a2-pf-p3",
           type: "numeric",
-          prompt: "Use synthetic division to divide P(x) = x³ − 2x² + 3x − 5 by (x − 2). What is the remainder?",
+          prompt: "Use synthetic division to divide P(x) = x³ − 2x² + 3x − 7 by (x − 2). What is the remainder?",
           hint: "Use 2 in the box. Bring down 1, multiply by 2, add to the next coefficient, and repeat. The last number is the remainder.",
-          answer: 1,
+          answer: -1,
           traps: [
-            { value: -23, why: "The divisor x − 2 means the number in the box is 2, not −2." },
-            { value: -5, why: "The remainder is the last number after all the multiply-and-add steps, not the original constant term." },
+            { value: -29, why: "The divisor x − 2 means the number in the box is 2, not −2." },
+            { value: -7, why: "The remainder is the last number after all the multiply-and-add steps, not the original constant term." },
           ],
-          explanation: "Coefficients 1, −2, 3, −5 with k = 2: bring down 1; 1·2 = 2, −2 + 2 = 0; 0·2 = 0, 3 + 0 = 3; 3·2 = 6, −5 + 6 = 1. The remainder is 1.",
+          explanation: "Coefficients 1, −2, 3, −7 with k = 2: bring down 1; 1·2 = 2, −2 + 2 = 0; 0·2 = 0, so 3 stays 3; 3·2 = 6, −7 + 6 = −1. The remainder is −1.",
         },
         {
           id: "a2-pf-p4",

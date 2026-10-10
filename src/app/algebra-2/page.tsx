@@ -27,7 +27,7 @@ export default function Algebra2Page() {
           <div>
             <h1 className="section-title">Algebra 2</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Picks up where Algebra 1 ends: complex numbers, polynomials, rational and radical equations, logarithms, series and the unit circle. Start anywhere; each unit opens at its first skill.
+              Picks up where Algebra 1 ends: complex numbers, polynomials, rational and radical equations, logarithms, series and the unit circle. Skills open in order, starting with complex numbers. Know one already? Show what you know on its page opens it.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">

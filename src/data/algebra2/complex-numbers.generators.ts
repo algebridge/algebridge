@@ -279,7 +279,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             { value: `x = ±${imRoot(k * k, m)}`, why: `√${k * k} is ${k}.` },
             { value: `x = ±${m === 1 ? imRoot(k, 2) : imRoot(1, c)}`, why: m === 1 ? `${c} is a perfect square.` : `Pull the perfect-square factor ${k * k} out of √${c}.` },
           ],
-          `x² = −${c} → x = ±√(−${c}) = ${answer}`
+          `x² = −${c} → x = ±√(−${c}) → ${answer}`
         );
       }
       if (kind === 2) {
