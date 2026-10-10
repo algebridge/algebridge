@@ -41,25 +41,38 @@ export const NOTE_MAX = 200;
 /** One line per interest: a few teams, players, characters or games. */
 export const SPECIFICS_MAX = 120;
 
-export const INTEREST_OPTIONS: { id: string; label: string; details: string; ask: string; example: string }[] = [
-  { id: "basketball", label: "Basketball", details: "point guard, forwards and the center; threes are worth 3 points, twos 2, free throws 1; the shot clock, quarters and timeouts; layup lines and free-throw drills at practice; season averages; the team bus to an away game; tickets and snacks sold at the gym door", ask: "Which teams and players?", example: "e.g. the Celtics, Steph Curry, my school team" },
-  { id: "soccer", label: "Soccer", details: "striker, midfielders, defenders and the keeper; goals, assists and clean sheets; a league table gives 3 points for a win and 1 for a draw; two halves, corner kicks and penalties; passing drills and sprints at practice; a tournament weekend; cleats, shin guards and jerseys", ask: "Which teams and players?", example: "e.g. Arsenal, Messi, the USWNT" },
-  { id: "football", label: "Football", details: "quarterback, receivers, running backs and the kicker; a touchdown is worth 6 points, a field goal 3, an extra point 1; yards per carry; a first down after 10 yards; four quarters and the play clock; sprints at practice; Friday night games with the band and the student section", ask: "Which teams and players?", example: "e.g. the Eagles, Patrick Mahomes, my high school" },
-  { id: "video-games", label: "Video games", details: "quests that give XP to level up, coins and gems, health bars and lives, boss fights, speedruns timed to the second, loot drops, crafting gear, the item shop and skins, ranked matches and leaderboards, daily challenges", ask: "Which games and characters?", example: "e.g. Fortnite, Zelda, Kirby" },
-  { id: "minecraft", label: "Minecraft", details: "a survival world with friends; stacks of 64 and chests; furnaces smelting ore into ingots; villager trades for emeralds; rails and minecarts; redstone machines; crop and mob farms; building a base block by block; mining for diamonds; the Nether and the End", ask: "What do you build, play or watch?", example: "e.g. survival with friends, Hypixel, Technoblade" },
-  { id: "roblox", label: "Roblox", details: "Robux and game passes; obbies with numbered stages; tycoons that earn cash every second; pets and eggs; simulators; building your own game in Studio; visits and likes on your game; trading with friends", ask: "Which games?", example: "e.g. Adopt Me, Blox Fruits, Tower of Hell" },
-  { id: "music", label: "Music", details: "beats per minute, measures and bars; band or choir rehearsals before a concert; a setlist that has to fit the show; playlists and streams on a song; recording in a studio; tickets and merch at a gig; practicing an instrument every day", ask: "Which artists, songs or instruments?", example: "e.g. Taylor Swift, trumpet in band, Kendrick" },
-  { id: "art", label: "Drawing & art", details: "sketchbooks, canvases and their sizes, paints and markers; commissions and what they cost; an art show at school; frames; sticker sheets and prints sold at a craft fair; layers in a digital drawing app", ask: "What do you draw, and with what?", example: "e.g. anime characters, Procreate, my dog" },
-  { id: "cooking", label: "Cooking & baking", details: "recipes scaled up for a crowd, cups and teaspoons, trays of cookies, oven timers, boxes of cupcakes, a bake sale with prices per item, groceries for a family dinner, a cooking competition on TV", ask: "What do you make?", example: "e.g. chocolate chip cookies, ramen, birthday cakes" },
-  { id: "animals", label: "Animals & pets", details: "feeding schedules and cups of food per meal; dog walking jobs paid per walk; fish tanks measured in gallons; trips to the vet; shelter adoption days; training treats; a puppy growing month by month", ask: "Which animals or pets?", example: "e.g. my dog Max, horses, a betta fish" },
-  { id: "space", label: "Space", details: "rocket launches and countdowns; fuel tanks; orbits around Earth; the Moon and Mars; satellites; the International Space Station; telescope nights; distances in miles or kilometers; astronaut training", ask: "What in space?", example: "e.g. SpaceX launches, Mars rovers, black holes" },
-  { id: "cars", label: "Cars & racing", details: "laps around a track and lap times; pit stops for tires and fuel; miles per gallon; horsepower; a race weekend with qualifying; a family road trip with stops; saving up for a first car", ask: "Which cars, drivers or races?", example: "e.g. Verstappen, F1, Mustangs" },
-  { id: "anime", label: "Anime & manga", details: "episodes per season and minutes per episode; binge-watching a series; manga volumes and a new chapter every week; collecting figures; a convention with cosplay and an artist alley", ask: "Which shows and characters?", example: "e.g. One Piece, Luffy, Jujutsu Kaisen" },
-  { id: "creators", label: "YouTube & TikTok", details: "views, likes and subscribers; a posting schedule; video length and editing time; sponsor deals paid per video; going viral; livestreams; followers gained per day; filming a series with friends", ask: "Which creators and channels?", example: "e.g. MrBeast, Dude Perfect, my own channel" },
-  { id: "fashion", label: "Fashion & sneakers", details: "sneaker drops and resale prices; thrifting; outfits planned for the week; sizes; store sales and discounts; saving up for a pair; a closet clean-out sale", ask: "Which brands or styles?", example: "e.g. Jordans, thrifting, Nike Dunks" },
-  { id: "dance", label: "Dance", details: "eight-counts and routines; rehearsals before a competition; costumes; a studio recital; formations on stage; practice minutes each week; scores from the judges", ask: "What kind, and who inspires you?", example: "e.g. hip hop, my studio team, ballet" },
-  { id: "coding", label: "Coding & tech", details: "apps and their downloads; lines of code and bugs fixed; battery percent; screen pixels; a game you are building; a robotics team before a competition; upload and download speeds", ask: "What do you build, and in what?", example: "e.g. Python, a Discord bot, Scratch games" },
-  { id: "business", label: "Money & business", details: "a small business like a lemonade stand or a T-shirt shop; price per item, costs and profit; customers per day; saving each week toward a goal; a summer job that pays by the hour", ask: "What do you sell or plan to?", example: "e.g. lemonade stand, custom shirts, mowing lawns" },
+export interface InterestOption {
+  id: string;
+  label: string;
+  /** Real things from that world, so a problem can be specific. */
+  details: string;
+  /** The question under the chip: "Which teams and players?" */
+  ask: string;
+  /** Placeholder for the answer. */
+  example: string;
+  /** Real, public, evergreen names a student can tap instead of typing. */
+  suggestions: string[];
+}
+
+export const INTEREST_OPTIONS: InterestOption[] = [
+  { id: "basketball", label: "Basketball", details: "point guard, forwards and the center; threes are worth 3 points, twos 2, free throws 1; the shot clock, quarters and timeouts; layup lines and free-throw drills at practice; season averages; the team bus to an away game; tickets and snacks sold at the gym door", ask: "Which teams and players?", example: "e.g. the Celtics, Steph Curry, my school team", suggestions: ["Lakers","Celtics","Warriors","LeBron James","Steph Curry","Caitlin Clark","WNBA","my school team"] },
+  { id: "soccer", label: "Soccer", details: "striker, midfielders, defenders and the keeper; goals, assists and clean sheets; a league table gives 3 points for a win and 1 for a draw; two halves, corner kicks and penalties; passing drills and sprints at practice; a tournament weekend; cleats, shin guards and jerseys", ask: "Which teams and players?", example: "e.g. Arsenal, Messi, the USWNT", suggestions: ["Real Madrid","Barcelona","Arsenal","Man City","Messi","Ronaldo","USWNT","my club team"] },
+  { id: "football", label: "Football", details: "quarterback, receivers, running backs and the kicker; a touchdown is worth 6 points, a field goal 3, an extra point 1; yards per carry; a first down after 10 yards; four quarters and the play clock; sprints at practice; Friday night games with the band and the student section", ask: "Which teams and players?", example: "e.g. the Eagles, Patrick Mahomes, my high school", suggestions: ["Eagles","Chiefs","Cowboys","Patrick Mahomes","Jalen Hurts","Travis Kelce","fantasy football","my high school team"] },
+  { id: "video-games", label: "Video games", details: "quests that give XP to level up, coins and gems, health bars and lives, boss fights, speedruns timed to the second, loot drops, crafting gear, the item shop and skins, ranked matches and leaderboards, daily challenges", ask: "Which games and characters?", example: "e.g. Fortnite, Zelda, Kirby", suggestions: ["Fortnite","Zelda","Mario Kart","Valorant","EA FC","Pokémon","NBA 2K","Call of Duty"] },
+  { id: "minecraft", label: "Minecraft", details: "a survival world with friends; stacks of 64 and chests; furnaces smelting ore into ingots; villager trades for emeralds; rails and minecarts; redstone machines; crop and mob farms; building a base block by block; mining for diamonds; the Nether and the End", ask: "What do you build, play or watch?", example: "e.g. survival with friends, Hypixel, Technoblade", suggestions: ["survival with friends","Hypixel","Bedwars","redstone","building a base","Hardcore","speedrunning","my own server"] },
+  { id: "roblox", label: "Roblox", details: "Robux and game passes; obbies with numbered stages; tycoons that earn cash every second; pets and eggs; simulators; building your own game in Studio; visits and likes on your game; trading with friends", ask: "Which games?", example: "e.g. Adopt Me, Blox Fruits, Tower of Hell", suggestions: ["Adopt Me","Blox Fruits","Tower of Hell","Brookhaven","Dress to Impress","Pet Simulator","building in Studio","obbies"] },
+  { id: "music", label: "Music", details: "beats per minute, measures and bars; band or choir rehearsals before a concert; a setlist that has to fit the show; playlists and streams on a song; recording in a studio; tickets and merch at a gig; practicing an instrument every day", ask: "Which artists, songs or instruments?", example: "e.g. Taylor Swift, trumpet in band, Kendrick", suggestions: ["Taylor Swift","Drake","Billie Eilish","Kendrick Lamar","Olivia Rodrigo","K-pop","band","choir","guitar","piano"] },
+  { id: "art", label: "Drawing & art", details: "sketchbooks, canvases and their sizes, paints and markers; commissions and what they cost; an art show at school; frames; sticker sheets and prints sold at a craft fair; layers in a digital drawing app", ask: "What do you draw, and with what?", example: "e.g. anime characters, Procreate, my dog", suggestions: ["Procreate","anime characters","sketching","watercolor","digital art","my own characters","comics","stickers"] },
+  { id: "cooking", label: "Cooking & baking", details: "recipes scaled up for a crowd, cups and teaspoons, trays of cookies, oven timers, boxes of cupcakes, a bake sale with prices per item, groceries for a family dinner, a cooking competition on TV", ask: "What do you make?", example: "e.g. chocolate chip cookies, ramen, birthday cakes", suggestions: ["chocolate chip cookies","cupcakes","ramen","pizza from scratch","pancakes","cake decorating","tacos","bread"] },
+  { id: "animals", label: "Animals & pets", details: "feeding schedules and cups of food per meal; dog walking jobs paid per walk; fish tanks measured in gallons; trips to the vet; shelter adoption days; training treats; a puppy growing month by month", ask: "Which animals or pets?", example: "e.g. my dog Max, horses, a betta fish", suggestions: ["my dog","my cat","horses","a betta fish","hamsters","birds","reptiles","volunteering at a shelter"] },
+  { id: "space", label: "Space", details: "rocket launches and countdowns; fuel tanks; orbits around Earth; the Moon and Mars; satellites; the International Space Station; telescope nights; distances in miles or kilometers; astronaut training", ask: "What in space?", example: "e.g. SpaceX launches, Mars rovers, black holes", suggestions: ["SpaceX launches","Mars rovers","NASA Artemis","black holes","the James Webb telescope","the ISS","Saturn","astronaut training"] },
+  { id: "cars", label: "Cars & racing", details: "laps around a track and lap times; pit stops for tires and fuel; miles per gallon; horsepower; a race weekend with qualifying; a family road trip with stops; saving up for a first car", ask: "Which cars, drivers or races?", example: "e.g. Verstappen, F1, Mustangs", suggestions: ["Formula 1","Max Verstappen","Lewis Hamilton","Lando Norris","Tesla","Mustangs","drifting","NASCAR"] },
+  { id: "anime", label: "Anime & manga", details: "episodes per season and minutes per episode; binge-watching a series; manga volumes and a new chapter every week; collecting figures; a convention with cosplay and an artist alley", ask: "Which shows and characters?", example: "e.g. One Piece, Luffy, Jujutsu Kaisen", suggestions: ["One Piece","Naruto","Jujutsu Kaisen","Demon Slayer","My Hero Academia","Attack on Titan","Dragon Ball","Spy x Family"] },
+  { id: "creators", label: "YouTube & TikTok", details: "views, likes and subscribers; a posting schedule; video length and editing time; sponsor deals paid per video; going viral; livestreams; followers gained per day; filming a series with friends", ask: "Which creators and channels?", example: "e.g. MrBeast, Dude Perfect, my own channel", suggestions: ["MrBeast","Dude Perfect","Mark Rober","Marques Brownlee","IShowSpeed","Kai Cenat","Ryan Trahan","my own channel"] },
+  { id: "fashion", label: "Fashion & sneakers", details: "sneaker drops and resale prices; thrifting; outfits planned for the week; sizes; store sales and discounts; saving up for a pair; a closet clean-out sale", ask: "Which brands or styles?", example: "e.g. Jordans, thrifting, Nike Dunks", suggestions: ["Jordans","Nike Dunks","New Balance","thrifting","streetwear","Converse","Crocs","Lululemon"] },
+  { id: "dance", label: "Dance", details: "eight-counts and routines; rehearsals before a competition; costumes; a studio recital; formations on stage; practice minutes each week; scores from the judges", ask: "What kind, and who inspires you?", example: "e.g. hip hop, my studio team, ballet", suggestions: ["hip hop","ballet","jazz","my studio team","competitions","TikTok dances","tap","K-pop choreo"] },
+  { id: "coding", label: "Coding & tech", details: "apps and their downloads; lines of code and bugs fixed; battery percent; screen pixels; a game you are building; a robotics team before a competition; upload and download speeds", ask: "What do you build, and in what?", example: "e.g. Python, a Discord bot, Scratch games", suggestions: ["Python","Scratch","JavaScript","a Discord bot","robotics team","Roblox Studio","making a game","Arduino"] },
+  { id: "business", label: "Money & business", details: "a small business like a lemonade stand or a T-shirt shop; price per item, costs and profit; customers per day; saving each week toward a goal; a summer job that pays by the hour", ask: "What do you sell or plan to?", example: "e.g. lemonade stand, custom shirts, mowing lawns", suggestions: ["lemonade stand","custom shirts","mowing lawns","reselling sneakers","babysitting","an Etsy shop","car washing","a YouTube channel"] },
 ];
 
 const OPTION_BY_ID = new Map(INTEREST_OPTIONS.map((o) => [o.id, o]));
@@ -86,6 +99,34 @@ export function cleanSpecifics(raw: unknown): string {
   const text = cleanText(raw, SPECIFICS_MAX);
   if (!text || !isSchoolSafe(text) || PERSONAL.test(text)) return "";
   return text;
+}
+
+/**
+ * What the model made of each tapped interest's specifics: public teams,
+ * players, characters, games and brands kept; a friend, a coach, a school
+ * or a town dropped. A topic the model says nothing about keeps what the
+ * student wrote (the model may be down); one it returns empty for loses
+ * its specifics and gets plain stories, which beats a classmate's name in
+ * a word problem.
+ */
+export function applyCleanedSpecifics(
+  topics: InterestTopic[],
+  cleaned: unknown
+): InterestTopic[] {
+  if (!Array.isArray(cleaned)) return topics;
+  const byLabel = new Map<string, string>();
+  for (const item of cleaned) {
+    if (!item || typeof item !== "object") continue;
+    const { interest, specifics } = item as { interest?: unknown; specifics?: unknown };
+    if (typeof interest !== "string" || typeof specifics !== "string") continue;
+    byLabel.set(interest.trim().toLowerCase(), cleanSpecifics(specifics));
+  }
+  return topics.map((t) => {
+    const own = byLabel.get(t.label.toLowerCase());
+    if (own === undefined) return t;
+    const { specifics: _dropped, ...rest } = t;
+    return own ? { ...rest, specifics: own } : rest;
+  });
 }
 
 /** The specifics a client sent, kept only for chips it actually tapped. */

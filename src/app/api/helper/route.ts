@@ -78,7 +78,7 @@ interface HelperRequest {
   session?: unknown;
   /** The student's first name, for Archie to use now and then. Cleaned, or dropped. */
   firstName?: unknown;
-  /** The labels of the interests they picked. Cleaned like any topic, at most 6. */
+  /** The interests they picked: labels, or {label, specifics}. Cleaned like any topic, at most 6. */
   interests?: unknown;
 }
 
@@ -160,10 +160,18 @@ function cleanMessages(raw: unknown[]): HelperMessage[] {
  */
 function cleanStudent(body: HelperRequest): StudentForPrompt {
   const firstName = typeof body.firstName === "string" ? cleanFirstName(body.firstName.slice(0, 40)) : null;
-  const labels = Array.isArray(body.interests)
-    ? body.interests.filter((l): l is string => typeof l === "string").slice(0, 6)
-    : [];
-  return { firstName, interests: sanitizeTopics(labels.map((label) => ({ label, details: "" }))).slice(0, 6) };
+  const sent = Array.isArray(body.interests) ? body.interests.slice(0, 6) : [];
+  const topics = sent
+    .map((item) => {
+      if (typeof item === "string") return { label: item, details: "" };
+      if (item && typeof item === "object" && typeof (item as { label?: unknown }).label === "string") {
+        const { label, specifics } = item as { label: string; specifics?: unknown };
+        return { label, details: "", ...(typeof specifics === "string" ? { specifics } : {}) };
+      }
+      return null;
+    })
+    .filter((t): t is { label: string; details: string; specifics?: string } => t !== null);
+  return { firstName, interests: sanitizeTopics(topics).slice(0, 6) };
 }
 
 /** The house format, after the persona: what the panel can show. */
