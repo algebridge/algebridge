@@ -1909,19 +1909,20 @@ function buildWoods(c: Ctx): THREE.Group {
     c.geos?.push(merged);
     return merged;
   };
+  // A crown's facets are few: the nearest tree stands fifty metres off.
   const sphere = (r: number, at: V3, sy = 1) => {
-    const g = new THREE.SphereGeometry(r, 12, 10);
+    const g = new THREE.SphereGeometry(r, 9, 7);
     g.scale(1, sy, 1);
     g.translate(...at);
     return g;
   };
   const cone = (r: number, h: number, at: V3) => {
-    const g = new THREE.ConeGeometry(r, h, 10);
+    const g = new THREE.ConeGeometry(r, h, 8);
     g.translate(...at);
     return g;
   };
   const trunk = (r0: number, r1: number, h: number) => {
-    const g = new THREE.CylinderGeometry(r0, r1, h, 8);
+    const g = new THREE.CylinderGeometry(r0, r1, h, 6);
     g.translate(0, h / 2, 0);
     return g;
   };
@@ -2951,7 +2952,7 @@ export function buildGarden(k: Kit, state: GardenState, opts: { night: boolean; 
     g.name = "garden";
     g.add(buildGround(c, opts.night));
     g.add(buildHouse(c, theme, opts.night));
-    g.add(buildFence(c));
+    g.add(mergedPart(c, buildFence(c)));
     g.add(buildBorders(c));
     // Trees in the neighbours' yards, beyond the fence and behind the house.
     g.add(farTree(c, [-10.6, 0, -4.5], 9.5, 2.8, "#55803d", 11));
@@ -3676,53 +3677,97 @@ function car(c: Ctx, color: string): THREE.Group {
   return g;
 }
 
+/** A static part of the yard (a fence of a hundred pickets) as a few merged meshes, keeping what it is for (`gardenPart`). */
+function mergedPart(c: Ctx, part: THREE.Object3D): THREE.Group {
+  const made = mergeStatic(part);
+  made.group.userData = part.userData;
+  c.geos?.push(...made.geos);
+  return made.group;
+}
+
 /**
- * Every mesh under a group, merged into one mesh per material: a whole
- * house drawn in a few dozen calls instead of hundreds, so a street of them
- * costs about what one used to. Lights and taps are dropped; the merged
- * geometry is returned to free later.
+ * Everything in a lot merged into one mesh per material: a few dozen draws
+ * instead of a few hundred. Built in one pass, each piece's vertices
+ * transformed straight into the merged buffers and kept indexed, so a lot
+ * takes a few milliseconds and a third of the memory a copy-and-convert
+ * merge did. A mirrored piece winds its triangles backwards: they are turned
+ * round so it still faces out.
  */
 function mergeStatic(root: THREE.Object3D): { group: THREE.Group; geos: THREE.BufferGeometry[] } {
   root.updateMatrixWorld(true);
   const inv = root.matrixWorld.clone().invert();
-  const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>();
-  const m4 = new THREE.Matrix4();
+  type Part = { geo: THREE.BufferGeometry; m4: THREE.Matrix4; mirrored: boolean };
+  const buckets = new Map<THREE.Material, Part[]>();
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.visible) return;
-    let geo = mesh.geometry.clone();
-    m4.multiplyMatrices(inv, mesh.matrixWorld);
-    geo.applyMatrix4(m4);
-    if (geo.index) geo = geo.toNonIndexed();
-    // A mirrored piece winds its triangles backwards: turn them round.
-    if (m4.determinant() < 0) {
-      for (const name of Object.keys(geo.attributes)) {
-        const a = geo.getAttribute(name) as THREE.BufferAttribute;
-        const n = a.itemSize;
-        for (let t = 0; t < a.count; t += 3)
-          for (let j = 0; j < n; j += 1) {
-            const v1 = a.array[(t + 1) * n + j];
-            (a.array as Float32Array)[(t + 1) * n + j] = a.array[(t + 2) * n + j];
-            (a.array as Float32Array)[(t + 2) * n + j] = v1;
-          }
-      }
-    }
-    for (const name of Object.keys(geo.attributes)) if (name !== "position" && name !== "normal" && name !== "uv") geo.deleteAttribute(name);
-    if (!geo.getAttribute("normal")) geo.computeVertexNormals();
-    if (!geo.getAttribute("uv")) geo.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(geo.getAttribute("position").count * 2), 2));
-    geo.clearGroups();
+    if (!mesh.isMesh || Array.isArray(mesh.material) || !mesh.visible || !mesh.geometry.getAttribute("position")) return;
+    const m4 = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
     const list = buckets.get(mesh.material) ?? [];
-    list.push(geo);
+    list.push({ geo: mesh.geometry, m4, mirrored: m4.determinant() < 0 });
     buckets.set(mesh.material, list);
   });
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
-  for (const [mat, list] of buckets) {
-    const merged = mergeGeometries(list, false);
-    for (const g of list) g.dispose();
-    if (!merged) continue;
-    geos.push(merged);
-    const mesh = new THREE.Mesh(merged, mat);
+  const v = new THREE.Vector3();
+  const nm = new THREE.Matrix3();
+  for (const [mat, parts] of buckets) {
+    let verts = 0;
+    let indices = 0;
+    for (const p of parts) {
+      verts += p.geo.getAttribute("position").count;
+      indices += p.geo.index ? p.geo.index.count : p.geo.getAttribute("position").count;
+    }
+    const pos = new Float32Array(verts * 3);
+    const nrm = new Float32Array(verts * 3);
+    const uv = new Float32Array(verts * 2);
+    const idx = verts > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
+    let vo = 0;
+    let io = 0;
+    let normalsMissing = false;
+    for (const p of parts) {
+      const sp = p.geo.getAttribute("position");
+      const sn = p.geo.getAttribute("normal");
+      const su = p.geo.getAttribute("uv");
+      nm.getNormalMatrix(p.m4);
+      const n = sp.count;
+      for (let i = 0; i < n; i += 1) {
+        const at = (vo + i) * 3;
+        v.fromBufferAttribute(sp, i).applyMatrix4(p.m4);
+        pos[at] = v.x;
+        pos[at + 1] = v.y;
+        pos[at + 2] = v.z;
+        if (sn) {
+          v.fromBufferAttribute(sn, i).applyMatrix3(nm).normalize();
+          nrm[at] = v.x;
+          nrm[at + 1] = v.y;
+          nrm[at + 2] = v.z;
+        } else normalsMissing = true;
+        if (su) {
+          uv[(vo + i) * 2] = su.getX(i);
+          uv[(vo + i) * 2 + 1] = su.getY(i);
+        }
+      }
+      const index = p.geo.index;
+      const count = index ? index.count : n;
+      for (let t = 0; t < count; t += 3) {
+        const a = index ? index.getX(t) : t;
+        const b = index ? index.getX(t + 1) : t + 1;
+        const c = index ? index.getX(t + 2) : t + 2;
+        idx[io + t] = vo + a;
+        idx[io + t + 1] = vo + (p.mirrored ? c : b);
+        idx[io + t + 2] = vo + (p.mirrored ? b : c);
+      }
+      vo += n;
+      io += count;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(nrm, 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    if (normalsMissing) geo.computeVertexNormals();
+    geos.push(geo);
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);
@@ -3884,7 +3929,7 @@ export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unre
     // A shade tree in the front lawn, the grass, and the fence.
     g.add(farTree(c, [-4.4, 0, 0.6], 6.8, 2.5, "#55803d", 31));
     g.add(grassTufts(c, { x0: -6.6, x1: 6.6, z0: -3.9, z1: 4.5 }, 300, 3, (x, z) => Math.abs(x - L.doorX) < 0.8 || Math.hypot(x + 4.4, z - 0.6) < 0.6));
-    g.add(picketFence(c, 4.75));
+    g.add(mergedPart(c, picketFence(c, 4.75)));
     // Sidewalk, curb and street, running past either way.
     const conc = k.stone("concrete");
     const ROAD = 240;

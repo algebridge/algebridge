@@ -82,6 +82,14 @@ interface SceneLight {
 
 /** How many places to keep built. */
 const KEEP_BUILT = 8;
+/**
+ * Pixels drawn per CSS pixel: at most this many for the frame at rest (a
+ * Retina screen's full 2 is nearly twice the work for a difference that
+ * takes a magnifier), and down to MIN_RATIO for a moving frame on a computer
+ * that falls behind (see pacedRatio).
+ */
+const MAX_RATIO = 1.5;
+const MIN_RATIO = 0.75;
 
 /** How close (as a zoom) the porch view comes before the walls in the way open up. */
 const DOLLHOUSE_ZOOM = 1.45;
@@ -208,6 +216,8 @@ export class HouseView {
   private dollhouse: Dollhouse | null = null;
   private dollhouseShown = false;
   private frontStyle = "cottage";
+  /** The house style on show in any view, for building its other places ahead (see warmPlaces). */
+  private styleId = "cottage";
   private pendingPieces: ScenePiece[] | null = null;
   /** The student's character, on the porch or out on the street (the porch view only). */
   private figure: Figure | null = null;
@@ -221,6 +231,16 @@ export class HouseView {
   private post: Post | null = null;
   private postFailed = false;
   private size = { width: 2, height: 2 };
+  /** Pixels per CSS pixel: for the frame at rest, for a moving frame, and what the canvas has now. */
+  private ratioRest = 1;
+  private ratioMove = 1;
+  private ratioNow = 1;
+  /** How the moving frames keep up: the last one's time, the running gap between them, and the counts that decide a step down or up. */
+  private pace = { last: 0, ema: 0, slow: 0, fine: 0, changedAt: 0 };
+  private lastStep = 0;
+  private wasMoving = false;
+  /** When the view was last turned by a drag: for that moment the camera follows the pointer exactly. */
+  private turnAt = 0;
   /** Light from the sky itself for the outdoor views, by day and by night, made once each. */
   private skyEnvs = new Map<string, THREE.Texture>();
   /** New materials wait to be compiled off the main thread before they are drawn (see step). */
@@ -242,12 +262,16 @@ export class HouseView {
     // Asking whether each shader compiled stalls the page until the GPU is done
     // (seconds on a first visit): the browser compiles them in parallel instead.
     this.renderer.debug.checkShaderErrors = false;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.ratioRest = Math.min(window.devicePixelRatio || 1, MAX_RATIO);
+    this.ratioMove = this.ratioRest;
+    this.ratioNow = this.ratioRest;
+    this.renderer.setPixelRatio(this.ratioRest);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Plain PCF: a third of the soft kind's cost on every pixel, the edge softened by the radius below.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
@@ -267,7 +291,9 @@ export class HouseView {
     this.sun.position.set(-7.5, 5.2, 1.4);
     this.sun.target.position.set(0.4, 0, -0.4);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    // A phone's screen is small enough that half the shadow texels read the same, for a quarter of the work.
+    const phone = Math.min(window.innerWidth || 1024, window.innerHeight || 1024) < 700;
+    this.sun.shadow.mapSize.set(phone ? 1024 : 2048, phone ? 1024 : 2048);
     const sc = this.sun.shadow.camera;
     sc.left = -5;
     sc.right = 5;
@@ -277,7 +303,7 @@ export class HouseView {
     sc.far = 20;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.025;
-    this.sun.shadow.radius = 4;
+    this.sun.shadow.radius = 2;
     this.scene.add(this.sun, this.sun.target);
 
     // Moonlight, faint and cool, for the night.
@@ -325,14 +351,22 @@ export class HouseView {
       });
       return;
     }
-    // Ease the camera; keep drawing only while it is still moving.
+    // Ease the camera; keep drawing only while it is still moving. The
+    // easing runs on the clock (a slow frame covers more of the way, so a
+    // move feels the same at any frame rate), and a drag in progress is
+    // followed exactly, with nothing trailing behind the pointer.
+    const now = performance.now();
+    const dt = this.lastStep ? Math.min(0.05, (now - this.lastStep) / 1000) : 1 / 60;
+    this.lastStep = now;
+    const turning = now - this.turnAt < 150;
     const o = this.orbit;
-    const k = this.reduceMotion ? 1 : 0.22;
-    o.azimuth += (this.goal.azimuth - o.azimuth) * k;
-    o.polar += (this.goal.polar - o.polar) * k;
+    const k = this.reduceMotion ? 1 : 1 - Math.exp(-dt * 14);
+    const kt = turning ? 1 : k;
+    o.azimuth += (this.goal.azimuth - o.azimuth) * kt;
+    o.polar += (this.goal.polar - o.polar) * kt;
     const want = (this.walk.on ? WALK_DISTANCE : this.fitDistance) / this.goal.zoom;
     o.distance += (want - o.distance) * k;
-    let moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
+    let moving = turning || Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
     if (this.walk.on) moving = this.stepWalk() || moving;
     this.placeCamera();
     this.clearNeighbours();
@@ -341,10 +375,61 @@ export class HouseView {
       this.invalidate();
       return;
     }
+    // A moving frame is drawn plain, at the size the computer keeps up with; the frame at rest in full, with its finish.
+    this.applyRatio(moving ? this.pacedRatio(now) : this.ratioRest);
     if (moving) this.renderer.render(this.scene, this.camera);
     else this.renderFine();
     this.drawnOnce();
+    this.wasMoving = moving;
     if (moving) this.invalidate();
+    else this.pace.last = 0;
+  }
+
+  /** Sets how many pixels the canvas has per CSS pixel, when that changes. */
+  private applyRatio(ratio: number): void {
+    if (ratio === this.ratioNow) return;
+    this.ratioNow = ratio;
+    this.renderer.setPixelRatio(ratio);
+    this.renderer.setSize(this.size.width, this.size.height, false);
+  }
+
+  /**
+   * How many pixels a moving frame gets. The frames' own timing says
+   * whether the computer keeps up: when they run late (over 20 ms apart on
+   * average, six in a row, so frames are being dropped) the moving picture
+   * drops a step in size, and after a long smooth stretch it steps back up.
+   * The frame at rest is always drawn in full, so a slower computer sees the
+   * same house, and only the swing of a drag is softer.
+   */
+  private pacedRatio(now: number): number {
+    const p = this.pace;
+    if (p.last) {
+      const gap = now - p.last;
+      p.ema = p.ema ? p.ema * 0.8 + gap * 0.2 : gap;
+      if (p.ema > 20) {
+        p.slow += 1;
+        p.fine = 0;
+      } else {
+        p.fine += 1;
+        if (p.ema < 17.5) p.slow = 0;
+      }
+      if (p.slow >= 6 && this.ratioMove > MIN_RATIO) {
+        this.ratioMove = Math.max(MIN_RATIO, Math.round((this.ratioMove - 0.25) * 100) / 100);
+        p.slow = 0;
+        p.ema = 0;
+        p.changedAt = now;
+      } else if (p.fine >= 240 && this.ratioMove < this.ratioRest && now - p.changedAt > 4000) {
+        this.ratioMove = Math.min(this.ratioRest, Math.round((this.ratioMove + 0.25) * 100) / 100);
+        p.fine = 0;
+        p.ema = 0;
+        p.changedAt = now;
+      }
+    } else {
+      p.ema = 0;
+      p.slow = 0;
+    }
+    p.last = now;
+    return this.ratioMove;
   }
 
   /** A frame at rest, with its finish (lib/house3d/post.ts); plain where that is unavailable. */
@@ -378,9 +463,9 @@ export class HouseView {
   /** Fits the whole room (or the yard) into the view at its starting angle, for this canvas's shape. */
   resize(width: number, height: number): void {
     if (width < 2 || height < 2) return;
-    this.renderer.setSize(width, height, false);
     this.size = { width, height };
-    this.post?.setSize(width, height);
+    this.renderer.setSize(width, height, false);
+    this.post?.setSize(width, height, this.ratioRest);
     this.camera.aspect = width / height;
     // A phone held upright sees the room from a little higher and further back.
     this.camera.fov = this.camera.aspect < 0.9 ? 40 : 30;
@@ -490,15 +575,13 @@ export class HouseView {
 
   setRoom(styleId: string, floor: "down" | "up", night: boolean): void {
     this.enter("room");
+    this.styleId = styleId;
     const key = `${styleId}:${floor}:${night}`;
     this.setNightLight(night);
     if (key === this.roomKey) return;
     this.roomKey = key;
     if (this.room) this.scene.remove(this.room.group);
-    const b = this.keep(`room:${key}`, () => {
-      const r = buildRoom(this.kit, themeFor(styleId), floor, night);
-      return { group: r.group, dispose: () => r.dispose(), lights: this.takeLights(r.group), room: r };
-    });
+    const b = this.keep(`room:${key}`, () => this.makeRoom(styleId, floor, night));
     this.room = b.room!;
     this.sceneLights = b.lights;
     this.updateLamps();
@@ -563,6 +646,7 @@ export class HouseView {
   /** The backyard: the beds, the tree and the sprinkler as the student's progress has grown them, and the ornaments put out. */
   showGarden(state: GardenState, styleId: string, night: boolean, ornaments: { instanceId: string; itemId: string; x: number; z: number; on?: boolean; turn?: number }[]): void {
     this.enter("garden");
+    this.styleId = styleId;
     const key = `${styleId}:${night}:${JSON.stringify(state)}`;
     if (key !== this.gardenKey) {
       this.dropGarden();
@@ -577,6 +661,7 @@ export class HouseView {
   /** The front of the house from the street: the porch, and the mailbox with its flag up while messages are unread. */
   showFront(styleId: string, night: boolean, unread: number): void {
     this.enter("front");
+    this.styleId = styleId;
     const key = `front:${styleId}:${night}:${unread > 0}`;
     if (key !== this.gardenKey) {
       this.dropGarden();
@@ -665,6 +750,28 @@ export class HouseView {
     return { key: `${this.frontStyle}:${night}`, group, floors, rooms, cut };
   }
 
+  /** The furnished rooms inside the porch view's house: built hidden, hung on the porch scene, and freed with it. */
+  private attachDollhouse(): Dollhouse | null {
+    if (this.dollhouse || !this.garden || this.mode !== "front") return this.dollhouse;
+    const d = this.buildDollhouse(this.night);
+    d.group.userData.dollhouseKey = d.key;
+    d.group.userData.dollhouse = d;
+    this.garden.group.add(d.group);
+    this.dollhouse = d;
+    // Free the rooms with the porch scene when it goes.
+    const entry = this.built.get(this.gardenKey);
+    if (entry) {
+      const before = entry.dispose;
+      const rooms = d.rooms;
+      entry.dispose = () => {
+        before();
+        for (const r of rooms) r.dispose();
+      };
+    }
+    if (this.pendingPieces) this.setPieces(this.pendingPieces);
+    return d;
+  }
+
   /**
    * The porch view, zoomed in: the roof and the walls between you and the
    * inside step aside and the furnished rooms show, like an open dollhouse.
@@ -674,21 +781,7 @@ export class HouseView {
     const inside = !this.walk.on && this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
     let built = false;
     if (inside && !this.dollhouse && this.garden) {
-      this.dollhouse = this.buildDollhouse(this.night);
-      this.dollhouse.group.userData.dollhouseKey = this.dollhouse.key;
-      this.dollhouse.group.userData.dollhouse = this.dollhouse;
-      this.garden.group.add(this.dollhouse.group);
-      // Free the rooms with the porch scene when it goes.
-      const entry = this.built.get(this.gardenKey);
-      if (entry) {
-        const before = entry.dispose;
-        const rooms = this.dollhouse.rooms;
-        entry.dispose = () => {
-          before();
-          for (const r of rooms) r.dispose();
-        };
-      }
-      if (this.pendingPieces) this.setPieces(this.pendingPieces);
+      this.attachDollhouse();
       this.needsCompile = true;
       built = true;
     }
@@ -708,11 +801,6 @@ export class HouseView {
     return built;
   }
 
-  /**
-   * The neighbours, one house at a time once the page is idle: the porch or
-   * the garden is on screen first, then the street fills in, and no single
-   * task is long enough to freeze anything.
-   */
   /** Who lives on the street; the lots are rebuilt when that changes. */
   setNeighbours(neighbours: StreetNeighbour[]): void {
     this.neighbours = neighbours;
@@ -735,26 +823,85 @@ export class HouseView {
     this.buildLater(group, b.street(this.neighbours), key);
   }
 
+  /**
+   * The neighbours, one lot at a time once the page is idle and the view
+   * stands still: the porch or the garden is on screen first, then the
+   * street fills in, and no frame waits on it. After the last lot, the
+   * places a click would build next are built ahead (warmPlaces).
+   */
   private buildLater(group: THREE.Object3D, jobs: (() => THREE.Object3D)[], key: string): void {
+    const alive = () => group.userData.streetKey === key;
+    this.idleRun(
+      [
+        ...jobs.map((job) => async () => {
+          // Built and merged in a few milliseconds; its shaders compile against this scene before it joins, so no frame waits on it.
+          const lot = job();
+          await compileQuietly(this.renderer, lot, this.camera, this.scene);
+          if (this.disposed || !alive()) return;
+          group.add(lot);
+          delete group.userData.neighbours;
+          this.refreshBlockers();
+          this.invalidate();
+        }),
+        () => this.warmPlaces(),
+      ],
+      alive,
+    );
+  }
+
+  /**
+   * Runs jobs one at a time in idle moments while the view stands still
+   * (a drag or a walk keeps its frames; after 2.5 s of either, the next job
+   * runs anyway), after the first frame and never while a compile is on.
+   */
+  private idleRun(jobs: (() => Promise<void> | void)[], alive: () => boolean = () => true): void {
     const queue = [...jobs];
     const idle = (fn: () => void) => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 1500 }) : window.setTimeout(fn, 60));
+    let held = 0;
     const next = () => {
-      // A newer street (the neighbours changed) has taken over.
-      if (this.disposed || !queue.length || group.userData.streetKey !== key) return;
-      // Wait for the first frame of this place, and for any compiling to finish.
-      if (this.compiling || this.needsCompile) {
+      if (this.disposed || !queue.length || !alive()) return;
+      if (this.compiling || this.needsCompile || (this.wasMoving && held < 2500)) {
+        held += 120;
         window.setTimeout(() => idle(next), 120);
         return;
       }
-      const obj = queue.shift()!;
-      group.add(obj());
-      delete group.userData.neighbours;
-      this.refreshBlockers();
-      this.needsCompile = true;
-      this.invalidate();
-      idle(next);
+      held = 0;
+      void Promise.resolve(queue.shift()!()).then(() => idle(next));
     };
     this.firstFrame.then(() => idle(next));
+  }
+
+  /**
+   * What the next click would build, built ahead while the page is idle:
+   * the inside of the house (for the zoom in) and both floors of this
+   * style (for their tabs), each compiled against the scene it will show
+   * in. The first click on each is then as quick as the second.
+   */
+  private warmPlaces(): void {
+    const styleId = this.styleId;
+    const night = this.night;
+    this.idleRun([() => this.warmDollhouse(), () => this.warmRoom(styleId, "down", night), () => this.warmRoom(styleId, "up", night)]);
+  }
+
+  private async warmDollhouse(): Promise<void> {
+    if (this.mode !== "front" || this.dollhouse || !this.garden) return;
+    const d = this.attachDollhouse();
+    if (d) await compileQuietly(this.renderer, d.group, this.camera, this.scene);
+  }
+
+  private async warmRoom(styleId: string, floor: "down" | "up", night: boolean): Promise<void> {
+    const key = `room:${styleId}:${floor}:${night}`;
+    if (this.built.has(key)) return;
+    const b = this.keepQuiet(key, () => this.makeRoom(styleId, floor, night));
+    // Compiled as a room is lit: no fog, the room's own bounce light (the compile reads the scene before the first await).
+    const fog = this.scene.fog;
+    const env = this.scene.environment;
+    this.scene.fog = null;
+    this.scene.environment = this.envTarget.texture;
+    const done = compileQuietly(this.renderer, b.group, this.camera, this.scene);
+    this.scene.fog = fog;
+    this.scene.environment = env;
+    await done;
   }
 
   // --- The character and the street -------------------------------------------
@@ -973,8 +1120,22 @@ export class HouseView {
     this.sceneLights = [];
   }
 
-  /** A place from the built ones, or built now (and then it has shaders to compile). */
-  private keep(key: string, make: () => { group: THREE.Object3D; dispose(): void; lights: SceneLight[]; room?: RoomParts }) {
+  /** A room, built and its lights taken out for the pool. */
+  private makeRoom(styleId: string, floor: "down" | "up", night: boolean): Built {
+    const r = buildRoom(this.kit, themeFor(styleId), floor, night);
+    return { group: r.group, dispose: () => r.dispose(), lights: this.takeLights(r.group), room: r };
+  }
+
+  /** A place from the built ones, or built now (and then it has shaders to compile, unless it was built ahead: see warmPlaces). */
+  private keep(key: string, make: () => Built): Built {
+    const had = this.built.has(key);
+    const b = this.keepQuiet(key, make);
+    if (!had) this.needsCompile = true;
+    return b;
+  }
+
+  /** A place from the built ones, or built now, with no compile asked for. */
+  private keepQuiet(key: string, make: () => Built): Built {
     let b = this.built.get(key);
     if (b) {
       this.built.delete(key);
@@ -982,7 +1143,6 @@ export class HouseView {
       return b;
     }
     b = make();
-    this.needsCompile = true;
     this.built.set(key, b);
     // The oldest go, never the one being shown.
     for (const [k, old] of this.built) {
@@ -1284,6 +1444,7 @@ export class HouseView {
 
   /** Turns the view round the room, within a range that keeps the open side towards you. */
   turn(dx: number, dy: number): void {
+    this.turnAt = performance.now();
     const v = this.walk.on ? VIEWS.walk : VIEWS[this.mode];
     this.goal.azimuth = clamp(this.goal.azimuth - dx * 0.006, v.azimuthRange[0], v.azimuthRange[1]);
     this.goal.polar = clamp(this.goal.polar - dy * 0.004, v.polarRange[0], v.polarRange[1]);
@@ -1329,6 +1490,7 @@ export class HouseView {
     await compileQuietly(this.renderer, this.scene, this.camera);
     this.needsCompile = false;
     this.placeCamera();
+    this.applyRatio(this.ratioRest);
     this.renderFine();
     const blob = await new Promise<Blob | null>((r) => this.renderer.domElement.toBlob(r, "image/png"));
     return blob ? URL.createObjectURL(blob) : this.renderer.domElement.toDataURL("image/png");
