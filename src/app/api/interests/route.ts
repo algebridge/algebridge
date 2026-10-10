@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { aiConfigured, callJson, clientKey, makeRateLimiter } from "@/lib/ai-provider";
-import { cleanText, mergeTopics, NOTE_MAX, sanitizeTopics, topicsFromPicks, validPicks, validSpecifics } from "@/lib/interests";
+import {
+  applyCleanedSpecifics,
+  cleanText,
+  mergeTopics,
+  NOTE_MAX,
+  sanitizeTopics,
+  topicsFromPicks,
+  validPicks,
+  validSpecifics,
+} from "@/lib/interests";
 import { parseModelJson } from "@/lib/personalize";
 import { detectCrisis } from "@/lib/helper";
 
@@ -28,6 +37,10 @@ const allow = makeRateLimiter(600, 10 * 60 * 1000);
 
 const SYSTEM = `A student aged 12 to 16 told us what they are into. Turn it into topics for setting math word problems.
 
+They tapped some options ("tapped", each maybe with "their_specifics": the teams, players, characters, games, artists or brands they named for it) and may have written more ("wrote").
+
+First, "tapped": return every tapped interest with its specifics cleaned. Keep public things: teams, athletes, characters, shows, games, artists, creators, brands, kinds of pets, places in a game. Keep their wording and spelling. Drop anything about a person they know (a friend, a coach, a teammate by name, a teacher), their school, their town, and anything unkind or not school-appropriate. Leave specifics as "" when nothing public is left. "my dog", "my club team" and "my own channel" are fine: they name no one.
+
 Rules:
 - Turn what they WROTE into topics: include every separate interest they mention, up to 4 ("I bake cookies and post on TikTok" is two: Baking and TikTok). The options they tapped are already kept separately, so only add a tapped one if their writing adds detail to it.
 - label: 1 to 3 words, Title Case, like "Basketball", "Formula 1", "Baking".
@@ -37,7 +50,7 @@ Rules:
 - Leave out anything that is not an interest, anything unkind or not school-appropriate, and anything personal such as names of people they know, their school, or where they live.
 - If nothing usable is left, return an empty list.
 
-Reply with JSON only: {"topics":[{"label":"...","details":"...","specifics":"..."}]}`;
+Reply with JSON only: {"tapped":[{"interest":"...","specifics":"..."}],"topics":[{"label":"...","details":"...","specifics":"..."}]}`;
 
 export async function POST(request: Request) {
   let body: { picks?: unknown; note?: unknown; specifics?: unknown };
@@ -52,8 +65,11 @@ export async function POST(request: Request) {
   const specifics = validSpecifics(body.specifics, picks);
   const fromPicks = topicsFromPicks(picks, specifics);
 
-  if (!note) return NextResponse.json({ topics: fromPicks, source: "picks" });
-  if (detectCrisis(note)) return NextResponse.json({ topics: fromPicks, source: "picks", crisis: true });
+  const hasSpecifics = Object.keys(specifics).length > 0;
+  if (!note && !hasSpecifics) return NextResponse.json({ topics: fromPicks, source: "picks" });
+  if (detectCrisis([note, ...Object.values(specifics)].join(" "))) {
+    return NextResponse.json({ topics: topicsFromPicks(picks), source: "picks", crisis: true });
+  }
   if (!aiConfigured() || !allow(clientKey(request))) {
     return NextResponse.json({ topics: fromPicks, source: "picks" });
   }
@@ -61,7 +77,7 @@ export async function POST(request: Request) {
   const tapped = fromPicks.map((t) => (t.specifics ? { interest: t.label, their_specifics: t.specifics } : { interest: t.label }));
   const result = await callJson({
     system: SYSTEM,
-    user: JSON.stringify({ tapped, wrote: note }),
+    user: JSON.stringify({ tapped, wrote: note || "" }),
     groqModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
     maxTokens: 700,
     // Reading a sentence into a list should not vary from one save to the next.
@@ -70,7 +86,8 @@ export async function POST(request: Request) {
   });
 
   const parsed = result ? parseModelJson(result.text) : null;
-  const fromNote = sanitizeTopics(parsed?.topics);
-  if (!fromNote.length) return NextResponse.json({ topics: fromPicks, source: "picks" });
-  return NextResponse.json({ topics: mergeTopics(fromPicks, fromNote), source: "ai" });
+  if (!parsed) return NextResponse.json({ topics: fromPicks, source: "picks" });
+  const tappedClean = applyCleanedSpecifics(fromPicks, parsed.tapped);
+  const fromNote = note ? sanitizeTopics(parsed.topics) : [];
+  return NextResponse.json({ topics: mergeTopics(tappedClean, fromNote), source: "ai" });
 }

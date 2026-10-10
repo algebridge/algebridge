@@ -16,7 +16,8 @@ Object.assign(globalThis, {
 
 import { readFileSync } from "node:fs";
 const { numericAnswerMatches, parseNumericAnswer } = await import("../grading.ts");
-const { sanitizeTopics, topicsFromPicks, isSchoolSafe, INTEREST_OPTIONS } = await import("../interests.ts");
+const { sanitizeTopics, topicsFromPicks, isSchoolSafe, INTEREST_OPTIONS, cleanSpecifics } = await import("../interests.ts");
+const cleanSpecificsOk = (s: string) => cleanSpecifics(s) === s;
 const P = await import("../personalize.ts");
 const { forbiddenValues, leaksAnswer, leaksAnswerText } = await import("../helper.ts");
 const { recordProblemAttempt, getSkillPracticeStats, solvedCount, getProgress, saveProgress } = await import(
@@ -143,6 +144,25 @@ ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
   ok("describe names the specifics", describeTopic(own[0]) === "Soccer (Arsenal, Messi)");
   const merged = mergeTopics(topicsFromPicks(["soccer"]), [{ label: "Soccer", details: "", specifics: "Real Madrid" }]);
   ok("the note can add specifics to a tap", merged.length === 1 && merged[0].specifics === "Real Madrid");
+  const { applyCleanedSpecifics, INTEREST_OPTIONS: OPTS } = await import("../interests.ts");
+  const raw = topicsFromPicks(["soccer", "anime", "music"], { soccer: "Arsenal, my coach Dave", anime: "One Piece", music: "Drake" });
+  const cleaned = applyCleanedSpecifics(raw, [
+    { interest: "soccer", specifics: "Arsenal" },
+    { interest: "Anime & manga", specifics: "" },
+    { interest: "Nope", specifics: "x" },
+  ]);
+  ok("the model's cleaning replaces what was typed", cleaned[0].specifics === "Arsenal");
+  ok("an emptied line loses its specifics", !("specifics" in cleaned[1]));
+  ok("a topic the model skipped keeps its own", cleaned[2].specifics === "Drake");
+  ok("a bad cleaning payload changes nothing", applyCleanedSpecifics(raw, "junk")[0].specifics === "Arsenal, my coach Dave");
+  ok("every option has an ask, an example and suggestions", OPTS.every((o) => o.ask && o.example && o.suggestions.length >= 6));
+  ok("every suggestion passes the specifics check", OPTS.every((o) => o.suggestions.every((s) => cleanSpecificsOk(s))));
+  const { namesFavorite } = await import("../interests.ts");
+  const fan = { specifics: "Arsenal, Messi, my club team" };
+  ok("a story that names a favorite passes", namesFavorite("Messi lines up the penalty with {1} minutes left.", fan) && namesFavorite("Your club's keeper saves {1} shots.", fan));
+  ok("a story that names none goes back", !namesFavorite("You need exactly {3} points to secure the championship.", fan) && !namesFavorite("Arsenals are flowers", { specifics: "Arsenal" }));
+  ok("no specifics means nothing to name", namesFavorite("anything", { specifics: undefined }));
+  ok("short names still count", namesFavorite("Your EA FC squad scores {1} goals.", { specifics: "EA FC" }));
 }
 for (const fine of ["skills", "bass guitar", "class", "method", "heroine", "a stable orbit", "free throw shot", "threes", "Sussex"]) {
   ok(`school-safe: "${fine}"`, isSchoolSafe(fine));
