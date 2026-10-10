@@ -214,13 +214,17 @@ const CHAT_ASK: Record<ChatKind, string> = {
 
 /**
  * What Archie may know about the student when a model writes his reply:
- * their first name and the labels of the interests they picked, nothing
- * more. The server cleans both again before they reach a prompt.
+ * their first name and the interests they picked, with the teams, players
+ * and characters they named for them, nothing more. The server cleans both
+ * again before they reach a prompt.
  */
-function studentForPrompt(firstName: string | null): { firstName?: string; interests?: string[] } {
-  let interests: string[] = [];
+function studentForPrompt(firstName: string | null): { firstName?: string; interests?: { label: string; specifics?: string }[] } {
+  let interests: { label: string; specifics?: string }[] = [];
   try {
-    interests = (getInterests()?.topics ?? []).map((t) => t.label).filter((l) => typeof l === "string").slice(0, 6);
+    interests = (getInterests()?.topics ?? [])
+      .filter((t) => typeof t.label === "string")
+      .map((t) => (t.specifics ? { label: t.label, specifics: t.specifics } : { label: t.label }))
+      .slice(0, 6);
   } catch {
     /* no saved progress: no interests */
   }

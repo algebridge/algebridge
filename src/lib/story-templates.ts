@@ -224,7 +224,7 @@ Hard rules, because a program checks every template:
 2. Copy every equation, expression, function and point exactly as written, placeholders included: {1}x + {2} = {3} stays {1}x + {2} = {3}.
 3. The question must have exactly the same answer as the original.
 4. Never state or hint at the answer, never name the wrong step or the order of steps, never list the answer choices.
-5. No quantity words (two, three, double, half). School-appropriate: no violence, weapons, dating, alcohol, drugs or gambling, and no claims about real people.
+5. No quantity words (two, three, double, half). School-appropriate: no violence, weapons, dating, alcohol, drugs or gambling. A real player, team, creator or character the student named may do in the story what they do in their world, with the placeholders' numbers; nothing about anyone's private life, and no made-up records or quotes.
 6. Plain text. No emoji, no markdown, no em dashes.
 7. If a problem comes with your_rejected_version and rejected_because, fix exactly that.
 
