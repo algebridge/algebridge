@@ -11,7 +11,12 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { GardenState } from "@/lib/garden";
-import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, type StreetNeighbour } from "./garden";
+import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, skyTexture, type StreetNeighbour } from "./garden";
+import { Post } from "./post";
+import { buildFigure, poseFigure, type Figure } from "./figure";
+import { lotBlockers, slideMove, type Rect, type StreetLot } from "./walk";
+import { avatarKey } from "@/lib/avatar";
+import type { AvatarSpec } from "@/types";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
 import { compileQuietly } from "./compile";
 import { liveSlice, watchReads } from "./live";
@@ -35,6 +40,8 @@ const VIEWS = {
   garden: { azimuth: 0.36, polar: 1.0, target: [0, 0.9, -1.2], azimuthRange: [-1.05, 1.05], polarRange: [0.62, 1.3] },
   // The porch view turns all the way round the house.
   front: { azimuth: 0.26, polar: 1.12, target: [0.4, 2.2, -6.0], azimuthRange: [-1000, 1000], polarRange: [0.62, 1.32] },
+  // Walking: the camera follows the character a few steps behind, and may swing right round them.
+  walk: { azimuth: Math.PI, polar: 1.2, target: [0, 1.25, 0], azimuthRange: [-1000, 1000], polarRange: [0.95, 1.5] },
 } as const;
 
 type Mode = keyof typeof VIEWS;
@@ -80,6 +87,11 @@ const KEEP_BUILT = 8;
 const DOLLHOUSE_ZOOM = 1.45;
 /** How close the porch view may come. */
 const ZOOM_MAX: Record<string, number> = { room: 1.9, garden: 1.9, front: 3.4 };
+/** How far behind the character the camera walks, before zooming. */
+const WALK_DISTANCE = 5.4;
+/** Where the character stands on the porch, and where a walk starts (the gate). */
+const PORCH_SPOT = { x: GARDEN_LAYOUT.doorX + 1.7, y: FRONT_LAYOUT.porch.top, z: GARDEN_LAYOUT.wallZ + 0.15 + 0.95 };
+const GATE_SPOT = { x: GARDEN_LAYOUT.doorX, z: 5.75 };
 /** How far out each view may go: the porch view backs off down the street to show the neighbours. */
 const ZOOM_MIN: Record<string, number> = { room: 0.85, garden: 0.85, front: 0.55 };
 
@@ -197,6 +209,20 @@ export class HouseView {
   private dollhouseShown = false;
   private frontStyle = "cottage";
   private pendingPieces: ScenePiece[] | null = null;
+  /** The student's character, on the porch or out on the street (the porch view only). */
+  private figure: Figure | null = null;
+  private figureSpec: AvatarSpec | null = null;
+  private figureShadow: THREE.Mesh | null = null;
+  /** Walking: where the character is and faces, the stride, and what the keys or the stick are asking. */
+  private walk = { on: false, x: 0, z: 0, heading: 0, phase: 0, input: { x: 0, y: 0 }, run: false, moving: false, last: 0 };
+  /** Everything solid on the street, from the lots built so far. */
+  private blockers: Rect[] = [];
+  /** The finishing passes for a frame at rest (null until the first one, or where WebGL 2 is missing). */
+  private post: Post | null = null;
+  private postFailed = false;
+  private size = { width: 2, height: 2 };
+  /** Light from the sky itself for the outdoor views, by day and by night, made once each. */
+  private skyEnvs = new Map<string, THREE.Texture>();
   /** New materials wait to be compiled off the main thread before they are drawn (see step). */
   private needsCompile = true;
   private compiling = false;
@@ -221,7 +247,7 @@ export class HouseView {
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
@@ -304,9 +330,10 @@ export class HouseView {
     const k = this.reduceMotion ? 1 : 0.22;
     o.azimuth += (this.goal.azimuth - o.azimuth) * k;
     o.polar += (this.goal.polar - o.polar) * k;
-    const want = this.fitDistance / this.goal.zoom;
+    const want = (this.walk.on ? WALK_DISTANCE : this.fitDistance) / this.goal.zoom;
     o.distance += (want - o.distance) * k;
-    const moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
+    let moving = Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
+    if (this.walk.on) moving = this.stepWalk() || moving;
     this.placeCamera();
     this.clearNeighbours();
     if (this.mode === "front" && this.applyCutaway()) {
@@ -314,9 +341,31 @@ export class HouseView {
       this.invalidate();
       return;
     }
-    this.renderer.render(this.scene, this.camera);
+    if (moving) this.renderer.render(this.scene, this.camera);
+    else this.renderFine();
     this.drawnOnce();
     if (moving) this.invalidate();
+  }
+
+  /** A frame at rest, with its finish (lib/house3d/post.ts); plain where that is unavailable. */
+  private renderFine(): void {
+    if (!this.post && !this.postFailed) {
+      try {
+        if (this.renderer.capabilities.isWebGL2) {
+          this.post = new Post(this.renderer, this.scene, this.camera, this.size.width, this.size.height);
+          // Its shaders compile in the background; the frame at rest is drawn again with the finish once they have.
+          void this.post.warm().then(() => this.invalidate());
+        } else this.postFailed = true;
+      } catch {
+        this.postFailed = true;
+      }
+    }
+    if (!this.post?.ready) {
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+    this.post.setMode(this.mode === "room", this.night);
+    this.post.render();
   }
 
   private placeCamera(): void {
@@ -330,6 +379,8 @@ export class HouseView {
   resize(width: number, height: number): void {
     if (width < 2 || height < 2) return;
     this.renderer.setSize(width, height, false);
+    this.size = { width, height };
+    this.post?.setSize(width, height);
     this.camera.aspect = width / height;
     // A phone held upright sees the room from a little higher and further back.
     this.camera.fov = this.camera.aspect < 0.9 ? 40 : 30;
@@ -375,7 +426,7 @@ export class HouseView {
     this.orbit.polar = saved.polar;
     this.orbit.distance = snap ? hi / this.goal.zoom : saved.distance;
     // Outdoors the sky is a dome 120 m round.
-    this.camera.far = this.mode !== "room" ? 320 : 80;
+    this.camera.far = this.mode !== "room" ? 620 : 80;
     this.camera.updateProjectionMatrix();
     this.invalidate();
   }
@@ -394,6 +445,8 @@ export class HouseView {
     }
     this.roomKey = "";
     this.dropGarden();
+    this.stopWalk();
+    this.removeFigure();
     this.shellCut = [];
     this.dollhouse = null;
     this.dollhouseShown = false;
@@ -460,12 +513,17 @@ export class HouseView {
   private setNightLight(night: boolean): void {
     this.night = night;
     const out = this.mode !== "room";
-    this.sun.intensity = night ? 0 : out ? 3.0 : 2.6;
+    this.sun.intensity = night ? 0 : out ? 3.4 : 2.6;
     this.moon.intensity = night ? (out ? 0.55 : 0.35) : 0;
     this.hemi.intensity = night ? (out ? 0.14 : 0.05) : out ? 0.75 : 0.45;
     this.hemi.color.set(night ? "#5b6c9a" : out ? "#dfeaf7" : "#e9eef6");
     this.hemi.groundColor.set(out ? "#6f7d4c" : "#b49a7c");
-    this.scene.environmentIntensity = night ? (out ? 0.14 : 0.1) : out ? 0.5 : 0.6;
+    // Outdoors the light comes from the sky itself; indoors from a studio's soft bounce.
+    this.scene.environment = out ? this.skyEnv(night) : this.envTarget.texture;
+    this.scene.environmentIntensity = night ? (out ? 0.3 : 0.1) : out ? 1.0 : 0.6;
+    this.hemi.intensity = night ? (out ? 0.1 : 0.05) : out ? 0.5 : 0.45;
+    // Outdoors the far hills fade into the sky's own colour at the horizon; indoors there is nothing far away.
+    this.scene.fog = out ? new THREE.Fog(night ? "#222f4b" : "#dbe5ec", 80, 330) : null;
     for (const v of this.room?.views ?? []) {
       const m = v.material as THREE.MeshBasicMaterial;
       m.map = viewTexture(themeFor(this.roomKey.split(":")[0]).view, night);
@@ -474,6 +532,30 @@ export class HouseView {
     }
     this.updateLamps();
     this.invalidate();
+  }
+
+  /** The painted sky as the light round everything outdoors: blue from above, the ground's green from below. */
+  private skyEnv(night: boolean): THREE.Texture {
+    const key = night ? "night" : "day";
+    const had = this.skyEnvs.get(key);
+    if (had) return had;
+    const sky = new THREE.Scene();
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.MeshBasicMaterial({ map: skyTexture(night), side: THREE.BackSide }));
+    dome.rotation.y = -0.35;
+    sky.add(dome);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(9.5, 32), new THREE.MeshBasicMaterial({ color: night ? "#0b100c" : "#55703e" }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.4;
+    sky.add(ground);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const env = pmrem.fromScene(sky, 0.03, 0.1, 50).texture;
+    pmrem.dispose();
+    dome.geometry.dispose();
+    (dome.material as THREE.Material).dispose();
+    ground.geometry.dispose();
+    (ground.material as THREE.Material).dispose();
+    this.skyEnvs.set(key, env);
+    return env;
   }
 
   // --- The garden ---------------------------------------------------------------
@@ -512,6 +594,7 @@ export class HouseView {
       }
     }
     this.setNightLight(night);
+    if (this.figureSpec && !this.figure) this.setAvatar(this.figureSpec);
     this.invalidate();
   }
 
@@ -532,6 +615,11 @@ export class HouseView {
     const c = new THREE.Vector3();
     (shell as THREE.Object3D).updateMatrixWorld(true);
     for (const o of (shell as THREE.Object3D).children) {
+      // A part that says which way it faces (a corner tower).
+      if (Array.isArray(o.userData.cutNormal)) {
+        out.push({ obj: o, normal: new THREE.Vector3(...(o.userData.cutNormal as [number, number, number])) });
+        continue;
+      }
       box.setFromObject(o);
       if (box.isEmpty() || box.max.y < 0.45) continue;
       box.getCenter(c);
@@ -583,7 +671,7 @@ export class HouseView {
    * Returns true when the inside was built just now (it compiles first).
    */
   private applyCutaway(): boolean {
-    const inside = this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
+    const inside = !this.walk.on && this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
     let built = false;
     if (inside && !this.dollhouse && this.garden) {
       this.dollhouse = this.buildDollhouse(this.night);
@@ -643,6 +731,7 @@ export class HouseView {
       lot.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
     }
     delete group.userData.neighbours;
+    this.refreshBlockers();
     this.buildLater(group, b.street(this.neighbours), key);
   }
 
@@ -660,11 +749,176 @@ export class HouseView {
       const obj = queue.shift()!;
       group.add(obj());
       delete group.userData.neighbours;
+      this.refreshBlockers();
       this.needsCompile = true;
       this.invalidate();
       idle(next);
     };
     this.firstFrame.then(() => idle(next));
+  }
+
+  // --- The character and the street -------------------------------------------
+
+  /** The student's character, built for this spec and stood on the porch (the porch view only; null takes them away). */
+  setAvatar(spec: AvatarSpec | null): void {
+    const same = !!spec && !!this.figureSpec && avatarKey(spec) === avatarKey(this.figureSpec);
+    this.figureSpec = spec;
+    if (this.mode !== "front") return;
+    if (same && this.figure) return;
+    this.removeFigure();
+    if (!spec) return;
+    const fig = buildFigure(this.kit, spec);
+    this.figure = fig;
+    this.scene.add(fig.root);
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), this.blobMat);
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.renderOrder = 1;
+    this.figureShadow = shadow;
+    this.scene.add(shadow);
+    if (this.walk.on) this.placeFigure(this.walk.x, 0, this.walk.z, this.walk.heading);
+    else this.placeFigure(PORCH_SPOT.x, PORCH_SPOT.y, PORCH_SPOT.z, 0.2);
+    this.needsCompile = true;
+    this.invalidate();
+  }
+
+  private placeFigure(x: number, y: number, z: number, heading: number): void {
+    if (!this.figure) return;
+    this.figure.root.position.set(x, y, z);
+    this.figure.root.rotation.y = heading;
+    this.figureShadow?.position.set(x, y + 0.004, z);
+  }
+
+  private removeFigure(): void {
+    if (this.figure) this.scene.remove(this.figure.root);
+    if (this.figureShadow) {
+      this.scene.remove(this.figureShadow);
+      this.figureShadow.geometry.dispose();
+    }
+    this.figure = null;
+    this.figureShadow = null;
+  }
+
+  get walking(): boolean {
+    return this.walk.on;
+  }
+
+  /** Steps off the porch to the gate and walks the street: the camera falls in behind. False without a character or away from the porch view. */
+  startWalk(): boolean {
+    if (this.mode !== "front" || !this.figure) return false;
+    this.walk.on = true;
+    this.walk.x = GATE_SPOT.x;
+    this.walk.z = GATE_SPOT.z;
+    this.walk.heading = Math.PI / 2;
+    this.walk.phase = 0;
+    this.walk.input = { x: 0, y: 0 };
+    this.walk.moving = false;
+    this.walk.last = performance.now();
+    this.placeFigure(this.walk.x, 0, this.walk.z, this.walk.heading);
+    poseFigure(this.figure, "stand");
+    const v = VIEWS.walk;
+    this.goal = { azimuth: this.walk.heading + Math.PI, polar: v.polar, zoom: 1 };
+    this.orbit.azimuth = this.goal.azimuth;
+    this.orbit.polar = v.polar;
+    this.orbit.target.set(this.walk.x, 1.25, this.walk.z);
+    this.orbit.distance = WALK_DISTANCE;
+    // The street opens out: the whole house shows again.
+    for (const part of this.shellCut) part.obj.visible = true;
+    if (this.dollhouse) this.dollhouse.group.visible = false;
+    this.dollhouseShown = false;
+    for (const p of this.placed.values()) p.root.visible = false;
+    this.updateLamps();
+    this.invalidate();
+    return true;
+  }
+
+  /** Back to the porch, and the usual view of the house. */
+  stopWalk(): void {
+    if (!this.walk.on) return;
+    this.walk.on = false;
+    this.walk.input = { x: 0, y: 0 };
+    if (this.figure) {
+      poseFigure(this.figure, "stand");
+      this.placeFigure(PORCH_SPOT.x, PORCH_SPOT.y, PORCH_SPOT.z, 0.2);
+    }
+    const v = VIEWS[this.mode];
+    this.goal = { azimuth: v.azimuth, polar: v.polar, zoom: 1 };
+    this.orbit.target.set(v.target[0], v.target[1], v.target[2]);
+    this.placeSun();
+    this.invalidate();
+  }
+
+  /** What the keys or the stick ask for: x to the right, y forward, each -1 to 1, relative to the camera. */
+  setWalkInput(x: number, y: number, run = false): void {
+    if (!this.walk.on) return;
+    this.walk.input = { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) };
+    this.walk.run = run;
+    this.walk.last = performance.now();
+    this.invalidate();
+  }
+
+  /** One frame of walking: the character moves, the camera follows. True while there is more to draw. */
+  private stepWalk(): boolean {
+    const fig = this.figure;
+    if (!fig) return false;
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - this.walk.last) / 1000));
+    this.walk.last = now;
+    const inp = this.walk.input;
+    const mag = Math.hypot(inp.x, inp.y);
+    let moved = 0;
+    if (mag > 0.05) {
+      // Forward is away from the camera along the ground; right is to its right.
+      const az = this.orbit.azimuth;
+      const fx = -Math.sin(az);
+      const fz = -Math.cos(az);
+      const rx = Math.cos(az);
+      const rz = -Math.sin(az);
+      let mx = fx * inp.y + rx * inp.x;
+      let mz = fz * inp.y + rz * inp.x;
+      const len = Math.hypot(mx, mz) || 1;
+      mx /= len;
+      mz /= len;
+      const speed = (this.walk.run ? 4.4 : 2.4) * Math.min(1, mag);
+      const to = slideMove({ x: this.walk.x, z: this.walk.z }, mx * speed * dt, mz * speed * dt, this.blockers, 0.32);
+      moved = Math.hypot(to.x - this.walk.x, to.z - this.walk.z);
+      this.walk.x = to.x;
+      this.walk.z = to.z;
+      // Turn towards the way they are going, the short way round.
+      const want = Math.atan2(mx, mz);
+      let d = want - this.walk.heading;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.walk.heading += d * Math.min(1, dt * 14);
+      this.walk.phase = (this.walk.phase + moved / 1.45) % 1;
+      poseFigure(fig, "walk", this.walk.phase);
+      this.walk.moving = true;
+    } else if (this.walk.moving) {
+      this.walk.moving = false;
+      poseFigure(fig, "stand");
+    }
+    this.placeFigure(this.walk.x, 0, this.walk.z, this.walk.heading);
+    // The sun's shadows come along, so the street round them is lit like the house was.
+    if (moved > 0) {
+      this.sun.position.set(this.walk.x - 11, 14, this.walk.z + 9);
+      this.sun.target.position.set(this.walk.x, 0, this.walk.z - 1.5);
+      this.moon.position.set(this.walk.x - 11, 9, this.walk.z + 9);
+    }
+    // The camera's eye on them, a step behind their pace.
+    const t = this.orbit.target;
+    const ease = 1 - Math.exp(-dt * 9);
+    t.x += (this.walk.x - t.x) * ease;
+    t.z += (this.walk.z - t.z) * ease;
+    t.y += (1.25 - t.y) * ease;
+    return mag > 0.05 || Math.hypot(this.walk.x - t.x, this.walk.z - t.z) > 0.01;
+  }
+
+  /** Everything solid on the street now: your house, and every lot with a house on it. */
+  private refreshBlockers(): void {
+    const lots: StreetLot[] = [{ x: 0, across: false, house: true, drive: 1, own: true }];
+    this.garden?.group.traverse((o) => {
+      const lot = o.userData.lot as StreetLot | undefined;
+      if (lot) lots.push(lot);
+    });
+    this.blockers = lots.flatMap(lotBlockers);
   }
 
   /**
@@ -1030,18 +1284,28 @@ export class HouseView {
 
   /** Turns the view round the room, within a range that keeps the open side towards you. */
   turn(dx: number, dy: number): void {
-    const v = VIEWS[this.mode];
+    const v = this.walk.on ? VIEWS.walk : VIEWS[this.mode];
     this.goal.azimuth = clamp(this.goal.azimuth - dx * 0.006, v.azimuthRange[0], v.azimuthRange[1]);
     this.goal.polar = clamp(this.goal.polar - dy * 0.004, v.polarRange[0], v.polarRange[1]);
     this.invalidate();
   }
 
   zoom(factor: number): void {
+    if (this.walk.on) {
+      this.goal.zoom = Math.max(0.6, Math.min(1.8, this.goal.zoom * factor));
+      this.invalidate();
+      return;
+    }
     this.goal.zoom = Math.max(ZOOM_MIN[this.mode] ?? 0.85, Math.min(ZOOM_MAX[this.mode] ?? 1.9, this.goal.zoom * factor));
     this.invalidate();
   }
 
   resetView(): void {
+    if (this.walk.on) {
+      this.goal = { azimuth: this.walk.heading + Math.PI, polar: VIEWS.walk.polar, zoom: 1 };
+      this.invalidate();
+      return;
+    }
     const v = VIEWS[this.mode];
     this.goal = { azimuth: v.azimuth, polar: v.polar, zoom: 1 };
     this.invalidate();
@@ -1065,12 +1329,14 @@ export class HouseView {
     await compileQuietly(this.renderer, this.scene, this.camera);
     this.needsCompile = false;
     this.placeCamera();
-    this.renderer.render(this.scene, this.camera);
+    this.renderFine();
     const blob = await new Promise<Blob | null>((r) => this.renderer.domElement.toBlob(r, "image/png"));
     return blob ? URL.createObjectURL(blob) : this.renderer.domElement.toDataURL("image/png");
   }
 
   dispose(): void {
+    this.post?.dispose();
+    for (const t of this.skyEnvs.values()) t.dispose();
     this.disposed = true;
     if (this.frame) cancelAnimationFrame(this.frame);
     for (const p of [...this.placed.values()]) this.removePlaced(p);

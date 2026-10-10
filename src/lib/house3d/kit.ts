@@ -404,6 +404,16 @@ export const TEX = {
   },
 };
 
+/**
+ * Relief for a painted surface, worked out by the card from the painting's
+ * own light and dark (grain is grooved, mortar is sunk, a shingle's edge is a
+ * step): the material's bump map is its colour map, at this strength. Costs
+ * the page nothing on a first visit, unlike a normal map made in script.
+ */
+export function bumpScale(strength: number): number {
+  return strength * 0.012;
+}
+
 /** Text and pictures on a surface: a screen, a clock face, a sign. */
 export function canvasTexture(w: number, h: number, paint: (g: CanvasRenderingContext2D, w: number, h: number) => void): THREE.CanvasTexture {
   const c = makeCanvas(w, h);
@@ -439,8 +449,8 @@ export interface Kit {
   glow(color: string, on: boolean, strength?: number): THREE.Material;
   /** A screen: glossy black when off, the picture when on. */
   screen(on: boolean, picture?: THREE.Texture, strength?: number): THREE.Material;
-  /** A picture or a label printed on a flat face. */
-  print(picture: THREE.Texture, opts?: { roughness?: number; glow?: number }): THREE.Material;
+  /** A picture or a label printed on a flat face; `bump` gives it relief read from the picture. */
+  print(picture: THREE.Texture, opts?: { roughness?: number; glow?: number; bump?: number }): THREE.Material;
 
   // Shapes (sizes in metres; `at` is the centre)
   box(w: number, h: number, d: number, m: THREE.Material, p?: Place & { r?: number }): THREE.Mesh;
@@ -526,10 +536,16 @@ export function makeKit(): Kit {
       const gloss = opts.gloss ?? 0.45;
       // White-painted wood shows no grain; any other tone shows it.
       if (tone === "white") return mat(`wood:${color}:${gloss}:painted`, () => new THREE.MeshStandardMaterial({ color, map: TEX.plaster([2, 2]), roughness: 0.55, metalness: 0 }));
-      return mat(`wood:${color}:${gloss}:${opts.repeat ?? ""}`, () => new THREE.MeshStandardMaterial({ color, map: TEX.grain(opts.repeat ?? [1, 1]), roughness: 1 - gloss * 0.8, metalness: 0 }));
+      return mat(`wood:${color}:${gloss}:${opts.repeat ?? ""}`, () => {
+        const map = TEX.grain(opts.repeat ?? [1, 1]);
+        return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.45), roughness: 1 - gloss * 0.8, metalness: 0 });
+      });
     },
     fabric(color, opts = {}) {
-      return mat(`fabric:${color}:${opts.repeat ?? ""}`, () => new THREE.MeshStandardMaterial({ color, map: TEX.weave(opts.repeat ?? [3, 3]), roughness: 0.96, metalness: 0 }));
+      return mat(`fabric:${color}:${opts.repeat ?? ""}`, () => {
+        const map = TEX.weave(opts.repeat ?? [3, 3]);
+        return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.3), roughness: 0.96, metalness: 0 });
+      });
     },
     velvet(color) {
       return mat(`velvet:${color}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 0.82, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.35) }));
@@ -557,8 +573,8 @@ export function makeKit(): Kit {
     stone(kind = "marble") {
       return mat(`stone:${kind}`, () => {
         if (kind === "marble") return new THREE.MeshPhysicalMaterial({ color: "#f1efea", map: TEX.marble(), roughness: 0.16, clearcoat: 0.5, clearcoatRoughness: 0.15 });
-        if (kind === "concrete") return new THREE.MeshStandardMaterial({ color: "#a9a7a3", map: TEX.concrete(), roughness: 0.92 });
-        if (kind === "granite") return new THREE.MeshStandardMaterial({ color: "#77736f", map: TEX.concrete([2, 2]), roughness: 0.4 });
+        if (kind === "concrete") return new THREE.MeshStandardMaterial({ color: "#a9a7a3", map: TEX.concrete(), bumpMap: TEX.concrete(), bumpScale: bumpScale(0.35), roughness: 0.92 });
+        if (kind === "granite") return new THREE.MeshStandardMaterial({ color: "#77736f", map: TEX.concrete([2, 2]), bumpMap: TEX.concrete([2, 2]), bumpScale: bumpScale(0.35), roughness: 0.4 });
         if (kind === "slate") return new THREE.MeshStandardMaterial({ color: "#4b5157", map: TEX.concrete(), roughness: 0.7 });
         if (kind === "terracotta") return new THREE.MeshStandardMaterial({ color: "#b8643f", map: TEX.concrete(), roughness: 0.85 });
         return new THREE.MeshStandardMaterial({ color: "#cdb58e", map: TEX.concrete(), roughness: 0.9 });
@@ -595,7 +611,13 @@ export function makeKit(): Kit {
     },
     print(picture, opts = {}) {
       return own(
-        new THREE.MeshStandardMaterial({ map: picture, roughness: opts.roughness ?? 0.7, metalness: 0, ...(opts.glow ? { emissive: "#ffffff", emissiveMap: picture, emissiveIntensity: opts.glow } : {}) }),
+        new THREE.MeshStandardMaterial({
+          map: picture,
+          roughness: opts.roughness ?? 0.7,
+          metalness: 0,
+          ...(opts.bump ? { bumpMap: picture, bumpScale: bumpScale(opts.bump) } : {}),
+          ...(opts.glow ? { emissive: "#ffffff", emissiveMap: picture, emissiveIntensity: opts.glow } : {}),
+        }),
         picture
       );
     },

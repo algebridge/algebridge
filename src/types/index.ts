@@ -169,6 +169,8 @@ export interface UserProgress {
   itemColors?: Record<string, string>;
   /** The house at night, with the lamps on. */
   houseNight?: boolean;
+  /** The student's character, who stands on the porch and walks the street. */
+  avatar?: AvatarSpec;
 }
 
 /**
@@ -187,6 +189,25 @@ export interface PlacedOrnamentEntry {
   off?: boolean;
   /** Turned round, in degrees, a multiple of 45 (0 faces the street). */
   turn?: number;
+}
+
+/**
+ * A student's own 3D character, as they made it: colours from the palettes
+ * in lib/avatar.ts and a few picks. Built in lib/house3d/figure.ts.
+ */
+export interface AvatarSpec {
+  skin: string;
+  hair: string;
+  hairColor: string;
+  eyes: string;
+  top: string;
+  topColor: string;
+  bottom: string;
+  bottomColor: string;
+  shoes: string;
+  extras: string[];
+  build: "slim" | "medium" | "broad";
+  height: "short" | "medium" | "tall";
 }
 
 export interface PlacedFurnitureEntry {

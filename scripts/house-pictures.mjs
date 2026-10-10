@@ -64,8 +64,15 @@ for (const [kind, x] of jobs) {
   process.stdout.write(".");
 }
 const version = hash.digest("hex").slice(0, 10);
-// A partial run (ONLY=...) leaves the list of pictures as it was.
-if (!only) writeFileSync(
+// A partial run (ONLY=...) adds what it made to the lists; a full run writes them afresh.
+if (only) {
+  const old = readFileSync(path.join(root, "src/data/house-pictures.ts"), "utf8");
+  const listed = (name) => JSON.parse(old.match(new RegExp(`${name} = new Set<string>\\((\\[.*?\\])\\)`))?.[1] ?? "[]");
+  for (const [kind, name] of [["piece", "PIECE_PICTURES"], ["ornament", "ORNAMENT_PICTURES"], ["room", "ROOM_PICTURES"], ["porch", "PORCH_PICTURES"]])
+    if (kind !== only) done[kind] = listed(name);
+    else done[kind] = [...new Set([...listed(name), ...done[kind]])];
+}
+writeFileSync(
   path.join(root, "src/data/house-pictures.ts"),
   `/** Made by scripts/house-pictures.mjs: the pieces with a picture rendered ahead of time in public/house/pictures. */\n` +
     `export const PICTURES_VERSION = ${JSON.stringify(version)};\n` +
@@ -75,13 +82,6 @@ if (!only) writeFileSync(
     `/** The porch view's first picture in each house style, shown until the 3D view has drawn. */\n` +
     `export const PORCH_PICTURES = new Set<string>(${JSON.stringify(done.porch)});\n`
 );
-// A partial run still changes pictures: a new version, so browsers fetch them again instead of keeping the old ones.
-if (only) {
-  const file = path.join(root, "src/data/house-pictures.ts");
-  const old = readFileSync(file, "utf8");
-  const bumped = createHash("sha1").update(old).update(version).digest("hex").slice(0, 10);
-  writeFileSync(file, old.replace(/PICTURES_VERSION = "[0-9a-f]+"/, `PICTURES_VERSION = "${bumped}"`));
-}
 console.log(`\n${done.piece.length} pieces, ${done.ornament.length} ornaments, ${done.room.length} rooms, ${done.porch.length} porches; version ${version}`);
 ws.close();
 proc.kill();

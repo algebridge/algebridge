@@ -9,7 +9,7 @@
  */
 
 import * as THREE from "three";
-import { canvasTexture, TEX, type Kit } from "./kit";
+import { bumpScale, canvasTexture, TEX, type Kit } from "./kit";
 import { BACK_WINDOW, DOOR, ROOM_D, ROOM_H, ROOM_W, SIDE_WINDOW, WALL_T, windowSize } from "./space";
 import type { RoomFinish, RoomTheme, ViewKind, WallKind, WindowShape } from "./themes";
 
@@ -47,35 +47,62 @@ function windowOutline(shape: WindowShape, w: number, h: number): Pt[] {
 }
 
 function wallMaterial(kind: WallKind, color: string): THREE.Material {
-  const m = (map: THREE.Texture, roughness: number, tint = "#ffffff") => new THREE.MeshStandardMaterial({ map, color: tint, roughness, metalness: 0 });
+  const m = (map: THREE.Texture, roughness: number, bump: number, tint = "#ffffff") => new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: bumpScale(bump), color: tint, roughness, metalness: 0 });
   switch (kind) {
     case "brick":
-      return m(TEX.brick([0.85, 0.85]), 0.9);
+      return m(TEX.brick([0.85, 0.85]), 0.9, 0.7);
     case "logs":
-      return m(TEX.logs([0.57, 0.57]), 0.85);
+      return m(TEX.logs([0.57, 0.57]), 0.85, 0.8);
     case "bamboo":
-      return m(TEX.bamboo([0.9, 0.9]), 0.7);
+      return m(TEX.bamboo([0.9, 0.9]), 0.7, 0.6);
     case "stone":
-      return m(TEX.stoneBlocks([0.36, 0.36]), 0.88);
-    default:
-      return new THREE.MeshStandardMaterial({ color, map: TEX.plaster([0.5, 0.5]), roughness: 0.92 });
+      return m(TEX.stoneBlocks([0.36, 0.36]), 0.88, 0.7);
+    case "boards":
+      return m(boardsTexture(color, true), 0.75, 0.5);
+    case "timber":
+      return m(boardsTexture(color, false), 0.6, 0.5);
+    default: {
+      const map = TEX.plaster([0.5, 0.5]);
+      return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.22), roughness: 0.92 });
+    }
   }
+}
+
+/** Boards in a tone, up and down (painted siding, a barn) or across (natural timber, a chalet). */
+export function boardsTexture(tone: string, vertical: boolean, repeat: [number, number] = [0.9, 0.9]): THREE.Texture {
+  const t = TEX.planks(tone, repeat).clone();
+  t.needsUpdate = true;
+  if (vertical) {
+    t.center.set(0.5, 0.5);
+    t.rotation = Math.PI / 2;
+  }
+  return t;
 }
 
 function floorMaterial(f: RoomFinish): THREE.Material {
   const w = ROOM_W + 0.3;
   const d = ROOM_D + 0.2;
   switch (f.floor) {
-    case "carpet":
-      return new THREE.MeshStandardMaterial({ color: f.floorColor, map: TEX.carpet([6, 5]), roughness: 1 });
-    case "concrete":
-      return new THREE.MeshPhysicalMaterial({ color: f.floorColor, map: TEX.concrete([3, 2.5]), roughness: 0.55, clearcoat: 0.25, clearcoatRoughness: 0.4 });
-    case "tiles":
-      return new THREE.MeshStandardMaterial({ map: TEX.tiles(f.floorColor, [w / 2, d / 2]), roughness: 0.35 });
-    case "stone":
-      return new THREE.MeshStandardMaterial({ map: TEX.stoneBlocks([w / 2.8, d / 2.8]), color: "#d8d4ce", roughness: 0.7 });
-    default:
-      return new THREE.MeshPhysicalMaterial({ map: TEX.planks(f.floorColor, [w / 1.44, d / 1.44]), roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.35 });
+    case "carpet": {
+      const map = TEX.carpet([6, 5]);
+      return new THREE.MeshStandardMaterial({ color: f.floorColor, map, bumpMap: map, bumpScale: bumpScale(0.3), roughness: 1 });
+    }
+    case "concrete": {
+      const map = TEX.concrete([3, 2.5]);
+      return new THREE.MeshPhysicalMaterial({ color: f.floorColor, map, bumpMap: map, bumpScale: bumpScale(0.3), roughness: 0.55, clearcoat: 0.25, clearcoatRoughness: 0.4 });
+    }
+    case "tiles": {
+      const map = TEX.tiles(f.floorColor, [w / 2, d / 2]);
+      return new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: bumpScale(0.6), roughness: 0.35 });
+    }
+    case "stone": {
+      const map = TEX.stoneBlocks([w / 2.8, d / 2.8]);
+      return new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: bumpScale(0.6), color: "#d8d4ce", roughness: 0.7 });
+    }
+    default: {
+      const map = TEX.planks(f.floorColor, [w / 1.44, d / 1.44]);
+      return new THREE.MeshPhysicalMaterial({ map, bumpMap: map, bumpScale: bumpScale(0.5), roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.35 });
+    }
   }
 }
 
@@ -275,6 +302,70 @@ export function viewTexture(kind: ViewKind, night: boolean): THREE.Texture {
           }
         }
       });
+    } else if (kind === "desert") {
+      // A desert: far mesas, dunes in the warm light, a few saguaros.
+      layer("blur(6px)", (c) => {
+        c.fillStyle = dim("#b98a6c", 1);
+        for (let i = 0; i < 4; i += 1) {
+          const x = rnd() * w;
+          const mw = 160 + rnd() * 240;
+          const top = h * 0.5 - rnd() * 60;
+          c.beginPath();
+          c.moveTo(x - mw / 2 - 40, h * 0.6);
+          c.lineTo(x - mw / 2, top);
+          c.lineTo(x + mw / 2, top);
+          c.lineTo(x + mw / 2 + 40, h * 0.6);
+          c.closePath();
+          c.fill();
+        }
+      });
+      hills(h * 0.62, 14, dim("#d9b48a", 1), 6);
+      hills(h * 0.74, 18, dim("#e2c19a", 1), 8);
+      hills(h * 0.86, 10, dim("#c9a179", 1), 10);
+      layer("blur(3px)", (c) => {
+        c.fillStyle = dim("#4f7a4a", 1);
+        for (let i = 0; i < 7; i += 1) {
+          const x = rnd() * w;
+          const base = h * (0.7 + rnd() * 0.25);
+          const tall = 50 + rnd() * 70;
+          c.fillRect(x - 7, base - tall, 14, tall);
+          c.fillRect(x - 30, base - tall * 0.55, 10, tall * 0.3);
+          c.fillRect(x - 30, base - tall * 0.55, 30, 10);
+          c.fillRect(x + 20, base - tall * 0.7, 10, tall * 0.35);
+          c.fillRect(x, base - tall * 0.7, 30, 10);
+        }
+      });
+    } else if (kind === "lake") {
+      // A lake below wooded hills, a jetty, mountains far behind.
+      layer("blur(5px)", (c) => {
+        c.fillStyle = dim("#8a90b4", 1);
+        c.beginPath();
+        c.moveTo(0, h * 0.5);
+        let x = 0;
+        while (x <= w) {
+          c.lineTo(x + 70, h * 0.5 - 90 - rnd() * 100);
+          c.lineTo(x + 150, h * 0.5);
+          x += 150 + rnd() * 60;
+        }
+        c.lineTo(w, h * 0.5);
+        c.closePath();
+        c.fill();
+      });
+      hills(h * 0.52, 16, dim("#6f8f66", 1), 6);
+      trees(22, h * 0.57, 28, dim("#45664a", 1), 5);
+      c.fillStyle = dim("#5f9ac0", 1);
+      c.fillRect(0, h * 0.58, w, h * 0.3);
+      layer("blur(2px)", (c) => {
+        for (let i = 0; i < 70; i += 1) {
+          c.fillStyle = `rgba(255,255,255,${night ? 0.1 : 0.4})`;
+          c.fillRect(rnd() * w, h * 0.6 + rnd() * h * 0.26, 24 + rnd() * 70, 2);
+        }
+        // A jetty, out from the near shore.
+        c.fillStyle = dim("#6b5338", 1);
+        c.fillRect(w * 0.58, h * 0.76, 140, 10);
+        for (let i = 0; i < 4; i += 1) c.fillRect(w * 0.58 + 20 + i * 36, h * 0.76, 6, 26);
+      });
+      hills(h * 0.9, 8, dim("#7fa36a", 1), 8);
     } else {
       // Mountains, with snow, and pine forest below.
       layer("blur(5px)", (c) => {
@@ -361,7 +452,7 @@ export function buildRoom(k: Kit, theme: RoomTheme, which: "down" | "up", night:
   g.add(back);
 
   // Side wall (x = -W/2), with its window, built the same way and turned.
-  const sideM = keep(wallMaterial(finish.sideWall, finish.wallColor));
+  const sideM = keep(wallMaterial(finish.sideWall, finish.sideColor ?? finish.wallColor));
   // Turned and mirrored below so its local x runs along +z: the hole sits at the window's z.
   const sideHole = windowOutline(theme.window, sideWin.w, sideWin.h).map(([x, y]) => [x + SIDE_WINDOW.z, y + sideWin.sill + sideWin.h / 2] as Pt);
   const side = wallMesh(-ROOM_D / 2, ROOM_D / 2, [sideHole], sideM);
@@ -461,7 +552,15 @@ const CURTAINS: Record<string, { color: string; kind: "fabric" | "velvet"; full:
   loft: { color: "#5f656d", kind: "fabric", full: true },
   beach: { color: "#f4f1ea", kind: "fabric", full: true },
   castle: { color: "#7a2836", kind: "velvet", full: true },
+  barn: { color: "#c9c0ad", kind: "fabric", full: false },
+  victorian: { color: "#8c5a86", kind: "velvet", full: true },
+  adobe: { color: "#d9b36a", kind: "fabric", full: false },
+  chalet: { color: "#b23b3b", kind: "fabric", full: false },
+  modern: { color: "#9a9ea4", kind: "fabric", full: true },
 };
+
+/** Houses whose metalwork is black rather than brass. */
+const DARK_METAL = new Set(["loft", "castle", "modern", "victorian"]);
 
 /**
  * One curtain panel, gathered: a row of soft folds hanging from the rod,
@@ -488,7 +587,7 @@ function curtains(k: Kit, theme: RoomTheme, winW: number, drop: number): THREE.G
   const spec = CURTAINS[theme.id] ?? CURTAINS.cottage;
   const g = new THREE.Group();
   const cloth = spec.kind === "velvet" ? k.velvet(spec.color) : k.fabric(spec.color);
-  const rodM = theme.id === "loft" || theme.id === "castle" ? k.metal("black", 0.4) : k.metal("brass", 0.35);
+  const rodM = DARK_METAL.has(theme.id) ? k.metal("black", 0.4) : k.metal("brass", 0.35);
   const span = winW + 0.62;
   g.add(k.cyl(0.013, 0.013, span, rodM, { at: [0, 0, 0.1], rot: [0, 0, Math.PI / 2], seg: 10 }));
   for (const sx of [-1, 1]) {
@@ -536,7 +635,7 @@ function plate(k: Kit, kind: "switch" | "outlet", trim: string): THREE.Group {
 /** A wall sconce: a backplate, an arm and a shade that glows at night (facing +z). */
 function sconce(k: Kit, theme: RoomTheme, night: boolean): THREE.Group {
   const g = new THREE.Group();
-  const metal = theme.id === "loft" || theme.id === "castle" ? k.metal("black", 0.4) : k.metal("brass", 0.3);
+  const metal = DARK_METAL.has(theme.id) ? k.metal("black", 0.4) : k.metal("brass", 0.3);
   g.add(k.cyl(0.05, 0.05, 0.015, metal, { at: [0, 0, 0.008], rot: [Math.PI / 2, 0, 0], seg: 16 }));
   g.add(k.cyl(0.008, 0.008, 0.12, metal, { at: [0, 0.03, 0.07], rot: [Math.PI / 2 - 0.5, 0, 0], seg: 8 }));
   g.add(k.lathe([[0.03, 0], [0.075, 0], [0.05, 0.13], [0.035, 0.13]], k.glow("#f8e9cc", night, 1.8), { at: [0, 0.03, 0.13], seg: 20 }));
@@ -568,9 +667,9 @@ function sillPlant(k: Kit): THREE.Group {
 /** Hooks by the door with a coat, a scarf and a cap on them (facing +z). */
 function coatHooks(k: Kit, theme: RoomTheme): THREE.Group {
   const g = new THREE.Group();
-  const board = theme.id === "loft" ? k.metal("black", 0.5) : k.wood("walnut", { gloss: 0.3 });
+  const board = theme.id === "loft" || theme.id === "modern" ? k.metal("black", 0.5) : k.wood("walnut", { gloss: 0.3 });
   g.add(k.box(0.42, 0.09, 0.02, board, { at: [0, 0, 0.01], r: 0.006 }));
-  const hookM = k.metal(theme.id === "loft" ? "steel" : "brass", 0.35);
+  const hookM = k.metal(theme.id === "loft" || theme.id === "modern" ? "steel" : "brass", 0.35);
   for (const x of [-0.13, 0, 0.13]) g.add(k.cyl(0.008, 0.008, 0.07, hookM, { at: [x, -0.01, 0.05], rot: [Math.PI / 2 - 0.4, 0, 0], seg: 8 }));
   // The coat: shoulders on the hook, falling to a hem.
   const coat = k.fabric("#3f5a6e");
@@ -591,7 +690,7 @@ function coatHooks(k: Kit, theme: RoomTheme): THREE.Group {
 /** A small mirror in a frame (facing +z). */
 function mirror(k: Kit, theme: RoomTheme): THREE.Group {
   const g = new THREE.Group();
-  const frame = theme.id === "loft" ? k.metal("black", 0.4) : k.wood("oak", { gloss: 0.4 });
+  const frame = theme.id === "loft" || theme.id === "modern" ? k.metal("black", 0.4) : k.wood("oak", { gloss: 0.4 });
   g.add(k.box(0.36, 0.56, 0.03, frame, { at: [0, 0, 0.015], r: 0.01 }));
   g.add(k.box(0.3, 0.5, 0.005, k.metal("chrome", 0.04), { at: [0, 0, 0.032] }));
   return g;
@@ -600,7 +699,7 @@ function mirror(k: Kit, theme: RoomTheme): THREE.Group {
 /** Three framed prints, hung as a group (facing +z, centred on the origin): simple shapes in each house's colours. */
 function prints(k: Kit, theme: RoomTheme): THREE.Group {
   const g = new THREE.Group();
-  const frame = theme.id === "loft" ? k.metal("black", 0.4) : theme.id === "castle" ? k.metal("gold", 0.35) : k.wood("oak", { gloss: 0.4 });
+  const frame = theme.id === "loft" || theme.id === "modern" ? k.metal("black", 0.4) : theme.id === "castle" || theme.id === "victorian" ? k.metal("gold", 0.35) : k.wood("oak", { gloss: 0.4 });
   const mat = k.paper("#f7f4ec");
   const palette: Record<string, [string, string, string]> = {
     cottage: ["#c9784f", "#7f9a6a", "#e5c66b"],
@@ -608,6 +707,11 @@ function prints(k: Kit, theme: RoomTheme): THREE.Group {
     loft: ["#d14b3a", "#2d3a4a", "#e8b84a"],
     beach: ["#3c8fb0", "#f0c27a", "#e47f6a"],
     castle: ["#7a2836", "#3b4f7a", "#c9a24a"],
+    barn: ["#9b2d2a", "#5c7f45", "#e5c66b"],
+    victorian: ["#5b2a52", "#8c5a86", "#c9a24a"],
+    adobe: ["#c8845a", "#3aa0a0", "#e0b45c"],
+    chalet: ["#3f6b3f", "#b23b3b", "#8a5f3a"],
+    modern: ["#1f2225", "#d14b3a", "#9a9ea4"],
   };
   const [a, b, c] = palette[theme.id] ?? palette.cottage;
   const one = (w: number, h: number, x: number, y: number, art: (cx: number, cy: number) => void) => {

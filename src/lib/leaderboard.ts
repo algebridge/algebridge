@@ -1,6 +1,8 @@
+import { HOUSE_STYLES } from "@/data/house-catalog";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { schoolModeNow } from "@/lib/school-mode";
-import type { LeaderboardEntry } from "@/types";
+import { sanitizeAvatar } from "@/lib/avatar";
+import type { AvatarSpec, LeaderboardEntry } from "@/types";
 
 export type LeaderboardSort = "lessons" | "bridgeys" | "prestige";
 
@@ -40,6 +42,7 @@ export async function syncLeaderboardStats(
     equippedTitle: string | null;
     leaderboardOptIn: boolean;
     houseStyle?: string | null;
+    avatar?: AvatarSpec | null;
   }
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
@@ -59,25 +62,33 @@ export async function syncLeaderboardStats(
     updated_at: new Date().toISOString(),
   };
   const style = snapshot.houseStyle && STREET_STYLES.has(snapshot.houseStyle) ? snapshot.houseStyle : null;
-  if (hasHouseStyle) {
-    const { error } = await supabase.from(LEADERBOARD_TABLE).upsert({ ...row, house_style: style }, { onConflict: "user_id" });
-    if (!error || !/house_style/.test(error.message ?? "")) return;
-    // Before schema-2026-10-08-neighbours.sql there is no house_style column: send the row without it from now on.
-    hasHouseStyle = false;
+  // The street's columns, newest last: a database behind the app (a column
+  // missing, a house style its check does not know yet) refuses the row,
+  // names what it refused, and that column is left out from then on.
+  const street: Record<string, unknown> = { house_style: style, avatar: snapshot.avatar ?? null };
+  for (let tries = 0; tries <= STREET_COLUMNS.length; tries += 1) {
+    const extra: Record<string, unknown> = {};
+    for (const col of STREET_COLUMNS) if (!missingColumns.has(col)) extra[col] = street[col];
+    const { error } = await supabase.from(LEADERBOARD_TABLE).upsert({ ...row, ...extra }, { onConflict: "user_id" });
+    if (!error) return;
+    const refused = STREET_COLUMNS.find((col) => !missingColumns.has(col) && new RegExp(col).test(error.message ?? ""));
+    if (!refused) return;
+    missingColumns.add(refused);
   }
-  await supabase.from(LEADERBOARD_TABLE).upsert(row, { onConflict: "user_id" });
 }
 
-/** Whether leaderboard_stats has its house_style column yet (false after the first save says it does not). */
-let hasHouseStyle = true;
+const STREET_COLUMNS = ["house_style", "avatar"] as const;
+/** Columns of leaderboard_stats this database turned out not to have (or not to accept) during this session. */
+const missingColumns = new Set<string>();
 
-/** The house styles a street can show (the check on leaderboard_stats.house_style). */
-const STREET_STYLES = new Set(["cottage", "treehouse", "loft", "beach", "castle"]);
+/** The house styles a street can show: every house in the shop (the check on leaderboard_stats.house_style lists the same). */
+const STREET_STYLES = new Set(HOUSE_STYLES.map((h) => h.id));
 
-/** A neighbour on the street outside a student's house: another student on the board, and their house. */
+/** A neighbour on the street outside a student's house: another student on the board, their house, and their character if they made one. */
 export interface Neighbour {
   name: string;
   styleId: string;
+  avatar?: AvatarSpec;
 }
 
 /** A small fixed hash, so the same student sees the same neighbours from one visit to the next. */
@@ -93,7 +104,7 @@ function mix(s: string): number {
  * each neighbour), so the street feels like a place rather than a shuffle.
  * Pure, so it is tested.
  */
-export function pickNeighbours(rows: { name: string; styleId: string }[], seed: string, count: number): Neighbour[] {
+export function pickNeighbours(rows: { name: string; styleId: string; avatar?: unknown }[], seed: string, count: number): Neighbour[] {
   const seen = new Set<string>();
   return rows
     .filter((r) => STREET_STYLES.has(r.styleId) && r.name.trim())
@@ -106,7 +117,7 @@ export function pickNeighbours(rows: { name: string; styleId: string }[], seed: 
     .map((r) => ({ r, k: mix(`${seed}|${r.name}|${r.styleId}`) }))
     .sort((a, b) => a.k - b.k)
     .slice(0, count)
-    .map(({ r }) => ({ name: r.name, styleId: r.styleId }));
+    .map(({ r }) => ({ name: r.name, styleId: r.styleId, ...(r.avatar && typeof r.avatar === "object" ? { avatar: sanitizeAvatar(r.avatar) } : {}) }));
 }
 
 /**
@@ -116,7 +127,7 @@ export function pickNeighbours(rows: { name: string; styleId: string }[], seed: 
  * else is on the board yet: the street then has open lots, never houses
  * that belong to nobody.
  */
-export async function fetchNeighbours(count = 5): Promise<Neighbour[]> {
+export async function fetchNeighbours(count = 13): Promise<Neighbour[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = createClient();
   if (!supabase) return [];
@@ -125,14 +136,17 @@ export async function fetchNeighbours(count = 5): Promise<Neighbour[]> {
   if (!me) return [];
   // The most recently active students first, then a fixed pick among them.
   const read = (from: string, columns: string) =>
-    supabase.from(from).select(columns).eq("leaderboard_opt_in", true).not("house_style", "is", null).order("updated_at", { ascending: false }).limit(60);
-  let res = await read(LEADERBOARD_VIEW, "display_name, house_style, is_me");
+    supabase.from(from).select(columns).eq("leaderboard_opt_in", true).not("house_style", "is", null).order("updated_at", { ascending: false }).limit(80);
+  // With characters (schema-2026-10-09-street.sql), or without them on a database before that.
+  let res = await read(LEADERBOARD_VIEW, "display_name, house_style, avatar, is_me");
+  if (res.error) res = await read(LEADERBOARD_VIEW, "display_name, house_style, is_me");
+  if (res.error) res = await read(LEADERBOARD_TABLE, "display_name, house_style, avatar, user_id");
   if (res.error) res = await read(LEADERBOARD_TABLE, "display_name, house_style, user_id");
   if (res.error || !res.data) return [];
-  type Row = { display_name: string | null; house_style: string | null; is_me?: boolean; user_id?: string };
+  type Row = { display_name: string | null; house_style: string | null; avatar?: unknown; is_me?: boolean; user_id?: string };
   const rows = (res.data as unknown as Row[])
     .filter((r) => !r.is_me && r.user_id !== me)
-    .map((r) => ({ name: publicLeaderboardName(r.display_name), styleId: r.house_style ?? "" }));
+    .map((r) => ({ name: publicLeaderboardName(r.display_name), styleId: r.house_style ?? "", avatar: r.avatar }));
   return pickNeighbours(rows, me, count);
 }
 

@@ -1,4 +1,5 @@
 import { getOrnament, getUnplacedOrnamentIds } from "@/data/ornament-catalog";
+import { sanitizeAvatar } from "@/lib/avatar";
 import { clampToYard } from "@/lib/dollhouse";
 import {
   canHang,
@@ -18,7 +19,7 @@ import { getSwatch, USABLE } from "@/data/furniture-art";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, tallyDaily, touchActivity } from "@/lib/progress";
 import { pieceUse } from "@/lib/house-functions";
-import type { HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
+import type { AvatarSpec, HouseFloor, HouseSurface, PlacedFurnitureEntry, UserProgress } from "@/types";
 
 export type PurchaseResult =
   | { ok: true; message: string }
@@ -465,9 +466,18 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
     bestFurnitureName: best?.name ?? null,
     equippedTitle: getEquippedTitleLabel(progress),
     leaderboardOptIn: progress.leaderboardOptIn === true,
-    // The house others see on their street (lib/leaderboard.ts fetchNeighbours).
+    // The house others see on their street, and the character on its porch (lib/leaderboard.ts fetchNeighbours).
     houseStyle: progress.houseStyleId ?? null,
+    avatar: progress.avatar ? sanitizeAvatar(progress.avatar) : null,
   };
+}
+
+/** The student's character, checked against the choices in lib/avatar.ts and saved. */
+export function setAvatar(spec: AvatarSpec): void {
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  progress.avatar = sanitizeAvatar(spec);
+  store.save(progress);
 }
 
 export { getUnplacedFurnitureIds };

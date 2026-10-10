@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppNavState } from "@/components/AppNavProvider";
 import { Icon, type IconName } from "@/components/Icon";
 import { PieceShot } from "@/components/house/PieceShot";
+import { CharacterSheet } from "@/components/house/CharacterSheet";
 import { ColorDots } from "@/components/house/ColorDots";
 import { useHouseLive } from "@/components/house/useHouseLive";
 import { useScratchpad } from "@/components/Scratchpad";
@@ -21,6 +22,7 @@ import {
   placeOrnamentAt,
   removePlacedFurniture,
   removePlacedOrnament,
+  setAvatar,
   setHouseNight,
   setItemColor,
   surfaceOf,
@@ -37,7 +39,8 @@ import { showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { setMusicEnabled } from "@/lib/progress";
 import { useAuth } from "@/lib/auth";
-import { fetchNeighbours, type Neighbour } from "@/lib/leaderboard";
+import { fetchNeighbours, publicLeaderboardName, type Neighbour } from "@/lib/leaderboard";
+import { DEFAULT_AVATAR, randomAvatar, sanitizeAvatar } from "@/lib/avatar";
 import { getUnreadCount } from "@/lib/social";
 import type { GardenPick, HouseView, ScenePiece } from "@/lib/house3d/engine";
 import type { LiveData } from "@/lib/house3d/types";
@@ -91,12 +94,17 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     return asked === "down" || asked === "up" || asked === "garden" || asked === "front" ? asked : "front";
   });
   const [selected, setSelected] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  /** Your name as the street shows it on your sign. */
+  const profileName = profile?.displayName ? publicLeaderboardName(profile.displayName) : null;
   /** Unread messages, for the mailbox's flag out front (null when signed out). */
   const [unread, setUnread] = useState<number | null>(null);
   /** A part of the garden itself that was tapped: a unit's bed, the sprinkler, the tree. */
   const [gardenPick, setGardenPick] = useState<GardenPick | null>(null);
   const [showColors, setShowColors] = useState(false);
+  /** Out walking the street as your character. */
+  const [walking, setWalking] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState(false);
   const [ready, setReady] = useState(false);
   /** The first frame is on screen (shaders compile in the background before it). */
   const [drawn, setDrawn] = useState(false);
@@ -205,7 +213,13 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     // Development only: ?street=Maya R.:loft,Leo P.:castle shows a street without signing in.
     const preview = process.env.NODE_ENV !== "production" ? new URLSearchParams(window.location.search).get("street") : null;
     if (preview) {
-      setNeighbours(preview.split(",").map((p) => ({ name: p.split(":")[0], styleId: p.split(":")[1] ?? "cottage" })));
+      setNeighbours(
+        preview.split(",").map((p, i) => {
+          let x = 7 + i * 131;
+          const rnd = () => ((x = (x * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+          return { name: p.split(":")[0], styleId: p.split(":")[1] ?? "cottage", avatar: randomAvatar(rnd) };
+        })
+      );
       return;
     }
     if (!user) {
@@ -221,6 +235,52 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   useEffect(() => {
     if (ready) engine.current?.setNeighbours(neighbours);
   }, [ready, neighbours]);
+
+  // Your character, on the porch; everyone has one, made or still the default.
+  const avatar = useMemo(() => sanitizeAvatar(progress.avatar ?? DEFAULT_AVATAR), [progress.avatar]);
+  useEffect(() => {
+    if (ready && view === "front") engine.current?.setAvatar(avatar);
+  }, [ready, view, avatar]);
+  useEffect(() => {
+    if (view !== "front") setWalking(false);
+  }, [view]);
+
+  // Walking: W A S D or the arrows move, Shift runs, Escape stops.
+  useEffect(() => {
+    if (!walking) return;
+    const held = new Set<string>();
+    const send = (run: boolean) => {
+      const x = (held.has("d") || held.has("arrowright") ? 1 : 0) - (held.has("a") || held.has("arrowleft") ? 1 : 0);
+      const y = (held.has("w") || held.has("arrowup") ? 1 : 0) - (held.has("s") || held.has("arrowdown") ? 1 : 0);
+      engine.current?.setWalkInput(x, y, run);
+    };
+    const isKey = (k: string) => ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k);
+    const down = (e: KeyboardEvent) => {
+      const field = e.target as HTMLElement | null;
+      if (field?.isContentEditable || field?.closest?.("input, textarea, select")) return;
+      if (e.key === "Escape") {
+        engine.current?.stopWalk();
+        setWalking(false);
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (!isKey(k)) return;
+      e.preventDefault();
+      held.add(k);
+      send(e.shiftKey);
+    };
+    const up = (e: KeyboardEvent) => {
+      held.delete(e.key.toLowerCase());
+      send(e.shiftKey);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      engine.current?.setWalkInput(0, 0);
+    };
+  }, [walking]);
 
   // The mailbox out front reads the inbox when you go out there.
   useEffect(() => {
@@ -487,6 +547,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                 setView(id);
                 setSelected(null);
                 setGardenPick(null);
+                setWalking(false);
               }}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${view === id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
             >
@@ -527,7 +588,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
-          aria-label={view === "front" ? "The front of your house, in 3D. Tap the door to go in, or the mailbox for your messages." : view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
+          aria-label={walking ? "You, walking the street in 3D. W A S D or the arrow keys move; drag to look round; tap a house to see whose it is." : view === "front" ? "The front of your house, in 3D. Tap the door to go in, or the mailbox for your messages." : view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
           className="absolute inset-0 h-full w-full touch-none select-none"
         />
         {drawn && preparing && (
@@ -549,7 +610,13 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </p>
         )}
         <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
-          {view === "front"
+          {walking ? (
+            <>
+              <span className="sm:hidden">Drag the stick to walk. Tap a house to see whose it is.</span>
+              <span className="hidden sm:inline">W A S D or the arrows to walk, Shift to run. Drag to look round. Tap a house to see whose it is.</span>
+            </>
+          )
+            : view === "front"
             ? unread
               ? `The flag is up: ${unread} new ${unread === 1 ? "message" : "messages"}. Tap the mailbox. Drag to walk round the house, zoom in to see inside.`
               : "Drag to walk round the house. Zoom in to see inside. The mailbox holds your messages."
@@ -569,6 +636,43 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             <span aria-hidden className="text-lg font-semibold leading-none">-</span>
           </button>
         </div>
+
+        {/* The porch: go for a walk, or change your character. Walking, a stick for a thumb and a way back. */}
+        {view === "front" && !walking && drawn && (
+          <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (engine.current?.startWalk()) setWalking(true);
+              }}
+              className="btn-primary btn-sm shadow-sm"
+            >
+              <Icon name="walk" size={15} />
+              Walk the street
+            </button>
+            <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+              <Icon name="person" size={15} />
+              My character
+            </button>
+          </div>
+        )}
+        {walking && (
+          <>
+            <WalkStick onChange={(x, y) => engine.current?.setWalkInput(x, y)} />
+            <button
+              type="button"
+              onClick={() => {
+                engine.current?.stopWalk();
+                setWalking(false);
+              }}
+              className="btn-sm absolute right-3 top-3 bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white"
+            >
+              <Icon name="house" size={15} />
+              <span className="hidden sm:inline">Back to the porch</span>
+              <span className="sm:hidden">Porch</span>
+            </button>
+          </>
+        )}
 
         {/* The card for the piece you tapped: what it does, and doing it. */}
         {selFurniture && (
@@ -700,6 +804,74 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         )}
       </div>
       )}
+
+      {editingCharacter && (
+        <CharacterSheet
+          initial={avatar}
+          name={profileName}
+          onSave={(spec) => {
+            setAvatar(spec);
+            setEditingCharacter(false);
+            showToast({ icon: "check", tone: "success", title: "Your character is on the porch." });
+            onUpdate();
+          }}
+          onClose={() => setEditingCharacter(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * A stick for a thumb (or a mouse): drag from its middle to walk that way,
+ * relative to the camera. Let go and the character stops.
+ */
+function WalkStick({ onChange }: { onChange: (x: number, y: number) => void }) {
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const active = useRef<number | null>(null);
+  const R = 44;
+  const move = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2);
+    let dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy);
+    if (d > R) {
+      dx = (dx / d) * R;
+      dy = (dy / d) * R;
+    }
+    setKnob({ x: dx, y: dy });
+    onChange(dx / R, -dy / R);
+  };
+  const end = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (active.current !== e.pointerId) return;
+    active.current = null;
+    setKnob({ x: 0, y: 0 });
+    onChange(0, 0);
+  };
+  return (
+    <div
+      role="slider"
+      aria-label="Walk"
+      aria-valuetext={knob.x === 0 && knob.y === 0 ? "Standing" : "Walking"}
+      aria-valuenow={0}
+      tabIndex={-1}
+      onPointerDown={(e) => {
+        active.current = e.pointerId;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* still steers while the finger stays on it */
+        }
+        move(e);
+      }}
+      onPointerMove={(e) => {
+        if (active.current === e.pointerId) move(e);
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      className="absolute bottom-3 left-3 h-28 w-28 touch-none select-none rounded-full bg-white/40 shadow-sm ring-1 ring-white/70 backdrop-blur-[2px]"
+    >
+      <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/95 shadow ring-1 ring-slate-200" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
     </div>
   );
 }
