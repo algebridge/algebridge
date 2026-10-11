@@ -50,6 +50,8 @@ export interface ChatMessage {
   practice?: boolean;
   /** Archie asked how the student is doing, so a plain "good" can be answered here. */
   asksMood?: boolean;
+  /** A checked answer that missed: the worked steps, drawn up to the slip. */
+  slip?: { explanation: string; step?: number };
 }
 
 /** Archie's own quiz question, waiting for an answer. */

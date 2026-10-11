@@ -1,8 +1,8 @@
 import type { PracticeProblem, Trap } from "@/types";
 import { PROBLEMS_PER_SKILL, coef, fillToCount, fmtNum, mcChoices, plusTerm, randInt, seededShuffle, trapsFor } from "@/lib/problem-utils";
 
-function trap(value: number | string, why: string): Trap {
-  return { value, why };
+function trap(value: number | string, why: string, step?: number): Trap {
+  return step === undefined ? { value, why } : { value, why, step };
 }
 
 function pick<T>(items: readonly T[]): T {
@@ -75,8 +75,10 @@ function fromRoots(roots: number[]): number[] {
 
 const sameChoice = (a: string, b: string) => a.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase() === b.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
 
-function wrongThree(answer: string, candidates: { value: string; why: string }[]): { value: string; why: string }[] {
-  const out: { value: string; why: string }[] = [];
+type Wrong = { value: string; why: string; step?: number };
+
+function wrongThree(answer: string, candidates: Wrong[]): Wrong[] {
+  const out: Wrong[] = [];
   for (const c of candidates) {
     if (sameChoice(c.value, answer)) continue;
     if (out.some((o) => sameChoice(o.value, c.value))) continue;
@@ -86,7 +88,7 @@ function wrongThree(answer: string, candidates: { value: string; why: string }[]
   return out;
 }
 
-function mcCard(prompt: string, hint: string, answer: string, wrong: { value: string; why: string }[], explanation: string): PracticeProblem {
+function mcCard(prompt: string, hint: string, answer: string, wrong: Wrong[], explanation: string): PracticeProblem {
   const three = wrongThree(answer, wrong);
   return {
     id: "",
@@ -95,7 +97,7 @@ function mcCard(prompt: string, hint: string, answer: string, wrong: { value: st
     hint,
     answer,
     choices: mcChoices(answer, three.map((w) => w.value)),
-    traps: trapsFor(answer, three.map((w) => trap(w.value, w.why))),
+    traps: trapsFor(answer, three.map((w) => trap(w.value, w.why, w.step))),
     explanation,
   };
 }
@@ -135,6 +137,44 @@ function threeRoots(): number[] {
 
 const factored = (roots: number[]) => roots.map((r) => `(${divisor(r)})`).join("");
 
+/** An end behavior written for an explanation step, with words instead of arrows. */
+const endWords = (text: string) => text.replace(/→/g, "goes to");
+
+/** A number written after an operator: 4 → "4", -4 → "(-4)". */
+const par = (n: number) => (n < 0 ? `(${n})` : `${n}`);
+
+/** a + p written out, keeping a zero visible: (5, -6) → "5 − 6", (5, 0) → "5 + 0". */
+const addLine = (a: number, p: number) => (p === 0 ? `${a} + 0` : `${a}${plusTerm(p)}`);
+
+/** The multiply-and-add lines of synthetic division of `high` by x − k, one per column after the first. */
+function synthLines(high: number[], k: number): string[] {
+  const row = synth(high, k);
+  const out: string[] = [];
+  for (let idx = 1; idx < high.length; idx++) {
+    const prod = row[idx - 1] * k;
+    const sum = prod === 0 ? `adding 0 leaves ${row[idx]}` : `${addLine(high[idx], prod)} = ${row[idx]}`;
+    out.push(`${idx === 1 ? `bring down ${row[0]}; ` : ""}${row[idx - 1]} × ${par(k)} = ${prod}, and ${sum}`);
+  }
+  return out;
+}
+
+/** P(k) written two ways: with k substituted, and with each term worked out. */
+function substitute(high: number[], k: number): [string, string] {
+  const deg = high.length - 1;
+  let shown = "";
+  let worked = "";
+  high.forEach((c, idx) => {
+    const n = deg - idx;
+    if (c === 0) return;
+    const v = n === 0 ? "" : `(${k})${SUP[n]}`;
+    if (n === 0) shown += shown === "" ? fmtNum(c) : plusTerm(c);
+    else shown += shown === "" ? coef(c, v) : plusTerm(c, v);
+    const val = c * k ** n;
+    worked += worked === "" ? fmtNum(val) : plusTerm(val) || " + 0";
+  });
+  return [shown || "0", worked || "0"];
+}
+
 export const generators: Record<string, (seeds: PracticeProblem[]) => PracticeProblem[]> = {
   "polynomial-end-behavior": (seeds) =>
     fillToCount("polynomial-end-behavior", seeds, PROBLEMS_PER_SKILL, (i) => {
@@ -151,6 +191,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const lead = high[0];
         const firstC = list[0][0];
         const firstN = list[0][1];
+        const termsLine = `the terms are ${list.map(([c, n]) => term(c, n, true)).join(", ")}`;
+        const expLine = `their exponents on x are ${list.map(([, n]) => n).join(", ")} (a plain number has exponent 0)`;
         if (kind === 0) {
           return {
             id: "",
@@ -159,11 +201,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             hint: "The degree is the largest exponent on x, wherever that term is written.",
             answer: deg,
             traps: trapsFor(deg, [
-              trap(firstN, "The degree is the largest exponent, not the exponent of the first term written."),
-              trap(Math.abs(lead), "That is a coefficient. Look at the exponents on x."),
-              trap(terms, "That is how many terms there are. The degree is the largest exponent."),
+              trap(firstN, "The degree is the largest exponent, not the exponent of the first term written.", 2),
+              trap(Math.abs(lead), "That is a coefficient. Look at the exponents on x.", 1),
+              trap(terms, "That is how many terms there are. The degree is the largest exponent.", 1),
             ]),
-            explanation: `The exponents are ${list.map(([, n]) => n).join(", ")}. The largest is ${deg}, so the degree is ${deg}.`,
+            explanation: [termsLine, expLine, `the largest exponent is ${deg}, so the degree is ${deg}`].join(" → "),
           };
         }
         return {
@@ -173,11 +215,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Find the term with the largest exponent first. Its coefficient, with its sign, is the leading coefficient.",
           answer: lead,
           traps: trapsFor(lead, [
-            trap(firstC, "The leading coefficient belongs to the term with the largest exponent, not the first term written."),
-            trap(-lead, "Keep the sign of the leading term."),
-            trap(deg, "That is the degree. The leading coefficient is the number in front of the highest-power term."),
+            trap(firstC, "The leading coefficient belongs to the term with the largest exponent, not the first term written.", 1),
+            trap(-lead, "Keep the sign of the leading term.", 2),
+            trap(deg, "That is the degree. The leading coefficient is the number in front of the highest-power term.", 2),
           ]),
-          explanation: `The largest exponent is ${deg}, on the term ${term(lead, deg, true)}, so the leading coefficient is ${lead}.`,
+          explanation: [expLine, `the largest exponent is ${deg}, on the term ${term(lead, deg, true)}`, `its coefficient, with its sign, is ${lead}`].join(" → "),
         };
       }
       if (kind === 2) {
@@ -187,16 +229,22 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const lead = high[0];
         const answer = endBehavior(deg, lead);
         const even = deg % 2 === 0;
+        const steps = [
+          `the leading term is ${term(lead, deg, true)}`,
+          `degree ${deg} is ${even ? "even, so both ends go the same way" : "odd, so the ends go opposite ways"}`,
+          `the leading coefficient ${lead} is ${lead > 0 ? "positive, so the right end goes up" : "negative, so the right end goes down"}`,
+          endWords(answer),
+        ];
         return mcCard(
           `Describe the end behavior of P(x) = ${polyText(high)}.`,
           even ? "Even degree: both ends go the same way. A positive leading coefficient sends them up, a negative one sends them down." : "Odd degree: the ends go opposite ways. A positive leading coefficient means up on the right, a negative one means down on the right.",
           answer,
           [
-            { value: endBehavior(deg, -lead), why: `The leading coefficient is ${lead}: its sign decides which way the right end goes.` },
-            { value: endBehavior(deg + 1, lead), why: even ? `Degree ${deg} is even, so both ends go the same way.` : `Degree ${deg} is odd, so the two ends go opposite ways.` },
-            { value: endBehavior(deg + 1, -lead), why: even ? `Degree ${deg} is even, so both ends go the same way.` : `Degree ${deg} is odd, so the two ends go opposite ways.` },
+            { value: endBehavior(deg, -lead), why: `The leading coefficient is ${lead}: its sign decides which way the right end goes.`, step: 2 },
+            { value: endBehavior(deg + 1, lead), why: even ? `Degree ${deg} is even, so both ends go the same way.` : `Degree ${deg} is odd, so the two ends go opposite ways.`, step: 1 },
+            { value: endBehavior(deg + 1, -lead), why: even ? `Degree ${deg} is even, so both ends go the same way.` : `Degree ${deg} is odd, so the two ends go opposite ways.`, step: 1 },
           ],
-          `The leading term ${term(lead, deg, true)} has ${even ? "even" : "odd"} degree and a ${lead > 0 ? "positive" : "negative"} coefficient: ${answer}.`
+          steps.join(" → ")
         );
       }
       if (kind === 3) {
@@ -207,16 +255,21 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const answer = `${DEGREE_NAME[deg]} ${TERMS_NAME[terms]}`;
         const otherDeg = deg === 5 ? 4 : deg + 1;
         const otherTerms = terms === 4 ? 3 : terms + 1;
+        const steps = [
+          `the largest exponent is ${deg}, so it is ${DEGREE_NAME[deg]}`,
+          `it has ${terms} term${terms === 1 ? "" : "s"}, so it is a ${TERMS_NAME[terms]}`,
+          answer,
+        ];
         return mcCard(
           `Classify P(x) = ${polyText(high)} by its degree and its number of terms.`,
           "The degree names it (linear, quadratic, cubic, quartic, quintic); the count of terms names it too (monomial, binomial, trinomial).",
           answer,
           [
-            { value: `${DEGREE_NAME[otherDeg]} ${TERMS_NAME[terms]}`, why: `The degree is the largest exponent on x, which is ${deg}.` },
-            { value: `${DEGREE_NAME[deg]} ${TERMS_NAME[otherTerms]}`, why: `Count the terms separated by + and −: there are ${terms}.` },
-            { value: `${DEGREE_NAME[otherDeg]} ${TERMS_NAME[otherTerms]}`, why: `Check both: the largest exponent is ${deg}, and the terms separated by + and − number ${terms}.` },
+            { value: `${DEGREE_NAME[otherDeg]} ${TERMS_NAME[terms]}`, why: `The degree is the largest exponent on x, which is ${deg}.`, step: 0 },
+            { value: `${DEGREE_NAME[deg]} ${TERMS_NAME[otherTerms]}`, why: `Count the terms separated by + and −: there are ${terms}.`, step: 1 },
+            { value: `${DEGREE_NAME[otherDeg]} ${TERMS_NAME[otherTerms]}`, why: `Check both: the largest exponent is ${deg}, and the terms separated by + and − number ${terms}.`, step: 0 },
           ],
-          `Largest exponent ${deg} → ${DEGREE_NAME[deg]}; ${terms} term${terms === 1 ? "" : "s"} → ${TERMS_NAME[terms]}.`
+          steps.join(" → ")
         );
       }
       if (kind === 4) {
@@ -226,16 +279,22 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const left = randInt(0, 1) === 0;
         const up = left ? (deg % 2 === 0 ? lead > 0 : lead < 0) : lead > 0;
         const answer = up ? "y → ∞" : "y → −∞";
+        const steps = [
+          `the leading term is ${term(lead, deg, true)}`,
+          `the right end follows the sign of ${lead}, so on the right y goes ${lead > 0 ? "up" : "down"}`,
+          ...(left ? [`degree ${deg} is ${deg % 2 === 0 ? "even, so the left end matches the right end" : "odd, so the left end is opposite to the right end"}: on the left y goes ${up ? "up" : "down"}`] : []),
+          `as x goes to ${left ? "−∞" : "∞"}, y goes to ${up ? "∞" : "−∞"}`,
+        ];
         return mcCard(
           `A polynomial has degree ${deg} and leading coefficient ${lead}. As x → ${left ? "−∞" : "∞"}, what happens to y?`,
           left ? "On the left, an even degree matches the right end and an odd degree does the opposite of the right end. The right end follows the sign of the leading coefficient." : "On the right, y follows the sign of the leading coefficient: positive goes up, negative goes down.",
           answer,
           [
-            { value: up ? "y → −∞" : "y → ∞", why: left ? `Degree ${deg} is ${deg % 2 === 0 ? "even, so the left end matches the right end" : "odd, so the left end is opposite to the right end"}, and the right end follows the sign of ${lead}.` : `The right end follows the sign of the leading coefficient, ${lead}.` },
-            { value: "y → 0", why: "A polynomial of degree 1 or more never levels off; its leading term grows without bound." },
-            { value: `y → ${lead}`, why: "The leading coefficient sets the direction, not a value y settles at." },
+            { value: up ? "y → −∞" : "y → ∞", why: left ? `Degree ${deg} is ${deg % 2 === 0 ? "even, so the left end matches the right end" : "odd, so the left end is opposite to the right end"}, and the right end follows the sign of ${lead}.` : `The right end follows the sign of the leading coefficient, ${lead}.`, step: left ? 2 : 1 },
+            { value: "y → 0", why: "A polynomial of degree 1 or more never levels off; its leading term grows without bound.", step: steps.length - 1 },
+            { value: `y → ${lead}`, why: "The leading coefficient sets the direction, not a value y settles at.", step: 1 },
           ],
-          `Leading term ${term(lead, deg, true)}: ${answer} as x → ${left ? "−∞" : "∞"}.`
+          steps.join(" → ")
         );
       }
       // Degree of a product of factors.
@@ -257,23 +316,28 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: "Each factor (x − r) contributes degree 1, and a power on a factor multiplies that. Add the degrees of all the factors.",
         answer: deg,
         traps: trapsFor(deg, [
-          trap(count, "A squared or cubed factor counts more than once. Add the exponents on the factors."),
-          trap(factors.reduce((s, [, m]) => s * m, 1), "Degrees of multiplied factors add; they are not multiplied together."),
-          trap(Math.max(...factors.map(([, m]) => m)), "Every factor adds to the degree, not just the one with the biggest exponent."),
+          trap(count, "A squared or cubed factor counts more than once. Add the exponents on the factors.", 0),
+          trap(factors.reduce((s, [, m]) => s * m, 1), "Degrees of multiplied factors add; they are not multiplied together.", 1),
+          trap(Math.max(...factors.map(([, m]) => m)), "Every factor adds to the degree, not just the one with the biggest exponent.", 1),
         ]),
-        explanation: `Degrees of the factors: ${factors.map(([, m]) => m).join(" + ")} = ${deg}.`,
+        explanation: [
+          `degree of each factor: ${factors.map(([r, m]) => `(${divisor(r)})${m > 1 ? SUP[m] : ""} has degree ${m}`).join(", ")}`,
+          `multiplying adds degrees: ${factors.map(([, m]) => m).join(" + ")} = ${deg}`,
+        ].join(" → "),
       };
     }),
 
   "polynomial-division": (seeds) =>
     fillToCount("polynomial-division", seeds, PROBLEMS_PER_SKILL, (i) => {
       const kind = i % 6;
+      const boxLine = (high: number[], k: number) => `${k > 0 ? `${divisor(k)} puts ${k}` : `${divisor(k)} = x − (${k}), so ${k} goes`} in the box; the coefficients are ${high.join(", ")}`;
       if (kind === 0 || kind === 4) {
         // The remainder of a cubic divided by x − k (kind 0) or x + k (kind 4).
         const high = [pick([1, 1, 2, -1]), nz(6), nz(8), nz(9)];
         const k = kind === 0 ? randInt(1, 4) : -randInt(1, 4);
         const row = synth(high, k);
         const r = row[3];
+        const steps = [boxLine(high, k), ...synthLines(high, k), `the last number in the bottom row is the remainder: ${r}`];
         return {
           id: "",
           type: "numeric",
@@ -281,11 +345,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Put ${k} in the box (the divisor is x − (${k})). Bring down ${high[0]}, multiply by ${k}, add to the next coefficient, and repeat. The last number is the remainder.`,
           answer: r,
           traps: trapsFor(r, [
-            trap(synth(high, -k)[3], `The divisor ${divisor(k)} means the number in the box is ${k}, not ${-k}.`),
-            trap(high[3], "The remainder is the last number after all the multiply-and-add steps, not the original constant term."),
-            trap(row[2], "Keep going: the remainder is the very last number in the bottom row."),
+            trap(synth(high, -k)[3], `The divisor ${divisor(k)} means the number in the box is ${k}, not ${-k}.`, 0),
+            trap(high[3], "The remainder is the last number after all the multiply-and-add steps, not the original constant term.", 4),
+            trap(row[2], "Keep going: the remainder is the very last number in the bottom row.", 4),
           ]),
-          explanation: `Coefficients ${high.join(", ")} with k = ${k}: bottom row ${row.join(", ")}. The remainder is ${r}.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -295,17 +359,18 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const row = synth(high, k);
         const answer = polyText(row.slice(0, 3));
         const wrongK = synth(high, -k);
+        const steps = [boxLine(high, k), ...synthLines(high, k), `bottom row ${row.join(", ")}: the quotient is ${answer}, remainder ${row[3]}`];
         return mcCard(
           `Divide P(x) = ${polyText(high)} by (${divisor(k)}). What is the quotient (ignore the remainder)?`,
           `Use ${k} in the box. The bottom row, except its last number, gives the quotient's coefficients, one degree lower than P(x).`,
           answer,
           [
-            { value: polyText(wrongK.slice(0, 3)), why: `The divisor ${divisor(k)} means the number in the box is ${k}, since ${divisor(k)} = x − (${k}).` },
-            { value: polyText(high.slice(0, 3)), why: "The quotient's coefficients come from the bottom row after multiplying and adding, not from the original polynomial." },
-            { value: polyText(row.slice(1, 4)), why: "The first coefficient is brought down as is, and the last number of the row is the remainder, not part of the quotient." },
-            { value: polyText([row[0], -row[1], row[2]]), why: "Add each product to the next coefficient, keeping the signs." },
+            { value: polyText(wrongK.slice(0, 3)), why: `The divisor ${divisor(k)} means the number in the box is ${k}, since ${divisor(k)} = x − (${k}).`, step: 0 },
+            { value: polyText(high.slice(0, 3)), why: "The quotient's coefficients come from the bottom row after multiplying and adding, not from the original polynomial.", step: 4 },
+            { value: polyText(row.slice(1, 4)), why: "The first coefficient is brought down as is, and the last number of the row is the remainder, not part of the quotient.", step: 4 },
+            { value: polyText([row[0], -row[1], row[2]]), why: "Add each product to the next coefficient, keeping the signs.", step: 1 },
           ],
-          `k = ${k}: bottom row ${row.join(", ")}. Quotient ${answer}, remainder ${row[3]}.`
+          steps.join(" → ")
         );
       }
       if (kind === 2) {
@@ -313,6 +378,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const high = [pick([1, 2, -1, 3]), nz(7), nz(9), nz(9)];
         const k = nz(4);
         const value = polyAt(high, k);
+        const [shown, worked] = substitute(high, k);
+        const steps = [`P(${k}) = ${shown}`, `(${k})³ = ${k ** 3} and (${k})² = ${k * k}`, `= ${worked}`, `= ${value}`];
         return {
           id: "",
           type: "numeric",
@@ -320,11 +387,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Substitute x = ${k} into every term, or run synthetic division with ${k}: the remainder is P(${k}).`,
           answer: value,
           traps: trapsFor(value, [
-            trap(polyAt(high, -k), `Use x = ${k}, with its sign, in every term.`),
-            trap(high[0] * k * k * k + high[1] * k * k + high[2] * k + high[3] * k, "The constant term is not multiplied by x."),
-            trap(high[0] * k * 3 + high[1] * k * 2 + high[2] * k + high[3], "x³ means x × x × x, not 3x."),
+            trap(polyAt(high, -k), `Use x = ${k}, with its sign, in every term.`, 0),
+            trap(high[0] * k * k * k + high[1] * k * k + high[2] * k + high[3] * k, "The constant term is not multiplied by x.", 2),
+            trap(high[0] * k * 3 + high[1] * k * 2 + high[2] * k + high[3], "x³ means x × x × x, not 3x.", 1),
           ]),
-          explanation: `P(${k}) = ${high[0] === 1 ? "" : high[0] === -1 ? "-" : high[0]}(${k})³${plusTerm(high[1], `(${k})²`)}${plusTerm(high[2], `(${k})`)}${plusTerm(high[3])} = ${high[0] * k * k * k}${plusTerm(high[1] * k * k)}${plusTerm(high[2] * k)}${plusTerm(high[3])} = ${value}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -367,17 +434,18 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const k = nz(5);
       const row = synth(high, k);
       const answer = polyText(row.slice(0, 2));
+      const steps = [boxLine(high, k), ...synthLines(high, k), `bottom row ${row.join(", ")}: the quotient is ${answer}, remainder ${row[2]}`];
       return mcCard(
         `Divide P(x) = ${polyText(high)} by (${divisor(k)}). What is the quotient (ignore the remainder)?`,
         `Use ${k} in the box. Bring down ${high[0]}, multiply by ${k}, add to ${high[1]}. The two numbers you get are the quotient's coefficients.`,
         answer,
         [
-          { value: polyText(synth(high, -k).slice(0, 2)), why: `The divisor ${divisor(k)} means the number in the box is ${k}.` },
-          { value: polyText(high.slice(0, 2)), why: "The quotient's coefficients come from the bottom row after multiplying and adding." },
-          { value: polyText([row[0], -row[1]]), why: "Add the product to the next coefficient, keeping the signs." },
-          { value: polyText(row.slice(1, 3)), why: "The first coefficient is brought down as is, and the last number of the row is the remainder." },
+          { value: polyText(synth(high, -k).slice(0, 2)), why: `The divisor ${divisor(k)} means the number in the box is ${k}.`, step: 0 },
+          { value: polyText(high.slice(0, 2)), why: "The quotient's coefficients come from the bottom row after multiplying and adding.", step: 3 },
+          { value: polyText([row[0], -row[1]]), why: "Add the product to the next coefficient, keeping the signs.", step: 1 },
+          { value: polyText(row.slice(1, 3)), why: "The first coefficient is brought down as is, and the last number of the row is the remainder.", step: 3 },
         ],
-        `k = ${k}: bottom row ${row.join(", ")}. Quotient ${answer}, remainder ${row[2]}.`
+        steps.join(" → ")
       );
     }),
 
@@ -398,15 +466,24 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const answer = r === 0 ? "Yes, the remainder is 0" : `No, the remainder is ${r}`;
         const other = polyAt(high, -k);
         const wrongs = [other, r === 0 ? high[3] : -r, r === 0 ? k * k : high[3], r + 2 * k, r === 0 ? 1 : 0];
+        const wrongSteps = [1, r === 0 ? 1 : 2, r === 0 ? 2 : 1, 2, r === 0 ? 2 : 3];
+        const [shown, worked] = substitute(high, k);
+        const steps = [
+          `the remainder when dividing by ${divisor(k)} is P(${k})`,
+          `P(${k}) = ${shown}`,
+          `= ${worked}`,
+          `= ${r}`,
+          r === 0 ? `the remainder is 0, so ${divisor(k)} is a factor` : `${r} is not 0, so ${divisor(k)} is not a factor; the remainder is ${r}`,
+        ];
         return mcCard(
           `Is (${divisor(k)}) a factor of P(x) = ${polyText(high)}? Use the remainder theorem.`,
           `Find P(${k}). By the factor theorem, ${divisor(k)} is a factor exactly when P(${k}) = 0; otherwise P(${k}) is the remainder.`,
           answer,
           [
-            { value: r === 0 ? `No, the remainder is ${other === 0 ? high[3] : other}` : "Yes, the remainder is 0", why: r === 0 ? `Evaluate P(${k}), with the sign of ${k} in every term.` : `A factor needs a remainder of exactly 0. Compute P(${k}) carefully.` },
-            ...wrongs.map((w) => ({ value: w === 0 ? "Yes, the remainder is 0" : `No, the remainder is ${w}`, why: `The remainder when dividing by ${divisor(k)} is P(${k}). Substitute x = ${k} into every term.` })),
+            { value: r === 0 ? `No, the remainder is ${other === 0 ? high[3] : other}` : "Yes, the remainder is 0", why: r === 0 ? `Evaluate P(${k}), with the sign of ${k} in every term.` : `A factor needs a remainder of exactly 0. Compute P(${k}) carefully.`, step: r === 0 ? 1 : 3 },
+            ...wrongs.map((w, idx) => ({ value: w === 0 ? "Yes, the remainder is 0" : `No, the remainder is ${w}`, why: `The remainder when dividing by ${divisor(k)} is P(${k}). Substitute x = ${k} into every term.`, step: wrongSteps[idx] })),
           ],
-          r === 0 ? `P(${k}) = 0, so by the factor theorem ${divisor(k)} is a factor.` : `P(${k}) = ${r}, which is not 0, so ${divisor(k)} is not a factor; the remainder is ${r}.`
+          steps.join(" → ")
         );
       }
       if (kind === 1) {
@@ -415,6 +492,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const high = fromRoots(roots);
         const shown = seededShuffle(roots);
         const [r1, r2, want] = shown;
+        const c2 = r1 * r2;
+        const steps = [
+          `multiply the known factors: (${divisor(r1)})(${divisor(r2)}) = ${polyText(fromRoots([r1, r2]))}`,
+          `the constants of all three factors multiply to ${high[3]}: ${c2} · (−k) = ${high[3]}`,
+          `−k = ${high[3]} ÷ ${par(c2)} = ${-want}`,
+          `k = ${want}, so the third factor is ${divisor(want)}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -422,11 +506,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Multiply the two known factors, then divide P(x) by that quadratic; or use that the constants of the three factors multiply to ${high[3]}.`,
           answer: want,
           traps: trapsFor(want, [
-            trap(-want, `The third factor is x − k, so k is the zero of that factor, with its sign: the constants multiply to ${high[3]}.`),
-            trap(high[3], `${high[3]} is the constant term of P(x), the product of all three factors' constants.`),
-            trap(r1 * r2, "That is the product of the two known zeros. Divide the constant term by it, watching the signs."),
+            trap(-want, `The third factor is x − k, so k is the zero of that factor, with its sign: the constants multiply to ${high[3]}.`, 3),
+            trap(high[3], `${high[3]} is the constant term of P(x), the product of all three factors' constants.`, 2),
+            trap(r1 * r2, "That is the product of the two known zeros. Divide the constant term by it, watching the signs.", 2),
           ]),
-          explanation: `(${divisor(r1)})(${divisor(r2)}) = ${polyText(fromRoots([r1, r2]))}. Dividing P(x) by that leaves ${divisor(want)}, so k = ${want}.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 2) {
@@ -437,18 +521,24 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const rest = roots.filter((r) => r !== given);
         const pair = (a: number, b: number) => `x = ${Math.min(a, b)} and x = ${Math.max(a, b)}`;
         const answer = pair(rest[0], rest[1]);
+        const steps = [
+          `divide by ${divisor(given)} with ${given} in the box: bottom row ${synth(high, given).join(", ")}`,
+          `the quotient is ${polyText(fromRoots(rest))}`,
+          `factor it: (${divisor(rest[0])})(${divisor(rest[1])})`,
+          `set each factor to 0: ${answer}`,
+        ];
         return mcCard(
           `One zero of P(x) = ${polyText(high)} is x = ${given}. What are the other two zeros?`,
           `Divide P(x) by (${divisor(given)}) with synthetic division, then factor or solve the quadratic quotient.`,
           answer,
           [
-            { value: pair(-rest[0], -rest[1]), why: `The zeros of the quotient are where each factor equals 0: x − r = 0 gives x = r, with the sign of r.` },
-            { value: pair(given, rest[0]), why: `x = ${given} is the zero you were given. The question asks for the two others.` },
-            { value: pair(given, rest[1]), why: `x = ${given} is the zero you were given. The question asks for the two others.` },
-            { value: pair(rest[0], -rest[1]), why: "Check the sign of each zero against its factor." },
-            { value: pair(-rest[0], rest[1]), why: "Check the sign of each zero against its factor." },
+            { value: pair(-rest[0], -rest[1]), why: `The zeros of the quotient are where each factor equals 0: x − r = 0 gives x = r, with the sign of r.`, step: 3 },
+            { value: pair(given, rest[0]), why: `x = ${given} is the zero you were given. The question asks for the two others.`, step: 3 },
+            { value: pair(given, rest[1]), why: `x = ${given} is the zero you were given. The question asks for the two others.`, step: 3 },
+            { value: pair(rest[0], -rest[1]), why: "Check the sign of each zero against its factor.", step: 3 },
+            { value: pair(-rest[0], rest[1]), why: "Check the sign of each zero against its factor.", step: 3 },
           ],
-          `P(x) ÷ (${divisor(given)}) = ${polyText(fromRoots(rest))} = (${divisor(rest[0])})(${divisor(rest[1])}), so ${answer}.`
+          steps.join(" → ")
         );
       }
       if (kind === 3) {
@@ -458,6 +548,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const k = nz(4);
         const m = -(k * k * k + b * k * k + c * k);
         const body = polyText([1, b, c, 0]);
+        const [shown] = substitute([1, b, c, 0], k);
+        const steps = [
+          `factor theorem: ${divisor(k)} is a factor when P(${k}) = 0`,
+          `P(${k}) = ${shown} + m`,
+          `= ${k ** 3}${plusTerm(b * k * k)}${plusTerm(c * k)} + m = ${-m} + m`,
+          `${-m} + m = 0, so m = ${m}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -465,11 +562,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `By the factor theorem P(${k}) must be 0. Substitute x = ${k} into the known terms, then choose m to cancel the total.`,
           answer: m,
           traps: trapsFor(m, [
-            trap(-m, `P(${k}) must equal 0, so m is the opposite of what the other terms add up to at x = ${k}.`),
-            trap(-(-k * k * k + b * k * k - c * k), `Substitute x = ${k}, with its sign, into every term.`),
-            trap(-(k * k * k + b * k * k), "The x term contributes too when x is substituted."),
+            trap(-m, `P(${k}) must equal 0, so m is the opposite of what the other terms add up to at x = ${k}.`, 3),
+            trap(-(-k * k * k + b * k * k - c * k), `Substitute x = ${k}, with its sign, into every term.`, 1),
+            trap(-(k * k * k + b * k * k), "The x term contributes too when x is substituted.", 2),
           ]),
-          explanation: `P(${k}) = ${k * k * k}${plusTerm(b * k * k)}${plusTerm(c * k)} + m = ${-m} + m, which is 0 when m = ${m}.`,
+          explanation: steps.join(" → "),
         };
       }
       // Fully factored form, given one factor.
@@ -477,17 +574,24 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const high = fromRoots(roots);
       const given = pick(roots);
       const answer = factored(roots);
+      const rest = roots.filter((r) => r !== given);
+      const steps = [
+        `divide by ${divisor(given)} with ${given} in the box: bottom row ${synth(high, given).join(", ")}`,
+        `the quotient is ${polyText(fromRoots(rest))}`,
+        `factor the quotient: (${divisor(rest[0])})(${divisor(rest[1])})`,
+        `P(x) = ${answer}`,
+      ];
       return mcCard(
         `(${divisor(given)}) is a factor of P(x) = ${polyText(high)}. Write P(x) in fully factored form.`,
         `Divide P(x) by (${divisor(given)}) with synthetic division, then factor the quadratic quotient into two linear factors.`,
         answer,
         [
-          { value: factored(roots.map((r) => -r)), why: "A zero r gives the factor x − r: the sign inside each factor is the opposite of the zero." },
-          { value: factored(roots.map((r) => (r === given ? r : -r))), why: `The quotient's factors follow the same rule as the given one: a zero r gives the factor x − r.` },
-          { value: factored(roots.map((r, idx) => (idx === roots.indexOf(given) || idx === 0 ? r : -r))), why: "Check the sign inside each factor by multiplying the constants: they must give the constant term of P(x)." },
-          { value: factored(roots.map((r, idx) => (idx === roots.indexOf(given) || idx === 2 ? r : -r))), why: "Check the sign inside each factor by multiplying the constants: they must give the constant term of P(x)." },
+          { value: factored(roots.map((r) => -r)), why: "A zero r gives the factor x − r: the sign inside each factor is the opposite of the zero.", step: 3 },
+          { value: factored(roots.map((r) => (r === given ? r : -r))), why: `The quotient's factors follow the same rule as the given one: a zero r gives the factor x − r.`, step: 2 },
+          { value: factored(roots.map((r, idx) => (idx === roots.indexOf(given) || idx === 0 ? r : -r))), why: "Check the sign inside each factor by multiplying the constants: they must give the constant term of P(x).", step: 2 },
+          { value: factored(roots.map((r, idx) => (idx === roots.indexOf(given) || idx === 2 ? r : -r))), why: "Check the sign inside each factor by multiplying the constants: they must give the constant term of P(x).", step: 2 },
         ],
-        `P(x) ÷ (${divisor(given)}) = ${polyText(fromRoots(roots.filter((r) => r !== given)))}, which factors, so P(x) = ${answer}.`
+        steps.join(" → ")
       );
     }),
 };

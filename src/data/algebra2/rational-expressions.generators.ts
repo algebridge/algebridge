@@ -1,7 +1,7 @@
 import type { PracticeProblem, Trap } from "@/types";
 import { PROBLEMS_PER_SKILL, PROBLEM_NAMES, fillToCount, lin, mcChoices, plusTerm, quad, randInt, trapsFor } from "@/lib/problem-utils";
 
-const trap = (value: string | number, why: string): Trap => ({ value, why });
+const trap = (value: string | number, why: string, step?: number): Trap => (step === undefined ? { value, why } : { value, why, step });
 const pick = <T>(items: readonly T[]): T => items[randInt(0, items.length - 1)];
 /** A nonzero integer in [-n, n]. */
 const nz = (n: number) => {
@@ -24,6 +24,16 @@ const f = (k: number) => `(${lin(1, k)})`;
 const over = (top: string, bottom: string) => `${top}/${bottom}`;
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : Math.abs(a));
 
+/** A number written after an operator: 4 → "4", -4 → "(-4)". */
+const par = (n: number) => (n < 0 ? `(${n})` : `${n}`);
+/** n/d reduced, sign in front: (6, -4) → "-3/2", (4, 2) → "2". */
+function fracText(n: number, d: number): string {
+  const g = gcd(n, d) || 1;
+  const sign = n * d < 0 ? "-" : "";
+  const [top, bottom] = [Math.abs(n) / g, Math.abs(d) / g];
+  return bottom === 1 ? `${sign}${top}` : `${sign}${top}/${bottom}`;
+}
+
 export const generators: Record<string, (seeds: PracticeProblem[]) => PracticeProblem[]> = {
   "simplify-rational": (seeds) =>
     fillToCount("simplify-rational", seeds, PROBLEMS_PER_SKILL, (i) => {
@@ -34,6 +44,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const a = nzNot(9, [n, -n]);
         const answer = `x = ${-n} and x = ${n}`;
         const wrong = [`x = ${n}`, `x = ${-a}`, `x = ${-a}, x = ${-n} and x = ${n}`];
+        const steps = [
+          `only the bottom matters: set ${quad(1, 0, -n * n)} = 0`,
+          `difference of squares: (x − ${n})(x + ${n}) = 0`,
+          `x − ${n} = 0 gives x = ${n}, and x + ${n} = 0 gives x = ${-n}`,
+          `excluded: ${answer}`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -42,11 +58,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `x² − ${n * n} = (x − ${n})(x + ${n}) has two factors, and each one can be 0.`),
-            trap(wrong[1], `x = ${-a} makes the top 0, which is allowed: the fraction is just 0 there. Look at the bottom.`),
-            trap(wrong[2], "Only values that make the bottom 0 are excluded. The top being 0 is fine."),
+            trap(wrong[0], `x² − ${n * n} = (x − ${n})(x + ${n}) has two factors, and each one can be 0.`, 2),
+            trap(wrong[1], `x = ${-a} makes the top 0, which is allowed: the fraction is just 0 there. Look at the bottom.`, 0),
+            trap(wrong[2], "Only values that make the bottom 0 are excluded. The top being 0 is fine.", 0),
           ]),
-          explanation: `x² − ${n * n} = (x − ${n})(x + ${n}) = 0 when x = ${n} or x = ${-n}, so those are excluded.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -59,6 +75,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const c = lo * hi;
         const answer = `x = ${lo} and x = ${hi}`;
         const wrong = [`x = ${-lo} and x = ${-hi}`, `x = ${-a}`, `x = ${lo}`];
+        const steps = [
+          `only the bottom matters: set ${quad(1, b, c)} = 0`,
+          `two numbers that multiply to ${c} and add to ${b}: ${-lo} and ${-hi}`,
+          `${f(-lo)}${f(-hi)} = 0`,
+          `each factor is 0 at x = ${lo} or x = ${hi}, so the excluded values are ${answer}`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -67,34 +89,57 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `${quad(1, b, c)} = ${f(-lo)}${f(-hi)}: each factor is 0 at the opposite of the number in it.`),
-            trap(wrong[1], `x = ${-a} makes the top 0, which is allowed. Only the bottom matters.`),
-            trap(wrong[2], "The bottom has two factors, so two values make it 0."),
+            trap(wrong[0], `${quad(1, b, c)} = ${f(-lo)}${f(-hi)}: each factor is 0 at the opposite of the number in it.`, 3),
+            trap(wrong[1], `x = ${-a} makes the top 0, which is allowed. Only the bottom matters.`, 0),
+            trap(wrong[2], "The bottom has two factors, so two values make it 0.", 3),
           ]),
-          explanation: `${quad(1, b, c)} = ${f(-lo)}${f(-hi)} = 0 when x = ${lo} or x = ${hi}.`,
+          explanation: steps.join(" → "),
         };
       }
-      if (kind === 2) {
-        // Simplify a trinomial over a linear factor.
+      if (kind === 2 || kind === 4) {
+        // Simplify a trinomial over a linear factor (kind 2), then evaluate it (kind 4).
         const r = nz(8);
         const s = nzNot(8, [r]);
         const b = r + s;
         const c = r * s;
-        const answer = lin(1, s);
-        const wrong = [lin(1, -s), lin(1, b), lin(1, r)];
+        const factorSteps = [
+          `factor the top: two numbers that multiply to ${c} and add to ${b} are ${r} and ${s}`,
+          `${quad(1, b, c)} = ${f(r)}${f(s)}`,
+          `cancel the shared factor ${f(r)}: ${f(r)}${f(s)}/${f(r)} = ${lin(1, s)}`,
+        ];
+        if (kind === 2) {
+          const answer = lin(1, s);
+          const wrong = [lin(1, -s), lin(1, b), lin(1, r)];
+          return {
+            id: "",
+            type: "multiple-choice",
+            prompt: `Simplify (${quad(1, b, c)})/${f(r)}.`,
+            hint: `Factor the top: two numbers that multiply to ${c} and add to ${b}. One factor is ${f(r)}; cancel it.`,
+            answer,
+            choices: mcChoices(answer, wrong),
+            traps: trapsFor(answer, [
+              trap(wrong[0], `The top factors as ${f(r)}${f(s)}. Check the sign of the factor that remains.`, 1),
+              trap(wrong[1], "You cannot cancel x² against x. Factor the top first, then cancel a whole factor.", 0),
+              trap(wrong[2], `${f(r)} is the factor that cancels with the bottom. The other factor remains.`, 2),
+            ]),
+            explanation: factorSteps.join(" → "),
+          };
+        }
+        let v = randInt(-9, 9);
+        if (v === -r) v += 1;
+        const want = v + s;
         return {
           id: "",
-          type: "multiple-choice",
-          prompt: `Simplify (${quad(1, b, c)})/${f(r)}.`,
-          hint: `Factor the top: two numbers that multiply to ${c} and add to ${b}. One factor is ${f(r)}; cancel it.`,
-          answer,
-          choices: mcChoices(answer, wrong),
-          traps: trapsFor(answer, [
-            trap(wrong[0], `The top factors as ${f(r)}${f(s)}. Check the sign of the factor that remains.`),
-            trap(wrong[1], "You cannot cancel x² against x. Factor the top first, then cancel a whole factor."),
-            trap(wrong[2], `${f(r)} is the factor that cancels with the bottom. The other factor remains.`),
+          type: "numeric",
+          prompt: `Simplify (${quad(1, b, c)})/${f(r)}, then find its value when x = ${v}.`,
+          hint: `The top factors as ${f(r)}${f(s)}. Cancel ${f(r)}, then put x = ${v} into what is left.`,
+          answer: want,
+          traps: trapsFor(want, [
+            trap(v - s, `After canceling, the expression is ${lin(1, s)}. Check the sign when you substitute.`, 3),
+            trap(v * v + b * v + c, `That is the top alone. Divide by the bottom, ${v}${plusTerm(r)} = ${v + r}, as well.`, 2),
+            trap(v + r, `${f(r)} is the factor that cancels. Substitute into the factor that remains.`, 2),
           ]),
-          explanation: `(${quad(1, b, c)})/${f(r)} = ${f(r)}${f(s)}/${f(r)} = ${answer}`,
+          explanation: [...factorSteps, `at x = ${v}: ${v}${plusTerm(s)} = ${want}`].join(" → "),
         };
       }
       if (kind === 3) {
@@ -106,6 +151,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const bottom = quad(1, -(fac + g), fac * g);
         const answer = over(f(fac), f(-g));
         const wrong = [over(f(-fac), f(-g)), over(f(fac), f(g)), over(f(-fac), f(g))];
+        const steps = [
+          `factor the top: ${top} = (x − ${n})(x + ${n})`,
+          `factor the bottom: two numbers that multiply to ${fac * g} and add to ${-(fac + g)}, so ${bottom} = ${f(-fac)}${f(-g)}`,
+          `cancel the shared factor ${f(-fac)}`,
+          answer,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -114,34 +165,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `${f(-fac)} is the factor that cancels. The top keeps its other factor.`),
-            trap(wrong[1], `The bottom factors as ${f(-fac)}${f(-g)}; check the sign of the factor that stays.`),
-            trap(wrong[2], "Both the factor kept on top and the one kept on the bottom have the wrong sign."),
+            trap(wrong[0], `${f(-fac)} is the factor that cancels. The top keeps its other factor.`, 2),
+            trap(wrong[1], `The bottom factors as ${f(-fac)}${f(-g)}; check the sign of the factor that stays.`, 1),
+            trap(wrong[2], "Both the factor kept on top and the one kept on the bottom have the wrong sign.", 1),
           ]),
-          explanation: `(${top})/(${bottom}) = (x − ${n})(x + ${n})/(${f(-fac)}${f(-g)}) = ${answer}`,
-        };
-      }
-      if (kind === 4) {
-        // Simplify, then evaluate.
-        const r = nz(8);
-        const s = nzNot(8, [r]);
-        const b = r + s;
-        const c = r * s;
-        let v = randInt(-9, 9);
-        if (v === -r) v += 1;
-        const want = v + s;
-        return {
-          id: "",
-          type: "numeric",
-          prompt: `Simplify (${quad(1, b, c)})/${f(r)}, then find its value when x = ${v}.`,
-          hint: `The top factors as ${f(r)}${f(s)}. Cancel ${f(r)}, then put x = ${v} into what is left.`,
-          answer: want,
-          traps: trapsFor(want, [
-            trap(v - s, `After canceling, the expression is ${lin(1, s)}. Check the sign when you substitute.`),
-            trap(v * v + b * v + c, `That is the top alone. Divide by the bottom, ${v}${plusTerm(r)} = ${v + r}, as well.`),
-            trap(v + r, `${f(r)} is the factor that cancels. Substitute into the factor that remains.`),
-          ]),
-          explanation: `(${quad(1, b, c)})/${f(r)} = ${lin(1, s)}, and at x = ${v} that is ${v}${plusTerm(s)} = ${want}`,
+          explanation: steps.join(" → "),
         };
       }
       // Error analysis: simplifying by canceling.
@@ -181,6 +209,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const answer = shape === 0 ? over(f(a), f(c)) : over(f(c), f(b));
         const cancel = shape === 0 ? f(b) : f(a);
         const wrong = shape === 0 ? [over(f(c), f(a)), over(f(a), f(b)), over(f(b), f(c))] : [over(f(b), f(c)), over(f(a), f(b)), over(f(c), f(a))];
+        const steps = [
+          `tops times tops, bottoms times bottoms: ${shape === 0 ? `(${f(a)}${f(b)})/(${f(b)}${f(c)})` : `(${f(a)}${f(c)})/(${f(b)}${f(a)})`}`,
+          `${cancel} is on the top and on the bottom, so it cancels`,
+          answer,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -189,11 +222,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "Multiplying keeps tops on top and bottoms on the bottom; nothing flips."),
-            trap(wrong[1], `${cancel} appears once on a top and once on a bottom, so it cancels out.`),
-            trap(wrong[2], `${cancel} cancels. What stays is the factor that did not match.`),
+            trap(wrong[0], "Multiplying keeps tops on top and bottoms on the bottom; nothing flips.", 0),
+            trap(wrong[1], `${cancel} appears once on a top and once on a bottom, so it cancels out.`, 1),
+            trap(wrong[2], `${cancel} cancels. What stays is the factor that did not match.`, 1),
           ]),
-          explanation: `${expr}: cancel ${cancel} to get ${answer}.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -207,6 +240,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const answer = shape === 0 ? over(f(c), f(b)) : over(f(a), f(c));
         const flipped = shape === 0 ? over(f(c), f(a)) : over(f(b), f(c));
         const wrong = shape === 0 ? [over(f(b), f(c)), over(f(a), f(b)), over(f(c), f(a))] : [over(f(c), f(a)), over(f(a), f(b)), over(f(b), f(c))];
+        const steps = [
+          `dividing is multiplying by the flip: ${over(f(a), f(b))} × ${flipped}`,
+          `multiply across: ${shape === 0 ? `(${f(a)}${f(c)})/(${f(b)}${f(a)})` : `(${f(a)}${f(b)})/(${f(b)}${f(c)})`}`,
+          `${shape === 0 ? f(a) : f(b)} is on the top and on the bottom, so it cancels`,
+          answer,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -215,11 +254,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "That is the flip of the answer. Flip only the second fraction, then multiply."),
-            trap(wrong[1], "The first fraction changes once you multiply by the flip of the second; something cancels."),
-            trap(wrong[2], `Flip the second fraction to ${flipped} before multiplying.`),
+            trap(wrong[0], "That is the flip of the answer. Flip only the second fraction, then multiply.", 0),
+            trap(wrong[1], "The first fraction changes once you multiply by the flip of the second; something cancels.", 2),
+            trap(wrong[2], `Flip the second fraction to ${flipped} before multiplying.`, 0),
           ]),
-          explanation: `${expr} = ${over(f(a), f(b))} × ${flipped} = ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 2) {
@@ -231,6 +270,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const expr = `(${top})/${f(a)} × ${f(a)}/${f(-keep)}`;
         const answer = lin(1, keep);
         const wrong = [lin(1, -keep), lin(1, a), lin(1, -a)];
+        const steps = [
+          `factor: ${top} = (x − ${n})(x + ${n})`,
+          `multiply across: ((x − ${n})(x + ${n})${f(a)})/(${f(a)}${f(-keep)})`,
+          `cancel ${f(a)} and ${f(-keep)}, which are on the top and on the bottom`,
+          answer,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -239,11 +284,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `${f(-keep)} is the factor that cancels with the bottom. The other factor of x² − ${n * n} stays.`),
-            trap(wrong[1], `${f(a)} appears on a top and a bottom, so it cancels out.`),
-            trap(wrong[2], `${f(a)} cancels, and nothing changes its sign.`),
+            trap(wrong[0], `${f(-keep)} is the factor that cancels with the bottom. The other factor of x² − ${n * n} stays.`, 2),
+            trap(wrong[1], `${f(a)} appears on a top and a bottom, so it cancels out.`, 2),
+            trap(wrong[2], `${f(a)} cancels, and nothing changes its sign.`, 2),
           ]),
-          explanation: `${expr} = (x − ${n})(x + ${n})${f(a)} over ${f(a)}${f(-keep)} = ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -256,6 +301,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const v = nz(9);
         const want = k * v;
         const expr = `(${p}x²/${q}) × (${rr}/(${s}x))`;
+        const steps = [
+          `multiply across: ${p * rr}x²/(${q * s}x)`,
+          `divide the numbers: ${p * rr} ÷ ${q * s} = ${k}`,
+          `cancel one x: x²/x = x, so it is ${k}x`,
+          `at x = ${v}: ${k} × ${par(v)} = ${want}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -263,12 +314,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Multiply across: ${p * rr}x² over ${q * s}x. Cancel the numbers and one x, then substitute x = ${v}.`,
           answer: want,
           traps: trapsFor(want, [
-            trap(k, `${k}x is the simplified expression. The question asks for its value at x = ${v}.`),
-            trap(k * v * v, "One x on top cancels with the x on the bottom, so only one x is left."),
-            trap(-k * v, "Check the sign of x when you substitute."),
-            trap(p * rr * v, `Divide the numbers as well: ${p * rr} ÷ ${q * s}.`),
+            trap(k, `${k}x is the simplified expression. The question asks for its value at x = ${v}.`, 3),
+            trap(k * v * v, "One x on top cancels with the x on the bottom, so only one x is left.", 2),
+            trap(-k * v, "Check the sign of x when you substitute.", 3),
+            trap(p * rr * v, `Divide the numbers as well: ${p * rr} ÷ ${q * s}.`, 1),
           ]),
-          explanation: `${expr} = ${p * rr}x²/(${q * s}x) = ${k}x, and ${k} × (${v}) = ${want}`,
+          explanation: steps.join(" → "),
         };
       }
       // A product with canceling, then a value (a fraction answer).
@@ -278,6 +329,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const v = nzNot(9, [-b, -c, -a]);
       const expr = `${over(f(a), f(b))} × ${over(f(b), f(c))}`;
       const want = (v + a) / (v + c);
+      const reduced = fracText(v + a, v + c);
+      const steps = [
+        `multiply across: (${f(a)}${f(b)})/(${f(b)}${f(c)})`,
+        `cancel ${f(b)}: ${over(f(a), f(c))}`,
+        `at x = ${v}: (${v}${plusTerm(a)})/(${v}${plusTerm(c)}) = ${v + a}/${v + c}${reduced === `${v + a}/${v + c}` ? "" : ` = ${reduced}`}`,
+      ];
       return {
         id: "",
         type: "numeric",
@@ -285,11 +342,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: `${f(b)} cancels, leaving ${over(f(a), f(c))}. Put x = ${v} into the top and the bottom.`,
         answer: want,
         traps: trapsFor(want, [
-          trap((v + c) / (v + a), "That is the simplified fraction upside down."),
-          trap((v + a) / (v + b), `${f(b)} cancels; the bottom that stays is ${f(c)}.`),
-          trap(v + a - (v + c), "The simplified expression is a fraction: divide the top by the bottom."),
+          trap((v + c) / (v + a), "That is the simplified fraction upside down.", 2),
+          trap((v + a) / (v + b), `${f(b)} cancels; the bottom that stays is ${f(c)}.`, 1),
+          trap(v + a - (v + c), "The simplified expression is a fraction: divide the top by the bottom.", 2),
         ]),
-        explanation: `${expr} = ${over(f(a), f(c))}, and at x = ${v} that is ${v + a}/${v + c}`,
+        explanation: steps.join(" → "),
       };
     }),
 
@@ -303,6 +360,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const a = x * k;
         const b = randInt(-9, 9);
         const c = b + k;
+        const steps = [
+          `${a}/x${plusTerm(b)} = ${c}`,
+          b === 0 ? `the fraction is already alone: ${a}/x = ${k}` : `${b > 0 ? `subtract ${b}` : `add ${-b}`} on both sides: ${a}/x = ${c} − ${par(b)} = ${k}`,
+          `multiply both sides by x: ${a} = ${lin(k, 0)}`,
+          `divide by ${k}: x = ${a} ÷ ${par(k)} = ${x}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -310,12 +373,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Get the fraction alone: ${a}/x = ${k}. Then multiply both sides by x and divide.`,
           answer: x,
           traps: trapsFor(x, [
-            trap(a * k, `${a}/x = ${k} means ${a} ÷ x = ${k}. Divide ${a} by ${k}; do not multiply.`),
-            trap(a / c, `Move the ${b} across first: the fraction equals ${c} − (${b}), not ${c}.`),
-            trap(k / a, `That is ${k}/${a}, upside down. x = ${a} ÷ ${k}.`),
-            trap(a / (c + b), `Subtract ${b} from both sides, do not add it.`),
+            trap(a * k, `${a}/x = ${k} means ${a} ÷ x = ${k}. Divide ${a} by ${k}; do not multiply.`, 3),
+            trap(a / c, `Move the ${b} across first: the fraction equals ${c} − (${b}), not ${c}.`, 1),
+            trap(k / a, `That is ${k}/${a}, upside down. x = ${a} ÷ ${k}.`, 3),
+            trap(a / (c + b), `Subtract ${b} from both sides, do not add it.`, 1),
           ]),
-          explanation: `${a}/x${plusTerm(b)} = ${c} → ${a}/x = ${k} → ${a} = ${lin(k, 0)} → x = ${x}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -327,6 +390,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         while (gcd(c, d) !== 1) c += 1;
         const a = nz(9);
         const x = kk * c - a;
+        const steps = [
+          `cross-multiply: ${d}(x${plusTerm(a)}) = ${b} × ${c} = ${b * c}`,
+          `divide by ${d}: x${plusTerm(a)} = ${b * c} ÷ ${d} = ${kk * c}`,
+          `${a > 0 ? `subtract ${a}` : `add ${-a}`}: x = ${kk * c}${plusTerm(-a)} = ${x}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -334,11 +402,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Cross-multiply: ${d}(x${plusTerm(a)}) = ${b} × ${c}. Divide by ${d}, then move the ${a} across.`,
           answer: x,
           traps: trapsFor(x, [
-            trap(kk * c + a, `After x${plusTerm(a)} = ${kk * c}, undo the ${a} by doing the opposite.`),
-            trap(b * c - a, `${b} × ${c} is ${b * c}, but it must still be divided by ${d}.`),
-            trap(c / d - a, `Multiply by ${b} first: the whole fraction (x${plusTerm(a)})/${b} equals ${c}/${d}.`),
+            trap(kk * c + a, `After x${plusTerm(a)} = ${kk * c}, undo the ${a} by doing the opposite.`, 2),
+            trap(b * c - a, `${b} × ${c} is ${b * c}, but it must still be divided by ${d}.`, 1),
+            trap(c / d - a, `Multiply by ${b} first: the whole fraction (x${plusTerm(a)})/${b} equals ${c}/${d}.`, 0),
           ]),
-          explanation: `(x${plusTerm(a)})/${b} = ${c}/${d} → x${plusTerm(a)} = ${b} × ${c} ÷ ${d} = ${kk * c} → x = ${x}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 2) {
@@ -351,6 +419,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const den = f(-r);
         const answer = `x = ${r}`;
         const wrong = [`x = ${s}`, `x = ${-r}`, `x = ${-s}`];
+        const steps = [
+          `multiply both sides by ${den}: ${quad(1, b, c)} = ${d}`,
+          `subtract ${d}: ${quad(1, b, r * s)} = 0`,
+          `factor: (x${plusTerm(-r)})(x${plusTerm(-s)}) = 0, so x = ${r} or x = ${s}`,
+          `x = ${r} makes the bottom ${den} equal 0, so x = ${r} is extraneous`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -359,11 +433,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `x = ${s} keeps the bottom ${den} away from 0, so it is a true solution.`),
-            trap(wrong[1], `x = ${-r} does not even solve the cleared equation; find the root that makes ${den} zero.`),
-            trap(wrong[2], `x = ${-s} is not a root of ${quad(1, b, r * s)} = 0.`),
+            trap(wrong[0], `x = ${s} keeps the bottom ${den} away from 0, so it is a true solution.`, 3),
+            trap(wrong[1], `x = ${-r} does not even solve the cleared equation; find the root that makes ${den} zero.`, 2),
+            trap(wrong[2], `x = ${-s} is not a root of ${quad(1, b, r * s)} = 0.`, 2),
           ]),
-          explanation: `${quad(1, b, r * s)} = 0 → (x${plusTerm(-r)})(x${plusTerm(-s)}) = 0 → x = ${r} or x = ${s}. x = ${r} makes ${den} zero, so it is extraneous.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -377,6 +451,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         if (b === a) b += 1;
         const exact = (a * b) / (a + b);
         const want = Math.round(exact * 10 + 1e-9) / 10;
+        const steps = [
+          `in one hour they do 1/${a} + 1/${b} of the job`,
+          `common bottom ${a * b}: ${b}/${a * b} + ${a}/${a * b} = ${a + b}/${a * b} of the job per hour`,
+          `time = 1 ÷ (${a + b}/${a * b}) = ${a * b}/${a + b} hours`,
+          `${a * b} ÷ ${a + b} ≈ ${want} hours`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -385,11 +465,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer: want,
           decimalPlaces: 1,
           traps: trapsFor(want, [
-            trap(Math.round(((a + b) / 2) * 10) / 10, "Averaging the two times ignores that both work at once; together they are faster than either alone."),
-            trap(a + b, "Working together takes less time than either person alone, not more."),
-            trap(Math.round(((a + b) / (a * b)) * 10) / 10, `1/${a} + 1/${b} is the share of the job per hour. The time is 1 divided by that.`),
+            trap(Math.round(((a + b) / 2) * 10) / 10, "Averaging the two times ignores that both work at once; together they are faster than either alone.", 0),
+            trap(a + b, "Working together takes less time than either person alone, not more.", 0),
+            trap(Math.round(((a + b) / (a * b)) * 10) / 10, `1/${a} + 1/${b} is the share of the job per hour. The time is 1 divided by that.`, 2),
           ]),
-          explanation: `1/${a} + 1/${b} = ${a + b}/${a * b} of the job per hour → time = ${a * b}/${a + b} ≈ ${want} hours`,
+          explanation: steps.join(" → "),
         };
       }
       // a/(x + p) = b/(x + q).
@@ -413,6 +493,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         [a, b, p, q, x] = [aa, bb, pp, qq, xx];
         break;
       }
+      const steps = [
+        `cross-multiply: ${a === 1 ? "" : a}${f(q)} = ${b === 1 ? "" : b}${f(p)}`,
+        `expand: ${lin(a, a * q)} = ${lin(b, b * p)}`,
+        `collect x on the left and numbers on the right: ${lin(a - b, 0)} = ${b * p}${plusTerm(-a * q)} = ${b * p - a * q}`,
+        a - b === 1 ? `x = ${x}` : `divide by ${a - b}: x = ${b * p - a * q} ÷ ${par(a - b)} = ${x}`,
+      ];
       return {
         id: "",
         type: "numeric",
@@ -420,11 +506,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: `Cross-multiply: ${a === 1 ? "" : a}${f(q)} = ${b === 1 ? "" : b}${f(p)}. Expand both sides, collect the x terms, and solve.`,
         answer: x,
         traps: trapsFor(x, [
-          trap(-x, "Check the signs when you move the x terms to one side."),
-          trap((b * q - a * p) / (a - b), `Cross-multiplying pairs the ${a} with ${f(q)} and the ${b} with ${f(p)}.`),
-          trap(p - q, "Expand both sides before collecting terms; the constants multiply too."),
+          trap(-x, "Check the signs when you move the x terms to one side.", 2),
+          trap((b * q - a * p) / (a - b), `Cross-multiplying pairs the ${a} with ${f(q)} and the ${b} with ${f(p)}.`, 0),
+          trap(p - q, "Expand both sides before collecting terms; the constants multiply too.", 1),
         ]),
-        explanation: `${a === 1 ? "" : a}${f(q)} = ${b === 1 ? "" : b}${f(p)} → ${lin(a, a * q)} = ${lin(b, b * p)} → ${lin(a - b, 0)} = ${b * p - a * q} → x = ${x}`,
+        explanation: steps.join(" → "),
       };
     }),
 };

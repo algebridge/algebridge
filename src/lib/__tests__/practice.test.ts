@@ -134,6 +134,18 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
+  // Archie hands answers to the card: what counts as an answer in a message.
+  const { answerInMessage } = await import("../answer-bridge.ts");
+  const yes = ["-63", "x = 4", "is it 2/3?", "my answer is B", "I got 12", "step 2", "3 + 4i"];
+  const no = ["how do I start?", "what is i", "why is it negative", "hello", "can you explain step 2 again please"];
+  ok("archie reads an answer in a message", yes.every((t) => answerInMessage(t) !== null), yes.filter((t) => answerInMessage(t) === null).join(" | "));
+  ok("archie leaves questions alone", no.every((t) => answerInMessage(t) === null), no.filter((t) => answerInMessage(t) !== null).join(" | "));
+  // A trap that names its step hands that step to the wrong-answer picture.
+  const { diagnoseMistake } = await import("../diagnose.ts");
+  const d = diagnoseMistake({ id: "t", type: "numeric", prompt: "Simplify √(−81) · √(−49).", hint: "-", answer: -63, explanation: "√(−81) = 9i → √(−49) = 7i → 9i · 7i = 63i² → 63i² = −63", traps: [{ value: 63, why: "Take the i out of each root before multiplying.", step: 3 }] } as never, { given: "63" });
+  ok("a trap carries its step into the diagnosis", d.kind === "trap" && d.step === 3, JSON.stringify(d));
+}
+{
   const { SKILL_RULES } = await import("../../data/skill-rules.ts");
   const { allUnits } = await import("../../data/curriculum.ts");
   const ids = allUnits().flatMap((u) => u.skills.map((s) => s.id));

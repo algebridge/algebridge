@@ -4,12 +4,16 @@ import { fillToCount, frac, mcChoices, PROBLEMS_PER_SKILL, randInt, trapsFor } f
 function pick<T>(items: readonly T[]): T {
   return items[randInt(0, items.length - 1)];
 }
-function trap(value: number | string, why: string): Trap {
-  return { value, why };
+function trap(value: number | string, why: string, step?: number): Trap {
+  return step === undefined ? { value, why } : { value, why, step };
 }
 /** The root sign for an index: 2 → √, 3 → ∛, 4 → ⁴√, 5 → ⁵√. */
 function rootSym(q: number): string {
   return q === 2 ? "√" : q === 3 ? "∛" : `${"⁰¹²³⁴⁵⁶⁷⁸⁹"[q]}√`;
+}
+/** A number with a true minus sign: -3 → "−3". */
+function sn(v: number): string {
+  return v < 0 ? `−${-v}` : String(v);
 }
 /** "x + 5" or "x − 5", the way a textbook writes it. */
 function xPlus(a: number): string {
@@ -66,11 +70,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: fourth ? "Which whole number, multiplied by itself four times, gives this?" : neg ? "A negative number has a negative cube root: (−2)³ = −8." : "Which whole number, multiplied by itself three times, gives this?",
           answer: want,
           traps: trapsFor(want, [
-            trap(fourth ? n / 4 : n / 3, `A root is not division by ${fourth ? 4 : 3}. Look for ${fourth ? "four" : "three"} equal factors.`),
-            trap(fourth ? k * k : k * k, fourth ? `${k * k} × ${k * k} is only two factors. A fourth root asks for four equal factors.` : `${k} × ${k} is only two factors. A cube root asks for three equal factors.`),
-            neg ? trap(k, "The cube of a negative number is negative, so the cube root of a negative number is negative too.") : null,
+            trap(fourth ? n / 4 : n / 3, `A root is not division by ${fourth ? 4 : 3}. Look for ${fourth ? "four" : "three"} equal factors.`, 0),
+            trap(fourth ? k * k : k * k, fourth ? `${k * k} × ${k * k} is only two factors. A fourth root asks for four equal factors.` : `${k} × ${k} is only two factors. A cube root asks for three equal factors.`, 1),
+            neg ? trap(k, "The cube of a negative number is negative, so the cube root of a negative number is negative too.", 1) : null,
           ]),
-          explanation: `${neg ? `(${want})` : want}${fourth ? "⁴" : "³"} = ${n}, so ${sym}${neg ? `(${n})` : n} = ${want}.`,
+          explanation: [
+            `${sym}${neg ? `(${sn(n)})` : n} asks for the number used as a factor ${fourth ? "four" : "three"} times to make ${sn(n)}`,
+            `${Array(fourth ? 4 : 3).fill(neg ? `(${sn(want)})` : want).join(" × ")} = ${sn(n)}`,
+            `so ${sym}${neg ? `(${sn(n)})` : n} = ${sn(want)}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -88,11 +96,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "The cube root of the perfect cube goes in front. The leftover factor stays inside the radical."),
-            trap(wrong[1], `∛${k ** 3} is ${k}, since ${k} × ${k} × ${k} = ${k ** 3}. Only the cube root comes out.`),
-            trap(wrong[2], "The index stays 3. A cube root does not turn into a square root."),
+            trap(wrong[0], "The cube root of the perfect cube goes in front. The leftover factor stays inside the radical.", 3),
+            trap(wrong[1], `∛${k ** 3} is ${k}, since ${k} × ${k} × ${k} = ${k ** 3}. Only the cube root comes out.`, 2),
+            trap(wrong[2], "The index stays 3. A cube root does not turn into a square root.", 3),
           ]),
-          explanation: `∛${n} = ∛(${k ** 3} × ${m}) = ∛${k ** 3} × ∛${m} = ${answer}.`,
+          explanation: [
+            `find the biggest perfect cube factor: ${n} = ${k ** 3} × ${m}`,
+            `split the root: ∛${n} = ∛${k ** 3} × ∛${m}`,
+            `∛${k ** 3} = ${k}, since ${k} × ${k} × ${k} = ${k ** 3}`,
+            `∛${n} = ${answer}`,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -113,11 +126,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "The radicand does not change when like radicals are combined. Only the coefficients add and subtract."),
-            trap(wrong[1], "Like radicals combine by adding their coefficients, not multiplying them."),
-            trap(wrong[2], `The last term is subtracted: ${a} + ${b} − ${c}.`),
+            trap(wrong[0], "The radicand does not change when like radicals are combined. Only the coefficients add and subtract.", 2),
+            trap(wrong[1], "Like radicals combine by adding their coefficients, not multiplying them.", 1),
+            trap(wrong[2], `The last term is subtracted: ${a} + ${b} − ${c}.`, 1),
           ]),
-          explanation: `(${a} + ${b} − ${c})∛${m} = ${answer}.`,
+          explanation: [
+            `all three terms have index 3 and radicand ${m}, so they are like radicals`,
+            `combine the coefficients: ${a} + ${b} − ${c} = ${s}`,
+            `keep ∛${m}: ${answer}`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -131,11 +148,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "List the perfect cubes: 8, 27, 64, 125, ... Which two is " + n + " between?",
           answer: k,
           traps: trapsFor(k, [
-            trap(k + 1, `${(k + 1) ** 3} is bigger than ${n}, so that is the larger of the two whole numbers.`),
-            trap(Math.floor(Math.sqrt(n)), "That compares with perfect squares. A cube root sits between perfect cubes."),
-            trap(Math.floor(n / 3), "A cube root is not division by 3."),
+            trap(k + 1, `${(k + 1) ** 3} is bigger than ${n}, so that is the larger of the two whole numbers.`, 3),
+            trap(Math.floor(Math.sqrt(n)), "That compares with perfect squares. A cube root sits between perfect cubes.", 0),
+            trap(Math.floor(n / 3), "A cube root is not division by 3.", 0),
           ]),
-          explanation: `${k}³ = ${k ** 3} < ${n} < ${(k + 1) ** 3} = ${k + 1}³, so ∛${n} is between ${k} and ${k + 1}.`,
+          explanation: [
+            `list perfect cubes: ${k}³ = ${k ** 3}`,
+            `${k + 1}³ = ${(k + 1) ** 3}`,
+            `${k ** 3} < ${n} < ${(k + 1) ** 3}, so ∛${n} is between ${k} and ${k + 1}`,
+            `the smaller one is ${k}`,
+          ].join(" → "),
         };
       }
       // Error analysis: simplifying a cube root.
@@ -180,11 +202,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `The ${q} on the bottom is a root: ${rootSym(q)}${b} = ${r}. Then raise that to the ${p}${p === 2 ? "nd" : p === 3 ? "rd" : "th"} power.`,
           answer: want,
           traps: trapsFor(want, [
-            trap(Math.round(((b * p) / q) * 10000) / 10000, `An exponent of ${p}/${q} is a root and a power, not multiplying by ${p}/${q}.`),
-            trap(r * p, `The ${p} is a power, not a multiplier: raise ${r} to the ${p}${p === 2 ? "nd" : p === 3 ? "rd" : "th"} power.`),
-            trap(Math.round((b ** p / q) * 10000) / 10000, `The ${q} in the denominator means a ${rootSym(q)} root, not division by ${q}.`),
+            trap(Math.round(((b * p) / q) * 10000) / 10000, `An exponent of ${p}/${q} is a root and a power, not multiplying by ${p}/${q}.`, 0),
+            trap(r * p, `The ${p} is a power, not a multiplier: raise ${r} to the ${p}${p === 2 ? "nd" : p === 3 ? "rd" : "th"} power.`, 2),
+            trap(Math.round((b ** p / q) * 10000) / 10000, `The ${q} in the denominator means a ${rootSym(q)} root, not division by ${q}.`, 0),
           ]),
-          explanation: `${b}^(${p}/${q}) = (${rootSym(q)}${b})^${p} = ${r}^${p} = ${want}.`,
+          explanation: [
+            `the bottom ${q} is a root and the top ${p} is a power: ${b}^(${p}/${q}) = (${rootSym(q)}${b})^${p}`,
+            `${rootSym(q)}${b} = ${r}`,
+            `${r}^${p} = ${Array(p).fill(r).join(" × ")} = ${want}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -198,11 +224,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `A negative exponent means a reciprocal: ${b}^(−${p}/${q}) = 1 / ${b}^(${p}/${q}). Work out ${b}^(${p}/${q}) first.`,
           answer: 1 / v,
           traps: trapsFor(1 / v, [
-            trap(-v, "A negative exponent does not make the answer negative. It flips the base into a reciprocal."),
-            trap(v, "The minus sign in the exponent was dropped. A negative exponent means 1 over the power."),
-            trap(-1 / v, "The negative exponent is used up by taking the reciprocal; the result stays positive."),
+            trap(-v, "A negative exponent does not make the answer negative. It flips the base into a reciprocal.", 0),
+            trap(v, "The minus sign in the exponent was dropped. A negative exponent means 1 over the power.", 0),
+            trap(-1 / v, "The negative exponent is used up by taking the reciprocal; the result stays positive.", 0),
           ]),
-          explanation: `${b}^(${p}/${q}) = (${rootSym(q)}${b})^${p} = ${r}^${p} = ${v}, so ${b}^(−${p}/${q}) = ${frac(1, v)}.`,
+          explanation: [
+            `a negative exponent means a reciprocal: ${b}^(−${p}/${q}) = 1 / ${b}^(${p}/${q})`,
+            `${rootSym(q)}${b} = ${r}`,
+            `${r}^${p} = ${v}`,
+            `1 / ${v} = ${frac(1, v)}`,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -219,11 +250,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "The root index is the denominator and the power is the numerator, not the other way round."),
-            trap(wrong[1], "A root divides the exponent; it does not multiply it."),
-            trap(wrong[2], "A root divides the exponent; it does not add to it."),
+            trap(wrong[0], "The root index is the denominator and the power is the numerator, not the other way round.", 0),
+            trap(wrong[1], "A root divides the exponent; it does not multiply it.", 1),
+            trap(wrong[2], "A root divides the exponent; it does not add to it.", 1),
           ]),
-          explanation: `${rootSym(q)}(x^${p}) = (x^${p})^(1/${q}) = ${answer}.`,
+          explanation: [
+            `a ${rootSym(q)} root is a power of 1/${q}: ${rootSym(q)}(x^${p}) = (x^${p})^(1/${q})`,
+            `a power of a power multiplies the exponents: ${p} × 1/${q} = ${p}/${q}`,
+            `${rootSym(q)}(x^${p}) = ${answer}`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -240,11 +275,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "The denominator of the exponent is the root index, and the numerator is the power."),
-            trap(wrong[1], `The ${p} is a power on x, not a coefficient in front.`),
-            trap(wrong[2], `x^(${p}/${q}) is one power of x: a ${rootSym(q)} root of x^${p}, nothing multiplied on.`),
+            trap(wrong[0], "The denominator of the exponent is the root index, and the numerator is the power.", 0),
+            trap(wrong[1], `The ${p} is a power on x, not a coefficient in front.`, 0),
+            trap(wrong[2], `x^(${p}/${q}) is one power of x: a ${rootSym(q)} root of x^${p}, nothing multiplied on.`, 1),
           ]),
-          explanation: `x^(${p}/${q}) = (x^${p})^(1/${q}) = ${answer}.`,
+          explanation: [
+            `the bottom ${q} is the root index and the top ${p} is the power`,
+            `x^(${p}/${q}) = (x^${p})^(1/${q})`,
+            `a power of 1/${q} is a ${rootSym(q)} root: ${answer}`,
+          ].join(" → "),
         };
       }
       // Power of a power, or a product, with rational exponents.
@@ -256,10 +295,10 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         while (b === a || a + b === q) b = randInt(1, 2 * q);
         const answer = xPow(a + b, q);
         const slips = [
-          trap(xPow(a * b, q * q), "Multiplying powers of the same base adds the exponents; it does not multiply them."),
-          trap(xPow(a + b, 2 * q), `Add the numerators and keep the denominator ${q}: fractions with the same denominator add that way.`),
-          trap(xPow(a * b, q), "Add the exponents. Multiplying them is the rule for a power of a power."),
-          trap(xPow(Math.abs(a - b), q), "Multiplying powers adds the exponents. Subtracting is the rule for dividing."),
+          trap(xPow(a * b, q * q), "Multiplying powers of the same base adds the exponents; it does not multiply them.", 0),
+          trap(xPow(a + b, 2 * q), `Add the numerators and keep the denominator ${q}: fractions with the same denominator add that way.`, 1),
+          trap(xPow(a * b, q), "Add the exponents. Multiplying them is the rule for a power of a power.", 0),
+          trap(xPow(Math.abs(a - b), q), "Multiplying powers adds the exponents. Subtracting is the rule for dividing.", 0),
         ].filter((t) => t.value !== answer && t.value !== "x^1" && t.value !== "x^0");
         const kept = slips.filter((t, k) => slips.findIndex((o) => o.value === t.value) === k).slice(0, 3);
         return {
@@ -270,7 +309,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, kept.map((t) => String(t.value))),
           traps: trapsFor(answer, kept),
-          explanation: `x^(${a}/${q}) · x^(${b}/${q}) = x^((${a} + ${b})/${q}) = ${answer}.`,
+          explanation: [
+            `same base multiplied, so add the exponents: x^(${a}/${q} + ${b}/${q})`,
+            `same denominator, so add the tops: ${a}/${q} + ${b}/${q} = ${a + b}/${q}`,
+            answer === `x^(${a + b}/${q})` ? `x^(${a}/${q}) · x^(${b}/${q}) = ${answer}` : `${a + b}/${q} reduces, so x^(${a}/${q}) · x^(${b}/${q}) = ${answer}`,
+          ].join(" → "),
         };
       }
       const q = pick([2, 3, 4]);
@@ -286,11 +329,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         answer,
         choices: mcChoices(answer, wrong),
         traps: trapsFor(answer, [
-          trap(wrong[0], "A power of a power multiplies the exponents; it does not add them."),
-          trap(wrong[1], `Multiply the fraction by ${c}: the ${c} goes on the numerator, not the denominator.`),
-          trap(wrong[2], `Multiplying ${p}/${q} by ${c} scales only the numerator. That choice left the exponent unchanged.`),
+          trap(wrong[0], "A power of a power multiplies the exponents; it does not add them.", 0),
+          trap(wrong[1], `Multiply the fraction by ${c}: the ${c} goes on the numerator, not the denominator.`, 1),
+          trap(wrong[2], `Multiplying ${p}/${q} by ${c} scales only the numerator. That choice left the exponent unchanged.`, 1),
         ]),
-        explanation: `(x^(${p}/${q}))^${c} = x^(${p}/${q} × ${c}) = ${answer}.`,
+        explanation: [
+          `a power of a power multiplies the exponents: (x^(${p}/${q}))^${c} = x^(${p}/${q} × ${c})`,
+          `${p}/${q} × ${c} = ${p * c}/${q}`,
+          `(x^(${p}/${q}))^${c} = ${answer}`,
+        ].join(" → "),
       };
     }),
 
@@ -309,11 +356,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Square both sides: ${xPlus(a)} = ${b}². Then undo the ${a < 0 ? "subtraction" : "addition"}.`,
           answer: x,
           traps: trapsFor(x, [
-            trap(b - a, `Square both sides first: the right side becomes ${b}², not ${b}.`),
-            trap(b * b + a, a < 0 ? `${-a} is subtracted from x, so add ${-a} to both sides after squaring.` : `${a} is added to x, so subtract ${a} from both sides after squaring.`),
-            trap(2 * b - a, `Squaring ${b} gives ${b * b}, not ${2 * b}.`),
+            trap(b - a, `Square both sides first: the right side becomes ${b}², not ${b}.`, 0),
+            trap(b * b + a, a < 0 ? `${-a} is subtracted from x, so add ${-a} to both sides after squaring.` : `${a} is added to x, so subtract ${a} from both sides after squaring.`, 1),
+            trap(2 * b - a, `Squaring ${b} gives ${b * b}, not ${2 * b}.`, 0),
           ]),
-          explanation: `${xPlus(a)} = ${b * b} → x = ${x}. Check: √(${x} ${a < 0 ? "−" : "+"} ${Math.abs(a)}) = √${b * b} = ${b}.`,
+          explanation: [
+            `square both sides: ${xPlus(a)} = ${b}² = ${b * b}`,
+            `${a < 0 ? `add ${-a}` : `subtract ${a}`}: x = ${b * b} ${a < 0 ? "+" : "−"} ${Math.abs(a)} = ${sn(x)}`,
+            `check: √(${sn(x)} ${a < 0 ? "−" : "+"} ${Math.abs(a)}) = √${b * b} = ${b}, so x = ${sn(x)}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -333,11 +384,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Subtract ${d} first so the radical is alone: √(${inside}) = ${r}. Then square both sides.`,
           answer: x,
           traps: trapsFor(x, [
-            trap((c * c - b) / m, `Isolate the radical before squaring: subtract ${d} from both sides first.`),
-            trap((r - b) / m, `After isolating, square both sides: ${inside} = ${r}², not ${r}.`),
-            trap((c * c - d * d - b) / m, `Squaring is not done term by term. Move the ${d} across first, then square the whole side.`),
+            trap((c * c - b) / m, `Isolate the radical before squaring: subtract ${d} from both sides first.`, 0),
+            trap((r - b) / m, `After isolating, square both sides: ${inside} = ${r}², not ${r}.`, 1),
+            trap((c * c - d * d - b) / m, `Squaring is not done term by term. Move the ${d} across first, then square the whole side.`, 0),
           ]),
-          explanation: `√(${inside}) = ${r} → ${inside} = ${r * r} → ${m}x = ${r * r - b} → x = ${x}.`,
+          explanation: [
+            `subtract ${d} to get the root alone: √(${inside}) = ${c} − ${d} = ${r}`,
+            `square both sides: ${inside} = ${r}² = ${r * r}`,
+            `${b < 0 ? `add ${-b}` : `subtract ${b}`}: ${m}x = ${r * r} ${b < 0 ? "+" : "−"} ${Math.abs(b)} = ${sn(r * r - b)}`,
+            `divide by ${m}: x = ${sn(r * r - b)} / ${m} = ${sn(x)}`,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -382,10 +438,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Substitute each value into the original equation. A square root is never negative, so the right side must be 0 or more.",
           answer: good,
           traps: trapsFor(good, [
-            trap(bad, `Substitute it: the right side ${xPlus(c)} comes out negative, but a square root is never negative. Squaring created that value.`),
-            trap(good + bad, "The question asks which single value satisfies the original equation, not a sum."),
+            trap(bad, `Substitute it: the right side ${xPlus(c)} comes out negative, but a square root is never negative. Squaring created that value.`, 2),
+            trap(good + bad, "The question asks which single value satisfies the original equation, not a sum.", 3),
           ]),
-          explanation: `x = ${good}: √${good + a} = ${Math.sqrt(good + a)} and ${xPlus(c).replace("x", String(good))} = ${good + c}, true. x = ${bad}: the right side is ${bad + c}, negative, so it fails. Only x = ${good} checks.`,
+          explanation: [
+            `try x = ${sn(good)}: left side √(${sn(good)} ${a < 0 ? "−" : "+"} ${Math.abs(a)}) = √${good + a} = ${Math.sqrt(good + a)}`,
+            `right side ${sn(good)} ${c < 0 ? "−" : "+"} ${Math.abs(c)} = ${good + c}; both sides match, so it checks`,
+            `try x = ${sn(bad)}: right side ${sn(bad)} ${c < 0 ? "−" : "+"} ${Math.abs(c)} = ${sn(bad + c)}, negative, but a square root is never negative, so it fails`,
+            `only x = ${sn(good)} checks`,
+          ].join(" → "),
         };
       }
       // A cube root equation: cube both sides, negatives allowed.
@@ -399,12 +460,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: `Cube both sides: ${xPlus(a)} = (${b})³. A cube root can equal a negative number.`,
         answer: x,
         traps: trapsFor(x, [
-          trap(b * b - a, "Undo a cube root by cubing, not squaring."),
-          trap(b ** 3 + a, a < 0 ? `To undo subtracting ${-a}, add ${-a} to both sides.` : `To undo adding ${a}, subtract ${a} from both sides.`),
-          trap(b - a, `Cube both sides first: the right side becomes ${b}³.`),
-          b < 0 ? trap(-(b ** 3) - a, `(${b})³ is negative: a negative number cubed stays negative.`) : null,
+          trap(b * b - a, "Undo a cube root by cubing, not squaring.", 0),
+          trap(b ** 3 + a, a < 0 ? `To undo subtracting ${-a}, add ${-a} to both sides.` : `To undo adding ${a}, subtract ${a} from both sides.`, 2),
+          trap(b - a, `Cube both sides first: the right side becomes ${b}³.`, 0),
+          b < 0 ? trap(-(b ** 3) - a, `(${b})³ is negative: a negative number cubed stays negative.`, 1) : null,
         ]),
-        explanation: `${xPlus(a)} = ${b}³ = ${b ** 3} → x = ${x}.`,
+        explanation: [
+          `cube both sides: ${xPlus(a)} = ${b < 0 ? `(${sn(b)})` : b}³`,
+          `${b < 0 ? `(${sn(b)})` : b}³ = ${Array(3).fill(b < 0 ? `(${sn(b)})` : b).join(" × ")} = ${sn(b ** 3)}`,
+          `${a < 0 ? `add ${-a}` : `subtract ${a}`}: x = ${sn(b ** 3)} ${a < 0 ? "+" : "−"} ${Math.abs(a)} = ${sn(x)}`,
+        ].join(" → "),
       };
     }),
 };

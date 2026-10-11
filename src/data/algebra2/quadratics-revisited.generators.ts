@@ -1,7 +1,11 @@
 import type { PracticeProblem, Trap } from "@/types";
 import { PROBLEMS_PER_SKILL, fillToCount, lin, mcChoices, plusTerm, quad, randInt, trapsFor } from "@/lib/problem-utils";
 
-const trap = (value: string | number, why: string): Trap => ({ value, why });
+const trap = (value: string | number, why: string, step?: number): Trap => (step === undefined ? { value, why } : { value, why, step });
+/** A number written after an operator: 4 → "4", -4 → "(-4)". */
+const par = (n: number) => (n < 0 ? `(${n})` : `${n}`);
+/** x − y written out, dropping a zero y: (16, -8) → "16 − (-8)", (16, 0) → "16". */
+const minus = (x: number, y: number) => (y === 0 ? `${x}` : `${x} − ${par(y)}`);
 const pick = <T>(items: readonly T[]): T => items[randInt(0, items.length - 1)];
 /** A nonzero integer in [-n, n]. */
 const nz = (n: number) => {
@@ -26,6 +30,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const h = nz(9);
         const k = nz(12);
         const answer = pt(h, k);
+        const steps = [
+          `match y = a(x − h)² + k: the bracket is x${plusTerm(-h)}${h < 0 ? ` = x − (${h})` : ""}, so h = ${h}`,
+          `the number outside the bracket is k, with its sign: k = ${k}`,
+          `the vertex (h, k) is ${answer}`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -34,11 +43,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, [pt(-h, k), pt(h, -k), pt(-h, -k)]),
           traps: trapsFor(answer, [
-            trap(pt(-h, k), `The bracket is x − h. It reads x${plusTerm(-h)}, so h is the opposite of ${-h}.`),
-            trap(pt(h, -k), "k sits outside the bracket and keeps its own sign."),
-            trap(pt(-h, -k), "Flip only the sign inside the bracket; the constant outside keeps its sign."),
+            trap(pt(-h, k), `The bracket is x − h. It reads x${plusTerm(-h)}, so h is the opposite of ${-h}.`, 0),
+            trap(pt(h, -k), "k sits outside the bracket and keeps its own sign.", 1),
+            trap(pt(-h, -k), "Flip only the sign inside the bracket; the constant outside keeps its sign.", 0),
           ]),
-          explanation: `y = ${vf(a, h, k)} has h = ${h} and k = ${k}, so the vertex is ${answer}.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -47,6 +56,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const h = nz(8);
         const k = nz(15);
         const word = a > 0 ? "smallest" : "largest";
+        const steps = [
+          `a = ${a} is ${a > 0 ? "positive, so the vertex is the lowest point" : "negative, so the vertex is the highest point"}`,
+          `at the vertex x = ${h}, so the bracket x${plusTerm(-h)} is 0 and its square is 0`,
+          `y = ${a} · 0${plusTerm(k)} = ${k}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -54,12 +68,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `A square is never negative, so ${a > 0 ? "the squared part is at least 0 and y is smallest" : "the squared part times a negative number is at most 0 and y is largest"} when the square is 0, at x = ${h}.`,
           answer: k,
           traps: trapsFor(k, [
-            trap(h, `${h} is the x-value of the vertex. The question asks for the y-value there.`),
-            trap(-k, "The constant outside the bracket keeps its sign; y equals it at the vertex."),
-            trap(a + k, "At the vertex the bracket is 0, so the a in front multiplies 0."),
-            trap(a * h * h + k, "The square is (x − h)², which is 0 at the vertex, not h²."),
+            trap(h, `${h} is the x-value of the vertex. The question asks for the y-value there.`, 2),
+            trap(-k, "The constant outside the bracket keeps its sign; y equals it at the vertex.", 2),
+            trap(a + k, "At the vertex the bracket is 0, so the a in front multiplies 0.", 2),
+            trap(a * h * h + k, "The square is (x − h)², which is 0 at the vertex, not h².", 1),
           ]),
-          explanation: `${a > 0 ? "a > 0, so the vertex is the lowest point" : "a < 0, so the vertex is the highest point"}. At x = ${h} the bracket is 0 and y = ${k}.`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 2) {
@@ -71,6 +85,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const k = c - m * m;
         const answer = `y = ${vf(1, h, k)}`;
         const wrong = [`y = ${vf(1, -h, k)}`, `y = ${vf(1, h, c)}`, `y = ${vf(1, h, c + m * m)}`];
+        const inside = `x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m}`;
+        const steps = [
+          `half of ${b} is ${m}, and (${m})² = ${m * m}`,
+          `add and subtract ${m * m}: y = (${inside})${plusTerm(c)} − ${m * m}`,
+          `${inside} = (x${plusTerm(m)})², so y = (x${plusTerm(m)})²${plusTerm(c)} − ${m * m}`,
+          `${c} − ${m * m} = ${k}, so ${answer}`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -79,11 +100,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m} factors as (x${plusTerm(m)})². Check the sign inside the bracket.`),
-            trap(wrong[1], `You added ${m * m} to complete the square, so you must also subtract ${m * m}.`),
-            trap(wrong[2], `The ${m * m} you added inside the bracket has to be taken away again, not added twice.`),
+            trap(wrong[0], `x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m} factors as (x${plusTerm(m)})². Check the sign inside the bracket.`, 2),
+            trap(wrong[1], `You added ${m * m} to complete the square, so you must also subtract ${m * m}.`, 1),
+            trap(wrong[2], `The ${m * m} you added inside the bracket has to be taken away again, not added twice.`, 1),
           ]),
-          explanation: `y = ${quad(1, b, c)} = (x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m})${plusTerm(c)} − ${m * m} = ${vf(1, h, k)}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -95,6 +116,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         if (x === h) x += 1;
         const d = x - h;
         const y = a * d * d + k;
+        const steps = [
+          `the bracket first: x${plusTerm(-h)} with x = ${x} is ${x}${plusTerm(-h)} = ${d}`,
+          `square it: (${d})² = ${d * d}`,
+          a === 1 ? `the number in front is 1, so it stays ${d * d}` : `multiply by ${a}: ${a} × ${d * d} = ${a * d * d}`,
+          `add the constant: ${a * d * d}${plusTerm(k)} = ${y}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -102,12 +129,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Work the bracket first: x − h = ${x} − (${h}) = ${d}. Square it, multiply by ${a}, then add the constant.`,
           answer: y,
           traps: trapsFor(y, [
-            trap(a * (x + h) * (x + h) + k, `The bracket reads x${plusTerm(-h)}: with x = ${x} it is ${d}.`),
-            trap(a * d + k, "Square the bracket before multiplying by the number in front."),
-            trap((a * d) * (a * d) + k, `Square the bracket first, then multiply by ${a}; do not square the ${a}.`),
-            trap(a * d * d - k, "The constant keeps its own sign when you add it on at the end."),
+            trap(a * (x + h) * (x + h) + k, `The bracket reads x${plusTerm(-h)}: with x = ${x} it is ${d}.`, 0),
+            trap(a * d + k, "Square the bracket before multiplying by the number in front.", 1),
+            trap((a * d) * (a * d) + k, `Square the bracket first, then multiply by ${a}; do not square the ${a}.`, 2),
+            trap(a * d * d - k, "The constant keeps its own sign when you add it on at the end.", 3),
           ]),
-          explanation: `y = ${a === 1 ? "" : a === -1 ? "-" : a}(${x}${plusTerm(-h)})²${plusTerm(k)} = ${a === 1 ? "" : a === -1 ? "-" : a + " × "}(${d})²${plusTerm(k)} = ${a * d * d}${plusTerm(k)} = ${y}`,
+          explanation: steps.join(" → "),
         };
       }
       // Error analysis: completing the square.
@@ -145,6 +172,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = nz(9);
         const c = nz(8);
         const D = b * b - 4 * a * c;
+        const steps = [
+          `a = ${a}, b = ${b}, c = ${c}`,
+          `b² = (${b})² = ${b * b}`,
+          `4ac = 4(${a})(${c}) = ${4 * a * c}`,
+          `b² − 4ac = ${minus(b * b, 4 * a * c)} = ${D}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -152,12 +185,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `The discriminant is b² − 4ac with a = ${a}, b = ${b}, c = ${c}. Square b first, then subtract 4 × a × c.`,
           answer: D,
           traps: trapsFor(D, [
-            trap(-b * b - 4 * a * c, `b² is (${b})², which is positive.`),
-            trap(b * b + 4 * a * c, "4ac is subtracted from b², and 4ac carries the signs of a and c."),
-            trap(b * b - a * c, "Multiply a × c by 4 before subtracting."),
-            trap(b * b - 4 * c, `a is ${a}, not 1: 4ac means 4 × ${a} × ${c}.`),
+            trap(-b * b - 4 * a * c, `b² is (${b})², which is positive.`, 1),
+            trap(b * b + 4 * a * c, "4ac is subtracted from b², and 4ac carries the signs of a and c.", 3),
+            trap(b * b - a * c, "Multiply a × c by 4 before subtracting.", 2),
+            trap(b * b - 4 * c, `a is ${a}, not 1: 4ac means 4 × ${a} × ${c}.`, 2),
           ]),
-          explanation: `b² − 4ac = (${b})² − 4(${a})(${c}) = ${b * b} − (${4 * a * c}) = ${D}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -188,6 +221,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const m = randInt(1, 5);
         const b = (randInt(0, 1) ? 1 : -1) * 2 * m * a;
         const c = m * m * a;
+        const steps = [
+          `exactly one real solution means b² − 4ac = 0, so b² = 4ac`,
+          `(${b})² = 4(${a})c`,
+          `${b * b} = ${4 * a}c`,
+          `c = ${b * b} ÷ ${4 * a} = ${c}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -195,12 +234,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Exactly one real solution means b² − 4ac = 0. Solve that for c.",
           answer: c,
           traps: trapsFor(c, [
-            trap(-c, "b² − 4ac = 0 gives 4ac = b², and b² is positive, so c has the same sign as a."),
-            trap((b * b) / 4, `Divide b² by 4a, and a is ${a}.`),
-            trap((b * b) / (2 * a), "The 4 in 4ac is a 4, not a 2."),
-            trap(b * b, "That is b². Set b² equal to 4ac and divide."),
+            trap(-c, "b² − 4ac = 0 gives 4ac = b², and b² is positive, so c has the same sign as a.", 0),
+            trap((b * b) / 4, `Divide b² by 4a, and a is ${a}.`, 3),
+            trap((b * b) / (2 * a), "The 4 in 4ac is a 4, not a 2.", 2),
+            trap(b * b, "That is b². Set b² equal to 4ac and divide.", 3),
           ]),
-          explanation: `b² − 4ac = 0 → (${b})² = 4(${a})c → ${b * b} = ${4 * a}c → c = ${c}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -210,7 +249,18 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = 2 * m * a;
         const c = m * m * a;
         const answer = `${quad(a, b, c)} = 0`;
-        const wrong = [`${quad(a, b, c + randInt(1, 5))} = 0`, `${quad(a, b, c - randInt(1, 5))} = 0`, `${quad(a, -b, c + randInt(1, 3))} = 0`];
+        const others: [number, number, number][] = [
+          [a, b, c + randInt(1, 5)],
+          [a, b, c - randInt(1, 5)],
+          [a, -b, c + randInt(1, 3)],
+        ];
+        const wrong = others.map(([p, q, r]) => `${quad(p, q, r)} = 0`);
+        const steps = [
+          "exactly one real solution means the discriminant b² − 4ac is 0",
+          `${answer}: (${b})² − 4(${a})(${c}) = ${b * b} − ${4 * a * c} = 0`,
+          `the other three give ${others.map(([p, q, r]) => q * q - 4 * p * r).join(", ")}, none of them 0`,
+          `so ${answer} has exactly one real solution`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -219,11 +269,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "Its discriminant is negative, so it has two complex solutions."),
-            trap(wrong[1], "Its discriminant is positive, so it has two real solutions."),
-            trap(wrong[2], "Its discriminant is negative, so it has two complex solutions."),
+            trap(wrong[0], "Its discriminant is negative, so it has two complex solutions.", 2),
+            trap(wrong[1], "Its discriminant is positive, so it has two real solutions.", 2),
+            trap(wrong[2], "Its discriminant is negative, so it has two complex solutions.", 2),
           ]),
-          explanation: `${quad(a, b, c)}: b² − 4ac = ${b * b} − ${4 * a * c} = 0, so it has exactly one real solution.`,
+          explanation: steps.join(" → "),
         };
       }
       // Error analysis: computing the discriminant.
@@ -263,6 +313,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = B + m;
         const c = C + d;
         const D = B * B - 4 * C;
+        const steps = [
+          `set them equal: ${quad(1, b, c)} = ${lin(m, d)}`,
+          `subtract ${lin(m, d)} from both sides: ${quad(1, B, C)} = 0`,
+          `discriminant: (${B})² − 4(1)(${C}) = ${minus(B * B, 4 * C)} = ${D}`,
+          want === 2 ? "positive, so two shared points" : want === 1 ? "zero, so one shared point" : "negative, so no shared points",
+        ];
         return {
           id: "",
           type: "numeric",
@@ -270,10 +326,10 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Set ${quad(1, b, c)} = ${lin(m, d)}, move everything to the left, and look at the sign of the discriminant of ${quad(1, B, C)}.`,
           answer: want,
           traps: trapsFor(want, [
-            trap(want === 2 ? 1 : 2, want === 2 ? "A positive discriminant means two different x-values where they meet." : "Two shared points need a positive discriminant for " + quad(1, B, C) + " = 0."),
-            trap(want === 0 ? 1 : 0, want === 0 ? "A negative discriminant means no real x solves it, so no shared points." : "Compute the discriminant of " + quad(1, B, C) + " = 0 again: it is not negative."),
+            trap(want === 2 ? 1 : 2, want === 2 ? "A positive discriminant means two different x-values where they meet." : "Two shared points need a positive discriminant for " + quad(1, B, C) + " = 0.", 3),
+            trap(want === 0 ? 1 : 0, want === 0 ? "A negative discriminant means no real x solves it, so no shared points." : "Compute the discriminant of " + quad(1, B, C) + " = 0 again: it is not negative.", want === 0 ? 3 : 2),
           ]),
-          explanation: `${quad(1, b, c)} = ${lin(m, d)} → ${quad(1, B, C)} = 0 → discriminant (${B})² − 4(1)(${C}) = ${D} → ${want === 2 ? "positive, two points" : want === 1 ? "zero, one point" : "negative, no points"}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 1) {
@@ -293,6 +349,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const c = C + d;
         const answer = `x = ${lo} and x = ${hi}`;
         const wrong = [`x = ${-lo} and x = ${-hi}`, `x = ${lo} and x = ${-hi}`, `x = ${-lo} and x = ${hi}`];
+        const steps = [
+          `set them equal: ${quad(1, b, c)} = ${lin(m, d)}`,
+          `subtract ${lin(m, d)} from both sides: ${quad(1, B, C)} = 0`,
+          `factor: (x${plusTerm(-lo)})(x${plusTerm(-hi)}) = 0`,
+          `each bracket is 0: ${answer}`,
+        ];
         return {
           id: "",
           type: "multiple-choice",
@@ -301,11 +363,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `(x${plusTerm(-lo)})(x${plusTerm(-hi)}) = 0: each root is the opposite of the number in its bracket.`),
-            trap(wrong[1], `Try x = ${-hi} in both rules; they give different y-values.`),
-            trap(wrong[2], `Try x = ${-lo} in both rules; they give different y-values.`),
+            trap(wrong[0], `(x${plusTerm(-lo)})(x${plusTerm(-hi)}) = 0: each root is the opposite of the number in its bracket.`, 3),
+            trap(wrong[1], `Try x = ${-hi} in both rules; they give different y-values.`, 3),
+            trap(wrong[2], `Try x = ${-lo} in both rules; they give different y-values.`, 3),
           ]),
-          explanation: `${quad(1, b, c)} = ${lin(m, d)} → ${quad(1, B, C)} = 0 → (x${plusTerm(-lo)})(x${plusTerm(-hi)}) = 0 → ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 2) {
@@ -314,6 +376,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const t2 = t1 + randInt(1, 4);
         const v = 16 * (t1 + t2);
         const H = 16 * t1 * t2;
+        const steps = [
+          `-16t² + ${v}t = ${H}`,
+          `move everything to one side: 16t² − ${v}t + ${H} = 0`,
+          `divide by 16: t² − ${t1 + t2}t + ${t1 * t2} = 0`,
+          `factor: (t − ${t1})(t − ${t2}) = 0, so t = ${t1} or t = ${t2}`,
+          `the first time is the smaller one: t = ${t1}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -321,11 +390,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Set -16t² + ${v}t = ${H}, move everything to one side and divide by 16: t² − ${t1 + t2}t + ${t1 * t2} = 0. The smaller root is the first time.`,
           answer: t1,
           traps: trapsFor(t1, [
-            trap(t2, `That is the second time it is at ${H} feet, on the way down. The question asks for the first.`),
-            trap((t1 + t2) / 2, "That is when the ball is highest, not when it first passes this height."),
-            trap(t1 + t2, `${t1 + t2} is the sum of the two times, not either time.`),
+            trap(t2, `That is the second time it is at ${H} feet, on the way down. The question asks for the first.`, 4),
+            trap((t1 + t2) / 2, "That is when the ball is highest, not when it first passes this height.", 3),
+            trap(t1 + t2, `${t1 + t2} is the sum of the two times, not either time.`, 3),
           ]),
-          explanation: `-16t² + ${v}t = ${H} → 16t² − ${v}t + ${H} = 0 → t² − ${t1 + t2}t + ${t1 * t2} = 0 → (t − ${t1})(t − ${t2}) = 0 → first at t = ${t1}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -337,6 +406,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = B + m;
         const c = C + d;
         const x = -B / 2;
+        const steps = [
+          `set them equal: ${quad(1, b, c)} = ${lin(m, d)}`,
+          `subtract ${lin(m, d)} from both sides: ${quad(1, B, C)} = 0`,
+          `it is a perfect square: (x${plusTerm(B / 2)})² = 0`,
+          `x${plusTerm(B / 2)} = 0, so x = ${x}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -344,11 +419,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Set them equal: ${quad(1, B, C)} = 0 is a perfect square. Its one root is the x you want.`,
           answer: x,
           traps: trapsFor(x, [
-            trap(-x, `${quad(1, B, C)} = (x${plusTerm(B / 2)})², so the root is the opposite of ${B / 2}.`),
-            trap(C, `${C} is the constant term, not the root.`),
-            trap(m * x + d, "That is the y-coordinate of the point. The question asks for x."),
+            trap(-x, `${quad(1, B, C)} = (x${plusTerm(B / 2)})², so the root is the opposite of ${B / 2}.`, 3),
+            trap(C, `${C} is the constant term, not the root.`, 2),
+            trap(m * x + d, "That is the y-coordinate of the point. The question asks for x.", 3),
           ]),
-          explanation: `${quad(1, b, c)} = ${lin(m, d)} → ${quad(1, B, C)} = 0 → (x${plusTerm(B / 2)})² = 0 → x = ${x}`,
+          explanation: steps.join(" → "),
         };
       }
       // The larger y at the two meeting points.
@@ -365,6 +440,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const y1 = m * r1 + d;
       const y2 = m * r2 + d;
       const want = Math.max(y1, y2);
+      const lead = m === 1 ? "" : m === -1 ? "-" : String(m);
+      const steps = [
+        `set them equal and subtract ${lin(m, d)}: ${quad(1, B, C)} = 0`,
+        `factor: (x${plusTerm(-r1)})(x${plusTerm(-r2)}) = 0, so x = ${r1} or x = ${r2}`,
+        `put each into the line: ${lead}(${r1})${plusTerm(d)} = ${y1} and ${lead}(${r2})${plusTerm(d)} = ${y2}`,
+        `the larger y-value is ${want}`,
+      ];
       return {
         id: "",
         type: "numeric",
@@ -372,11 +454,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: `Solve ${quad(1, B, C)} = 0 for the two x-values, then put each into the line y = ${lin(m, d)}.`,
         answer: want,
         traps: trapsFor(want, [
-          trap(Math.min(y1, y2), "That is the smaller y-value of the two meeting points."),
-          trap(Math.max(r1, r2), "That is the larger x-value. Put it into the line to get y."),
-          trap(y1 + y2, "That is the two y-values added together. The question asks for the larger one."),
+          trap(Math.min(y1, y2), "That is the smaller y-value of the two meeting points.", 3),
+          trap(Math.max(r1, r2), "That is the larger x-value. Put it into the line to get y.", 2),
+          trap(y1 + y2, "That is the two y-values added together. The question asks for the larger one.", 3),
         ]),
-        explanation: `${quad(1, B, C)} = 0 → x = ${r1} or x = ${r2} → y = ${lin(m, d)} gives ${y1} and ${y2} → larger is ${want}`,
+        explanation: steps.join(" → "),
       };
     }),
 };
@@ -385,6 +467,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
 function mk(a: number, b: number, c: number, want: string): PracticeProblem {
   const D = b * b - 4 * a * c;
   const all = ["Two real solutions", "One real solution", "Two complex solutions", "Infinitely many solutions"];
+  const steps = [
+    `a = ${a}, b = ${b}, c = ${c}`,
+    `b² − 4ac = (${b})² − 4(${a})(${c}) = ${minus(b * b, 4 * a * c)}`,
+    `= ${D}`,
+    D > 0 ? "positive, so two real solutions" : D === 0 ? "zero, so one real solution" : "negative, so two complex solutions",
+  ];
   return {
     id: "",
     type: "multiple-choice",
@@ -393,11 +481,11 @@ function mk(a: number, b: number, c: number, want: string): PracticeProblem {
     answer: want,
     choices: mcChoices(want, all.filter((w) => w !== want)),
     traps: trapsFor(want, [
-      trap("Two real solutions", "Two real solutions need a positive discriminant. Check the sign of b² − 4ac."),
-      trap("One real solution", "One real solution needs b² − 4ac to be exactly 0."),
-      trap("Two complex solutions", "Two complex solutions need a negative discriminant. Check the sign of b² − 4ac."),
-      trap("Infinitely many solutions", "A quadratic equation never has more than two solutions."),
+      trap("Two real solutions", "Two real solutions need a positive discriminant. Check the sign of b² − 4ac.", 2),
+      trap("One real solution", "One real solution needs b² − 4ac to be exactly 0.", 2),
+      trap("Two complex solutions", "Two complex solutions need a negative discriminant. Check the sign of b² − 4ac.", 2),
+      trap("Infinitely many solutions", "A quadratic equation never has more than two solutions.", 3),
     ]),
-    explanation: `b² − 4ac = (${b})² − 4(${a})(${c}) = ${b * b} − (${4 * a * c}) = ${D}, which is ${D > 0 ? "positive: two real solutions" : D === 0 ? "zero: one real solution" : "negative: two complex solutions"}.`,
+    explanation: steps.join(" → "),
   };
 }

@@ -1,8 +1,8 @@
 import type { PracticeProblem, Trap } from "@/types";
 import { PROBLEMS_PER_SKILL, fillToCount, fmtNum, frac, mcChoices, randInt, seededShuffle, trapsFor } from "@/lib/problem-utils";
 
-function trap(value: number | string, why: string): Trap {
-  return { value, why };
+function trap(value: number | string, why: string, step?: number): Trap {
+  return step === undefined ? { value, why } : { value, why, step };
 }
 
 function pick<T>(items: readonly T[]): T {
@@ -74,6 +74,17 @@ const refOf = (deg: number) => {
   return d <= 90 ? d : d <= 180 ? 180 - d : d <= 270 ? d - 180 : 360 - d;
 };
 const signIn = (fn: Fn, q: number) => (fn === "sin" ? q <= 2 : fn === "cos" ? q === 1 || q === 4 : q === 1 || q === 3);
+/** How the reference angle of an angle in [0°, 360°) is measured: "180° − 150°". */
+const refExpr = (norm: number) => {
+  const q = quadrantOf(norm);
+  return q === 2 ? `180° − ${norm}°` : q === 3 ? `${norm}° − 180°` : q === 4 ? `360° − ${norm}°` : `${norm}°`;
+};
+/** The step that turns any angle into its coterminal angle in [0°, 360°): "−200° + 1 × 360° = 160°". */
+const coterminalStep = (shown: number) => {
+  const norm = ((shown % 360) + 360) % 360;
+  const turns = Math.abs(norm - shown) / 360;
+  return `${String(shown).replace("-", "−")}° ${shown < 0 ? "+" : "−"} ${turns} × 360° = ${norm}°`;
+};
 
 /** Three exact-value distractors for an answer: the sign flip, the cofunction's value, and a random other. */
 function exactDistractors(answer: string, cofunction: string): string[] {
@@ -109,11 +120,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "Radians keep the π: the factor is π/180, not 1/180."),
-            trap(wrong[1], `${deg}/180 does not reduce to that. Divide top and bottom by their greatest common factor, ${gcd(deg, 180)}.`),
-            trap(wrong[2], `Start from ${deg}π/180 and reduce; check the fraction against ${deg}/180.`),
+            trap(wrong[0], "Radians keep the π: the factor is π/180, not 1/180.", 0),
+            trap(wrong[1], `${deg}/180 does not reduce to that. Divide top and bottom by their greatest common factor, ${gcd(deg, 180)}.`, 2),
+            trap(wrong[2], `Start from ${deg}π/180 and reduce; check the fraction against ${deg}/180.`, 2),
           ]),
-          explanation: `${deg} × π/180 = ${deg}π/180 = ${answer}`,
+          explanation: [
+            `multiply by π/180: ${deg} × π/180 = ${deg}π/180`,
+            `the greatest common factor of ${deg} and 180 is ${gcd(deg, 180)}`,
+            `divide top and bottom by ${gcd(deg, 180)}: ${deg}π/180 = ${answer}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -133,11 +148,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Replace π with 180°: ${k} × 180°${d === 1 ? "" : ` ÷ ${d}`}.`,
           answer: deg,
           traps: trapsFor(deg, [
-            trap(d === 1 ? deg / 180 : (180 * d) / k, d === 1 ? "That drops the π. Each π is 180°." : `The fraction is ${k}/${d} of 180°, not ${d}/${k} of it.`),
-            trap(k / d, "That drops the π. Each π is 180°."),
-            trap((360 * k) / d, "Each π is 180°, not 360°."),
+            trap(d === 1 ? deg / 180 : (180 * d) / k, d === 1 ? "That drops the π. Each π is 180°." : `The fraction is ${k}/${d} of 180°, not ${d}/${k} of it.`, 0),
+            trap(k / d, "That drops the π. Each π is 180°.", 0),
+            trap((360 * k) / d, "Each π is 180°, not 360°.", 0),
           ]),
-          explanation: `${text} = ${k} × 180°${d === 1 ? "" : `/${d}`} = ${deg}°`,
+          explanation: [
+            `each π is 180°: ${text} = ${k} × 180°${d === 1 ? "" : ` ÷ ${d}`}`,
+            `${k} × 180° = ${180 * k}°`,
+            ...(d === 1 ? [] : [`${180 * k}° ÷ ${d} = ${deg}°`]),
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -158,11 +177,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer: Math.round(s * 10) / 10,
           decimalPlaces: 1,
           traps: trapsFor(Math.round(s * 10) / 10, [
-            trap(Math.round(((r * k) / d) * 10) / 10, "The π is part of the angle: θ = " + text + " ≈ " + fmtNum(Math.round(theta * 100) / 100) + "."),
-            trap(Math.round((s / 2) * 10) / 10, "s = rθ uses the radius once; nothing is halved."),
-            trap(Math.round(2 * s * 10) / 10, "s = rθ uses the radius, not the diameter."),
+            trap(Math.round(((r * k) / d) * 10) / 10, "The π is part of the angle: θ = " + text + " ≈ " + fmtNum(Math.round(theta * 100) / 100) + ".", 1),
+            trap(Math.round((s / 2) * 10) / 10, "s = rθ uses the radius once; nothing is halved.", 0),
+            trap(Math.round(2 * s * 10) / 10, "s = rθ uses the radius, not the diameter.", 0),
           ]),
-          explanation: `s = rθ = ${r} × ${text} ≈ ${r} × ${fmtNum(Math.round(theta * 1000) / 1000)} ≈ ${fmtNum(Math.round(s * 10) / 10)} ${unit}`,
+          explanation: [
+            `the angle is in radians, so s = rθ = ${r} × ${text}`,
+            `${text} ≈ ${fmtNum(Math.round(theta * 1000) / 1000)}`,
+            `s ≈ ${r} × ${fmtNum(Math.round(theta * 1000) / 1000)} ≈ ${fmtNum(Math.round(s * 10) / 10)} ${unit}`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -180,11 +203,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer: Math.round(s * 10) / 10,
           decimalPlaces: 1,
           traps: trapsFor(Math.round(s * 10) / 10, [
-            trap(r * deg, "s = rθ only works with θ in radians. Convert the degrees first."),
-            trap(Math.round(((r * deg) / 180) * 10) / 10, "Converting to radians multiplies by π/180; the π is part of it."),
-            trap(Math.round((s / 2) * 10) / 10, "s = rθ uses the radius once; nothing is halved."),
+            trap(r * deg, "s = rθ only works with θ in radians. Convert the degrees first.", 0),
+            trap(Math.round(((r * deg) / 180) * 10) / 10, "Converting to radians multiplies by π/180; the π is part of it.", 0),
+            trap(Math.round((s / 2) * 10) / 10, "s = rθ uses the radius once; nothing is halved.", 2),
           ]),
-          explanation: `θ = ${deg}π/180 ≈ ${fmtNum(Math.round(theta * 1000) / 1000)} → s = ${r} × ${fmtNum(Math.round(theta * 1000) / 1000)} ≈ ${fmtNum(Math.round(s * 10) / 10)} ${unit}`,
+          explanation: [
+            `s = rθ needs radians: θ = ${deg} × π/180 = ${deg}π/180`,
+            `θ ≈ ${fmtNum(Math.round(theta * 1000) / 1000)}`,
+            `s = rθ ≈ ${r} × ${fmtNum(Math.round(theta * 1000) / 1000)} ≈ ${fmtNum(Math.round(s * 10) / 10)} ${unit}`,
+          ].join(" → "),
         };
       }
       if (kind === 4) {
@@ -199,11 +226,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer: Math.round(rad * 100) / 100,
           decimalPlaces: 2,
           traps: trapsFor(Math.round(rad * 100) / 100, [
-            trap(Math.round((deg / 180) * 100) / 100, "Radians are degrees × π/180; the π is part of the factor."),
-            trap(Math.round(((deg * 180) / Math.PI) * 100) / 100, "180/π changes radians to degrees. Going the other way, multiply by π/180."),
-            trap(Math.round(((deg * Math.PI) / 360) * 100) / 100, "A half turn, 180°, is π radians; the factor is π/180, not π/360."),
+            trap(Math.round((deg / 180) * 100) / 100, "Radians are degrees × π/180; the π is part of the factor.", 1),
+            trap(Math.round(((deg * 180) / Math.PI) * 100) / 100, "180/π changes radians to degrees. Going the other way, multiply by π/180.", 0),
+            trap(Math.round(((deg * Math.PI) / 360) * 100) / 100, "A half turn, 180°, is π radians; the factor is π/180, not π/360.", 0),
           ]),
-          explanation: `${deg} × π/180 ≈ ${deg} × 0.01745 ≈ ${fmtNum(Math.round(rad * 100) / 100)}`,
+          explanation: [
+            `multiply by π/180: ${deg} × π/180 = ${deg}π/180`,
+            `use π ≈ 3.1416: ${deg} × 3.1416 ÷ 180`,
+            `≈ ${fmtNum(Math.round(rad * 100) / 100)}`,
+          ].join(" → "),
         };
       }
       // Error analysis: a degree to radian conversion.
@@ -242,6 +273,18 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const angle = kind === 0 ? `${deg}°` : radText(deg);
         const q = quadrantOf(deg);
         const onAxis = deg % 90 === 0;
+        const work: string[] = kind === 1 ? [`${angle} = ${deg}°`] : [];
+        let signStep: number;
+        let sizeStep: number;
+        if (onAxis) {
+          signStep = work.push(`${angle} lands on an axis, at the point (${textOf(Math.cos((deg * Math.PI) / 180))}, ${textOf(Math.sin((deg * Math.PI) / 180))})`) - 1;
+          sizeStep = work.push(`${fn} is ${fn === "sin" ? "the y-coordinate" : fn === "cos" ? "the x-coordinate" : "y/x"}`) - 1;
+        } else {
+          work.push(`${deg}° is in Quadrant ${ROMAN[q]}, with reference angle ${refExpr(deg)}${q === 1 ? "" : ` = ${refOf(deg)}°`}`);
+          sizeStep = work.push(`${fn} ${refOf(deg)}° = ${textOf(Math.abs(trig(fn, refOf(deg))))}`) - 1;
+          signStep = work.push(`${fn} is ${signIn(fn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}`) - 1;
+        }
+        work.push(`${fn} ${angle} = ${answer}`);
         return {
           id: "",
           type: "multiple-choice",
@@ -252,13 +295,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(flip(answer), onAxis ? "Check the sign of the coordinate at that point on the circle." : `${fn === "sin" ? "Sine is the y-coordinate" : fn === "cos" ? "Cosine is the x-coordinate" : "Tangent is y/x"}, which is ${signIn(fn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}.`),
-            trap(co, fn === "tan" ? "Tangent is sine divided by cosine, not sine alone." : `That is the ${fn === "sin" ? "cosine" : "sine"}. ${fn === "sin" ? "Sine is the y-coordinate." : "Cosine is the x-coordinate."}`),
-            trap(flip(co), fn === "tan" ? "Tangent is sine divided by cosine." : `Check which coordinate you read: ${fn === "sin" ? "sine is y" : "cosine is x"}.`),
+            trap(flip(answer), onAxis ? "Check the sign of the coordinate at that point on the circle." : `${fn === "sin" ? "Sine is the y-coordinate" : fn === "cos" ? "Cosine is the x-coordinate" : "Tangent is y/x"}, which is ${signIn(fn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}.`, signStep),
+            trap(co, fn === "tan" ? "Tangent is sine divided by cosine, not sine alone." : `That is the ${fn === "sin" ? "cosine" : "sine"}. ${fn === "sin" ? "Sine is the y-coordinate." : "Cosine is the x-coordinate."}`, sizeStep),
+            trap(flip(co), fn === "tan" ? "Tangent is sine divided by cosine." : `Check which coordinate you read: ${fn === "sin" ? "sine is y" : "cosine is x"}.`, sizeStep),
           ]),
-          explanation: onAxis
-            ? `${angle} is on the axis at the point (${textOf(Math.cos((deg * Math.PI) / 180))}, ${textOf(Math.sin((deg * Math.PI) / 180))}) → ${fn} ${angle} = ${answer}`
-            : `Quadrant ${ROMAN[q]}, reference angle ${refOf(deg)}° → ${fn} ${angle} = ${signIn(fn, q) ? "+" : "−"}${fn} ${refOf(deg)}° = ${answer}`,
+          explanation: work.join(" → "),
         };
       }
       if (kind === 2) {
@@ -275,11 +316,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
             hint: shown === deg ? "Quadrant I is 0° to 90°, II is 90° to 180°, III is 180° to 270°, IV is 270° to 360°." : `First find the coterminal angle between 0° and 360° by ${shown < 0 ? "adding" : "subtracting"} 360°.`,
             answer: q,
             traps: trapsFor(q, [
-              trap((q % 4) + 1, `Compare the angle with the boundaries 90°, 180°, 270°: it has not passed ${q * 90}°.`),
-              trap(((q + 2) % 4) + 1, shown < 0 ? "A negative angle turns clockwise. Add 360° to find where it lands." : `Compare the angle with the boundaries 90°, 180°, 270°.`),
-              trap(quadrantOf(Math.abs(shown)), "A negative angle turns clockwise from the positive x-axis, so it does not land where the positive angle does."),
+              trap((q % 4) + 1, `Compare the angle with the boundaries 90°, 180°, 270°: it has not passed ${q * 90}°.`, shown !== deg ? 1 : 0),
+              trap(((q + 2) % 4) + 1, shown < 0 ? "A negative angle turns clockwise. Add 360° to find where it lands." : `Compare the angle with the boundaries 90°, 180°, 270°.`, shown < 0 ? 0 : shown !== deg ? 1 : 0),
+              trap(quadrantOf(Math.abs(shown)), "A negative angle turns clockwise from the positive x-axis, so it does not land where the positive angle does.", 0),
             ]),
-            explanation: `${shown !== deg ? `${shown}° is coterminal with ${((shown % 360) + 360) % 360}°. ` : ""}${(q - 1) * 90}° < ${((shown % 360) + 360) % 360}° < ${q * 90}° → Quadrant ${ROMAN[q]}`,
+            explanation: [
+              ...(shown !== deg ? [`find the coterminal angle: ${coterminalStep(shown)}`] : []),
+              `${(q - 1) * 90}° < ${((shown % 360) + 360) % 360}° < ${q * 90}°`,
+              `that is Quadrant ${ROMAN[q]}, so the answer is ${q}`,
+            ].join(" → "),
           };
         }
         const [f1, f2] = seededShuffle(FNS).slice(0, 2) as [Fn, Fn];
@@ -295,9 +340,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer: q,
           traps: trapsFor(
             q,
-            other.map((qq) => trap(qq, `In Quadrant ${ROMAN[qq]}, ${signIn(f1, qq) === s1 ? `${f2} θ is ${signIn(f2, qq) ? "positive" : "negative"}` : `${f1} θ is ${signIn(f1, qq) ? "positive" : "negative"}`}.`)),
+            other.map((qq) => trap(qq, `In Quadrant ${ROMAN[qq]}, ${signIn(f1, qq) === s1 ? `${f2} θ is ${signIn(f2, qq) ? "positive" : "negative"}` : `${f1} θ is ${signIn(f1, qq) ? "positive" : "negative"}`}.`, signIn(f1, qq) === s1 ? 1 : 0)),
           ),
-          explanation: `${f1} ${s1 ? "> 0" : "< 0"} in ${[1, 2, 3, 4].filter((qq) => signIn(f1, qq) === s1).map((qq) => ROMAN[qq]).join(", ")}; ${f2} ${s2 ? "> 0" : "< 0"} in ${[1, 2, 3, 4].filter((qq) => signIn(f2, qq) === s2).map((qq) => ROMAN[qq]).join(", ")} → Quadrant ${ROMAN[q]}`,
+          explanation: [
+            `${f1} θ ${s1 ? "> 0" : "< 0"} in Quadrants ${[1, 2, 3, 4].filter((qq) => signIn(f1, qq) === s1).map((qq) => ROMAN[qq]).join(" and ")}`,
+            `${f2} θ ${s2 ? "> 0" : "< 0"} in Quadrants ${[1, 2, 3, 4].filter((qq) => signIn(f2, qq) === s2).map((qq) => ROMAN[qq]).join(" and ")}`,
+            `both hold only in Quadrant ${ROMAN[q]}, so the answer is ${q}`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -314,11 +363,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], fn === "tan" ? `Tangent is y/x. In Quadrant ${ROMAN[q]} the signs of x and y ${q === 1 || q === 3 ? "agree" : "differ"}.` : `${fn === "sin" ? "Sine is the y-coordinate" : "Cosine is the x-coordinate"}; check its sign in Quadrant ${ROMAN[q]}.`),
-            trap("Zero", "A trig value is zero only on an axis, and an angle inside a quadrant is off the axes."),
-            trap("It depends on the angle", "Every angle inside one quadrant has the same sign for each function."),
+            trap(wrong[0], fn === "tan" ? `Tangent is y/x. In Quadrant ${ROMAN[q]} the signs of x and y ${q === 1 || q === 3 ? "agree" : "differ"}.` : `${fn === "sin" ? "Sine is the y-coordinate" : "Cosine is the x-coordinate"}; check its sign in Quadrant ${ROMAN[q]}.`, 1),
+            trap("Zero", "A trig value is zero only on an axis, and an angle inside a quadrant is off the axes.", 0),
+            trap("It depends on the angle", "Every angle inside one quadrant has the same sign for each function.", 0),
           ]),
-          explanation: `Quadrant ${ROMAN[q]}: x ${q === 1 || q === 4 ? "> 0" : "< 0"}, y ${q <= 2 ? "> 0" : "< 0"} → ${fn} θ is ${answer.toLowerCase()}`,
+          explanation: [
+            `every point in Quadrant ${ROMAN[q]} has x ${q === 1 || q === 4 ? "> 0" : "< 0"} and y ${q <= 2 ? "> 0" : "< 0"}`,
+            fn === "tan" ? `tan is y/x, and the signs of x and y ${q === 1 || q === 3 ? "agree" : "differ"}` : `${fn} is the ${fn === "sin" ? "y" : "x"}-coordinate`,
+            `so ${fn} θ is ${answer.toLowerCase()}`,
+          ].join(" → "),
         };
       }
       if (kind === 4) {
@@ -336,10 +389,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `The size ${flip(v).startsWith("−") ? v : flip(v)} belongs to a ${base}° reference angle. Place that reference angle in Quadrant ${ROMAN[q]}.`,
           answer: deg,
           traps: trapsFor(deg, [
-            trap(base, q === 1 ? "" : `${base}° is the reference angle. It sits in Quadrant I; move it to Quadrant ${ROMAN[q]}.`),
-            ...others.filter((a) => a !== base).map((a) => trap(a, `${a}° is in Quadrant ${ROMAN[quadrantOf(a)]}, and the angle must be in Quadrant ${ROMAN[q]}.`)),
+            trap(base, q === 1 ? "" : `${base}° is the reference angle. It sits in Quadrant I; move it to Quadrant ${ROMAN[q]}.`, 1),
+            ...others.filter((a) => a !== base).map((a) => trap(a, `${a}° is in Quadrant ${ROMAN[quadrantOf(a)]}, and the angle must be in Quadrant ${ROMAN[q]}.`, 1)),
           ]),
-          explanation: `reference angle ${base}° → Quadrant ${ROMAN[q]}: θ = ${q === 1 ? `${base}°` : q === 2 ? `180° − ${base}° = ${deg}°` : q === 3 ? `180° + ${base}° = ${deg}°` : `360° − ${base}° = ${deg}°`}`,
+          explanation: [
+            `${fn} ${base}° = ${flip(v).startsWith("−") ? v : flip(v)}, so the reference angle is ${base}°`,
+            `place ${base}° in Quadrant ${ROMAN[q]}: θ = ${q === 1 ? `${base}°` : q === 2 ? `180° − ${base}° = ${deg}°` : q === 3 ? `180° + ${base}° = ${deg}°` : `360° − ${base}° = ${deg}°`}`,
+          ].join(" → "),
         };
       }
       // Error analysis: tangent from sine and cosine.
@@ -382,6 +438,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const ref = refOf(shown);
         const norm = ((shown % 360) + 360) % 360;
         const q = quadrantOf(norm);
+        const work = [
+          ...(shown !== norm ? [`find the coterminal angle: ${coterminalStep(shown)}`] : []),
+          `${(q - 1) * 90}° < ${norm}° < ${q * 90}°, so it is in Quadrant ${ROMAN[q]}`,
+          `measure to the x-axis: ${refExpr(norm)} = ${ref}°`,
+        ];
+        const last = work.length - 1;
         return {
           id: "",
           type: "numeric",
@@ -389,12 +451,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: kind === 0 ? `${deg}° is in Quadrant ${ROMAN[q]}. Measure the acute angle to the nearest part of the x-axis (0°, 180° or 360°).` : `First find the coterminal angle between 0° and 360° (${shown < 0 ? "add" : "subtract"} 360° as needed), then measure to the x-axis.`,
           answer: ref,
           traps: trapsFor(ref, [
-            trap(norm, "A reference angle is acute: the angle to the x-axis, not the whole angle."),
-            trap(q === 3 ? 360 - norm : q === 2 ? norm - 90 : q === 4 ? norm - 180 : 90 - norm, "Measure to the x-axis, not to the y-axis or to the wrong end of the x-axis."),
-            trap(Math.abs(shown) > 360 || shown < 0 ? refOf(Math.abs(shown) % 360 === 0 ? 1 : Math.abs(shown)) : 180 - norm, shown < 0 ? "A negative angle turns clockwise; add 360° first, then find the quadrant." : "Measure to the nearest end of the x-axis."),
-            trap(Math.abs(shown) - 180, "Subtracting 180° only works for Quadrant III angles between 180° and 270°."),
+            trap(norm, "A reference angle is acute: the angle to the x-axis, not the whole angle.", last),
+            trap(q === 3 ? 360 - norm : q === 2 ? norm - 90 : q === 4 ? norm - 180 : 90 - norm, "Measure to the x-axis, not to the y-axis or to the wrong end of the x-axis.", last),
+            trap(Math.abs(shown) > 360 || shown < 0 ? refOf(Math.abs(shown) % 360 === 0 ? 1 : Math.abs(shown)) : 180 - norm, shown < 0 ? "A negative angle turns clockwise; add 360° first, then find the quadrant." : "Measure to the nearest end of the x-axis.", shown < 0 ? 0 : last),
+            trap(Math.abs(shown) - 180, "Subtracting 180° only works for Quadrant III angles between 180° and 270°.", last),
           ]),
-          explanation: `${shown !== norm ? `${shown}° is coterminal with ${norm}°. ` : ""}${norm}° is in Quadrant ${ROMAN[q]} → reference angle ${q === 2 ? `180° − ${norm}°` : q === 3 ? `${norm}° − 180°` : q === 4 ? `360° − ${norm}°` : `${norm}°`} = ${ref}°`,
+          explanation: work.join(" → "),
         };
       }
       if (kind === 2) {
@@ -406,6 +468,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const given = radText(deg);
         const pool = ["π/6", "π/4", "π/3", "2π/3", "3π/4", "5π/6", "π/2"].filter((t) => t !== answer);
         const wrong = [radText(norm) !== answer ? radText(norm) : "π/2", ...seededShuffle(pool).slice(0, 2)];
+        const work = [
+          `change to degrees, each π is 180°: ${given} = ${deg}°`,
+          ...(deg > 360 ? [`${deg}° − 360° = ${norm}°`] : []),
+          `${norm}° is in Quadrant ${ROMAN[quadrantOf(norm)]}; measure to the x-axis: ${refExpr(norm)} = ${ref}°`,
+          `back to radians: ${ref}° = ${answer}`,
+        ];
+        const measure = work.length - 2;
         return {
           id: "",
           type: "multiple-choice",
@@ -414,11 +483,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], "A reference angle is acute, between 0 and π/2: measure from the terminal side to the x-axis."),
-            trap(wrong[1], `${norm}° is in Quadrant ${ROMAN[quadrantOf(norm)]}; measure from ${quadrantOf(norm) === 2 || quadrantOf(norm) === 3 ? "π (180°)" : "2π (360°)"} to get the reference angle.`),
-            trap(wrong[2], `Check in degrees: the reference angle of ${norm}° is ${ref}°.`),
+            trap(wrong[0], "A reference angle is acute, between 0 and π/2: measure from the terminal side to the x-axis.", measure),
+            trap(wrong[1], `${norm}° is in Quadrant ${ROMAN[quadrantOf(norm)]}; measure from ${quadrantOf(norm) === 2 || quadrantOf(norm) === 3 ? "π (180°)" : "2π (360°)"} to get the reference angle.`, measure),
+            trap(wrong[2], `Check in degrees: the reference angle of ${norm}° is ${ref}°.`, measure + 1),
           ]),
-          explanation: `${given} = ${deg}°${deg > 360 ? ` → ${norm}°` : ""}, Quadrant ${ROMAN[quadrantOf(norm)]} → reference angle ${ref}° = ${answer}`,
+          explanation: work.join(" → "),
         };
       }
       if (kind === 3) {
@@ -434,12 +503,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `${shown < 0 ? "Add" : "Subtract"} 360° ${turns === 1 ? "once" : `${turns} times`} to land between 0° and 360°.`,
           answer: want,
           traps: trapsFor(want, [
-            trap(360 - want, shown < 0 ? "Changing the sign is a different angle. Add 360° instead." : "Subtract 360° to go around the circle, not 180°."),
-            trap(shown < 0 ? shown + 360 * (turns - 1) : shown - 360 * (turns - 1), `One full turn of 360° is not enough here; keep going until the angle is between 0° and 360°.`),
-            trap(shown < 0 ? want - 360 : want + 360, "That angle is coterminal, but it is outside 0° to 360°."),
-            trap(want - 180 < 0 ? want + 180 : want - 180, "Adding or subtracting 180° points the angle the opposite way."),
+            trap(360 - want, shown < 0 ? "Changing the sign is a different angle. Add 360° instead." : "Subtract 360° to go around the circle, not 180°.", 0),
+            trap(shown < 0 ? shown + 360 * (turns - 1) : shown - 360 * (turns - 1), `One full turn of 360° is not enough here; keep going until the angle is between 0° and 360°.`, 1),
+            trap(shown < 0 ? want - 360 : want + 360, "That angle is coterminal, but it is outside 0° to 360°.", 1),
+            trap(want - 180 < 0 ? want + 180 : want - 180, "Adding or subtracting 180° points the angle the opposite way.", 0),
           ]),
-          explanation: `${shown}° ${shown < 0 ? "+" : "−"} ${turns} × 360° = ${want}°`,
+          explanation: [
+            `${shown < 0 ? "the angle is below 0°, so add" : "the angle is past 360°, so subtract"} full turns of 360°`,
+            `${turns} ${turns === 1 ? "turn lands" : "turns land"} between 0° and 360°: ${String(shown).replace("-", "−")}° ${shown < 0 ? "+" : "−"} ${turns * 360}° = ${want}°`,
+          ].join(" → "),
         };
       }
       if (kind === 4) {
@@ -470,11 +542,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `${wantFn === "sin" ? "Sine is the y-coordinate" : "Cosine is the x-coordinate"}, which is ${signIn(wantFn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}.`),
-            trap(wrong[1], `That is ${given} θ. Use sin²θ + cos²θ = 1 to find the other one.`),
-            trap(wrong[2], `That is ${given} θ with its sign changed. Use sin²θ + cos²θ = 1.`),
+            trap(wrong[0], `${wantFn === "sin" ? "Sine is the y-coordinate" : "Cosine is the x-coordinate"}, which is ${signIn(wantFn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}.`, 3),
+            trap(wrong[1], `That is ${given} θ. Use sin²θ + cos²θ = 1 to find the other one.`, 0),
+            trap(wrong[2], `That is ${given} θ with its sign changed. Use sin²θ + cos²θ = 1.`, 0),
           ]),
-          explanation: `${wantFn}²θ = 1 − ${a * a}/${c * c} = ${b * b}/${c * c} → ${wantFn} θ = ±${b}/${c}; Quadrant ${ROMAN[q]} makes it ${answer}`,
+          explanation: [
+            `sin²θ + cos²θ = 1, so ${wantFn}²θ = 1 − (${a}/${c})² = 1 − ${a * a}/${c * c}`,
+            `1 − ${a * a}/${c * c} = ${c * c - a * a}/${c * c}`,
+            `take the square root: ${wantFn} θ = ±√(${b * b}/${c * c}) = ±${b}/${c}`,
+            `${wantFn} is ${signIn(wantFn, q) ? "positive" : "negative"} in Quadrant ${ROMAN[q]}, so ${wantFn} θ = ${answer}`,
+          ].join(" → "),
         };
       }
       // Error analysis: a trig value by reference angle.

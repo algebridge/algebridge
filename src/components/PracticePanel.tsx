@@ -30,12 +30,14 @@ import { MistakeNote } from "@/components/MistakeNote";
 import { QuoteCard } from "@/components/QuoteCard";
 import { WorkedSteps } from "@/components/WorkedSteps";
 import { quoteForFinish } from "@/data/quotes";
-import { diagnoseMistake, type Attempt } from "@/lib/diagnose";
+import { diagnoseMistake, explanationSteps, type Attempt } from "@/lib/diagnose";
 import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
 import { setCalculatorAccess } from "@/lib/calculator-access";
 import { answerIsRight, gradeAnswer } from "@/lib/grading";
 import { announcePractice } from "@/lib/sidebar";
+import { replyToSubmit, SUBMIT_EVENT } from "@/lib/answer-bridge";
+import { SlipSteps } from "@/components/SlipSteps";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
@@ -875,6 +877,65 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     else document.querySelector<HTMLElement>("[data-choice]:not(:disabled)")?.focus();
   });
 
+  // An answer typed to Archie is checked here, by the card's own grader, and
+  // counts exactly like one typed on the card. The card marks it, then tells
+  // Archie the verdict and, on a miss, why and on which step.
+  const archieSubmit = useRef<{ id: number; seed: number } | null>(null);
+  const [archieTick, setArchieTick] = useState(0);
+  useEffect(() => {
+    const onSubmit = (e: Event) => {
+      const { id, given } = (e as CustomEvent<{ id: number; given: string }>).detail ?? {};
+      if (typeof id !== "number" || typeof given !== "string") return;
+      if (!problem || pending) return replyToSubmit(id, { result: "none" });
+      if (feedback === "correct" || revealed) return replyToSubmit(id, { result: "done" });
+      const text = given.trim();
+      if (problem.type === "error-analysis") {
+        const n = Number(text.match(/\d+/)?.[0]);
+        if (!Number.isInteger(n) || n < 1 || n > (("steps" in problem && Array.isArray(problem.steps)) ? problem.steps.length : 0)) return replyToSubmit(id, { result: "unreadable", note: "Tell me which step, like \"step 2\"." });
+        setSelectedStep(n - 1);
+      } else if (problem.type === "multiple-choice") {
+        const choices = problem.choices ?? [];
+        const norm = (c: string) => c.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
+        const letter = /^[a-d]$/i.test(text) ? choices[text.toLowerCase().charCodeAt(0) - 97] : undefined;
+        const pick = letter ?? choices.find((c) => norm(c) === norm(text)) ?? choices.find((c) => answerIsRight({ ...problem, answer: c }, text));
+        setSelectedChoice(pick ?? text);
+      } else if (problem.type === "step-order") {
+        return replyToSubmit(id, { result: "unreadable", note: "Put the steps in order on the card, then press Check." });
+      } else {
+        setUserAnswer(text);
+      }
+      archieSubmit.current = { id, seed: feedbackSeed };
+      setArchieTick((t) => t + 1);
+    };
+    window.addEventListener(SUBMIT_EVENT, onSubmit);
+    return () => window.removeEventListener(SUBMIT_EVENT, onSubmit);
+  }, [problem, pending, feedback, revealed, feedbackSeed]);
+  // Once the answer is in the card's state, check it.
+  useEffect(() => {
+    if (archieTick && archieSubmit.current) handleSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archieTick]);
+  // Then tell Archie what the card made of it.
+  useEffect(() => {
+    const sent = archieSubmit.current;
+    if (!sent || !problem) return;
+    if (feedbackSeed !== sent.seed && feedback) {
+      archieSubmit.current = null;
+      if (feedback === "correct") return replyToSubmit(sent.id, { result: "correct" });
+      const d = lastTry ? diagnoseMistake(problem, lastTry) : null;
+      replyToSubmit(sent.id, {
+        result: "wrong",
+        note: d?.note || undefined,
+        fix: d?.fix,
+        explanation: problem.type === "error-analysis" || problem.type === "step-order" ? undefined : problem.explanation,
+        step: d?.step,
+      });
+    } else if (nudge && feedbackSeed === sent.seed) {
+      archieSubmit.current = null;
+      replyToSubmit(sent.id, { result: "unreadable", note: nudge });
+    }
+  }, [feedbackSeed, feedback, nudge, lastTry, problem]);
+
   if (!problem) return null;
 
   const ps = mounted
@@ -899,6 +960,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   // message (with the answer left out) and again on the worked answer.
   const mistake = lastTry && (feedback === "wrong" || revealed) ? diagnoseMistake(problem, lastTry) : null;
   const typed = lastTry?.given && problem.type !== "error-analysis" && problem.type !== "step-order" ? lastTry.given : undefined;
+  // The worked steps can show where a typed or picked answer slipped; a
+  // step-pick or step-order card shows its own steps already.
+  const slipDrawable = feedback === "wrong" && problem.type !== "error-analysis" && problem.type !== "step-order" && explanationSteps(problem.explanation).length >= 2;
 
   /** The hint, after two misses: a row of the wrong-answer note, or its own box. */
   const hintRow = (inNote: boolean) => (
@@ -1329,12 +1393,17 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         {/* Feedback */}
         {feedback && !revealed && (
           <div className="mt-4">
-            {feedback === "wrong" && (mistake?.note || showHint) ? (
+            {feedback === "wrong" && (mistake?.note || showHint || slipDrawable) ? (
               // One coach note, not a stack of warnings: the verdict, what went
               // wrong, and from the second miss the hint, in one box.
               <div key={`wrong-${feedbackSeed}`} className="animate-pop-in overflow-hidden rounded-xl border border-amber-200 bg-amber-50">
                 <AnswerFeedback state="wrong" seed={feedbackSeed} flush />
                 {mistake?.note && <MistakeNote diagnosis={mistake} flush />}
+                {slipDrawable && (
+                  <div className="border-t border-amber-200/70 px-4 pb-3">
+                    <SlipSteps explanation={problem.explanation} at={mistake?.step} />
+                  </div>
+                )}
                 {showHint && hintRow(true)}
               </div>
             ) : (
