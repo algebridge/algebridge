@@ -134,6 +134,15 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
+  const { SKILL_RULES } = await import("../../data/skill-rules.ts");
+  const { allUnits } = await import("../../data/curriculum.ts");
+  const ids = allUnits().flatMap((u) => u.skills.map((s) => s.id));
+  const missing = ids.filter((id) => !SKILL_RULES[id]?.length);
+  ok("every skill in both courses has rules to remember", missing.length === 0, missing.join(", "));
+  ok("no rules for a skill that does not exist", Object.keys(SKILL_RULES).every((id) => ids.includes(id)));
+  ok("rules are short, with no em dash", Object.values(SKILL_RULES).flat().every((r) => r.rule.length <= 140 && !/[—–]/.test(r.rule + (r.example ?? ""))));
+}
+{
   const { topicKey, validSpecifics, describeTopic, mergeTopics } = await import("../interests.ts");
   const own = topicsFromPicks(["soccer", "creators"], { soccer: "Arsenal, Messi", creators: "MrBeast", music: "ignored" });
   ok("picks carry their specifics", own[0].specifics === "Arsenal, Messi" && own[1].specifics === "MrBeast");
