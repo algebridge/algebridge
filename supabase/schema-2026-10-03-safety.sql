@@ -1303,11 +1303,12 @@ grant select on public.tutor_directory to authenticated;
 -- signed in message, ring or look a student up. Students now read the board
 -- through this view: names, scores and an is_me flag, no ids, and nobody
 -- school-managed. The table itself shows each student only their own row.
--- The street's columns (schema-2026-10-08-neighbours.sql and
--- schema-2026-10-09-street.sql) are kept at the end, so this file runs
+-- The street's columns (schema-2026-10-08-neighbours.sql,
+-- schema-2026-10-09-street.sql and schema-2026-10-11-city-plots.sql) are kept at the end, so this file runs
 -- before or after those.
 alter table public.leaderboard_stats add column if not exists house_style text;
 alter table public.leaderboard_stats add column if not exists avatar jsonb;
+alter table public.leaderboard_stats add column if not exists city_plots jsonb;
 create or replace view public.leaderboard_public
 with (security_barrier = true)
 as
@@ -1315,7 +1316,8 @@ as
          ls.best_furniture_name, ls.equipped_title, ls.leaderboard_opt_in, ls.updated_at,
          (ls.user_id = auth.uid()) as is_me,
          ls.house_style,
-         ls.avatar
+         ls.avatar,
+         ls.city_plots
   from public.leaderboard_stats ls
   where ls.leaderboard_opt_in
     and auth.uid() is not null
