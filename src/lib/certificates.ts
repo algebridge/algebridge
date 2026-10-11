@@ -62,7 +62,10 @@ export interface CertificateEntry {
 /** Every certificate on offer, the course last, with the date for each one earned. */
 export function certificateList(progress: UserProgress): CertificateEntry[] {
   return [
-    ...allUnits().map((u) => ({ id: u.id, unit: u, earnedAt: unitCertificateDate(progress, u) })),
+    ...allUnits()
+      .map((u) => ({ id: u.id, unit: u, earnedAt: unitCertificateDate(progress, u) }))
+      // Algebra 2 is unlisted: its unit certificates show once earned, never as empty slots.
+      .filter((c) => units.includes(c.unit) || c.earnedAt),
     { id: COURSE_ID, unit: null, earnedAt: courseCertificateDate(progress) },
   ];
 }

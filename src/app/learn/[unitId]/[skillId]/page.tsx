@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { allUnits, getSkill, getUnit } from "@/data/curriculum";
+import { allUnits, courseOfUnit, getSkill, getUnit } from "@/data/curriculum";
 import { LearnContent } from "@/components/LearnContent";
 
 export function generateStaticParams() {
@@ -21,7 +21,9 @@ export async function generateMetadata({
   const { unitId, skillId } = await params;
   const unit = getUnit(unitId);
   const skill = getSkill(unitId, skillId);
-  return unit && skill ? { title: `${skill.title}, Unit ${unit.number}` } : {};
+  if (!unit || !skill) return {};
+  const unlisted = courseOfUnit(unitId)?.id === "algebra-2";
+  return { title: `${skill.title}, Unit ${unit.number}`, ...(unlisted ? { robots: { index: false, follow: false } } : {}) };
 }
 
 export default async function LearnPage({

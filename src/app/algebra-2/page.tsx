@@ -5,7 +5,8 @@ import { CourseGate } from "@/components/CourseGate";
 import { UnitCard } from "@/components/UnitCard";
 import { UnitTiles } from "@/components/UnitTiles";
 
-export const metadata: Metadata = { title: "Algebra 2" };
+/** Unlisted: reached by its address only, and kept out of search engines. */
+export const metadata: Metadata = { title: "Algebra 2", robots: { index: false, follow: false } };
 
 /**
  * The Algebra 2 outline. A second course beside Algebra 1: its own units,
@@ -44,7 +45,7 @@ export default function Algebra2Page() {
         </div>
       </section>
       <CourseGate quiet>
-        <p className="text-xs text-slate-500">Lesson videos for Algebra 2 are still being sourced. Every skill practices today.</p>
+        <p className="text-xs text-slate-500">Algebra 2 is new. Something off? Use Feedback in the menu.</p>
       </CourseGate>
     </div>
   );
