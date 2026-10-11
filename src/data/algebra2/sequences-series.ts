@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "sequences-series",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Add the first n terms of an arithmetic sequence with one formula instead of one term at a time.",
       learningGoal: "Find the sum of an arithmetic series from its first term, common difference and number of terms, and count the terms of a listed sum.",
       keyIdea: "The sum of an arithmetic series is the number of terms times the average of the first and last term: S = n(a₁ + aₙ)/2.",
-      video: NO_VIDEO,
+      video: videoFor("arithmetic-series"),
       problems: [
         {
           id: "a2-as-p1",
@@ -48,7 +48,7 @@ export const unit: Unit = {
       description: "Add the terms of a geometric sequence, and decide when an endless one still adds to a number.",
       learningGoal: "Find the sum of a finite geometric series, tell whether an infinite geometric series converges, and find its sum when it does.",
       keyIdea: "A finite geometric series sums to a₁(1 − rⁿ)/(1 − r); an infinite one converges only when |r| < 1, and then its sum is a₁/(1 − r).",
-      video: NO_VIDEO,
+      video: videoFor("geometric-series"),
       problems: [
         {
           id: "a2-gs-p1",
@@ -82,7 +82,7 @@ export const unit: Unit = {
       description: "Read and write sums with the Σ symbol: the index, where it starts, where it stops, and the rule for each term.",
       learningGoal: "Evaluate a sum written in sigma notation, write a listed sum in sigma notation, and count the terms a Σ adds.",
       keyIdea: "Σ from k = m to n of f(k) means: plug in every whole number from m to n, then add the results; that is n − m + 1 terms.",
-      video: NO_VIDEO,
+      video: videoFor("sigma-notation"),
       problems: [
         {
           id: "a2-sn-p1",
