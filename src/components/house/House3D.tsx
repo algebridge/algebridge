@@ -103,7 +103,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const [gardenPick, setGardenPick] = useState<GardenPick | null>(null);
   const [showColors, setShowColors] = useState(false);
   /** Out walking the street as your character. */
-  const [walking, setWalking] = useState(false);
+  const [walking, setWalking] = useState(true);
   const [editingCharacter, setEditingCharacter] = useState(false);
   const [ready, setReady] = useState(false);
   /** The first frame is on screen (shaders compile in the background before it). */
@@ -242,8 +242,16 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
     if (ready && view === "front") engine.current?.setAvatar(avatar);
   }, [ready, view, avatar]);
   useEffect(() => {
-    if (view !== "front") setWalking(false);
+    setWalking(view === "front");
   }, [view]);
+  // On the porch you start out as your character by the house; Overview lifts the camera away, Walk puts you back.
+  useEffect(() => {
+    const v = engine.current;
+    if (!ready || !v || view !== "front") return;
+    if (walking) {
+      if (!v.walking && !v.startWalk()) setWalking(false);
+    } else if (v.walking) v.stopWalk();
+  }, [ready, view, walking, avatar]);
 
   // Walking: W A S D or the arrows move, Shift runs, Escape stops.
   useEffect(() => {
@@ -547,7 +555,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                 setView(id);
                 setSelected(null);
                 setGardenPick(null);
-                setWalking(false);
+                setWalking(id === "front");
               }}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${view === id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
             >
@@ -588,7 +596,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
-          aria-label={walking ? "You, walking the street in 3D. W A S D or the arrow keys move; drag to look round; tap a house to see whose it is." : view === "front" ? "The front of your house, in 3D. Tap the door to go in, or the mailbox for your messages." : view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
+          aria-label={walking ? "You, as your character, in 3D. W A S D or the arrow keys walk; drag to look round; walk up to your door to go in; tap a house to see whose it is." : view === "front" ? "The front of your house, in 3D. Tap the door to go in, or the mailbox for your messages." : view === "garden" ? "Your garden, in 3D" : `Your ${view === "up" ? "upstairs" : "downstairs"} room, in 3D. Drag a piece to move it; tap it to use it.`}
           className="absolute inset-0 h-full w-full touch-none select-none"
         />
         {drawn && preparing && (
@@ -612,8 +620,8 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
           {walking ? (
             <>
-              <span className="sm:hidden">Drag the stick to walk. Tap a house to see whose it is.</span>
-              <span className="hidden sm:inline">W A S D or the arrows to walk, Shift to run. Drag to look round. Tap a house to see whose it is.</span>
+              <span className="sm:hidden">Drag the stick to walk. Walk up to your door to go in.</span>
+              <span className="hidden sm:inline">W A S D or the arrows to walk, Shift to run. Walk up to your door to go in. Drag to look round.</span>
             </>
           )
             : view === "front"
@@ -637,18 +645,12 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </button>
         </div>
 
-        {/* The porch: go for a walk, or change your character. Walking, a stick for a thumb and a way back. */}
+        {/* The porch: you start out as your character by the house, with a stick for a thumb. Overview lifts the camera away; Walk puts you back. */}
         {view === "front" && !walking && drawn && (
           <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                if (engine.current?.startWalk()) setWalking(true);
-              }}
-              className="btn-primary btn-sm shadow-sm"
-            >
+            <button type="button" onClick={() => setWalking(true)} className="btn-primary btn-sm shadow-sm">
               <Icon name="walk" size={15} />
-              Walk the street
+              Walk
             </button>
             <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
               <Icon name="person" size={15} />
@@ -656,21 +658,19 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             </button>
           </div>
         )}
-        {walking && (
+        {view === "front" && walking && drawn && (
           <>
             <WalkStick onChange={(x, y) => engine.current?.setWalkInput(x, y)} />
-            <button
-              type="button"
-              onClick={() => {
-                engine.current?.stopWalk();
-                setWalking(false);
-              }}
-              className="btn-sm absolute right-3 top-3 bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white"
-            >
-              <Icon name="house" size={15} />
-              <span className="hidden sm:inline">Back to the porch</span>
-              <span className="sm:hidden">Porch</span>
-            </button>
+            <div className="absolute right-3 top-3 flex gap-1.5">
+              <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm hidden bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white sm:inline-flex">
+                <Icon name="person" size={15} />
+                My character
+              </button>
+              <button type="button" onClick={() => setWalking(false)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+                <Icon name="eye" size={15} />
+                Overview
+              </button>
+            </div>
           </>
         )}
 
