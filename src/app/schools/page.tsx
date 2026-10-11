@@ -43,8 +43,8 @@ export const metadata: Metadata = {
 /** The version printed at the foot of the handout. Change it when the page changes. */
 const VERSION = "October 2026";
 const CONTACT = "info@algebridge.org";
-const PHONE = "302-345-7448";
-const PHONE_HREF = "tel:+13023457448";
+const PHONE = "302-401-6107";
+const PHONE_HREF = "tel:+13024016107";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 const CITED = citedStandards();
