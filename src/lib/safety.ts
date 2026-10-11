@@ -693,25 +693,25 @@ export function isBlocked(list: BlockedPerson[], otherId: string | null | undefi
 }
 
 // ---------------------------------------------------------------------------
-// 4. What the policy pages say is waiting on the database
+// 4. The safety rules the database enforces
 // ---------------------------------------------------------------------------
 
 /**
- * The rules supabase/schema-2026-10-03-safety.sql adds, in the words /privacy,
- * /safety and /schools all show under "Waiting on a database update". One
- * list, so the three pages cannot drift from each other or from the file.
- * Each line names something that is NOT true until Ivan applies it.
+ * The rules supabase/schema-2026-10-03-safety.sql added (applied to the live
+ * database on 11 October 2026), in the words /privacy, /safety and /schools
+ * all show. One list, so the three pages cannot drift from each other or
+ * from the file. Each line must stay true of the live database.
  */
-export const PENDING_SAFETY_UPDATE: string[] = [
+export const SAFETY_RULES: string[] = [
   "A tutor or teacher can message or call a student only if the student is in that teacher's class, asked for help and that tutor took the request (or named that tutor on a request in the last two weeks), or wrote to them first, and never after the student blocks them.",
-  "Only a teacher account can make a class, and a student joins one only with the class code or by accepting a teacher's invite. Today the database checks neither, so a class can be made, and a student put in it, without the student agreeing.",
-  "A student who joins a teacher's class becomes a school account wherever they sign in: the app turns school mode on for them, the database lets only their teacher and AlgeBridge admins message or call them, and tutors stop seeing their requests for help.",
-  "Tutors no longer see student email addresses, only the names and photos of the students in the first rule or in their own group chats, and students no longer see tutors' email addresses.",
+  "Only a teacher account can make a class, and a student joins one only with the class code or by accepting a teacher's invite. Nobody is put in a class without agreeing.",
+  "A student who joins a teacher's class becomes a school account wherever they sign in: the app turns school mode on for them, the database lets only their teacher and AlgeBridge admins message or call them, their requests for help are hidden from tutors, and they are kept off the leaderboard.",
+  "Tutors do not see student email addresses, only the names and photos of the students in the first rule or in their own group chats, and students do not see tutors' email addresses.",
   "A block is kept with the account, so the blocked person cannot message, call or add the student to a group chat on any device.",
   "The database itself refuses a student's message with a phone number or an email address, whatever app sends it, including one hidden with invisible characters or sent a few digits at a time, and refuses a profile bio with contact details.",
   "A report quotes the reported message from the database's own copy, and each account can send at most 30 reports an hour.",
-  "Profile photos are no longer at a public link.",
-  "Students who were shown on the leaderboard under the old default, and have not signed in since, are taken off it, and the board no longer hands out account ids.",
-  "A deleted account's messages are kept for 90 days for an admin's safety review, then deleted.",
-  "Students can leave a group chat.",
+  "Profile photos are not at a public link. A student's photo opens only for that student, AlgeBridge admins and the staff in the first rule or in their group chats, and a tutor's or teacher's photo for anyone signed in.",
+  "The leaderboard never hands out account ids.",
+  "A deleted account's messages are kept for 90 days, readable only by AlgeBridge admins for a safety review. After that, nobody can read them.",
+  "Students can leave a group chat, and a tutor can add to a new group chat only students they are allowed to reach.",
 ];

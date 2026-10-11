@@ -48,6 +48,7 @@ function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [role, setRole] = useState<UserRole>("student");
   const [roleCode, setRoleCode] = useState("");
   const [switchCode, setSwitchCode] = useState("");
@@ -103,6 +104,10 @@ function LoginPageInner() {
       const check = checkNameParts(firstName, lastName);
       if (!check.ok) {
         setError(check.error);
+        return;
+      }
+      if (!agreed) {
+        setError("To create an account, agree to the Terms of Use and Privacy Policy.");
         return;
       }
       // Show the tidied name back, so "maria" reads "Maria" before they go on.
@@ -521,6 +526,25 @@ function LoginPageInner() {
                 </button>
               </div>
             </div>
+            {mode === "signup" && (
+              <label className="flex items-start gap-2.5 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  required
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-bridge-600 focus:ring-bridge-200"
+                />
+                <span>
+                  I agree to the{" "}
+                  <Link href="/terms" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">Terms of Use</Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">Privacy Policy</Link>,
+                  including that my first name, last initial and progress are shown on the leaderboard
+                  unless I turn it off.
+                </span>
+              </label>
+            )}
             <button type="submit" className="btn-primary w-full" disabled={!configured || submitting}>
               {submitting
                 ? "Working…"
@@ -551,6 +575,12 @@ function LoginPageInner() {
               Continue with Google
             </button>
             } />
+          <p className="mt-2 text-center text-xs text-slate-500">
+            By continuing with Google, you agree to the{" "}
+            <Link href="/terms" target="_blank" className="underline underline-offset-2">Terms of Use</Link> and{" "}
+            <Link href="/privacy" target="_blank" className="underline underline-offset-2">Privacy Policy</Link>,
+            including being shown on the leaderboard unless you turn it off.
+          </p>
           </>
           )}
 

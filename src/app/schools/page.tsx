@@ -19,7 +19,7 @@ import { PrintButton } from "./PrintButton";
 import { PhoneFold, UnitStandards } from "./UnitStandards";
 import { SchoolIcon, type SchoolIconName } from "./icons";
 import { SCHOOL_MODE_OFF, SCHOOL_MODE_STAYS } from "@/lib/school-mode";
-import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
+import { SAFETY_RULES } from "@/lib/safety";
 import { GA_ID } from "@/lib/analytics";
 
 /*
@@ -211,17 +211,17 @@ const PRIVACY_ITEMS: Item[] = [
   {
     mark: { icon: "lock" },
     title: "Who can see what",
-    body: "The database uses row-level security. A student reads their own records, tutor profiles (email included), the leaderboard and the group chats they are in. The owner of a class sees the names, emails and progress of the students on its roster; today the database does not check that the owner is a teacher account, and a teacher can add a student by email without asking them. A tutor can see every student's name and email. All of these change with the database update below. Staff accounts need one shared access code per role.",
+    body: "The database uses row-level security. A student reads their own records, tutor profiles without their email, the leaderboard and the group chats they are in. Only a teacher account makes a class, and a student joins only with the class code or by accepting the teacher's invite; the teacher then sees the names, emails and progress of the students in it. Tutors never see student email addresses, and see student names and photos only for the students they may reach. A student in a class becomes a school account: only their teacher and AlgeBridge admins can message or call them. Staff accounts need one shared access code per role.",
   },
   {
     mark: { icon: "messages" },
     title: "Students only message staff",
-    body: "A student cannot send a direct message to another student: every direct message has a tutor, teacher or AlgeBridge admin on one end, and the database enforces it. Group chats are started by a tutor, who picks the students. Before any message is sent, the app reads it with the sender's last few messages and holds back a student's message with a phone number, email, home address, username, link, plan to talk somewhere else or request for secrecy, and says why; staff are warned and may send it, except a request for secrecy, which the app does not send. The same check covers Book a tutor answers and profile bios. These checks run in the app, so a program writing to the database directly skips them; after the update below the database itself refuses phone numbers and email addresses.",
+    body: "A student cannot send a direct message to another student: every direct message has a tutor, teacher or AlgeBridge admin on one end, and the database enforces it. Group chats are started by a tutor, who can add only students they may reach, and a student can leave any group chat. Before any message is sent, the app reads it with the sender's last few messages and holds back a student's message with a phone number, email, home address, username, link, plan to talk somewhere else or request for secrecy, and says why; staff are warned and may send it, except a request for secrecy, which the app does not send. The same check covers Book a tutor answers and profile bios. These checks run in the app, so a program writing to the database directly skips them; the database itself also refuses phone numbers and email addresses.",
   },
   {
     mark: { icon: "flag" },
     title: "Report and block",
-    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, for an AlgeBridge admin to read; the person reported is not told who sent it. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away. Block hides that person's messages, calls and unread count in the browser where the student blocks them.",
+    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, quoted from the database's own copy, for an AlgeBridge admin to read; the person reported is not told who sent it. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away. A block is kept with the student's account, so the blocked person cannot message, call or add them to a group chat on any device. One account can send at most 30 reports an hour.",
   },
   {
     mark: { glyph: "video" },
@@ -230,13 +230,13 @@ const PRIVACY_ITEMS: Item[] = [
   },
   {
     mark: { icon: "leaderboard" },
-    title: "Leaderboard, off by default",
-    body: "In the app no student is on it until they tick \"Show me on the board\". Then it shows their first name, last initial, Bridgeys, skills finished and best house piece to every signed-in AlgeBridge user, not only classmates. Students shown under the old default who have not signed in since stay on it until the database update below.",
+    title: "Leaderboard, on unless turned off",
+    body: "Students agree at sign-up to be on it. It shows their first name, last initial, Bridgeys, skills finished and best house piece to signed-in AlgeBridge users, not only classmates, never to visitors who are not signed in and never with an account id. A student hides by unticking \"Shown on the board\" on the leaderboard page. Students in a teacher's class are school accounts and are never shown.",
   },
   {
     mark: { glyph: "no-ads" },
     title: "No ads, and deleting an account",
-    body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages. Uploaded photos (stored at public links), feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
+    body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages, which are first kept 90 days for an admin's safety review, after which nobody can read them. Uploaded photos, feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
   },
   {
     mark: { icon: "eye" },
@@ -632,13 +632,13 @@ export default function SchoolsPage() {
             </p>
           </div>
 
-          <div className="schools-card mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5">
-            <h3 className="text-[15px] font-semibold text-slate-900">Waiting on a database update</h3>
+          <div className="schools-card mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            <h3 className="text-[15px] font-semibold text-slate-900">Rules the database enforces</h3>
             <p className="mt-1 text-sm leading-relaxed text-slate-700">
-              Written and tested, and in effect only once AlgeBridge&apos;s October 2026 database update is applied:
+              Checked by the database itself, whatever app talks to it:
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
-              {PENDING_SAFETY_UPDATE.map((line) => (
+              {SAFETY_RULES.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>

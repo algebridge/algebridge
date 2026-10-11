@@ -1715,7 +1715,9 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   // --- finding 9: the policy pages say what the code does ---------------------------------------
   const pages = ["src/app/privacy/page.tsx", "src/app/safety/page.tsx", "src/app/schools/page.tsx"].map((f) => [f, repo(f)] as const);
   for (const [f, src] of pages) {
-    ok(`policy: ${f} lists the shared pending update`, /PENDING_SAFETY_UPDATE\.map/.test(src));
+    ok(`policy: ${f} lists the shared safety rules`, /SAFETY_RULES\.map/.test(src) && !/PENDING_SAFETY_UPDATE/.test(src));
+    ok(`policy: ${f} no longer waits on a database update`, !/database update/i.test(src) && !/changes with the/.test(src) && !/old default/.test(src));
+    ok(`policy: ${f} says the leaderboard is on unless turned off`, /Shown on the board/.test(src) && !/off by default/i.test(src) && !/off unless you turn it on/.test(src));
     ok(`policy: ${f} no longer says secrecy is something nobody can send`, !/nobody can send/.test(src));
     ok(`policy: ${f} no longer says a disclosure always stays on the device`, !/message stays on the student(&apos;|')s device/.test(src));
     ok(`policy: ${f} says what happens to a message the list misses`, /the list misses/.test(src));
@@ -1723,8 +1725,10 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     ok(`policy: ${f} has the old waiting-list contact rule gone`, !/asked that tutor for help/.test(src));
   }
   ok("policy: /schools no longer says 'from every menu'", !/from every menu/.test(pages[2][1]));
-  ok("policy: the pending list names the leaderboard's old default and the class hole", SF.PENDING_SAFETY_UPDATE.some((l) => /old default/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /class code/.test(l)) && SF.PENDING_SAFETY_UPDATE.some((l) => /took the request/.test(l)));
-  ok("policy: the pending list is house style", SF.PENDING_SAFETY_UPDATE.every((l) => !/[—–]/.test(l) && /\.$/.test(l) && !/\p{Extended_Pictographic}/u.test(l)));
+  ok("policy: the safety rules name the class code, the contact rule and the 90-day archive", SF.SAFETY_RULES.some((l) => /class code/.test(l)) && SF.SAFETY_RULES.some((l) => /took the request/.test(l)) && SF.SAFETY_RULES.some((l) => /90 days/.test(l)));
+  ok("policy: the safety rules are present tense, nothing pending", SF.SAFETY_RULES.every((l) => !/old default|Today the database|no longer|waiting|until/i.test(l)));
+  ok("policy: the safety rules are house style", SF.SAFETY_RULES.every((l) => !/[—–]/.test(l) && /\.$/.test(l) && !/\p{Extended_Pictographic}/u.test(l)));
+  ok("policy: terms say the leaderboard is agreed to at sign-up and can be turned off", /By creating an account you agree that your first name, last initial/.test(repo("src/app/terms/page.tsx")) && /School accounts are not shown/.test(repo("src/app/terms/page.tsx")));
 
   // --- visit counting: a live page, outside a frame, with an ID, and only then -----------------
   const AN = await import("../analytics.ts");

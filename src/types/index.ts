@@ -141,6 +141,8 @@ export interface UserProgress {
   leaderboardOptIn?: boolean;
   /** One-time switch: saves from the week the board was opt-in are put back on it. */
   leaderboardDefaultV2?: boolean;
+  /** One-time switch (11 Oct 2026): every save goes back on the board, on by default again. */
+  leaderboardDefaultV3?: boolean;
   /** One-time migration: backfill Bridgey economy fields for older saves. */
   bridgeyEconomyMigratedV1?: boolean;
   /** One-time migration: slot furniture → free-position coords. */

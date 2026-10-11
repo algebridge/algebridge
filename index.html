@@ -236,6 +236,10 @@ img{display:block;max-width:100%;}
 .hero-cta .btn:hover .arr{transform:translateX(3px);}
 .hero-cta .btn-line{border:1px solid rgba(27,42,82,.3);color:var(--black);background:rgba(255,255,255,.55);}
 .hero-cta .btn-line:hover{border-color:var(--black);background:rgba(255,255,255,.9);}
+.hero-cta .btn-support{background:var(--sun);color:var(--black);border:1px solid #f2b938;gap:.5rem;box-shadow:0 6px 18px -8px rgba(242,185,56,.9);transition:background .2s ease,transform .2s ease,box-shadow .2s ease;}
+.hero-cta .btn-support:hover{background:#ffc94a;transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(242,185,56,1);}
+.hero-cta .btn-support .heart{color:#c2410c;flex-shrink:0;}
+@media (prefers-reduced-motion:reduce){.hero-cta .btn-support:hover{transform:none;}}
 .hero-note{margin:1.125rem auto 0;font-size:.875rem;color:var(--label);animation:rise-in .8s cubic-bezier(.2,.8,.2,1) .6s both;}
 @keyframes rise-in{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
 .hero-window{position:relative;z-index:2;max-width:1028px;margin-top:clamp(6rem,13vh,9.5rem);}
@@ -302,6 +306,17 @@ img{display:block;max-width:100%;}
 .sec-tight .sec-intro .h2{font-size:clamp(1.75rem,3.6vw,2.75rem);}
 .sec-grey{background:var(--stage);}
 .sec-lavender{background:#eeebfd;}
+/* ── Support ────────────────────────────────────────────────── */
+.support-sec{background:var(--butter);}
+.support-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2.5rem 5rem;align-items:start;}
+.support-grid .lede{margin-top:1.25rem;max-width:40ch;}
+.support-uses{list-style:none;border-top:1px solid rgba(27,42,82,.15);}
+.support-uses li{padding:.875rem 0;border-bottom:1px solid rgba(27,42,82,.15);font-size:.9375rem;line-height:1.55;color:var(--label);}
+.support-uses b{display:block;font-weight:500;color:var(--black);}
+.support-act{margin-top:2rem;display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.5rem;}
+.support-fine{font-size:.875rem;color:var(--label);line-height:1.55;margin-top:1.25rem;max-width:46ch;}
+.support-fine a{color:var(--black);text-decoration:underline;text-underline-offset:3px;}
+@media (max-width:860px){.support-grid{grid-template-columns:1fr;}}
 .sec-lavender .people,.sec-lavender .person{border-color:#cfc8f2;}
 .team-top{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:2rem 5rem;align-items:end;}
 .team-top .snap-tall{justify-self:end;}
@@ -646,6 +661,7 @@ img{display:block;max-width:100%;}
       <a href="#for-you">Who it's for</a>
       <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a>
       <a href="#team">Team</a>
+      <a href="#support" data-cta="nav-support">Support us</a>
     </nav>
     <div class="nav-actions">
       <a class="btn btn-ghost" href="https://learn.algebridge.org/login?mode=signin" target="_blank" rel="noopener" data-cta="nav-login">Log in</a>
@@ -662,6 +678,7 @@ img{display:block;max-width:100%;}
   <a href="https://learn.algebridge.org/schools" target="_blank" rel="noopener">For schools</a>
   <a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">For parents</a>
   <a href="#team">Team</a>
+  <a href="#support" data-cta="sheet-support">Support us</a>
   <div class="sheet-cta">
     <a class="a" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="sheet-start">Start learning</a>
     <a class="b" href="https://learn.algebridge.org/login?mode=signin" target="_blank" rel="noopener" data-cta="sheet-login">Log in</a>
@@ -681,6 +698,7 @@ img{display:block;max-width:100%;}
     <div class="hero-cta">
       <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="hero-start">Start learning <svg class="arr" width="14" height="12" viewBox="0 0 13 11" fill="none" aria-hidden="true"><path d="M0 5.5h11M7 1.5l4 4-4 4" stroke="currentColor" stroke-width="1.3"/></svg></a>
       <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="hero-schools">For teachers and schools</a>
+      <a class="btn btn-support btn-lg" href="/support" data-cta="hero-support"><svg class="heart" width="16" height="15" viewBox="0 0 16 15" fill="none" aria-hidden="true"><path d="M8 13.6S1.2 9.6 1.2 5A3.5 3.5 0 0 1 8 3.4 3.5 3.5 0 0 1 14.8 5C14.8 9.6 8 13.6 8 13.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Support Algebridge</a>
     </div>
     <p class="hero-note">Free and ad-free. The first skill is open right here, live from the platform.</p>
   </div>
@@ -900,6 +918,27 @@ img{display:block;max-width:100%;}
   </div>
 </section>
 
+<!-- ══ Support ═══════════════════════════════════════════════ -->
+<section class="sec support-sec" id="support">
+  <div class="wrap support-grid">
+    <div class="rv">
+      <h2 class="h2">Support Algebridge.</h2>
+      <p class="lede">Algebridge is free to use, and it stays free for everyone. Supporters who want to help keep it that way can make a voluntary contribution.</p>
+      <div class="support-act">
+        <a class="btn btn-solid btn-lg" href="/support" data-cta="support-block">Support Algebridge</a>
+      </div>
+      <p class="support-fine">A contribution buys no product, service, membership or benefit, and every student keeps the same free access. Algebridge is a student-led project and not yet a registered nonprofit, so contributions are not tax-deductible. Because our team members are under 18, contributions are received by Mykola Dubovyi, an adult who manages Algebridge&rsquo;s finances. Details in our <a href="https://learn.algebridge.org/terms#contributions" target="_blank" rel="noopener">Terms</a>.</p>
+    </div>
+    <ul class="support-uses rv">
+      <li><b>Platform and technology</b>Hosting, databases, domains and the AI services behind Archie.</li>
+      <li><b>Becoming a nonprofit</b>Incorporation, IRS filing for tax-exempt status and a review of how we protect children&rsquo;s privacy.</li>
+      <li><b>Administration</b>Bookkeeping, payment fees, a mailing address and a phone line.</li>
+      <li><b>Outreach</b>Materials that help students and schools find Algebridge.</li>
+      <li><b>Student programs and events</b>Event costs, competition fees and prizes for students in Algebridge challenges.</li>
+    </ul>
+  </div>
+</section>
+
 <!-- ══ FAQ ═══════════════════════════════════════════════════ -->
 <section class="faq" id="faq">
   <div class="wrap faq-grid">
@@ -911,7 +950,7 @@ img{display:block;max-width:100%;}
     <div class="rv">
       <details>
         <summary>Is it really free?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
-        <p>Yes. Every unit and skill, the games, the tutors and the directory. Algebridge shows no ads and sells no data. It is a student-led initiative, and it stays free.</p>
+        <p>Yes. Every unit and skill, the games, the tutors and the directory. Algebridge shows no ads and sells no data. It is a student-led initiative, and it stays free. Adults who want to help can <a href="/support">support Algebridge</a> to cover running costs. Students are never asked to pay.</p>
       </details>
       <details>
         <summary>Who are the tutors?<span class="plus" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 0v11M0 5.5h11" stroke="currentColor" stroke-width="1.2"/></svg></span></summary>
@@ -947,6 +986,7 @@ img{display:block;max-width:100%;}
     <div class="rv ctas">
       <a class="btn btn-solid btn-lg" href="https://learn.algebridge.org" target="_blank" rel="noopener" data-cta="close-start">Start learning</a>
       <a class="btn btn-line btn-lg" href="https://learn.algebridge.org/schools" target="_blank" rel="noopener" data-cta="close-schools">Bring it to a school</a>
+      <a class="btn btn-line btn-lg" href="/support" data-cta="close-support">Support Algebridge</a>
     </div>
     <p class="rv reach">Questions? Write to <a href="mailto:info@algebridge.org">info@algebridge.org</a> or call <a href="tel:+13024016107">302-401-6107</a>.</p>
   </div>
@@ -990,6 +1030,7 @@ img{display:block;max-width:100%;}
         <a href="https://learn.algebridge.org/safety" target="_blank" rel="noopener">Safety &amp; Trust</a>
         <a href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
         <a href="https://learn.algebridge.org/terms" target="_blank" rel="noopener">Terms</a>
+        <a href="#support">Support us</a>
       </div>
       <div class="foot-col">
         <span class="label">Contact</span>
@@ -1008,6 +1049,7 @@ img{display:block;max-width:100%;}
       <span class="links">
         <a href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
         <a href="https://learn.algebridge.org/terms" target="_blank" rel="noopener">Terms</a>
+        <a href="/support#refunds">Support &amp; refunds</a>
         <a href="mailto:info@algebridge.org">info@algebridge.org</a>
       </span>
     </div>

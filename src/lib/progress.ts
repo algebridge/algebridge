@@ -176,7 +176,7 @@ const DEFAULT_PROGRESS: UserProgress = {
   // they tick "Show me on the board" on the leaderboard page.
   // (The one-time switch flag is set by ensureBridgeyFields, never here: a
   // flag in the defaults would be merged into old saves and skip their switch.)
-  leaderboardOptIn: false,
+  leaderboardOptIn: true,
 };
 
 /** Fills in any missing fields (e.g. from an older save, or a remotely-fetched student record) with safe defaults. */

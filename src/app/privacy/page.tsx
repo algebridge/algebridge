@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PENDING_SAFETY_UPDATE } from "@/lib/safety";
+import { SAFETY_RULES } from "@/lib/safety";
 import { GA_ID } from "@/lib/analytics";
 
 export const metadata = { title: "Privacy Policy" };
@@ -11,8 +11,9 @@ const SECTIONS: [string, string][] = [
   ["what-we-do-not-do", "What we do not do"],
   ["who-can-see", "Who can see your data"],
   ["services", "Services that process your data"],
+  ["payments", "Payments and contributions"],
   ["your-choices", "Your choices"],
-  ["safety-update", "Safety changes waiting on a database update"],
+  ["safety-rules", "Safety rules the database enforces"],
   ["extension", "AlgeBridge Hints browser extension"],
   ["childrens-privacy", "Children's privacy"],
   ["contact", "Contact"],
@@ -55,13 +56,13 @@ export default function PrivacyPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li><strong>Account info</strong>: your email, your real first and last name, and your role (student, teacher or tutor). If you sign up with a password, it is stored hashed by our sign-in service, Supabase, and nobody at AlgeBridge can read it. If you sign in with Google, Google gives us your name and email.</li>
             <li><strong>Learning progress</strong>: skills completed, practice results, XP, Bridgeys, streaks, the interests you pick or describe, and your notebook. It is saved to your account, and the teacher of any class you are in can read it.</li>
-            <li><strong>Profile</strong>: an optional photo and bio. Photos are stored at a public link, so anyone who has a photo&apos;s link can open it. (This changes with the database update below.) A bio with a phone number, email address or social media username is not saved.</li>
+            <li><strong>Profile</strong>: an optional photo and bio. Photos are not at a public link: only the people allowed to see you, while signed in, can open yours. A bio with a phone number, email address or social media username is not saved.</li>
             <li><strong>Messages and calls</strong>: direct messages, group messages, requests for help from a tutor, and call records, including the text recap written after a call.</li>
-            <li><strong>Leaderboard</strong>: off unless you turn it on. If you tick &quot;Show me on the board&quot; on the leaderboard page, your first name and last initial, Bridgeys, skills finished and best house piece are shown to every signed-in AlgeBridge user. Untick it to come off. A student who was shown under the old default and has not signed in since stays on the board until the database update below.</li>
+            <li><strong>Leaderboard</strong>: on unless you turn it off. Your first name and last initial, Bridgeys, skills finished and best house piece are shown to signed-in AlgeBridge users, never to visitors who are not signed in, and never with your account id. You agree to this when you create your account. Untick &quot;Shown on the board&quot; on the leaderboard page to hide yourself. School accounts are never shown.</li>
             <li><strong>Visit counts</strong>: AlgeBridge counts visits to algebridge.org and to this site as daily totals: the page, with any account, group or call id taken out, the site that linked to it, and whether it was a phone, tablet or computer. A random code your browser makes fresh each day lets one visit count once that day. It is never tied to your account, name, email or IP address, and the next day a new one replaces it. Admins, bots and browsers that send Global Privacy Control are left out, and only AlgeBridge admins see the totals.</li>
             <li><strong>Feedback</strong>: what you send through the feedback page, the page you sent it from, and a contact email (your account email unless you change it).</li>
-            <li><strong>Reports</strong>: if you report someone, the reason you pick, any details you add, where it happened (the conversation, group or call), the account you reported, and which message you reported, if any. Reports are saved for an AlgeBridge admin to read and are not shown to the person reported. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away.</li>
-            <li><strong>Blocks</strong>: the people you block are kept in your browser on that device, so that browser can hide them.</li>
+            <li><strong>Reports</strong>: if you report someone, the reason you pick, any details you add, where it happened (the conversation, group or call), the account you reported, and which message you reported, if any. Reports are saved for an AlgeBridge admin to read and are not shown to the person reported. The report quotes the message from the database&apos;s own copy, and one account can send at most 30 reports an hour. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away.</li>
+            <li><strong>Blocks</strong>: the people you block are kept with your account, so a blocked person cannot message you, call you or add you to a group chat on any device. The person you block is not told.</li>
           </ul>
         </section>
 
@@ -81,9 +82,10 @@ export default function PrivacyPage() {
             row-level security, which decides what each account can read:
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>You can read your own records, tutor profiles (their email included), the leaderboard, and the members and messages of group chats you are in.</li>
-            <li>The owner of a class can read the name, email and progress of each student on its roster, and can add a student who already has an account to a class by email, without the student being asked. Today the database does not check that a class&apos;s owner is a teacher account. (Both change with the database update below.)</li>
-            <li>A tutor can read the name and email of every student, and every request for help. (This changes with the database update below.)</li>
+            <li>A student can read their own records, tutor profiles without their email, the leaderboard, and the members and messages of group chats they are in.</li>
+            <li>Only a teacher account can make a class. A student joins one only with the class code or by accepting the teacher&apos;s invite, and the teacher can then read the name, email and progress of each student in it.</li>
+            <li>A tutor never reads student email addresses. A tutor sees the name and photo only of students they may reach (see the safety rules below) or who are in their own group chats.</li>
+            <li>A student in a teacher&apos;s class is a school account: only their teacher and AlgeBridge admins can message or call them, tutors do not see their requests for help, and they are not on the leaderboard.</li>
             <li>AlgeBridge admins can read every profile.</li>
           </ul>
           <p className="mt-2">
@@ -97,6 +99,7 @@ export default function PrivacyPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li><strong>Supabase</strong> stores accounts, progress, messages and photos, and carries messages and call signals live.</li>
             <li><strong>Vercel</strong> hosts the website.</li>
+            <li><strong>Stripe</strong> processes contributions from adult supporters. See <a href="#payments" className="underline">Payments and contributions</a>.</li>
             <li><strong>Groq, with OpenAI as a backup</strong>, writes three kinds of text. Archie, the study helper, gets the problem on screen with its hint and worked solution, the conversation, and the student&apos;s first name and picked interests, never a last name or email. Interests get only the words a student types about them; tapping a listed interest uses no AI. Word problems set in an interest get a problem the app made and the chosen topic. The Hints extension is described below.</li>
             <li><strong>Anthropic or OpenAI</strong>, when one is set up, writes the recap after a tutoring call. It gets both people&apos;s names, the call&apos;s captions as a transcript labeled by speaker (if captions were on), and the student&apos;s notebook. The recap is saved with the call record and sent to the other person as a message. Without either service, a template on our own server writes it.</li>
             <li><strong>Google</strong>: if anyone turns on captions in a call, the browser&apos;s speech recognition turns the audio into text, and in Chrome that is a Google service. Google also handles &quot;Continue with Google&quot; sign-in if you choose it.</li>
@@ -123,25 +126,49 @@ export default function PrivacyPage() {
           </p>
         </section>
 
+        <section id="payments" className="scroll-mt-20">
+          <h2 className="text-lg font-bold text-slate-900">Payments and contributions</h2>
+          <p className="mt-2">
+            Contributions are processed by Stripe, Inc. When you contribute, you enter your payment
+            details directly on Stripe&apos;s secure checkout page. Algebridge never receives or
+            stores your full card number or bank details.
+          </p>
+          <p className="mt-2">
+            From Stripe, we receive your email address, your name if you choose to give it, the
+            amount and date of your contribution. We use this information only to send receipts,
+            answer your questions, keep financial records, and, if you wish, thank you.
+          </p>
+          <p className="mt-2">
+            We do not sell, rent, or share contributor information with anyone, and we do not add
+            contributors to marketing lists without their permission. Stripe&apos;s handling of your
+            information is described in its privacy policy at{" "}
+            <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="underline">https://stripe.com/privacy</a>.
+          </p>
+          <p className="mt-2">
+            Contributions are made by adults. Students do not need to contribute or provide any
+            payment information to use Algebridge.
+          </p>
+        </section>
+
         <section id="your-choices" className="scroll-mt-20">
           <h2 className="text-lg font-bold text-slate-900">Your choices</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Lessons and practice need a free account, so your work saves and your teacher can see it. Pages that work without an account, like the games, keep what you do only in your browser.</li>
-            <li>You can <strong>delete your account</strong> at any time from your account page. That deletes your profile, progress, notebook, class memberships, leaderboard entry, help requests, every direct message you sent or received, and the group chat messages you sent. It does not yet delete photos you uploaded (their links keep working), feedback or reports you sent (they keep the message and contact email, no longer linked to you), or call records (the time and recap stay, no longer linked to you). Email us to have those removed.</li>
+            <li>You can <strong>delete your account</strong> at any time from your account page. That deletes your profile, progress, notebook, class memberships, leaderboard entry, help requests, every direct message you sent or received, and the group chat messages you sent. Those messages are first kept for 90 days, readable only by AlgeBridge admins for a safety review. After that, nobody can read them. It does not yet delete photos you uploaded (they stay stored), feedback or reports you sent (they keep the message and contact email, no longer linked to you), or call records (the time and recap stay, no longer linked to you). Email us to have those removed.</li>
             <li>You can change your profile photo and bio whenever you like. There is no button to remove a photo yet; email us and we will.</li>
-            <li>The leaderboard is off for you until you turn it on, and one checkbox turns it off again.</li>
-            <li>You can <strong>report</strong> any message, person, group or call, and <strong>block</strong> anyone you talk to. Blocking hides their messages, calls and unread messages in the browser where you block them; it does not yet reach your other devices.</li>
+            <li>You are on the leaderboard unless you turn it off, and one checkbox on the leaderboard page hides you.</li>
+            <li>You can <strong>report</strong> any message, person, group or call, and <strong>block</strong> anyone you talk to. A block is kept with your account and works on every device.</li>
+            <li>You can leave any group chat.</li>
           </ul>
         </section>
 
-        <section id="safety-update" className="scroll-mt-20">
-          <h2 className="text-lg font-bold text-slate-900">Safety changes waiting on a database update</h2>
+        <section id="safety-rules" className="scroll-mt-20">
+          <h2 className="text-lg font-bold text-slate-900">Safety rules the database enforces</h2>
           <p className="mt-2">
-            These are written and tested, but they take effect only when our database update of
-            October 2026 is applied. Until then, the rules above describe what happens.
+            These rules are checked by the database itself, whatever app talks to it:
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            {PENDING_SAFETY_UPDATE.map((line) => (
+            {SAFETY_RULES.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
@@ -181,7 +208,7 @@ export default function PrivacyPage() {
         <section id="contact" className="scroll-mt-20">
           <h2 className="text-lg font-bold text-slate-900">Contact</h2>
           <p className="mt-2">
-            Questions? Email <a className="text-bridge-600 underline" href="mailto:support@algebridge.org">support@algebridge.org</a>.
+            Questions? Email <a className="text-bridge-600 underline" href="mailto:info@algebridge.org">info@algebridge.org</a>.
           </p>
         </section>
       </div>

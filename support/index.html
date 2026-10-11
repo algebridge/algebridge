@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support Algebridge</title>
+<meta name="description" content="Support Algebridge, the free, student-led Algebra 1 platform: who receives contributions, how they are used, payment by Stripe, refunds, privacy and contact.">
+<link rel="canonical" href="https://algebridge.org/support">
+<link rel="icon" href="/algebridge logo icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#1b2a52;--white:#fff;--paper:#fbfcff;--sky:#dcecff;--sun:#ffd166;--butter:#fff3c4;
+  --muted:#7b86a6;--line:#c9d8f4;--label:#56638a;--accent:#2563eb;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+[hidden]{display:none !important;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+body{background:var(--paper);color:var(--black);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  font-size:1rem;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent);text-underline-offset:3px;}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px;}
+.nav{border-bottom:1px solid var(--line);background:var(--white);}
+.nav .wrap{max-width:1100px;display:flex;align-items:center;justify-content:space-between;height:64px;}
+.brand{display:flex;align-items:center;gap:.5rem;color:var(--black);text-decoration:none;font-weight:500;font-size:1.125rem;letter-spacing:-0.01em;}
+.brand img{width:28px;height:28px;}
+.nav .back{font-size:.9375rem;color:var(--label);text-decoration:none;}
+.nav .back:hover{color:var(--black);}
+.hero{padding:4rem 0 2.5rem;}
+.eyebrow{font-size:.8125rem;color:var(--label);letter-spacing:.04em;text-transform:uppercase;}
+h1{font-size:clamp(2rem,5vw,3rem);font-weight:500;letter-spacing:-0.025em;line-height:1.1;margin:.5rem 0 1rem;}
+.lede{font-size:1.125rem;color:var(--label);max-width:620px;}
+.give{margin:2rem 0 0;padding:1.75rem;border:1px solid var(--line);border-radius:16px;background:var(--white);}
+.give .row{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.5rem;}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:52px;padding:0 1.75rem;border-radius:999px;
+  background:var(--black);color:var(--white);text-decoration:none;font-weight:500;font-size:1rem;}
+.btn:hover{background:#25386b;}
+.give .soon{display:inline-flex;align-items:center;height:52px;padding:0 1.5rem;border-radius:999px;background:var(--butter);font-weight:500;}
+.give small{display:block;color:var(--label);font-size:.875rem;line-height:1.55;}
+.give .cards{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;}
+.give .cards span{font-size:.75rem;border:1px solid var(--line);border-radius:6px;padding:.2rem .5rem;color:var(--label);}
+.toc{margin:2.5rem 0 0;padding:1.25rem 1.5rem;border-radius:12px;background:var(--sky);}
+.toc b{font-weight:500;}
+.toc ol{margin:.5rem 0 0 1.2rem;columns:2;column-gap:2rem;font-size:.9375rem;}
+section{padding:2.25rem 0;border-top:1px solid var(--line);}
+section:first-of-type{border-top:0;}
+h2{font-size:1.375rem;font-weight:500;letter-spacing:-0.015em;margin-bottom:.75rem;scroll-margin-top:24px;}
+p+p,p+ul,ul+p{margin-top:.75rem;}
+ul{margin-left:1.2rem;}
+li+li{margin-top:.4rem;}
+.note{background:var(--butter);border-radius:12px;padding:1rem 1.25rem;}
+.foot{margin-top:3rem;background:var(--black);color:#c9d3ee;padding:2.5rem 0;font-size:.875rem;}
+.foot .wrap{max-width:1100px;display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;}
+.foot a{color:var(--white);text-decoration:none;}
+.foot a:hover{text-decoration:underline;}
+.foot .links{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;}
+@media (max-width:600px){
+  .hero{padding:2.5rem 0 1.5rem;}
+  .toc ol{columns:1;}
+  .give{padding:1.25rem;}
+  .btn,.give .soon{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/algebridge logo icon.png" alt=""><span>algebridge</span></a>
+    <a class="back" href="/">Back to algebridge.org</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <span class="eyebrow">Support Algebridge</span>
+    <h1>Help keep Algebridge free.</h1>
+    <p class="lede">Algebridge is a free, ad-free Algebra 1 platform built by students. Every unit, the practice, the games and the tutors stay free for students. Voluntary contributions from supporters help keep it that way.</p>
+
+    <div class="give" id="give">
+      <div class="row">
+        <!-- STRIPE LINK: the Stripe Payment Link lives in STRIPE_LINK in the script at the bottom of this page. -->
+        <a class="btn" id="giveBtn" href="#" target="_blank" rel="noopener" hidden data-cta="support-stripe">Support through Stripe</a>
+        <span class="soon" id="giveSoon">Online support opens soon</span>
+        <small>Amounts are in US dollars (USD). Payment happens on a secure Stripe page.<br>
+          Voluntary, and not tax-deductible. <a href="#tax">Why</a></small>
+      </div>
+      <div class="cards" aria-label="Cards accepted">
+        <span>Visa</span><span>Mastercard</span><span>American Express</span><span>Discover</span>
+      </div>
+    </div>
+
+    <nav class="toc" aria-label="On this page">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#who">Who receives contributions</a></li>
+        <li><a href="#use">How contributions are used</a></li>
+        <li><a href="#nonprofit">When Algebridge becomes a nonprofit</a></li>
+        <li><a href="#payment">How payment works</a></li>
+        <li><a href="#refunds">Refunds</a></li>
+        <li><a href="#privacy">Your privacy</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+    </nav>
+  </div>
+
+  <section id="who">
+    <h2>Who receives contributions</h2>
+    <p>Algebridge is free to use. We accept voluntary contributions from supporters who want to help keep it that way. A contribution does not purchase any product, service, membership, or benefit, and it does not change anyone&rsquo;s access to Algebridge, which remains free for everyone.</p>
+    <p class="note" id="tax">Algebridge is a student-led project and is not yet a registered nonprofit organization. Contributions are received by Mykola Dubovyi, an adult who manages Algebridge&rsquo;s finances on behalf of the project, because the members of the Algebridge team are under 18. Contributions are <b>not tax-deductible</b>.</p>
+  </section>
+
+  <section id="use">
+    <h2>How contributions are used</h2>
+    <p>Contributions are used only for the costs of running and growing Algebridge, including:</p>
+    <ul>
+      <li><b>Platform and technology:</b> website hosting, databases, domain names, AI services that power Archie (our study helper), developer accounts, error monitoring, and the software tools the team uses to build Algebridge.</li>
+      <li><b>Becoming a nonprofit:</b> state incorporation fees, IRS filing fees for tax-exempt status, annual filings, and legal or compliance reviews, including a review of how we protect children&rsquo;s privacy online.</li>
+      <li><b>Administration:</b> bookkeeping software, banking and payment processing fees, trademark registration, and a mailing address and phone line for the project.</li>
+      <li><b>Outreach:</b> advertising, content creation and design tools, email newsletters, printed materials, and branded materials that help students and schools find Algebridge.</li>
+      <li><b>Student programs and events:</b> event spaces, transportation to education events, food at events, conference and competition registration fees, and prizes for students who take part in Algebridge programs and challenges.</li>
+    </ul>
+    <p>We decide how to allocate contributions among these purposes based on the project&rsquo;s needs. We do not use contributions for anyone&rsquo;s personal expenses unrelated to Algebridge.</p>
+  </section>
+
+  <section id="nonprofit">
+    <h2>When Algebridge becomes a nonprofit</h2>
+    <p>We plan to register Algebridge as a nonprofit organization. When that happens, contributions that have not yet been spent will be transferred to the new organization and used for the same purposes. Contributions made before the organization is recognized as tax-exempt will remain non-deductible.</p>
+  </section>
+
+  <section id="payment">
+    <h2>How payment works</h2>
+    <p>The &ldquo;Support through Stripe&rdquo; button opens a secure checkout page hosted by <a href="https://stripe.com" target="_blank" rel="noopener">Stripe, Inc.</a> You enter your payment details directly on Stripe&rsquo;s page, over an encrypted HTTPS connection. Algebridge never receives or stores your full card number or bank details.</p>
+    <p>All amounts are in US dollars (USD). Your bank may add its own fee or exchange rate if your card is in another currency. Charges appear on card statements as ALGEBRIDGE. Stripe emails you a receipt right after you contribute.</p>
+  </section>
+
+  <section id="refunds">
+    <h2>Refunds</h2>
+    <p>Contributions are voluntary and generally non-refundable. If you made a contribution by mistake or in the wrong amount, contact <a href="mailto:info@algebridge.org?subject=Refund">info@algebridge.org</a> within 14 days and we will review your request.</p>
+  </section>
+
+
+  <section id="privacy">
+    <h2>Your privacy</h2>
+    <p>From Stripe, we receive your email address, your name if you choose to give it, the amount and date of your contribution. We use this information only to send receipts, answer your questions, keep financial records, and, if you wish, thank you.</p>
+    <p>We do not sell, rent, or share contributor information with anyone, and we do not add contributors to marketing lists without their permission. Stripe&rsquo;s handling of your information is described in the <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe Privacy Policy</a>.</p>
+    <p>Contributions are made by adults. Students do not need to contribute or provide any payment information to use Algebridge. The full details are in our <a href="https://learn.algebridge.org/terms#contributions" target="_blank" rel="noopener">Terms</a> and <a href="https://learn.algebridge.org/privacy#payments" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+  </section>
+
+  <section id="contact">
+    <h2>Contact</h2>
+    <p>For any question about a contribution or a charge:</p>
+    <ul>
+      <li>Email: <a href="mailto:info@algebridge.org?subject=Contribution">info@algebridge.org</a></li>
+      <li>Phone: <a href="tel:+13024016107">302-401-6107</a></li>
+    </ul>
+    <p style="color:var(--muted);font-size:.875rem;margin-top:1.5rem;">Last updated October 11, 2026.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span>&copy; 2026 Algebridge. Student-led initiative, founded 2026.</span>
+    <span class="links">
+      <a href="/">Home</a>
+      <a href="https://learn.algebridge.org/privacy" target="_blank" rel="noopener">Privacy</a>
+      <a href="https://learn.algebridge.org/terms" target="_blank" rel="noopener">Terms</a>
+      <a href="#refunds">Refunds</a>
+      <a href="mailto:info@algebridge.org">info@algebridge.org</a>
+      <a href="tel:+13024016107">302-401-6107</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // The Stripe Payment Link. Empty: the page says support opens soon.
+  var STRIPE_LINK = 'https://donate.stripe.com/5kQdR92EW7JhgiP2ipdjO00';
+  if (!/^https:\/\/(buy|donate)\.stripe\.com\//.test(STRIPE_LINK)) return;
+  var btn = document.getElementById('giveBtn');
+  btn.href = STRIPE_LINK;
+  btn.hidden = false;
+  document.getElementById('giveSoon').hidden = true;
+})();
+</script>
+</body>
+</html>

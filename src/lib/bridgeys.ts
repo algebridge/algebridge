@@ -85,7 +85,7 @@ function ensureBridgeyFields(progress: UserProgress): void {
     progress.bridgeyRewardsClaimed = { complete: [] };
   }
   if (!progress.bridgeyRewardsClaimed.units) progress.bridgeyRewardsClaimed.units = [];
-  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = false;
+  if (progress.leaderboardOptIn == null) progress.leaderboardOptIn = true;
   // The board is opt-in from 3 Oct 2026. Every save made before then was put
   // on it by default (22 Sep), so each one comes off once, here; the
   // checkbox on the leaderboard page is the way on from then on.
@@ -94,6 +94,14 @@ function ensureBridgeyFields(progress: UserProgress): void {
     progress.leaderboardOptIn = false;
     progress.leaderboardDefaultV2 = true;
     defaults.leaderboardOffByDefault = true;
+  }
+  // On by default again from 11 Oct 2026 (Ivan): every student agrees at
+  // sign-up to be shown unless they hide themselves, so each save goes back
+  // on the board once, here. The checkbox on the leaderboard page hides it.
+  // The flag must never be in the defaults, or old saves would skip this.
+  if (!progress.leaderboardDefaultV3) {
+    progress.leaderboardOptIn = true;
+    progress.leaderboardDefaultV3 = true;
   }
   if (!progress.ownedRinkItems) progress.ownedRinkItems = [];
   if (!progress.rinkDecor) progress.rinkDecor = {};
