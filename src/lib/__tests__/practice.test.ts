@@ -134,6 +134,16 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
+  // Algebra 2 early access: the two people, on any of their accounts, and nobody else.
+  const { hasAlgebra2Access } = await import("../early-access.ts");
+  const allowed = ["ivan@algebridge.org", "ivan.malchugan@gmail.com", "wgtsfamily@gmail.com", "zachary@algebridge.org", "zacharybalan865@gmail.com", " Zachary@AlgeBridge.org "];
+  const blocked = ["student@school.edu", "zach@algebridge.org", "a2.tester@example.com", "", null];
+  const yes = await Promise.all(allowed.map((e) => hasAlgebra2Access(e)));
+  const no = await Promise.all(blocked.map((e) => hasAlgebra2Access(e)));
+  ok("algebra 2 opens for ivan and zach on every account", yes.every(Boolean), allowed.filter((_, i) => !yes[i]).join(", "));
+  ok("algebra 2 stays shut for everyone else", no.every((v) => !v));
+}
+{
   // Archie hands answers to the card: what counts as an answer in a message.
   const { answerInMessage } = await import("../answer-bridge.ts");
   const yes = ["-63", "x = 4", "is it 2/3?", "my answer is B", "I got 12", "step 2", "3 + 4i"];

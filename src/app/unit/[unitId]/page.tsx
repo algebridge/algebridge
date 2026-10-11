@@ -9,6 +9,7 @@ import { QuoteCard } from "@/components/QuoteCard";
 import { quoteForUnit } from "@/data/quotes";
 import { hueVars, unitHue } from "@/lib/hues";
 import { Icon } from "@/components/Icon";
+import { Algebra2Gate } from "@/components/Algebra2Gate";
 
 export function generateStaticParams() {
   return allUnits().map((unit) => ({ unitId: unit.id }));
@@ -35,7 +36,7 @@ export default async function UnitPage({
   const units = course?.units ?? [];
   const home = course?.id === "algebra-2" ? "/algebra-2" : "/";
 
-  return (
+  const page = (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href={home} className="hover:text-bridge-600">{course?.id === "algebra-2" ? "Algebra 2" : "Home"}</Link>
@@ -81,4 +82,5 @@ export default async function UnitPage({
       <QuoteCard quote={quoteForUnit(unit.id)} variant="banner" />
     </div>
   );
+  return course?.id === "algebra-2" ? <Algebra2Gate>{page}</Algebra2Gate> : page;
 }

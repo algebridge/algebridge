@@ -4,6 +4,7 @@ import { COURSES } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitCard } from "@/components/UnitCard";
 import { UnitTiles } from "@/components/UnitTiles";
+import { Algebra2Gate } from "@/components/Algebra2Gate";
 
 /** Unlisted: reached by its address only, and kept out of search engines. */
 export const metadata: Metadata = { title: "Algebra 2", robots: { index: false, follow: false } };
@@ -17,6 +18,7 @@ export default function Algebra2Page() {
   const course = COURSES.find((c) => c.id === "algebra-2")!;
   const totalSkills = course.units.reduce((sum, u) => sum + u.skills.length, 0);
   return (
+    <Algebra2Gate>
     <div className="space-y-6">
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
@@ -48,5 +50,6 @@ export default function Algebra2Page() {
         <p className="text-xs text-slate-500">Algebra 2 is new. Something off? Use Feedback in the menu.</p>
       </CourseGate>
     </div>
+    </Algebra2Gate>
   );
 }
