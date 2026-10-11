@@ -100,7 +100,8 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const m = pick(CUBE_FREE);
         const a = randInt(2, 7);
         const b = randInt(2, 7);
-        const c = randInt(1, a + b - 2);
+        // From 2, so no term prints a coefficient of 1 ("1∛6").
+        const c = randInt(2, a + b - 2);
         const s = a + b - c;
         const answer = `${s}∛${m}`;
         const wrong = [`${s}∛${3 * m}`, `${a * b - c}∛${m}`, `${a + b + c}∛${m}`];
