@@ -44,6 +44,8 @@ export interface Diagnosis {
   note: string;
   /** What to do about it. */
   fix?: string;
+  /** The step of the worked answer (explanationSteps) where this slip happens, when known. */
+  step?: number;
 }
 
 /** What the student did on the card. */
@@ -99,14 +101,14 @@ function matchTrap(traps: Trap[] | undefined, given: string, value: number | nul
   for (const t of traps ?? []) {
     if (typeof t.value === "number") {
       if (value !== null && (near(value, t.value) || numericAnswerMatches(t.value, given, decimalPlaces))) {
-        return { kind: "trap", note: t.why };
+        return { kind: "trap", note: t.why, step: t.step };
       }
       continue;
     }
-    if (norm(t.value) === norm(given)) return { kind: "trap", note: t.why };
+    if (norm(t.value) === norm(given)) return { kind: "trap", note: t.why, step: t.step };
     if (value !== null) {
       const tv = parseNumericAnswer(t.value);
-      if (tv !== null && near(tv, value)) return { kind: "trap", note: t.why };
+      if (tv !== null && near(tv, value)) return { kind: "trap", note: t.why, step: t.step };
     }
   }
   return null;

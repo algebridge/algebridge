@@ -51,6 +51,12 @@ export interface Trap {
   value: string | number;
   /** Why that answer comes up, written to the student, with the right answer left out. */
   why: string;
+  /**
+   * Where the slip happens: the index of the step, in the problem's
+   * explanation split on "→" (explanationSteps), whose work this wrong
+   * answer gets wrong. The wrong-answer note highlights that step.
+   */
+  step?: number;
 }
 
 export interface Skill {

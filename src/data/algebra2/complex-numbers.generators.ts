@@ -1,8 +1,8 @@
 import type { PracticeProblem, Trap } from "@/types";
 import { PROBLEMS_PER_SKILL, fillToCount, fmtNum, mcChoices, plusTerm, quad, randInt, trapsFor } from "@/lib/problem-utils";
 
-function trap(value: number | string, why: string): Trap {
-  return { value, why };
+function trap(value: number | string, why: string, step?: number): Trap {
+  return step === undefined ? { value, why } : { value, why, step };
 }
 
 function pick<T>(items: readonly T[]): T {
@@ -38,9 +38,11 @@ const SQUARE_FREE = [1, 2, 3, 5, 6, 7, 10] as const;
 
 const sameChoice = (a: string, b: string) => a.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase() === b.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
 
+type Wrong = { value: string; why: string; step?: number };
+
 /** The first three candidate wrong answers that are distinct and differ from the key. */
-function wrongThree(answer: string, candidates: { value: string; why: string }[]): { value: string; why: string }[] {
-  const out: { value: string; why: string }[] = [];
+function wrongThree(answer: string, candidates: Wrong[]): Wrong[] {
+  const out: Wrong[] = [];
   for (const c of candidates) {
     if (sameChoice(c.value, answer)) continue;
     if (out.some((o) => sameChoice(o.value, c.value))) continue;
@@ -50,7 +52,7 @@ function wrongThree(answer: string, candidates: { value: string; why: string }[]
   return out;
 }
 
-function mcCard(prompt: string, hint: string, answer: string, wrong: { value: string; why: string }[], explanation: string): PracticeProblem {
+function mcCard(prompt: string, hint: string, answer: string, wrong: Wrong[], explanation: string): PracticeProblem {
   const three = wrongThree(answer, wrong);
   return {
     id: "",
@@ -59,10 +61,18 @@ function mcCard(prompt: string, hint: string, answer: string, wrong: { value: st
     hint,
     answer,
     choices: mcChoices(answer, three.map((w) => w.value)),
-    traps: trapsFor(answer, three.map((w) => trap(w.value, w.why))),
+    traps: trapsFor(answer, three.map((w) => trap(w.value, w.why, w.step))),
     explanation,
   };
 }
+
+/** A term with its number in front: (3, "i²") → "3i²", (1, "i²") → "i²", (-1, "i²") → "-i²". */
+function term(n: number, v: string): string {
+  return n === 1 ? v : n === -1 ? `-${v}` : `${fmtNum(n)}${v}`;
+}
+
+/** A number written after an operator: 4 → "4", -4 → "(-4)". */
+const par = (n: number) => (n < 0 ? `(${n})` : `${n}`);
 
 const I_POWER = ["1", "i", "-1", "-i"] as const;
 
@@ -78,18 +88,24 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         if (k > 6) m = 1;
         const n = k * k * m;
         const answer = imRoot(k, m);
+        const steps = [
+          `split off the −1: √(−${n}) = √${n} · √(−1)`,
+          `√(−1) = i, so √(−${n}) = √${n} · i`,
+          m === 1 ? `${n} = ${k}², so √${n} = ${k}` : `√${n} = √(${k * k} · ${m}) = ${realRoot(k, m)}`,
+          `√(−${n}) = ${answer}`,
+        ];
         return mcCard(
           `Simplify √(−${n}).`,
           `Write √(−${n}) as √${n} · √(−1). Then √(−1) = i, and simplify √${n} by pulling out its largest perfect-square factor.`,
           answer,
           [
-            { value: realRoot(k, m), why: "The minus sign under the root cannot vanish. √(−1) is i, and it stays in the answer." },
-            { value: `-${realRoot(k, m)}`, why: "A negative under a square root does not become a negative in front. √(−1) is i." },
-            { value: `${n}i`, why: `Pulling out i leaves √${n} still to be simplified.` },
-            { value: imRoot(k * k, m), why: `√${k * k} is ${k}, so the number in front of i is ${k}.` },
-            { value: m === 1 ? imRoot(k, 2) : imRoot(1, n), why: m === 1 ? `${n} is a perfect square, so nothing stays under the root.` : `Pull the perfect-square factor ${k * k} out of √${n}.` },
+            { value: realRoot(k, m), why: "The minus sign under the root cannot vanish. √(−1) is i, and it stays in the answer.", step: 1 },
+            { value: `-${realRoot(k, m)}`, why: "A negative under a square root does not become a negative in front. √(−1) is i.", step: 0 },
+            { value: `${n}i`, why: `Pulling out i leaves √${n} still to be simplified.`, step: 2 },
+            { value: imRoot(k * k, m), why: `√${k * k} is ${k}, so the number in front of i is ${k}.`, step: 2 },
+            { value: m === 1 ? imRoot(k, 2) : imRoot(1, n), why: m === 1 ? `${n} is a perfect square, so nothing stays under the root.` : `Pull the perfect-square factor ${k * k} out of √${n}.`, step: 2 },
           ],
-          m === 1 ? `√(−${n}) = √${n} · √(−1) = ${k}i` : `√(−${n}) = √(${k * k} · ${m}) · √(−1) = ${answer}`
+          steps.join(" → ")
         );
       }
       if (kind === 1) {
@@ -97,13 +113,25 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const n = randInt(5, 99);
         const answer = I_POWER[n % 4];
         const r = n % 4;
+        const q = Math.floor(n / 4);
+        const ir = `i${["", "", "²", "³"][r]}`;
+        const steps = [
+          `${n} ÷ 4 = ${q} remainder ${r}, so ${n} = 4 × ${q}${r ? ` + ${r}` : ""}`,
+          r ? `i^${n} = (i⁴)^${q} · ${ir} = 1 · ${ir}, since i⁴ = 1` : `i^${n} = (i⁴)^${q} = 1^${q}, since i⁴ = 1`,
+          r ? `the cycle i, i² = −1, i³ = −i, i⁴ = 1 gives ${ir} = ${answer}` : `1^${q} = 1`,
+        ];
+        const offByOne = [I_POWER[(r + 1) % 4], I_POWER[(r + 3) % 4]];
         const others = I_POWER.filter((v) => v !== answer);
         return mcCard(
           `What is i^${n}?`,
           "i, i² = −1, i³ = −i, i⁴ = 1, then the cycle repeats. Divide the exponent by 4 and use the remainder.",
           answer,
-          others.map((v) => ({ value: v, why: `${n} ÷ 4 leaves remainder ${r}, so i^${n} matches i^${r === 0 ? 4 : r}.` })),
-          `${n} = 4 × ${Math.floor(n / 4)}${r ? ` + ${r}` : ""}, so i^${n} = (i⁴)^${Math.floor(n / 4)}${r ? ` · i^${r}` : ""} = ${answer}`
+          others.map((v) =>
+            offByOne.includes(v)
+              ? { value: v, why: `${n} ÷ 4 leaves remainder ${r}, so i^${n} matches i^${r === 0 ? 4 : r}.`, step: 0 }
+              : { value: v, why: "Check the sign in the cycle: i¹ = i, i² = −1, i³ = −i, i⁴ = 1.", step: 2 }
+          ),
+          steps.join(" → ")
         );
       }
       if (kind === 2) {
@@ -111,7 +139,13 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const a = randInt(2, 12);
         const b = randInt(2, 12);
         const square = randInt(0, 1) === 0;
-        const answer = square ? -a * a : -a * b;
+        const prod = square ? a * a : a * b;
+        const answer = -prod;
+        const steps = [
+          square ? `(${a}i)² = ${a}² · i² = ${prod}i²` : `(${a}i)(${b}i) = ${a} · ${b} · i · i = ${prod}i²`,
+          `i² = −1, so ${prod}i² = ${prod} · (−1)`,
+          `${prod} · (−1) = ${answer}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -119,11 +153,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Multiply the numbers, multiply the i's to get i², and replace i² with −1.",
           answer,
           traps: trapsFor(answer, [
-            trap(-answer, "i² is −1, not 1. The product of two imaginary numbers flips sign."),
-            trap(square ? 2 * a : a + b, square ? "Squaring multiplies the number by itself, not by 2." : "The numbers multiply, they are not added."),
-            trap(square ? -2 * a : -(a + b), square ? "Squaring multiplies the number by itself, not by 2." : "The numbers multiply, they are not added."),
+            trap(-answer, "i² is −1, not 1. The product of two imaginary numbers flips sign.", 1),
+            trap(square ? 2 * a : a + b, square ? "Squaring multiplies the number by itself, not by 2." : "The numbers multiply, they are not added.", 0),
+            trap(square ? -2 * a : -(a + b), square ? "Squaring multiplies the number by itself, not by 2." : "The numbers multiply, they are not added.", 0),
           ]),
-          explanation: square ? `(${a}i)² = ${a}² · i² = ${a * a} · (−1) = ${answer}` : `(${a}i)(${b}i) = ${a * b} · i² = ${a * b} · (−1) = ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -131,6 +165,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const p = randInt(2, 9);
         const q = randInt(2, 9);
         const answer = -p * q;
+        const steps = [
+          `take the i out first: √(−${p * p}) = √${p * p} · √(−1) = ${p}i`,
+          `√(−${q * q}) = √${q * q} · √(−1) = ${q}i`,
+          `${p}i · ${q}i = ${p * q}i²`,
+          `i² = −1, so ${p * q}i² = −${p * q}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -138,11 +178,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Rewrite each root with i first: √(−${p * p}) = ${p}i. Then multiply and use i² = −1.`,
           answer,
           traps: trapsFor(answer, [
-            trap(p * q, `The rule √a · √b = √(ab) only works for nonnegative a and b. Convert to ${p}i and ${q}i first, then i² = −1.`),
-            trap(-(p + q), "The two imaginary numbers multiply; their coefficients are not added."),
-            trap(p * p * q * q, "Take the square roots before multiplying."),
+            trap(p * q, `The rule √a · √b = √(ab) only works for nonnegative a and b. Convert to ${p}i and ${q}i first, then i² = −1.`, 0),
+            trap(-(p + q), "The two imaginary numbers multiply; their coefficients are not added.", 2),
+            trap(p * p * q * q, "Take the square roots before multiplying.", 0),
           ]),
-          explanation: `√(−${p * p}) · √(−${q * q}) = (${p}i)(${q}i) = ${p * q}i² = ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       // Error analysis: a simplification of √(−n) with one slip.
@@ -182,46 +222,55 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const re = add ? a + c : a - c;
         const im = add ? b + d : b - d;
         const answer = cx(re, im);
+        const steps = add
+          ? [`real parts: ${a}${plusTerm(c)} = ${re}`, `imaginary parts: ${b}${plusTerm(d)} = ${im}, so ${term(im, "i")}`, `${answer}`]
+          : [`real parts: ${a} − ${par(c)} = ${re}`, `imaginary parts: ${b} − ${par(d)} = ${im}, so ${term(im, "i")}`, `${answer}`];
+        if (im === 0) steps[1] = add ? `imaginary parts: ${b}${plusTerm(d)} = 0, so the i term drops out` : `imaginary parts: ${b} − ${par(d)} = 0, so the i term drops out`;
         return mcCard(
           add ? `Add: (${cx(a, b)}) + (${cx(c, d)}).` : `Subtract: (${cx(a, b)}) − (${cx(c, d)}).`,
           add ? "Add the real parts together and the imaginary parts together." : "Subtract both parts of the second number: its real part from the real part, its imaginary part from the imaginary part.",
           answer,
           [
-            { value: cx(add ? a + c : a - c, add ? b - d : b + d), why: add ? "Add the imaginary parts with their signs." : "The minus applies to the imaginary part of the second number too." },
-            { value: cx(add ? a - c : a + c, add ? b + d : b - d), why: add ? "This is an addition: the real parts are added." : "This is a subtraction: the real parts are subtracted." },
-            { value: cx(re + im, 0), why: "Real parts stay real and imaginary parts stay imaginary; they never merge into one term." },
-            { value: cx(re, -im), why: "Check the sign of the imaginary part." },
-            { value: cx(-re, im), why: "Check the sign of the real part." },
+            { value: cx(add ? a + c : a - c, add ? b - d : b + d), why: add ? "Add the imaginary parts with their signs." : "The minus applies to the imaginary part of the second number too.", step: 1 },
+            { value: cx(add ? a - c : a + c, add ? b + d : b - d), why: add ? "This is an addition: the real parts are added." : "This is a subtraction: the real parts are subtracted.", step: 0 },
+            { value: cx(re + im, 0), why: "Real parts stay real and imaginary parts stay imaginary; they never merge into one term.", step: 2 },
+            { value: cx(re, -im), why: "Check the sign of the imaginary part.", step: 1 },
+            { value: cx(-re, im), why: "Check the sign of the real part.", step: 0 },
           ],
-          add ? `(${a}${plusTerm(c)}) + (${b}${plusTerm(d)})i = ${answer}` : `(${a}${plusTerm(-c)}) + (${b}${plusTerm(-d)})i = ${answer}`
+          steps.join(" → ")
         );
       }
-      if (kind === 2) {
-        // Multiply (a + bi)(c + di).
-        const [a, b, c, d] = [nz(6), nz(6), nz(6), nz(6)];
+      if (kind === 2 || kind === 3) {
+        // Multiply (a + bi)(c + di), or name one part of the product.
+        const r = kind === 2 ? 6 : 7;
+        const [a, b, c, d] = [nz(r), nz(r), nz(r), nz(r)];
         const re = a * c - b * d;
         const im = a * d + b * c;
-        const answer = cx(re, im);
-        return mcCard(
-          `Multiply: (${cx(a, b)})(${cx(c, d)}).`,
-          "FOIL as if i were a variable, replace i² with −1, then collect the real and imaginary parts.",
-          answer,
-          [
-            { value: cx(a * c + b * d, im), why: "The last product has i², which is −1, so it flips sign before joining the real part." },
-            { value: cx(a * c, b * d), why: "Multiply all four pairs, not just first and last. The outer and inner products give the imaginary part." },
-            { value: cx(re, a * d - b * c), why: "The outer and inner products are added." },
-            { value: cx(a * c, a * d + b * c), why: "The product of the two imaginary parts is real, because i² = −1, and joins the real part." },
-          ],
-          `${a * c}${plusTerm(a * d, "i")}${plusTerm(b * c, "i")}${plusTerm(b * d, "i²")} = ${a * c}${plusTerm(im, "i")}${plusTerm(-b * d)} = ${answer}`
-        );
-      }
-      if (kind === 3) {
+        const steps = [
+          `FOIL: (${cx(a, b)})(${cx(c, d)}) = ${a * c}${plusTerm(a * d, "i")}${plusTerm(b * c, "i")}${plusTerm(b * d, "i²")}`,
+          `i² = −1, so ${term(b * d, "i²")} = ${-b * d}`,
+          `real part: ${a * c}${plusTerm(-b * d)} = ${re}; imaginary part: ${a * d}${plusTerm(b * c)} = ${im}`,
+          `${cx(re, im)}`,
+        ];
+        if (kind === 2) {
+          const answer = cx(re, im);
+          return mcCard(
+            `Multiply: (${cx(a, b)})(${cx(c, d)}).`,
+            "FOIL as if i were a variable, replace i² with −1, then collect the real and imaginary parts.",
+            answer,
+            [
+              { value: cx(a * c + b * d, im), why: "The last product has i², which is −1, so it flips sign before joining the real part.", step: 1 },
+              { value: cx(a * c, b * d), why: "Multiply all four pairs, not just first and last. The outer and inner products give the imaginary part.", step: 0 },
+              { value: cx(re, a * d - b * c), why: "The outer and inner products are added.", step: 2 },
+              { value: cx(a * c, a * d + b * c), why: "The product of the two imaginary parts is real, because i² = −1, and joins the real part.", step: 2 },
+            ],
+            steps.join(" → ")
+          );
+        }
         // The real or imaginary part of a product: a plain number.
-        const [a, b, c, d] = [nz(7), nz(7), nz(7), nz(7)];
         const wantReal = randInt(0, 1) === 0;
-        const re = a * c - b * d;
-        const im = a * d + b * c;
         const answer = wantReal ? re : im;
+        steps[3] = `${cx(re, im)}, so the ${wantReal ? "real" : "imaginary"} part is ${answer}`;
         return {
           id: "",
           type: "numeric",
@@ -229,17 +278,23 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: wantReal ? "FOIL. The first product and the last product (after i² = −1) are the real part." : "FOIL. The outer and inner products carry the i; add their coefficients.",
           answer,
           traps: trapsFor(answer, [
-            wantReal ? trap(a * c + b * d, "i² is −1, so the product of the two imaginary parts flips sign.") : trap(a * d - b * c, "The outer and inner products are added."),
-            wantReal ? trap(a * c, "The product of the imaginary parts is real too, because i² = −1.") : trap(b * d, "The product of the two imaginary parts is real, because i² = −1. It does not carry an i."),
-            wantReal ? trap(im, "That is the coefficient of i. The real part has no i.") : trap(re, "That is the real part. The imaginary part is the coefficient of i."),
+            wantReal ? trap(a * c + b * d, "i² is −1, so the product of the two imaginary parts flips sign.", 1) : trap(a * d - b * c, "The outer and inner products are added.", 2),
+            wantReal ? trap(a * c, "The product of the imaginary parts is real too, because i² = −1.", 2) : trap(b * d, "The product of the two imaginary parts is real, because i² = −1. It does not carry an i.", 1),
+            wantReal ? trap(im, "That is the coefficient of i. The real part has no i.", 3) : trap(re, "That is the real part. The imaginary part is the coefficient of i.", 3),
           ]),
-          explanation: `(${cx(a, b)})(${cx(c, d)}) = ${a * c}${plusTerm(a * d, "i")}${plusTerm(b * c, "i")}${plusTerm(b * d, "i²")} = ${cx(re, im)}, so the ${wantReal ? "real" : "imaginary"} part is ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       // A number times its conjugate.
       const a = nz(9);
       const b = nz(9);
       const answer = a * a + b * b;
+      const steps = [
+        `FOIL: (${cx(a, b)})(${cx(a, -b)}) = ${a * a}${plusTerm(-a * b, "i")}${plusTerm(a * b, "i")}${plusTerm(-b * b, "i²")}`,
+        `the two i terms cancel, leaving ${a * a}${plusTerm(-b * b, "i²")}`,
+        `i² = −1, so ${term(-b * b, "i²")} = +${b * b}`,
+        `${a * a} + ${b * b} = ${answer}`,
+      ];
       return {
         id: "",
         type: "numeric",
@@ -247,11 +302,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: "FOIL. The two middle terms cancel, and the last product has i² = −1.",
         answer,
         traps: trapsFor(answer, [
-          trap(a * a - b * b, "The last product is −b²i², and i² = −1 makes it +b²."),
-          trap(a * a, "The product of the imaginary parts is real (i² = −1) and must be included."),
-          trap(2 * a, "FOIL all four pairs: the i terms cancel, but the real products remain."),
+          trap(a * a - b * b, "The last product is −b²i², and i² = −1 makes it +b².", 2),
+          trap(a * a, "The product of the imaginary parts is real (i² = −1) and must be included.", 1),
+          trap(2 * a, "FOIL all four pairs: the i terms cancel, but the real products remain.", 0),
         ]),
-        explanation: `(${cx(a, b)})(${cx(a, -b)}) = ${a * a}${plusTerm(-a * b, "i")}${plusTerm(a * b, "i")}${plusTerm(-b * b, "i²")} = ${a * a} + ${b * b} = ${answer}`,
+        explanation: steps.join(" → "),
       };
     }),
 
@@ -267,19 +322,34 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const c = k * k * m;
         const a = kind === 0 ? 1 : randInt(2, 4);
         const answer = `x = ±${imRoot(k, m)}`;
-        const eq = kind === 0 ? (randInt(0, 1) === 0 ? `x² + ${c} = 0` : `x² = -${c}`) : `${a}x² + ${a * c} = 0`;
+        const alone = kind === 0 && randInt(0, 1) === 1;
+        const eq = kind === 0 ? (alone ? `x² = -${c}` : `x² + ${c} = 0`) : `${a}x² + ${a * c} = 0`;
+        const iso =
+          kind === 1
+            ? [`subtract ${a * c}: ${a}x² = −${a * c}`, `divide by ${a}: x² = −${c}`]
+            : alone
+              ? [`x² is already alone: x² = −${c}`]
+              : [`subtract ${c}: x² = −${c}`];
+        const R = iso.length;
+        const steps = [
+          ...iso,
+          `take the square root of both sides, keeping ±: x = ±√(−${c})`,
+          `√(−${c}) = √${c} · √(−1) = √${c} · i`,
+          m === 1 ? `√${c} = ${k}` : `√${c} = √(${k * k} · ${m}) = ${realRoot(k, m)}`,
+          answer,
+        ];
         return mcCard(
           `Solve ${eq}.`,
           kind === 0 ? `Get x² alone: x² = −${c}. Take the square root of both sides, keep the ±, and write √(−1) as i.` : `Divide by ${a} first so x² is alone, then take the square root of both sides with ±, writing √(−1) as i.`,
           answer,
           [
-            { value: `x = ±${realRoot(k, m)}`, why: "x² equals a negative number, so no real number works. The square root of a negative brings in i." },
-            { value: `x = ${imRoot(k, m)}`, why: "A square root has two values. Keep the ±." },
-            { value: `x = ±${a * c}i`, why: kind === 0 ? `Take the square root of ${c} as well as pulling out i.` : `Divide by ${a} first, then take the square root of what is left.` },
-            { value: `x = ±${imRoot(k * k, m)}`, why: `√${k * k} is ${k}.` },
-            { value: `x = ±${m === 1 ? imRoot(k, 2) : imRoot(1, c)}`, why: m === 1 ? `${c} is a perfect square.` : `Pull the perfect-square factor ${k * k} out of √${c}.` },
+            { value: `x = ±${realRoot(k, m)}`, why: "x² equals a negative number, so no real number works. The square root of a negative brings in i.", step: R + 1 },
+            { value: `x = ${imRoot(k, m)}`, why: "A square root has two values. Keep the ±.", step: R },
+            { value: `x = ±${a * c}i`, why: kind === 0 ? `Take the square root of ${c} as well as pulling out i.` : `Divide by ${a} first, then take the square root of what is left.`, step: kind === 0 ? R + 2 : 1 },
+            { value: `x = ±${imRoot(k * k, m)}`, why: `√${k * k} is ${k}.`, step: R + 2 },
+            { value: `x = ±${m === 1 ? imRoot(k, 2) : imRoot(1, c)}`, why: m === 1 ? `${c} is a perfect square.` : `Pull the perfect-square factor ${k * k} out of √${c}.`, step: R + 2 },
           ],
-          `x² = −${c} → x = ±√(−${c}) → ${answer}`
+          steps.join(" → ")
         );
       }
       if (kind === 2) {
@@ -299,6 +369,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         }
         const disc = b * b - 4 * a * c;
         const answer = disc < 0 ? 0 : disc === 0 ? 1 : 2;
+        const steps = [
+          `a = ${a}, b = ${b}, c = ${c}: b² − 4ac = (${b})² − 4(${a})(${c})`,
+          `= ${b * b}${plusTerm(-4 * a * c)} = ${disc}`,
+          `${disc} is ${disc < 0 ? "negative, so 0 real solutions (both are complex)" : disc === 0 ? "zero, so exactly 1 real solution" : "positive, so 2 real solutions"}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -306,12 +381,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Compute the discriminant b² − 4ac. Negative means no real solutions, zero means exactly one, positive means two.",
           answer,
           traps: trapsFor(answer, [
-            trap(2, disc < 0 ? "Two real solutions need a positive discriminant. Check the sign of b² − 4ac." : "Two real solutions need a positive discriminant, and this one is exactly zero."),
-            trap(0, "No real solutions needs a negative discriminant. Compute b² − 4ac carefully, with 4ac subtracted."),
-            trap(1, disc < 0 ? "One real solution needs the discriminant to be exactly 0. Compute b² − 4ac." : "One real solution needs the discriminant to be exactly 0, and this one is positive."),
-            trap(disc, "That is the discriminant itself. The question asks how many real solutions its sign allows."),
+            trap(2, disc < 0 ? "Two real solutions need a positive discriminant. Check the sign of b² − 4ac." : "Two real solutions need a positive discriminant, and this one is exactly zero.", 2),
+            trap(0, "No real solutions needs a negative discriminant. Compute b² − 4ac carefully, with 4ac subtracted.", 1),
+            trap(1, disc < 0 ? "One real solution needs the discriminant to be exactly 0. Compute b² − 4ac." : "One real solution needs the discriminant to be exactly 0, and this one is positive.", 2),
+            trap(disc, "That is the discriminant itself. The question asks how many real solutions its sign allows.", 2),
           ]),
-          explanation: `b² − 4ac = (${b})² − 4(${a})(${c}) = ${b * b}${plusTerm(-4 * a * c)} = ${disc}, which is ${disc < 0 ? "negative, so 0 real solutions (both are complex)" : disc === 0 ? "zero, so exactly 1 real solution" : "positive, so 2 real solutions"}`,
+          explanation: steps.join(" → "),
         };
       }
       if (kind === 3) {
@@ -332,6 +407,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const a = (flip ? triple[1] : triple[0]) * (randInt(0, 1) === 0 ? 1 : -1);
         const b = (flip ? triple[0] : triple[1]) * (randInt(0, 1) === 0 ? 1 : -1);
         const answer = triple[2];
+        const steps = [
+          `|${cx(a, b)}| = √((${a})² + (${b})²)`,
+          `square each part: (${a})² = ${a * a}, (${b})² = ${b * b}`,
+          `add: √(${a * a} + ${b * b}) = √${a * a + b * b}`,
+          `√${a * a + b * b} = ${answer}`,
+        ];
         return {
           id: "",
           type: "numeric",
@@ -339,11 +420,11 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "The modulus is √(a² + b²), the distance from 0 in the complex plane.",
           answer,
           traps: trapsFor(answer, [
-            trap(a * a + b * b, "That is a² + b². The modulus is its square root."),
-            trap(Math.abs(a) + Math.abs(b), "The parts are not added. Square each, add, then take the square root."),
-            trap(Math.abs(a * a - b * b), "Both squares are added: |a + bi| = √(a² + b²)."),
+            trap(a * a + b * b, "That is a² + b². The modulus is its square root.", 3),
+            trap(Math.abs(a) + Math.abs(b), "The parts are not added. Square each, add, then take the square root.", 0),
+            trap(Math.abs(a * a - b * b), "Both squares are added: |a + bi| = √(a² + b²).", 2),
           ]),
-          explanation: `|${cx(a, b)}| = √((${a})² + (${b})²) = √(${a * a} + ${b * b}) = √${a * a + b * b} = ${answer}`,
+          explanation: steps.join(" → "),
         };
       }
       // x² + bx + c = 0 with complex solutions p ± qi.
@@ -351,18 +432,26 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
       const q = randInt(1, 6);
       const b = -2 * p;
       const c = p * p + q * q;
+      const qi = q === 1 ? "i" : `${q}i`;
       const answer = `x = ${p} ± ${q === 1 ? "" : q}i`;
+      const steps = [
+        `move ${c} across: ${quad(1, b, 0)} = −${c}`,
+        `add (${b} ÷ 2)² = ${p * p} to both sides: ${quad(1, b, p * p)} = −${c} + ${p * p}`,
+        `(x${plusTerm(-p)})² = −${q * q}`,
+        `x${plusTerm(-p)} = ±√(−${q * q}) = ±${qi}`,
+        answer,
+      ];
       return mcCard(
         `Solve ${quad(1, b, c)} = 0.`,
         `Complete the square: (x${plusTerm(-p)})² = -${q * q}. Then take the square root of both sides, keeping the ± and writing √(−1) as i.`,
         answer,
         [
-          { value: `x = ${-p} ± ${q === 1 ? "" : q}i`, why: `After completing the square the equation is (x${plusTerm(-p)})² = -${q * q}. Solve that for x.` },
-          { value: `x = ${p} ± ${q}`, why: `(x${plusTerm(-p)})² equals a negative number, so the square root brings in i.` },
-          { value: `x = ${2 * p} ± ${q === 1 ? "" : q}i`, why: "Half of the x-coefficient, with its sign flipped, is the real part." },
-          { value: `x = ${p} ± ${q * q}i`, why: `Take the square root of ${q * q}.` },
+          { value: `x = ${-p} ± ${q === 1 ? "" : q}i`, why: `After completing the square the equation is (x${plusTerm(-p)})² = -${q * q}. Solve that for x.`, step: 4 },
+          { value: `x = ${p} ± ${q}`, why: `(x${plusTerm(-p)})² equals a negative number, so the square root brings in i.`, step: 3 },
+          { value: `x = ${2 * p} ± ${q === 1 ? "" : q}i`, why: "Half of the x-coefficient, with its sign flipped, is the real part.", step: 2 },
+          { value: `x = ${p} ± ${q * q}i`, why: `Take the square root of ${q * q}.`, step: 3 },
         ],
-        `${quad(1, b, c)} = 0 → (x${plusTerm(-p)})² = -${q * q} → x${plusTerm(-p)} = ±${q === 1 ? "" : q}i → ${answer}`
+        steps.join(" → ")
       );
     }),
 };

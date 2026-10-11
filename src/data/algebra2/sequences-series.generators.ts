@@ -4,8 +4,8 @@ import { PROBLEMS_PER_SKILL, fillToCount, fmtNum, frac, fractionText, lin, mcCho
 /** A ratio as a student writes it: 2/3 stays a fraction, 1.5 stays a decimal. */
 const ratioText = (r: number) => fractionText(r) ?? fmtNum(r);
 
-function trap(value: number | string, why: string): Trap {
-  return { value, why };
+function trap(value: number | string, why: string, step?: number): Trap {
+  return step === undefined ? { value, why } : { value, why, step };
 }
 
 function pick<T>(items: readonly T[]): T {
@@ -25,6 +25,15 @@ function joinSigned(values: number[], tail = ""): string {
 /** "a + b" with the sign of b written as a textbook does: (4, -23) → "4 − 23". */
 function plus(a: number, b: number): string {
   return b < 0 ? `${fmtNum(a)} − ${fmtNum(-b)}` : `${fmtNum(a)} + ${fmtNum(b)}`;
+}
+
+/** A number with a true minus sign: -3 → "−3". */
+function sn(v: number): string {
+  return v < 0 ? `−${fmtNum(-v)}` : fmtNum(v);
+}
+/** A number ready to multiply: negatives in parentheses, (−3). */
+function par(v: number): string {
+  return v < 0 ? `(${sn(v)})` : fmtNum(v);
 }
 
 const NAMES = ["Maya", "Jordan", "Kai", "Ava", "Leo", "Zoe", "Sam", "Nia", "Eli", "Rosa", "Omar", "Lena"] as const;
@@ -47,12 +56,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Find the last term first: aₙ = a₁ + (n − 1)d with n = ${n}. Then S = n(a₁ + aₙ)/2.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(an, `That is the ${n}th term alone. The sum adds all ${n} terms.`),
-            trap(n * (a1 + an), "n(a₁ + aₙ) counts every pair twice. Divide by 2."),
-            trap((n * (a1 + a1 + n * d)) / 2, `The last term is a₁ + (n − 1)d: there are ${n - 1} jumps, not ${n}.`),
-            trap(((n - 1) * (a1 + an)) / 2, `Multiply by the number of terms, ${n}, not ${n - 1}.`),
+            trap(an, `That is the ${n}th term alone. The sum adds all ${n} terms.`, 2),
+            trap(n * (a1 + an), "n(a₁ + aₙ) counts every pair twice. Divide by 2.", 2),
+            trap((n * (a1 + a1 + n * d)) / 2, `The last term is a₁ + (n − 1)d: there are ${n - 1} jumps, not ${n}.`, 0),
+            trap(((n - 1) * (a1 + an)) / 2, `Multiply by the number of terms, ${n}, not ${n - 1}.`, 2),
           ]),
-          explanation: `aₙ = ${a1} + ${n - 1} × ${d < 0 ? `(${d})` : d} = ${an} → S = ${n}(${plus(a1, an)})/2 = ${n} × ${a1 + an < 0 ? `(${a1 + an})` : a1 + an}/2 = ${S}`,
+          explanation: [
+            `last term: aₙ = a₁ + (n − 1)d = ${sn(a1)} + ${n - 1} × ${par(d)} = ${sn(an)}`,
+            `first plus last: ${plus(a1, an).replace(/^-/, "−")} = ${sn(a1 + an)}`,
+            `S = n(a₁ + aₙ)/2 = ${n} × ${par(a1 + an)}/2 = ${sn(S)}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -70,11 +83,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `The terms go up by ${d}. Count them with n = (last − first)/${d} + 1, then use S = n(first + last)/2.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(((n - 1) * (a1 + last)) / 2, `n = (last − first)/d + 1. The + 1 counts the first term, so there are ${n} terms.`),
-            trap(n * (a1 + last), "n(first + last) counts every pair twice. Divide by 2."),
-            trap(a1 + last, "That is one pair. Multiply the pair sum by n/2."),
+            trap(((n - 1) * (a1 + last)) / 2, `n = (last − first)/d + 1. The + 1 counts the first term, so there are ${n} terms.`, 0),
+            trap(n * (a1 + last), "n(first + last) counts every pair twice. Divide by 2.", 2),
+            trap(a1 + last, "That is one pair. Multiply the pair sum by n/2.", 2),
           ]),
-          explanation: `n = (${last} − ${a1})/${d} + 1 = ${n} → S = ${n}(${a1} + ${last})/2 = ${S}`,
+          explanation: [
+            `the terms go up by ${d}, so n = (${last} − ${a1})/${d} + 1 = ${n - 1} + 1 = ${n}`,
+            `first plus last: ${a1} + ${last} = ${a1 + last}`,
+            `S = n(first + last)/2 = ${n} × ${a1 + last}/2 = ${S}`,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -92,12 +109,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Row ${n} has ${a1} + ${n - 1} × ${d} seats. The total is n(first row + last row)/2.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(an, `That is how many seats are in row ${n} alone. The question asks for all ${n} rows.`),
-            trap(n * (a1 + an), "n(first + last) counts every row twice. Divide by 2."),
-            trap(n * a1, `Rows grow by ${d} seats each, so they do not all hold ${a1}.`),
-            trap((n * (a1 + a1 + n * d)) / 2, `Row ${n} is ${n - 1} rows behind row 1, so add ${d} a total of ${n - 1} times.`),
+            trap(an, `That is how many seats are in row ${n} alone. The question asks for all ${n} rows.`, 2),
+            trap(n * (a1 + an), "n(first + last) counts every row twice. Divide by 2.", 2),
+            trap(n * a1, `Rows grow by ${d} seats each, so they do not all hold ${a1}.`, 0),
+            trap((n * (a1 + a1 + n * d)) / 2, `Row ${n} is ${n - 1} rows behind row 1, so add ${d} a total of ${n - 1} times.`, 0),
           ]),
-          explanation: `row ${n}: ${a1} + ${n - 1} × ${d} = ${an} seats → total ${n}(${a1} + ${an})/2 = ${S} seats`,
+          explanation: [
+            `row ${n}: ${a1} + ${n - 1} × ${d} = ${an} seats`,
+            `first row plus last row: ${a1} + ${an} = ${a1 + an}`,
+            `total = n(first + last)/2 = ${n} × ${a1 + an}/2 = ${S} seats`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -136,11 +157,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `With n rows the bottom row has ${a1} + (n − 1), so n(${a1} + ${a1} + n − 1)/2 = ${S}. Try values of n, or solve the quadratic.`,
           answer: n,
           traps: trapsFor(n, [
-            trap(n - 1, `Check: ${n - 1} rows hold ${(n - 1) * a1 + ((n - 1) * (n - 2)) / 2}, which is short of ${S}.`),
-            trap(n + 1, `Check: ${n + 1} rows hold ${(n + 1) * a1 + ((n + 1) * n) / 2}, which is past ${S}.`),
-            trap(a1 + n - 1, "That is how many are in the bottom row, not how many rows there are."),
+            trap(n - 1, `Check: ${n - 1} rows hold ${(n - 1) * a1 + ((n - 1) * (n - 2)) / 2}, which is short of ${S}.`, 1),
+            trap(n + 1, `Check: ${n + 1} rows hold ${(n + 1) * a1 + ((n + 1) * n) / 2}, which is past ${S}.`, 2),
+            trap(a1 + n - 1, "That is how many are in the bottom row, not how many rows there are.", 3),
           ]),
-          explanation: `rows: ${a1}, ${a1 + 1}, ..., ${a1 + n - 1} → sum ${n}(${a1} + ${a1 + n - 1})/2 = ${S} → ${n} rows`,
+          explanation: [
+            `with n rows the bottom row holds ${a1} + (n − 1), so n(${a1} + ${a1} + n − 1)/2 = ${S}`,
+            `try n = ${n - 1}: ${n - 1}(${a1} + ${a1 + n - 2})/2 = ${(n - 1) * a1 + ((n - 1) * (n - 2)) / 2}, short of ${S}`,
+            `try n = ${n}: ${n}(${a1} + ${a1 + n - 1})/2 = ${n} × ${2 * a1 + n - 1}/2 = ${S}`,
+            `so there are ${n} rows`,
+          ].join(" → "),
         };
       }
       // Multiples of k in a range.
@@ -158,11 +184,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         hint: `The multiples form an arithmetic sequence with d = ${k}. Count them: (${last} − ${first})/${k} + 1. Then S = n(first + last)/2.`,
         answer: S,
         traps: trapsFor(S, [
-          trap(((n - 1) * (first + last)) / 2, `(${last} − ${first})/${k} counts the jumps. Add 1 for the number of terms.`),
-          trap(n * (first + last), "n(first + last) counts every pair twice. Divide by 2."),
-          trap((m2 * (k + last)) / 2, `The sum starts at ${first}, not at ${k}.`),
+          trap(((n - 1) * (first + last)) / 2, `(${last} − ${first})/${k} counts the jumps. Add 1 for the number of terms.`, 0),
+          trap(n * (first + last), "n(first + last) counts every pair twice. Divide by 2.", 2),
+          trap((m2 * (k + last)) / 2, `The sum starts at ${first}, not at ${k}.`, 0),
         ]),
-        explanation: `n = (${last} − ${first})/${k} + 1 = ${n} → S = ${n}(${first} + ${last})/2 = ${S}`,
+        explanation: [
+          `count the multiples: n = (${last} − ${first})/${k} + 1 = ${n - 1} + 1 = ${n}`,
+          `first plus last: ${first} + ${last} = ${first + last}`,
+          `S = n(first + last)/2 = ${n} × ${first + last}/2 = ${S}`,
+        ].join(" → "),
       };
     }),
 
@@ -183,12 +213,17 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `S = a₁(1 − rⁿ)/(1 − r) with r = ${r} and n = ${n}. Or write the ${n} terms and add them.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(an, `That is the ${n}th term alone. The sum needs all ${n} terms.`),
-            trap((a1 * (1 - r ** (n - 1))) / (1 - r), `There are ${n} terms, so the formula uses r^${n}, not r^${n - 1}.`),
-            trap(a1 * r ** n, `a₁rⁿ is a single term. Add the ${n} terms or use S = a₁(1 − rⁿ)/(1 − r).`),
-            trap((a1 * (r ** n - 1)) / (1 + r), "The formula divides by 1 − r, not 1 + r."),
+            trap(an, `That is the ${n}th term alone. The sum needs all ${n} terms.`, 0),
+            trap((a1 * (1 - r ** (n - 1))) / (1 - r), `There are ${n} terms, so the formula uses r^${n}, not r^${n - 1}.`, 1),
+            trap(a1 * r ** n, `a₁rⁿ is a single term. Add the ${n} terms or use S = a₁(1 − rⁿ)/(1 − r).`, 0),
+            trap((a1 * (r ** n - 1)) / (1 + r), "The formula divides by 1 − r, not 1 + r.", 2),
           ]),
-          explanation: `S = ${a1 === 1 ? "" : a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${a1 === 1 ? "" : a1}(1 − ${r ** n < 0 ? `(${r ** n})` : r ** n})/${1 - r < 0 ? `(${1 - r})` : 1 - r} = ${S}`,
+          explanation: [
+            `use S = a₁(1 − rⁿ)/(1 − r) with a₁ = ${a1}, r = ${sn(r)}, n = ${n}`,
+            `rⁿ = ${par(r)}^${n} = ${sn(r ** n)}`,
+            `1 − ${par(r ** n)} = ${sn(1 - r ** n)} and 1 − ${par(r)} = ${sn(1 - r)}`,
+            `S = ${a1} × ${par(1 - r ** n)}/${par(1 - r)} = ${sn(S)}`,
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -217,11 +252,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `|${rText}| < 1, so the series converges and S = a₁/(1 − r). Subtract the fraction from 1 first.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(a1 / (1 + p / q), "The formula divides by 1 − r, not 1 + r."),
-            trap(a1 * (1 - p / q), "Divide a₁ by 1 − r; the formula is a₁/(1 − r), not a₁(1 − r)."),
-            trap((a1 * q) / p, "Dividing by r is a different operation. Divide by 1 − r."),
+            trap(a1 / (1 + p / q), "The formula divides by 1 − r, not 1 + r.", 1),
+            trap(a1 * (1 - p / q), "Divide a₁ by 1 − r; the formula is a₁/(1 − r), not a₁(1 − r).", 2),
+            trap((a1 * q) / p, "Dividing by r is a different operation. Divide by 1 − r.", 0),
           ]),
-          explanation: `S = ${a1}/(1 − ${p < 0 ? `(${rText})` : rText}) = ${a1}/(${frac(q - p, q)}) = ${frac(a1 * q, q - p)}`,
+          explanation: [
+            `|r| < 1, so the series converges and S = a₁/(1 − r)`,
+            `1 − ${p < 0 ? `(${sn(p)}/${q})` : rText} = ${frac(q - p, q)}`,
+            `S = ${a1} ÷ ${frac(q - p, q)} = ${a1} × ${q}/${q - p} = ${frac(a1 * q, q - p)}`,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -257,8 +296,12 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: "Divide the second term by the first to get r. The series converges when |r| < 1 and diverges when |r| ≥ 1.",
           answer,
           choices: mcChoices(answer, wrong.map(series)),
-          traps: trapsFor(answer, wrong.map((w) => trap(series(w), wantConverge ? `Its ratio is ${ratioText(w[1])}, and |r| ≥ 1 means the terms never shrink, so the sum diverges.` : `Its ratio is ${ratioText(w[1])}, and |r| < 1 means the terms shrink toward 0, so the sum converges.`))),
-          explanation: `${answer} has r = ${ratioText(right[1])}, so |r| ${wantConverge ? "< 1 and it converges" : "≥ 1 and it diverges"}.`,
+          traps: trapsFor(answer, wrong.map((w) => trap(series(w), wantConverge ? `Its ratio is ${ratioText(w[1])}, and |r| ≥ 1 means the terms never shrink, so the sum diverges.` : `Its ratio is ${ratioText(w[1])}, and |r| < 1 means the terms shrink toward 0, so the sum converges.`, 1))),
+          explanation: [
+            `find each ratio as second term ÷ first term; for ${answer}: r = ${sn(right[0] * right[1])}/${right[0]} = ${ratioText(right[1]).replace("-", "−")}`,
+            `the series converges only when |r| < 1, and here |r| ${Math.abs(right[1]) < 1 ? "< 1" : "≥ 1"}`,
+            `so ${answer} ${wantConverge ? "converges" : "diverges"}`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -276,11 +319,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `r = ${r}. Count the terms from ${a1} to ${terms[n - 1]} (each is r times the last), then use S = a₁(1 − rⁿ)/(1 − r).`,
           answer: S,
           traps: trapsFor(S, [
-            trap(S - terms[n - 1], `Keep going: the series runs through ${terms[n - 1]}, which is term ${n}.`),
-            trap(S + terms[n - 1] * r, `The series stops at ${terms[n - 1]}; there are ${n} terms, not ${n + 1}.`),
-            trap(terms[n - 1], "That is only the last term. Add every term."),
+            trap(S - terms[n - 1], `Keep going: the series runs through ${terms[n - 1]}, which is term ${n}.`, 1),
+            trap(S + terms[n - 1] * r, `The series stops at ${terms[n - 1]}; there are ${n} terms, not ${n + 1}.`, 1),
+            trap(terms[n - 1], "That is only the last term. Add every term.", 2),
           ]),
-          explanation: `${n} terms, r = ${r} → S = ${a1 === 1 ? "" : a1}(1 − ${r < 0 ? `(${r})` : r}^${n})/(1 − ${r < 0 ? `(${r})` : r}) = ${S}`,
+          explanation: [
+            `r = ${sn(terms[1])}/${a1} = ${sn(r)}`,
+            `count the terms: ${a1} × ${par(r)}^${n - 1} = ${sn(terms[n - 1])}, so n = ${n}`,
+            `S = a₁(1 − rⁿ)/(1 − r) = ${a1} × (1 − ${par(r ** n)})/(1 − ${par(r)}) = ${a1} × ${par(1 - r ** n)}/${par(1 - r)}`,
+            `S = ${sn(S)}`,
+          ].join(" → "),
         };
       }
       if (kind === 4) {
@@ -297,12 +345,17 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `The weekly amounts are a geometric sequence with a₁ = ${a1} and r = ${r}. Add ${n} terms: S = a₁(rⁿ − 1)/(r − 1).`,
           answer: S,
           traps: trapsFor(S, [
-            trap(a1 * r ** (n - 1), `That is week ${n} alone. The total adds all ${n} weeks.`),
-            trap(a1 * r ** n, `That is what week ${n + 1} would be. Add weeks 1 through ${n}.`),
-            trap((a1 * (r ** (n - 1) - 1)) / (r - 1), `Week ${n} counts too: that total stops after ${n - 1} weeks.`),
-            trap(a1 * r * n, `The savings multiply by ${r} each week; they do not add ${a1 * r} each week.`),
+            trap(a1 * r ** (n - 1), `That is week ${n} alone. The total adds all ${n} weeks.`, 2),
+            trap(a1 * r ** n, `That is what week ${n + 1} would be. Add weeks 1 through ${n}.`, 2),
+            trap((a1 * (r ** (n - 1) - 1)) / (r - 1), `Week ${n} counts too: that total stops after ${n - 1} weeks.`, 1),
+            trap(a1 * r * n, `The savings multiply by ${r} each week; they do not add ${a1 * r} each week.`, 0),
           ]),
-          explanation: `S = ${a1}(${r}^${n} − 1)/(${r} − 1) = ${a1} × ${r ** n - 1}/${r - 1} = ${S}`,
+          explanation: [
+            `the weekly amounts are geometric: a₁ = ${a1}, r = ${r}, n = ${n} weeks`,
+            `${r}^${n} = ${r ** n}`,
+            `S = a₁(rⁿ − 1)/(r − 1) = ${a1} × (${r ** n} − 1)/(${r} − 1) = ${a1} × ${r ** n - 1}/${r - 1}`,
+            `S = ${S}`,
+          ].join(" → "),
         };
       }
       // Error analysis: an infinite sum.
@@ -355,12 +408,18 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Plug in k = 1, 2, ..., ${n} to get ${n} terms and add them. Or add ${a} × (1 + 2 + ... + ${n}) and ${n} copies of ${b}.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(a * n + b, `That is the last term only (k = ${n}). Add all ${n} terms.`),
-            trap((a * n * (n + 1)) / 2, `Each of the ${n} terms also carries the constant ${b}.`),
-            trap((a * n * (n + 1)) / 2 + b, `The constant ${b} appears in every term, so it is added ${n} times, not once.`),
-            trap((a * n * (n - 1)) / 2 + b * (n - 1), `k runs from 1 through ${n}: that is ${n} terms, including k = ${n}.`),
+            trap(a * n + b, `That is the last term only (k = ${n}). Add all ${n} terms.`, 0),
+            trap((a * n * (n + 1)) / 2, `Each of the ${n} terms also carries the constant ${b}.`, 2),
+            trap((a * n * (n + 1)) / 2 + b, `The constant ${b} appears in every term, so it is added ${n} times, not once.`, 2),
+            trap((a * n * (n - 1)) / 2 + b * (n - 1), `k runs from 1 through ${n}: that is ${n} terms, including k = ${n}.`, 1),
           ]),
-          explanation: `${joinSigned(vals.slice(0, 4))}${n > 4 ? ` ${signed(vals[n - 1]).slice(0, 1)} ... ${signed(vals[n - 1])}` : ""} = ${S}`,
+          explanation: [
+            `k = 1, 2, ..., ${n} gives ${n} terms: ${joinSigned(vals.slice(0, 4)).replace(/^-/, "−")}${n > 4 ? ` ${signed(vals[n - 1]).slice(0, 1)} ... ${signed(vals[n - 1])}` : ""}`,
+            `the k parts: ${par(a)} × (1 + 2 + ... + ${n}) = ${par(a)} × ${(n * (n + 1)) / 2} = ${sn((a * n * (n + 1)) / 2)}`,
+            ...(b === 0
+              ? [`there is no constant, so S = ${sn(S)}`]
+              : [`the constant is in every term: ${n} × ${par(b)} = ${sn(b * n)}`, `S = ${sn((a * n * (n + 1)) / 2)} ${b * n < 0 ? "−" : "+"} ${Math.abs(b * n)} = ${sn(S)}`]),
+          ].join(" → "),
         };
       }
       if (kind === 1) {
@@ -380,11 +439,16 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [
-            trap(wrong[0], `Plug in k = 1: that rule gives ${a + a + b}, but the first term is ${terms[0]}.`),
-            trap(wrong[1], `There are ${n} terms, so k runs to ${n}.`),
-            trap(wrong[2], `The terms go up by ${a} each time, not ${a + 1}, so the coefficient of k is ${a}.`),
+            trap(wrong[0], `Plug in k = 1: that rule gives ${a + a + b}, but the first term is ${terms[0]}.`, 1),
+            trap(wrong[1], `There are ${n} terms, so k runs to ${n}.`, 2),
+            trap(wrong[2], `The terms go up by ${a} each time, not ${a + 1}, so the coefficient of k is ${a}.`, 0),
           ]),
-          explanation: `common difference ${a} → ${a}k + c; k = 1 gives ${terms[0]} so c = ${b}; ${n} terms → ${answer}`,
+          explanation: [
+            `the terms go up by ${a}, so the rule is ${a}k + c`,
+            `k = 1 must give ${terms[0]}: ${a} + c = ${terms[0]}, so c = ${sn(b)}`,
+            `there are ${n} terms, so k runs from 1 to ${n}`,
+            answer,
+          ].join(" → "),
         };
       }
       if (kind === 2) {
@@ -400,11 +464,14 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Count every whole number from ${m} to ${n}, with both ends included.`,
           answer: count,
           traps: trapsFor(count, [
-            trap(n - m, `${n} − ${m} counts the jumps between terms. Both k = ${m} and k = ${n} are terms, so add 1.`),
-            trap(n, `The index starts at ${m}, not at 1.`),
-            trap(n - m + 2, `${n} − ${m} + 1 counts both ends exactly once.`),
+            trap(n - m, `${n} − ${m} counts the jumps between terms. Both k = ${m} and k = ${n} are terms, so add 1.`, 1),
+            trap(n, `The index starts at ${m}, not at 1.`, 0),
+            trap(n - m + 2, `${n} − ${m} + 1 counts both ends exactly once.`, 1),
           ]),
-          explanation: `k = ${m}, ${m + 1}, ..., ${n} → ${n} − ${m} + 1 = ${count} terms`,
+          explanation: [
+            `k takes every whole number from ${m} to ${n}: ${m}, ${m + 1}, ..., ${n}`,
+            `count with both ends included: ${n} − ${m} + 1 = ${count} terms`,
+          ].join(" → "),
         };
       }
       if (kind === 3) {
@@ -423,11 +490,14 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `Plug in k = ${ks.join(", ")} one at a time, then add the ${ks.length} results.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(S - vals[0], `The sum starts at k = ${m}, so the k = ${m} term is included.`),
-            trap(vals[vals.length - 1], `That is the last term only. Add all ${ks.length} terms.`),
-            trap(S + (m > 1 ? Array.from({ length: m - 1 }, (_, j) => f(j + 1)).reduce((s, v) => s + v, 0) : f(n + 1)), m > 1 ? `The index starts at ${m}, not at 1.` : `The index stops at ${n}; the k = ${n + 1} term is not in the sum.`),
+            trap(S - vals[0], `The sum starts at k = ${m}, so the k = ${m} term is included.`, 0),
+            trap(vals[vals.length - 1], `That is the last term only. Add all ${ks.length} terms.`, 1),
+            trap(S + (m > 1 ? Array.from({ length: m - 1 }, (_, j) => f(j + 1)).reduce((s, v) => s + v, 0) : f(n + 1)), m > 1 ? `The index starts at ${m}, not at 1.` : `The index stops at ${n}; the k = ${n + 1} term is not in the sum.`, 0),
           ]),
-          explanation: `${vals.map(fmtNum).join(" + ")} = ${S}`,
+          explanation: [
+            `plug in each k from ${m} to ${n}: ${ks.map((k, j) => `k = ${k} gives ${vals[j]}`).join(", ")}`,
+            `add the ${ks.length} terms: ${vals.map(fmtNum).join(" + ")} = ${S}`,
+          ].join(" → "),
         };
       }
       if (kind === 4) {
@@ -444,11 +514,15 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           hint: `k starts at 0, so the first term is ${c === 1 ? "" : c + " × "}${r}^0 = ${c}. There are ${n + 1} terms; add them or use the geometric sum formula.`,
           answer: S,
           traps: trapsFor(S, [
-            trap(S - c, `k starts at 0, and ${r}^0 = 1, so the first term is ${c}.`),
-            trap(vals[n], `That is the last term alone. Add all ${n + 1} terms.`),
-            trap(vals.slice(0, n).reduce((s, v) => s + v, 0), `k runs through ${n}, which makes ${n + 1} terms, not ${n}.`),
+            trap(S - c, `k starts at 0, and ${r}^0 = 1, so the first term is ${c}.`, 0),
+            trap(vals[n], `That is the last term alone. Add all ${n + 1} terms.`, 2),
+            trap(vals.slice(0, n).reduce((s, v) => s + v, 0), `k runs through ${n}, which makes ${n + 1} terms, not ${n}.`, 0),
           ]),
-          explanation: `${vals.map(fmtNum).join(" + ")} = ${S}`,
+          explanation: [
+            `k runs 0, 1, ..., ${n}, which is ${n + 1} terms; k = 0 gives ${c === 1 ? "" : c + " × "}${r}^0 = ${c}`,
+            `each next term is ${r} times the last: ${vals.map(fmtNum).join(", ")}`,
+            `add them: ${vals.map(fmtNum).join(" + ")} = ${S}`,
+          ].join(" → "),
         };
       }
       // Error analysis: expanding a sigma term by term.

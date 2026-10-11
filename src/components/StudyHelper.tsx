@@ -88,6 +88,8 @@ import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
 import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble, prefersReducedMotion } from "@/components/helper/MessageBubble";
 import { TypingDots } from "@/components/helper/TypingDots";
+import { SlipSteps } from "@/components/SlipSteps";
+import { answerInMessage, submitAnswerToCard } from "@/lib/answer-bridge";
 import {
   EMPTY_THREAD,
   type ChatMessage,
@@ -537,12 +539,16 @@ export function StudyHelper() {
   const live = useRef({ shown, busy, revealing, typing, mode, firstName, problem, calm });
   live.current = { shown, busy, revealing, typing, mode, firstName, problem, calm };
   const streak = useRef(0);
+  /** True while an answer typed to him is being checked by the card. */
+  const checkingOnCard = useRef(false);
   const recentLines = useRef<string[]>([]);
 
   useEffect(() => {
     const onPractice = (e: Event) => {
       const result = (e as CustomEvent<{ result?: PracticeResult }>).detail?.result;
       if (result !== "correct" && result !== "wrong") return;
+      // An answer he handed to the card gets his own reply, not this line too.
+      if (checkingOnCard.current) return;
       streak.current = result === "correct" ? streak.current + 1 : 0;
       const now = live.current;
       // Only while he is on screen, and never over a reply being written or
@@ -1124,6 +1130,41 @@ export function StudyHelper() {
 
     // An answer to his own quiz question is checked here. Anything that is
     // not a bare number or a plain "idk" ends the quiz and goes on as usual.
+    // An answer to the problem on screen goes to the card, which grades it
+    // with its own key and marks it, exactly as if it were typed there. He
+    // says good job, or why it missed in a sentence or two with the slip
+    // drawn on the worked steps.
+    const ctxNow = getHelperContext();
+    const asAnswer = !action && !current.quiz && modeAt !== "scheduler" && ctxNow?.problemPrompt ? answerInMessage(text) : null;
+    if (asAnswer) {
+      checkingOnCard.current = true;
+      const outcome = await submitAnswerToCard(asAnswer);
+      checkingOnCard.current = false;
+      if (outcome.result !== "none") {
+        const right = outcome.result === "correct";
+        update(key, (t) => ({ ...t, messages: [...t.messages, { ...userMsg, archieReaction: right ? "star" : null }] }));
+        const twoSentences = (s: string) => (s.match(/[^.!?]+[.!?]+/g) ?? [s]).slice(0, 2).join(" ").trim();
+        const content =
+          outcome.result === "correct"
+            ? `That's right${name ? `, ${name}` : ""}! Good job. I marked it on your card.`
+            : outcome.result === "done"
+              ? "You already got this one. Press Next on the card for a fresh problem."
+              : outcome.result === "unreadable"
+                ? outcome.note ?? "Type just your answer, like -63 or 2/3."
+                : outcome.note
+                  ? `That one misses. ${twoSentences(outcome.note)}`
+                  : "That one misses. The steps below show where to look first.";
+        replyLocally(key, {
+          kind: "buddy",
+          content,
+          slip: outcome.result === "wrong" && outcome.explanation ? { explanation: outcome.explanation, step: outcome.step } : undefined,
+          followUps: outcome.result === "wrong" ? ["hint"] : undefined,
+        });
+        if (outcome.result === "correct" || outcome.result === "wrong") showReaction(right ? "party" : "encourage", null, 3000);
+        return;
+      }
+    }
+
     const quiz = current.quiz;
     if (quiz && !action) {
       const item = EASY_QUIZ[quiz.item];
@@ -1451,6 +1492,7 @@ export function StudyHelper() {
                       )}
                     </div>
                   )}
+                  {m.slip && <SlipSteps explanation={m.slip.explanation} at={m.slip.step} compact />}
                   {m.id === last?.id && followUps.length > 0 && (
                     <div role="group" aria-label="Follow-ups" className="helper-in mt-2 flex flex-wrap gap-1.5">
                       {followUps.map((id) => (

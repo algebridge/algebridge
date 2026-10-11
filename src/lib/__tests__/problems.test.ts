@@ -25,7 +25,12 @@ const { COURSES } = await import("../../data/curriculum.ts");
 const { algebra2Checks } = await import("./algebra2-checks.ts");
 // COURSE=algebra-2 npm run test:problems reads one course; the default reads every course.
 const only = process.env.COURSE;
-const units = COURSES.filter((c) => !only || c.id === only).flatMap((c) => c.units);
+// SKILLS=id1,id2 reads only those skills (fast, for work on a few skills).
+const onlySkills = process.env.SKILLS ? new Set(process.env.SKILLS.split(",").map((s) => s.trim())) : null;
+const units = COURSES.filter((c) => !only || c.id === only)
+  .flatMap((c) => c.units)
+  .map((u) => (onlySkills ? { ...u, skills: u.skills.filter((s) => onlySkills.has(s.id)) } : u))
+  .filter((u) => u.skills.length);
 const { generateProblemBank } = await import("../../data/skill-problem-generators.ts");
 const { answerIsRight } = await import("../grading.ts");
 
@@ -1785,4 +1790,74 @@ for (const unit of units) {
   }
 }
 console.log(`\n${checked} generated problems worked out independently: ${failures} wrong, ${unread} unread`);
-if (failures || unread) process.exit(1);
+
+/* ── Wrong-answer steps: every trap names the step its slip breaks ───── */
+{
+  const { explanationSteps } = await import("../diagnose.ts");
+  let bad = 0;
+  const weak: string[] = [];
+  for (const unit of units) {
+    for (const skill of unit.skills) {
+      let multi = 0, oneStep = 0, traps = 0, stepped = 0;
+      for (const seed of [1, 2, 3]) {
+        for (const p of generateProblemBank(skill.id, skill.problems, seed * 7919) as any[]) {
+          if (p.type === "error-analysis" || p.type === "step-order") continue;
+          const n = explanationSteps(p.explanation).length;
+          if (n >= 2) multi++; else oneStep++;
+          for (const t of p.traps ?? []) {
+            traps++;
+            if (typeof t.step === "number") {
+              stepped++;
+              if (!(Number.isInteger(t.step) && t.step >= 0 && t.step < n)) {
+                bad++;
+                if (bad <= 6) console.log(`  FAIL [${skill.id}] trap step ${t.step} is off the ${n} steps: ${p.prompt.slice(0, 70)}`);
+              }
+            }
+          }
+        }
+      }
+      const fullShare = multi / Math.max(1, multi + oneStep);
+      const stepShare = stepped / Math.max(1, traps);
+      if (fullShare < 0.9 || stepShare < 0.9) weak.push(`${skill.id} (${Math.round(100 * fullShare)}% explained in steps, ${Math.round(100 * stepShare)}% of traps name a step)`);
+    }
+  }
+  console.log(`steps: ${bad} trap steps off their explanation; ${weak.length} skills under 90% (steps or trap steps)`);
+  for (const w of weak.slice(0, 80)) console.log("  WEAK", w);
+  if (bad) process.exit(1);
+  if (process.env.STRICT_STEPS && weak.length) process.exit(1);
+}
+
+/* ── Worked examples: each one's answer checked by the same solver ───── */
+{
+  const { WORKED_EXAMPLES } = await import("../../data/worked-examples/index.ts");
+  let read = 0, wrong = 0;
+  const missing: string[] = [];
+  for (const unit of units) {
+    for (const skill of unit.skills) {
+      const list = WORKED_EXAMPLES[skill.id] ?? [];
+      if (list.length < 2) missing.push(skill.id);
+      for (const ex of list) {
+        read++;
+        const card = { id: "worked", hint: "-", explanation: ex.steps.map((s) => s.work).join(" → "), ...ex.card };
+        let result: string | null | "unread";
+        try {
+          result = checks[skill.id] ? checks[skill.id](card) : "no checker";
+        } catch (e) {
+          result = `could not be worked out: ${(e as Error).message}`;
+        }
+        if (result !== null) {
+          wrong++;
+          console.log(`  FAIL [${skill.id}] worked example "${ex.kind}": ${result === "unread" ? "the solver cannot read its prompt" : result}`);
+        }
+        if (ex.steps.length < 2 || ex.steps.some((s) => !s.work.trim() || !s.why.trim())) {
+          wrong++;
+          console.log(`  FAIL [${skill.id}] worked example "${ex.kind}" needs 2+ steps, each with work and a why`);
+        }
+      }
+    }
+  }
+  console.log(`worked examples: ${read} checked, ${wrong} wrong; ${missing.length} skills with fewer than 2`);
+  if (missing.length) console.log("  MISSING", missing.join(", "));
+  if (wrong || (process.env.STRICT_STEPS && missing.length)) process.exit(1);
+}
+if (failures || unread) process.exitCode = 1;

@@ -6,6 +6,8 @@ import type { MasteryLevel, Skill, Unit } from "@/types";
 import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { SkillRules } from "@/components/SkillRules";
+import { WorkedExamples } from "@/components/WorkedExamples";
+import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
@@ -283,14 +285,29 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
                     <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
-                    <p className="mt-1">No lesson video is sourced for this skill yet. Read the key idea, then practice; the problems explain every step.</p>
+                    <p className="mt-1">No lesson video is sourced for this skill yet. The worked examples below show every step.</p>
                   </div>
                 )}
               </section>
 
+              {/* Taught before it is tested: every kind of problem in the practice,
+                  solved step by step with the reason for each step. */}
+              {workedExamplesFor(skill.id).length > 0 && (
+                <section id="examples" className="scroll-mt-20">
+                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="section-title flex items-center gap-2">
+                      <StepMark n={2} done={isSkillComplete} />
+                      See it done
+                    </h2>
+                    <p className="text-sm text-slate-500">Every kind of problem in the practice, worked step by step.</p>
+                  </div>
+                  <WorkedExamples skillId={skill.id} />
+                </section>
+              )}
+
               <section>
                 <h2 className="section-title mb-3 flex items-center gap-2">
-                  <StepMark n={2} done={isSkillComplete} />
+                  <StepMark n={workedExamplesFor(skill.id).length > 0 ? 3 : 2} done={isSkillComplete} />
                   Practice
                   {isSkillComplete && <span className="sr-only">, done</span>}
                 </h2>
