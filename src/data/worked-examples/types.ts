@@ -10,13 +10,17 @@
 export interface WorkedStep {
   /** The math written on this line. */
   work: string;
-  /** Why this step, in one short sentence. */
+  /** Why this step, in plain words: what is being done and the reason it is allowed or useful (one or two sentences). */
   why: string;
 }
 
 export interface WorkedExample {
   /** What kind of problem this is, e.g. "Multiplying two negative roots". */
   kind: string;
+  /** Before any work: what the problem tells us, what it asks for, and the plan, in plain words (one or two sentences). */
+  plan?: string;
+  /** After the answer: putting it back in (or another quick test) to show it is right, with the numbers. */
+  check?: string;
   card: {
     type: "numeric" | "multiple-choice";
     prompt: string;

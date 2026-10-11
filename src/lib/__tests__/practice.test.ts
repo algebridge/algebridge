@@ -2294,6 +2294,19 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     const d = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
     ok(`cities: ${c.name} is baked with buildings, ground and plots for sale`, !!d && d.buildings.length > 150 && d.plots.length >= 10 && existsSync(`public/world/${c.id}/ground.jpg`) && d.heights.length === d.grid * d.grid && Math.max(...d.heights) < 80 && d.plots.every((p: { id: string }) => /^p\d{2}$/.test(p.id)));
   }
+  // Every lesson explains before it drills: a plain-words idea with a true picture, and examples with a plan, reasons and a check.
+  const Id = await import("../../data/skill-ideas/index.ts");
+  const Ck = await import("../../data/skill-ideas/check.ts");
+  const Wx = await import("../../data/worked-examples/index.ts");
+  const Cur = await import("../../data/curriculum.ts");
+  const Alg2 = await import("../../data/algebra2.ts");
+  const unitsOf = (m: Record<string, unknown>) => (Object.values(m).find((v) => Array.isArray(v) && (v as { skills?: unknown }[])[0]?.skills) ?? []) as { skills: { id: string }[] }[];
+  const allSkillIds = [...unitsOf(Cur), ...unitsOf(Alg2)].flatMap((u) => u.skills.map((x) => x.id));
+  const ideaProblems = Ck.checkAll(Id.SKILL_IDEAS, allSkillIds);
+  ok(`ideas: every skill in both courses has a plain-words idea with a true picture (${ideaProblems.length} problems${ideaProblems.length ? ": " + ideaProblems.slice(0, 3).join(" | ") : ""})`, allSkillIds.length >= 76 && ideaProblems.length === 0);
+  const exProblems = Object.entries(Wx.WORKED_EXAMPLES).flatMap(([id, list]) => Ck.checkExamples(id, list));
+  ok(`examples: every worked example has a plan, reasons that explain, and a check (${exProblems.length} problems${exProblems.length ? ": " + exProblems.slice(0, 3).join(" | ") : ""})`, exProblems.length === 0);
+  ok("ideas: a balance that tips is caught", Ck.checkIdea("t", { idea: "x".repeat(130), everyday: "y".repeat(60), caption: "z".repeat(40), why: ["w"], picture: { kind: "balance", left: { x: 2, ones: 1 }, right: { ones: 9 }, solution: 3 } }).some((m) => /uneven/.test(m)));
   const T = await import("../house3d/terrain.ts");
   ok("land: flat across the neighbourhood and along the street", [[0, 0], [60, -15], [-60, 40], [120, 11.6], [-125, 20]].every(([x, z]) => T.terrainHeight(x, z) === 0));
   ok("land: hills beyond", T.terrainHeight(200, 150) > 2 && T.terrainHeight(-200, -180) > 8 && T.terrainHeight(0, 330) > 2);

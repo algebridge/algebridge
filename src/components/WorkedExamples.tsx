@@ -50,7 +50,15 @@ export function WorkedExamples({ skillId }: { skillId: string }) {
             ))}
           </ul>
         )}
-        <ol className="mt-4 space-y-2.5">
+        {ex.plan && (
+          <div className="mt-4 rounded-xl bg-sky-50 px-3.5 py-2.5 ring-1 ring-sky-100">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-800">The plan</p>
+            <p className="mt-0.5 text-[15px] leading-relaxed text-slate-800">
+              <MathText text={ex.plan} />
+            </p>
+          </div>
+        )}
+        <ol className="mt-4 space-y-3">
           {ex.steps.map((s, i) => (
             <li key={i} className="flex gap-3">
               <span className="hue-wash mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold">{i + 1}</span>
@@ -58,7 +66,7 @@ export function WorkedExamples({ skillId }: { skillId: string }) {
                 <p className="font-mono text-[14px] font-semibold leading-snug text-slate-900">
                   <MathText text={s.work} />
                 </p>
-                <p className="mt-0.5 text-sm leading-snug text-slate-600">
+                <p className="mt-0.5 text-[15px] leading-relaxed text-slate-700">
                   <MathText text={s.why} />
                 </p>
               </div>
@@ -68,6 +76,14 @@ export function WorkedExamples({ skillId }: { skillId: string }) {
         <p className="mt-4 rounded-xl bg-emerald-50 px-3.5 py-2 text-sm text-emerald-900">
           Answer: <strong className="font-semibold"><MathText text={ex.answer} /></strong>
         </p>
+        {ex.check && (
+          <p className="mt-2 flex gap-2 text-[15px] leading-relaxed text-slate-700">
+            <span className="shrink-0 font-semibold text-emerald-700">Check:</span>
+            <span>
+              <MathText text={ex.check} />
+            </span>
+          </p>
+        )}
         {examples.length > 1 && (
           <div className="mt-3 flex justify-end">
             <button

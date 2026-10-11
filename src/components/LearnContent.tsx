@@ -7,6 +7,8 @@ import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { SkillRules } from "@/components/SkillRules";
 import { WorkedExamples } from "@/components/WorkedExamples";
+import { SkillIdea } from "@/components/SkillIdea";
+import { ideaFor } from "@/data/skill-ideas";
 import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
 import { PracticePanel } from "@/components/PracticePanel";
@@ -56,6 +58,9 @@ interface LearnContentProps {
 }
 
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
+  const idea = ideaFor(skill.id);
+  // The steps are numbered from the idea when the skill has one.
+  const first = idea ? 2 : 1;
   const { stats, mounted } = useProgress();
   // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
   const auth = useAuth();
@@ -266,10 +271,24 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             <div className="min-w-0 space-y-6 lg:col-span-3">
               {/* The two steps, watch then practice, each marked done in its own heading.
                   #watch is where the house's TV and projector open the lesson. */}
+              {/* First the meaning, in plain words with a picture, so the steps after it make sense. */}
+              {idea && (
+                <section id="idea" className="scroll-mt-20">
+                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="section-title flex items-center gap-2">
+                      <StepMark n={1} done={isSkillComplete} />
+                      Get the idea
+                    </h2>
+                    <p className="text-sm text-slate-500">What this is really about, before any steps.</p>
+                  </div>
+                  <SkillIdea idea={idea} />
+                </section>
+              )}
+
               <section id="watch" className="scroll-mt-20">
                 <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={1} done={videoStepSatisfied} />
+                    <StepMark n={first} done={videoStepSatisfied} />
                     Watch
                     {videoStepSatisfied && <span className="sr-only">, done</span>}
                   </h2>
@@ -296,7 +315,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 <section id="examples" className="scroll-mt-20">
                   <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <h2 className="section-title flex items-center gap-2">
-                      <StepMark n={2} done={isSkillComplete} />
+                      <StepMark n={first + 1} done={isSkillComplete} />
                       See it done
                     </h2>
                     <p className="text-sm text-slate-500">Every kind of problem in the practice, worked step by step.</p>
@@ -307,7 +326,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
 
               <section>
                 <h2 className="section-title mb-3 flex items-center gap-2">
-                  <StepMark n={workedExamplesFor(skill.id).length > 0 ? 3 : 2} done={isSkillComplete} />
+                  <StepMark n={workedExamplesFor(skill.id).length > 0 ? first + 2 : first + 1} done={isSkillComplete} />
                   Practice
                   {isSkillComplete && <span className="sr-only">, done</span>}
                 </h2>
