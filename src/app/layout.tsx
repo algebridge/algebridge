@@ -117,6 +117,7 @@ export default function RootLayout({
                 <p className="mt-3 text-xs text-slate-400">
                   © {new Date().getFullYear()} AlgeBridge
                 </p>
+                <p className="mt-1.5 text-sm font-semibold text-slate-600">Founded and Made by Ivan Dubovyi</p>
                 <MusicCredits />
               </footer>
               </div>
