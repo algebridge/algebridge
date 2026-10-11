@@ -221,7 +221,7 @@ const PRIVACY_ITEMS: Item[] = [
   {
     mark: { icon: "flag" },
     title: "Report and block",
-    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, quoted from the database's own copy, for an AlgeBridge admin to read; the person reported is not told who sent it. Reports wait in a list for an admin to read, and an alert for new ones is still to come, so a report is not read right away. A block is kept with the student's account, so the blocked person cannot message, call or add them to a group chat on any device. One account can send at most 30 reports an hour.",
+    body: "Every message in a direct or group chat, every call, every conversation and every group has a Report button. A report saves the reason, the place, the reported account and which message was reported, quoted from the database's own copy, for an AlgeBridge admin to read; the person reported is not told who sent it. Reports wait in a list for an admin to read, so a report is not read right away. A block is kept with the student's account, so the blocked person cannot message, call or add them to a group chat on any device. One account can send at most 30 reports an hour.",
   },
   {
     mark: { glyph: "video" },
@@ -236,7 +236,7 @@ const PRIVACY_ITEMS: Item[] = [
   {
     mark: { glyph: "no-ads" },
     title: "No ads, and deleting an account",
-    body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages, which are first kept 90 days for an admin's safety review, after which nobody can read them. Uploaded photos, feedback and reports with their contact email, and call records with their recaps are not deleted with it yet; email us to remove them.",
+    body: "No ads, and student data is not sold. Deleting an account from its account page removes the profile, progress, notebook, class places, leaderboard row, and its direct and group messages, which are first kept 90 days for an admin's safety review, after which nobody can read them. Uploaded photos, feedback and reports with their contact email, and call records with their recaps stay stored until someone emails us to remove them.",
   },
   {
     mark: { icon: "eye" },
