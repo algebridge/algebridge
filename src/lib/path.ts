@@ -17,7 +17,7 @@
  * student who clicked through every unit would otherwise keep all of it.
  */
 
-import { units } from "@/data/curriculum";
+import { allUnits, COURSES, units } from "@/data/curriculum";
 import type { SkillProgress, UserProgress } from "@/types";
 
 export interface PathStep {
@@ -32,7 +32,12 @@ export const PATH: PathStep[] = units.flatMap((u) =>
   u.skills.map((s) => ({ unitId: u.id, unitNumber: u.number, skillId: s.id, title: s.title }))
 );
 
-const pathIndex = new Map(PATH.map((step, i) => [step.skillId, i]));
+/** Each course's own path; a course starts open at its first skill. */
+const PATHS: PathStep[][] = COURSES.map((c) =>
+  c.id === "algebra-1" ? PATH : c.units.flatMap((u) => u.skills.map((s) => ({ unitId: u.id, unitNumber: u.number, skillId: s.id, title: s.title })))
+);
+const pathIndex = new Map<string, { path: PathStep[]; i: number }>();
+for (const path of PATHS) path.forEach((step, i) => pathIndex.set(step.skillId, { path, i }));
 
 export type OpenReason = "first" | "path" | "started" | "checked" | "assigned" | "staff";
 
@@ -57,13 +62,14 @@ export function hasWorkOn(p: SkillProgress | undefined): boolean {
 }
 
 export function skillAccess(progress: UserProgress, skillId: string, ctx: AccessContext = {}): SkillAccess {
-  const i = pathIndex.get(skillId);
-  if (i === undefined || ctx.staff) return { open: true, why: "staff" };
+  const at = pathIndex.get(skillId);
+  if (at === undefined || ctx.staff) return { open: true, why: "staff" };
+  const { path, i } = at;
   if (i === 0) return { open: true, why: "first" };
   const own = progress.skills[skillId];
   if (own?.openedBy === "check") return { open: true, why: "checked" };
   if (hasWorkOn(own)) return { open: true, why: "started" };
-  const before = PATH[i - 1];
+  const before = path[i - 1];
   if (isSkillComplete(progress.skills[before.skillId])) return { open: true, why: "path" };
   if (ctx.assigned?.has(skillId)) return { open: true, why: "assigned" };
   return { open: false, after: before };
@@ -71,7 +77,7 @@ export function skillAccess(progress: UserProgress, skillId: string, ctx: Access
 
 /** A unit is open when any of its skills is. */
 export function unitIsOpen(progress: UserProgress, unitId: string, ctx: AccessContext = {}): boolean {
-  const unit = units.find((u) => u.id === unitId);
+  const unit = allUnits().find((u) => u.id === unitId);
   return !!unit && unit.skills.some((s) => skillAccess(progress, s.id, ctx).open);
 }
 

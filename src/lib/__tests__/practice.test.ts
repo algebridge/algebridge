@@ -23,7 +23,7 @@ const { forbiddenValues, leaksAnswer, leaksAnswerText } = await import("../helpe
 const { recordProblemAttempt, getSkillPracticeStats, solvedCount, getProgress, saveProgress } = await import(
   "../progress.ts"
 );
-const { units } = await import("../../data/curriculum.ts");
+const { units, allUnits } = await import("../../data/curriculum.ts");
 const { generateProblemBank } = await import("../../data/skill-problem-generators.ts");
 const { skillOffersCalculator } = await import("../../data/problem-banks.ts");
 
@@ -511,7 +511,7 @@ ok("no calculator for exponent rules", !calc("exponent-rules") && !calc("negativ
 ok("no calculator for the special products done by hand", !calc("special-products"));
 {
   const { CALCULATOR_WITHHELD, CALCULATOR_OFFERED } = await import("../../data/problem-banks.ts");
-  const ids = new Set(units.flatMap((u) => u.skills.map((s) => s.id)));
+  const ids = new Set(allUnits().flatMap((u) => u.skills.map((s) => s.id)));
   const stray = [...CALCULATOR_WITHHELD, ...CALCULATOR_OFFERED].filter((id) => !ids.has(id));
   ok("every calculator override names a real skill", stray.length === 0, stray.join(", "));
   ok("no skill is both offered and withheld", [...CALCULATOR_OFFERED].every((id) => !CALCULATOR_WITHHELD.has(id)));
@@ -1660,6 +1660,15 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("every video has a real length between 1 and 15 minutes", long.length === 0, long.map((v) => `${v.youtubeId} ${v.duration}`).join(", "));
   ok("the curriculum points at the same verified videos", skills.every((s) => s.video === V.SKILL_VIDEOS[s.id] && !s.backupVideo));
   ok("titles carry no channel name and no em dash", all.every((v) => !v.title.includes(v.channel) && !/[—–]/.test(v.title)));
+  // Algebra 2: every skill has its own verified video, none borrowed from Algebra 1.
+  const A2 = await import("../../data/algebra2/videos.ts");
+  const a2Skills = allUnits().filter((u) => !units.includes(u)).flatMap((u) => u.skills);
+  const a2Videos = Object.values(A2.A2_VIDEOS);
+  ok("every Algebra 2 skill has a sourced video", a2Skills.every((s) => A2.A2_VIDEOS[s.id] && s.video === A2.A2_VIDEOS[s.id]), a2Skills.filter((s) => !A2.A2_VIDEOS[s.id]).map((s) => s.id).join(", "));
+  ok("Algebra 2 videos have YouTube's 11-character shape and unique ids", a2Videos.every((v) => /^[A-Za-z0-9_-]{11}$/.test(v.youtubeId)) && new Set(a2Videos.map((v) => v.youtubeId)).size === a2Videos.length);
+  ok("no Algebra 2 video is an Algebra 1 video", a2Videos.every((v) => !all.some((w) => w.youtubeId === v.youtubeId)));
+  ok("Algebra 2 videos run 1 to 15 minutes", a2Videos.every((v) => V.parseDurationToSeconds(v.duration) > 60 && V.parseDurationToSeconds(v.duration) <= 15 * 60));
+  ok("Algebra 2 titles carry no channel name and no em dash", a2Videos.every((v) => !v.title.includes(v.channel) && !/[—–]/.test(v.title)));
 }
 
 // --- Standards alignment (src/data/standards.ts) ---------------------------
@@ -1668,7 +1677,11 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
 {
   const S = await import("../../data/standards.ts");
   const skillIds = units.flatMap((u) => u.skills.map((s) => s.id));
-  const known = new Set(skillIds);
+  // Both courses' skills may carry standards; the coverage checks below read Algebra 1.
+  const known = new Set(allUnits().flatMap((u) => u.skills.map((s) => s.id)));
+  const algebra2Ids = allUnits().flatMap((u) => u.skills.map((s) => s.id)).filter((id) => !known.has(id) || !skillIds.includes(id));
+  ok("every Algebra 2 skill has a standards entry", algebra2Ids.every((id) => id in S.SKILL_STANDARDS), algebra2Ids.filter((id) => !(id in S.SKILL_STANDARDS)).join(", "));
+  ok("an Algebra 2 skill that cites nothing is left off for graphing", algebra2Ids.filter((id) => !S.SKILL_STANDARDS[id]?.length).every((id) => S.NOT_CLAIMED.some((n) => n.skillId === id && S.GRAPHING_STANDARDS.includes(n.code))));
   const cited = Object.values(S.SKILL_STANDARDS).flat();
   // A skill may cite nothing only when NOT_CLAIMED says why (graphing, for now).
   const unmapped = skillIds.filter(
@@ -1911,7 +1924,13 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("certificates: the last answer finishes the unit and the course", r.unitJustCompleted && r.courseJustCompleted);
   ok("certificates: the unit's date is kept", !!after.certificates?.[lastUnit.id] && C.unitCertificateDate(after, lastUnit) === after.certificates?.[lastUnit.id]);
   ok("certificates: the course is dated the moment it was finished", !!after.courseCompletedAt && C.courseCertificateDate(after) === after.courseCompletedAt);
-  ok("certificates: one per unit and one for the course, all earned", C.certificateList(after).length === units.length + 1 && C.certificateList(after).every((c) => !!c.earnedAt));
+  {
+    // Algebra 1's units and the course are all earned; Algebra 2's units are listed too, unearned.
+    const list = C.certificateList(after);
+    const algebra1 = list.filter((c) => c.id === C.COURSE_ID || units.some((u) => u.id === c.id));
+    ok("certificates: one per unit and one for the course, all earned", algebra1.length === units.length + 1 && algebra1.every((c) => !!c.earnedAt));
+    ok("certificates: the other course's units are listed only once earned", list.length === algebra1.length);
+  }
 
   const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });
   ok("certificates: the course finishes once", !again.courseJustCompleted && Pg.getProgress().courseCompletedAt === after.courseCompletedAt);

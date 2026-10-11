@@ -1,5 +1,6 @@
 "use client";
 
+import { courseOfUnit } from "@/data/curriculum";
 import type { Unit } from "@/types";
 import { getUnitCompletion } from "@/lib/progress";
 import { useProgress } from "@/hooks/useProgress";
@@ -40,7 +41,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
           </span>
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.1em]">
-              Unit {unit.number} of {stats.totalUnits} · {unit.skills.length} skills
+              Unit {unit.number} of {courseOfUnit(unit.id)?.units.length ?? stats.totalUnits} · {unit.skills.length} skills
             </p>
             <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">{unit.title}</h1>
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed">{unit.description}</p>

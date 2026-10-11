@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MasteryLevel, Skill, Unit } from "@/types";
-import { getNextSkill, getPrevSkill } from "@/data/curriculum";
+import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
@@ -153,10 +153,15 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   // through the video too, they've shown they know it.
   const videoStepSatisfied = videoWatched || isSkillComplete;
 
+  // The crumb leads back to the course this unit belongs to.
+  const inAlgebra2 = courseOfUnit(unitId)?.id === "algebra-2";
+  const courseHome = inAlgebra2 ? "/algebra-2" : "/";
+  const courseName = inAlgebra2 ? "Algebra 2" : "Home";
+
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href="/" className="hover:text-bridge-600">Home</Link>
+        <Link href={courseHome} className="hover:text-bridge-600">{courseName}</Link>
         <span aria-hidden className="mx-2">/</span>
         <Link href={`/unit/${unitId}`} className="hover:text-bridge-600">
           Unit {unit.number}
@@ -266,12 +271,19 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   </h2>
                   {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
                 </div>
-                <VideoPlayer
-                  video={video}
-                  backupVideo={backupVideo}
-                  // In practice mode the watch shows on this page and goes no further.
-                  onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
-                />
+                {video.youtubeId ? (
+                  <VideoPlayer
+                    video={video}
+                    backupVideo={backupVideo}
+                    // In practice mode the watch shows on this page and goes no further.
+                    onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
+                    <p className="mt-1">No lesson video is sourced for this skill yet. Read the key idea, then practice; the problems explain every step.</p>
+                  </div>
+                )}
               </section>
 
               <section>

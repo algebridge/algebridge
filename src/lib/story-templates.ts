@@ -196,7 +196,7 @@ export function readsWrongAtOne(filled: string, original: string): string | null
   return null;
 }
 
-export const TEMPLATE_WRITER_SYSTEM = `You write story templates for Algebra 1 practice problems, set in things a 12 to 16 year old loves. Each template is reused for many students with different numbers, so it must work for ANY numbers.
+export const TEMPLATE_WRITER_SYSTEM = `You write story templates for algebra practice problems (Algebra 1 and Algebra 2), set in things a 12 to 16 year old loves. Each template is reused for many students with different numbers, so it must work for ANY numbers.
 
 In each problem, numbers appear as placeholders: {1}, {2}, {3}. Each stands for a number that changes every time.
 

@@ -18,6 +18,7 @@ import {
   withSeededGeneration,
   withUniqueChoices,
 } from "@/lib/problem-utils";
+import { ALGEBRA2_GENERATORS } from "@/data/algebra2-generators";
 
 /*
  * Every generator draws its numbers from the seeded random source (randInt),
@@ -209,6 +210,7 @@ type SkillGenerator = (seeds: PracticeProblem[]) => PracticeProblem[];
 const NAMES = PROBLEM_NAMES;
 
 const generators: Record<string, SkillGenerator> = {
+  ...ALGEBRA2_GENERATORS,
   "unit-basics": (seeds) =>
     fillToCount("unit-basics", seeds, PROBLEMS_PER_SKILL, (i) => {
       // Seven kinds. A quick card on which way a factor goes, a plain

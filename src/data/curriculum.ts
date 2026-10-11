@@ -1,5 +1,6 @@
 import type { Unit } from "@/types";
 import { SKILL_VIDEOS } from "@/data/videos";
+import { algebra2Units } from "@/data/algebra2";
 
 // Each skill's lesson video lives in src/data/videos.ts, the one verified list.
 
@@ -761,8 +762,37 @@ export const units: Unit[] = [
   },
 ];
 
+export type CourseId = "algebra-1" | "algebra-2";
+export interface Course {
+  id: CourseId;
+  title: string;
+  units: Unit[];
+}
+
+/**
+ * The courses on the platform. `units` above stays Algebra 1, which every
+ * count-keyed system (prizes, beds, marks, certificates) is built on; the
+ * lookups below search every course so a unit or skill page works for both.
+ */
+export const COURSES: Course[] = [
+  { id: "algebra-1", title: "Algebra 1", units },
+  { id: "algebra-2", title: "Algebra 2", units: algebra2Units },
+];
+
+export function allUnits(): Unit[] {
+  return COURSES.flatMap((c) => c.units);
+}
+
+export function courseOfUnit(unitId: string): Course | undefined {
+  return COURSES.find((c) => c.units.some((u) => u.id === unitId));
+}
+
+export function courseOfSkill(skillId: string): Course | undefined {
+  return COURSES.find((c) => c.units.some((u) => u.skills.some((s) => s.id === skillId)));
+}
+
 export function getUnit(id: string): Unit | undefined {
-  return units.find((u) => u.id === id);
+  return allUnits().find((u) => u.id === id);
 }
 
 export function getSkill(unitId: string, skillId: string) {
@@ -771,7 +801,7 @@ export function getSkill(unitId: string, skillId: string) {
 }
 
 export function getAllSkillIds(): string[] {
-  return units.flatMap((u) => u.skills.map((s) => s.id));
+  return allUnits().flatMap((u) => u.skills.map((s) => s.id));
 }
 
 export function getNextSkill(unitId: string, skillId: string) {
@@ -781,9 +811,10 @@ export function getNextSkill(unitId: string, skillId: string) {
   if (idx >= 0 && idx < unit.skills.length - 1) {
     return { unitId, skill: unit.skills[idx + 1] };
   }
-  const unitIdx = units.findIndex((u) => u.id === unitId);
-  if (unitIdx >= 0 && unitIdx < units.length - 1) {
-    return { unitId: units[unitIdx + 1].id, skill: units[unitIdx + 1].skills[0] };
+  const course = courseOfUnit(unitId)?.units ?? units;
+  const unitIdx = course.findIndex((u) => u.id === unitId);
+  if (unitIdx >= 0 && unitIdx < course.length - 1) {
+    return { unitId: course[unitIdx + 1].id, skill: course[unitIdx + 1].skills[0] };
   }
   return null;
 }
@@ -795,9 +826,10 @@ export function getPrevSkill(unitId: string, skillId: string) {
   if (idx > 0) {
     return { unitId, skill: unit.skills[idx - 1] };
   }
-  const unitIdx = units.findIndex((u) => u.id === unitId);
+  const course = courseOfUnit(unitId)?.units ?? units;
+  const unitIdx = course.findIndex((u) => u.id === unitId);
   if (unitIdx > 0) {
-    const prevUnit = units[unitIdx - 1];
+    const prevUnit = course[unitIdx - 1];
     return { unitId: prevUnit.id, skill: prevUnit.skills[prevUnit.skills.length - 1] };
   }
   return null;
