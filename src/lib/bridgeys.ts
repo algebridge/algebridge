@@ -1,4 +1,5 @@
 import { getOrnament, getUnplacedOrnamentIds } from "@/data/ornament-catalog";
+import { cityById, MAX_PLOTS, sanitizePlots } from "@/lib/world";
 import { sanitizeAvatar } from "@/lib/avatar";
 import { clampToYard } from "@/lib/dollhouse";
 import {
@@ -469,6 +470,7 @@ export function getLeaderboardSnapshot(progress: UserProgress) {
     // The house others see on their street, and the character on its porch (lib/leaderboard.ts fetchNeighbours).
     houseStyle: progress.houseStyleId ?? null,
     avatar: progress.avatar ? sanitizeAvatar(progress.avatar) : null,
+    cityPlots: sanitizePlots(progress.cityPlots),
   };
 }
 
@@ -481,6 +483,22 @@ export function setAvatar(spec: AvatarSpec): void {
 }
 
 export { getUnplacedFurnitureIds };
+
+/** Buys a plot in a real city (lib/world.ts): the city's price, once; your house stands there from then on. */
+export function buyCityPlot(cityId: string, plotId: string): PurchaseResult {
+  const city = cityById(cityId);
+  if (!city || !/^p\d{2}$/.test(plotId)) return { ok: false, message: "That plot is not for sale." };
+  const progress = store.get();
+  ensureBridgeyFields(progress);
+  const plots = sanitizePlots(progress.cityPlots);
+  if (plots.some((p) => p.city === cityId && p.plot === plotId)) return { ok: true, message: `This plot in ${city.name} is already yours.` };
+  if (plots.length >= MAX_PLOTS) return { ok: false, message: `You own ${MAX_PLOTS} plots, the most there are room for.` };
+  const cantAfford = spendBridgeys(progress, city.price);
+  if (cantAfford) return cantAfford;
+  progress.cityPlots = [...plots, { city: cityId, plot: plotId }];
+  store.save(progress);
+  return { ok: true, message: `Your house now stands in ${city.name}.` };
+}
 
 /* ── Garden ornaments ───────────────────────────────────────────
    The outdoor half of the House. Unlike furniture, ornaments can be owned

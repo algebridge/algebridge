@@ -47,6 +47,22 @@ export async function compileQuietly(renderer: THREE.WebGLRenderer, scene: THREE
     } finally {
       renderer.setRenderTarget(was);
     }
+    // Pictures go up to the card now too: three.js otherwise uploads a
+    // texture the first time its object comes into view, which mid-drag is a
+    // frame of a quarter second or more (a 2048 lawn, a house's walls).
+    const done = new Set<THREE.Texture>();
+    for (const m of materials)
+      for (const value of Object.values(m)) {
+        const t = value as THREE.Texture | null;
+        if (t && (t as { isTexture?: boolean }).isTexture && !done.has(t) && (t.image || (t as { isRenderTargetTexture?: boolean }).isRenderTargetTexture === false)) {
+          done.add(t);
+          try {
+            renderer.initTexture(t);
+          } catch {
+            /* drawn and uploaded on first use instead */
+          }
+        }
+      }
   } catch {
     return;
   }

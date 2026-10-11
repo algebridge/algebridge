@@ -177,6 +177,8 @@ export interface UserProgress {
   houseNight?: boolean;
   /** The student's character, who stands on the porch and walks the street. */
   avatar?: AvatarSpec;
+  /** Plots bought in real cities (lib/world.ts), where their house stands there too. */
+  cityPlots?: { city: string; plot: string }[];
 }
 
 /**

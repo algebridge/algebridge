@@ -5,12 +5,12 @@
  * stands the woods on it.
  */
 
-/** The ground stays flat this far out: the lots along the street, and the street's own run. */
-const FLAT = { x: 66, z0: -18, z1: 42 };
+/** The ground stays flat this far out: the town (city.ts: three streets, to the road round its edge), and the street's own run. */
+const FLAT = { x: 120, z0: -18, z1: 268 };
 const ROAD = { halfLength: 132, z: 11.6, halfWidth: 17 };
 
 /** The ground mesh: this wide, this many squares a side, centred on the neighbourhood. */
-export const TERRAIN = { size: 460, segments: 112, centerZ: 12 };
+export const TERRAIN = { size: 660, segments: 150, centerZ: 70 };
 /** A lake in the hills behind the houses, seen over the rooftops from the street: its middle and its reach. The water lies at WATER_Y. */
 export const LAKE = { x: 30, z: -82, r: 46 };
 export const WATER_Y = -0.5;

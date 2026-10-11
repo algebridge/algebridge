@@ -6,6 +6,7 @@ import { useAppNavState } from "@/components/AppNavProvider";
 import { Icon, type IconName } from "@/components/Icon";
 import { PieceShot } from "@/components/house/PieceShot";
 import { CharacterSheet } from "@/components/house/CharacterSheet";
+import { CitySheet } from "@/components/house/CitySheet";
 import { ColorDots } from "@/components/house/ColorDots";
 import { useHouseLive } from "@/components/house/useHouseLive";
 import { useScratchpad } from "@/components/Scratchpad";
@@ -105,6 +106,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   /** Out walking the street as your character. */
   const [walking, setWalking] = useState(true);
   const [editingCharacter, setEditingCharacter] = useState(false);
+  const [visitingCity, setVisitingCity] = useState(false);
   const [ready, setReady] = useState(false);
   /** The first frame is on screen (shaders compile in the background before it). */
   const [drawn, setDrawn] = useState(false);
@@ -152,7 +154,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
         const v = new HouseView(canvasRef.current);
         engine.current = v;
         // For the test scripts: where a piece is on screen.
-        if (process.env.NODE_ENV !== "production") (window as unknown as { __houseView?: HouseView }).__houseView = v;
+        if (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_STREET_PREVIEW === "1") (window as unknown as { __houseView?: HouseView }).__houseView = v;
         const fit = () => {
           const r = canvasRef.current?.getBoundingClientRect();
           if (r) v.resize(r.width, r.height);
@@ -211,7 +213,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const [neighbours, setNeighbours] = useState<Neighbour[]>([]);
   useEffect(() => {
     // Development only: ?street=Maya R.:loft,Leo P.:castle shows a street without signing in.
-    const preview = process.env.NODE_ENV !== "production" ? new URLSearchParams(window.location.search).get("street") : null;
+    const preview = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_STREET_PREVIEW === "1" ? new URLSearchParams(window.location.search).get("street") : null;
     if (preview) {
       setNeighbours(
         preview.split(",").map((p, i) => {
@@ -656,6 +658,10 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               <Icon name="person" size={15} />
               My character
             </button>
+            <button type="button" onClick={() => setVisitingCity(true)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+              <Icon name="globe" size={15} />
+              Cities
+            </button>
           </div>
         )}
         {view === "front" && walking && drawn && (
@@ -665,6 +671,10 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm hidden bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white sm:inline-flex">
                 <Icon name="person" size={15} />
                 My character
+              </button>
+              <button type="button" onClick={() => setVisitingCity(true)} aria-label="Cities" className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+                <Icon name="globe" size={15} />
+                <span className="hidden sm:inline">Cities</span>
               </button>
               <button type="button" onClick={() => setWalking(false)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
                 <Icon name="eye" size={15} />
@@ -805,6 +815,15 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
       </div>
       )}
 
+      {visitingCity && (
+        <CitySheet
+          progress={progress}
+          user={!!user}
+          onClose={() => setVisitingCity(false)}
+          onUpdate={onUpdate}
+          showMessage={(ok, text) => showToast({ icon: ok ? "check" : "close", tone: ok ? "success" : "info", title: text })}
+        />
+      )}
       {editingCharacter && (
         <CharacterSheet
           initial={avatar}
