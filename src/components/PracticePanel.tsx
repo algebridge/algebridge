@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SkillRules } from "@/components/SkillRules";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeneratedProblem, PracticeProblem, Skill } from "@/types";
@@ -1527,6 +1528,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </Link>
         </div>
       </div>
+
+      {/* The skill's rules, under the card on a phone; the side column has them on a wide screen. */}
+      <SkillRules skillId={skill.id} variant="fold" />
 
     </div>
   );

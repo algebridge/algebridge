@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import type { MasteryLevel, Skill, Unit } from "@/types";
 import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { SkillRules } from "@/components/SkillRules";
+import { rulesForSkill } from "@/data/skill-rules";
 import { PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
 import { Icon } from "@/components/Icon";
@@ -346,9 +348,14 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
                   <p className="mt-2 text-sm text-slate-600">{skill.learningGoal}</p>
                 </div>
+                <SkillRules skillId={skill.id} variant="side" />
                 <div>
-                  <h3 className="font-bold text-slate-900">Key idea</h3>
-                  <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
+                  {!rulesForSkill(skill.id).length && (
+                    <>
+                      <h3 className="font-bold text-slate-900">Key idea</h3>
+                      <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
+                    </>
+                  )}
                   {/* The Common Core standards this skill teaches, for a
                       teacher or parent checking alignment. */}
                   <StandardsChip skillId={skill.id} className="mt-3" />
