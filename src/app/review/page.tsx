@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { getSkillsDueForReview, type ReviewItem } from "@/lib/spaced-repetition";
 import { PracticeGate } from "@/components/PracticeGate";
@@ -34,7 +34,7 @@ function ReviewQueue() {
   const { stats, continueTarget } = useProgress();
 
   useEffect(() => {
-    const skillMeta = units.flatMap((u) =>
+    const skillMeta = allUnits().flatMap((u) =>
       u.skills.map((s) => ({
         id: s.id,
         title: s.title,

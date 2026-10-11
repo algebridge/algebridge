@@ -105,6 +105,25 @@ export const CALCULATOR_WITHHELD: ReadonlySet<string> = new Set([
   "factoring-special",
   "solving-by-factoring",
   "completing-square",
+  // Algebra 2: exact values and symbol work, done by hand.
+  "imaginary-unit",
+  "complex-arithmetic",
+  "complex-roots",
+  "polynomial-end-behavior",
+  "polynomial-division",
+  "remainder-factor-theorem",
+  "vertex-form",
+  "discriminant",
+  "simplify-rational",
+  "multiply-divide-rational",
+  "nth-roots",
+  "rational-exponents-evaluate",
+  "radical-equations",
+  "log-basics",
+  "log-properties",
+  "sigma-notation",
+  "unit-circle-values",
+  "reference-angles",
 ]);
 
 /**
@@ -115,6 +134,13 @@ export const CALCULATOR_WITHHELD: ReadonlySet<string> = new Set([
  */
 export const CALCULATOR_OFFERED: ReadonlySet<string> = new Set([
   "dimensional-analysis",
+  // Algebra 2: logs to two places, arc lengths, long sums, a work-rate equation.
+  "solve-exponential-equations",
+  "radians-degrees",
+  "arithmetic-series",
+  "geometric-series",
+  "rational-equations",
+  "linear-quadratic-systems",
   "center-spread",
   "two-way-tables",
   "exponential-functions",

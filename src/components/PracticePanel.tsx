@@ -17,7 +17,7 @@ import { loadSeen, rememberSeen, shapeKey, spreadShapes } from "@/lib/problem-or
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
-import { units } from "@/data/curriculum";
+import { allUnits, units } from "@/data/curriculum";
 import { DailyGoalRing } from "@/components/DailyGoalRing";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { getFurnitureItem } from "@/data/house-catalog";
@@ -222,7 +222,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [certificateName] = useCertificateName();
   const daily = useDaily();
   const answerField = useRef<AnswerFieldHandle>(null);
-  const unitOfSkill = useMemo(() => units.find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
+  const unitOfSkill = useMemo(() => allUnits().find((u) => u.skills.some((s) => s.id === skill.id)), [skill.id]);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   // Unfinished arithmetic or a typo, said gently, with no try spent on it.
   const [nudge, setNudge] = useState<string | null>(null);

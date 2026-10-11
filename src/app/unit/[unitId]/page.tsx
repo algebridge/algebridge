@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getUnit, units } from "@/data/curriculum";
+import { allUnits, courseOfUnit, getUnit } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitPath } from "@/components/UnitPath";
 import { UnitProgressHeader } from "@/components/UnitProgressHeader";
@@ -11,14 +11,16 @@ import { hueVars, unitHue } from "@/lib/hues";
 import { Icon } from "@/components/Icon";
 
 export function generateStaticParams() {
-  return units.map((unit) => ({ unitId: unit.id }));
+  return allUnits().map((unit) => ({ unitId: unit.id }));
 }
 
 /** The tab says which unit, for a teacher with many open. */
 export async function generateMetadata({ params }: { params: Promise<{ unitId: string }> }): Promise<Metadata> {
   const { unitId } = await params;
   const unit = getUnit(unitId);
-  return unit ? { title: `Unit ${unit.number}: ${unit.title}` } : {};
+  if (!unit) return {};
+  const unlisted = courseOfUnit(unitId)?.id === "algebra-2";
+  return { title: `Unit ${unit.number}: ${unit.title}`, ...(unlisted ? { robots: { index: false, follow: false } } : {}) };
 }
 
 export default async function UnitPage({
@@ -29,11 +31,14 @@ export default async function UnitPage({
   const { unitId } = await params;
   const unit = getUnit(unitId);
   if (!unit) notFound();
+  const course = courseOfUnit(unitId);
+  const units = course?.units ?? [];
+  const home = course?.id === "algebra-2" ? "/algebra-2" : "/";
 
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href="/" className="hover:text-bridge-600">Home</Link>
+        <Link href={home} className="hover:text-bridge-600">{course?.id === "algebra-2" ? "Algebra 2" : "Home"}</Link>
         <span aria-hidden className="mx-2">/</span>
         <span aria-current="page" className="text-slate-800">Unit {unit.number}</span>
       </nav>

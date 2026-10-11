@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { aiConfigured, clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { INTEREST_OPTIONS, sanitizeTopics, type InterestTopic } from "@/lib/interests";
@@ -29,7 +29,7 @@ export const maxDuration = 60;
 // cap belongs in Groq's Spend Limits.
 const allow = makeRateLimiter(1500, 10 * 60 * 1000);
 
-const skills = new Set(units.flatMap((u) => u.skills).map((s) => s.id));
+const skills = new Set(allUnits().flatMap((u) => u.skills).map((s) => s.id));
 
 export async function POST(request: Request) {
   let body: { skillId?: unknown; seed?: unknown; ids?: unknown; topics?: unknown; offset?: unknown; seen?: unknown };
@@ -89,7 +89,7 @@ export async function GET() {
 
   const skillId = "two-step-equations";
   const seed = 20260918;
-  const skill = units.flatMap((u) => u.skills).find((s) => s.id === skillId)!;
+  const skill = allUnits().flatMap((u) => u.skills).find((s) => s.id === skillId)!;
   const sample = generateProblemBank(skillId, skill.problems, seed)
     .filter((p) => canPersonalize(p as PersonalizableProblem))
     .slice(0, 3);

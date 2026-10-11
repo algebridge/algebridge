@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
 import { getProgress } from "@/lib/progress";
 import { getReviewQueueCount } from "@/lib/spaced-repetition";
-import { units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { getUnreadCount, subscribeToIncomingMessages, MESSAGES_READ_EVENT } from "@/lib/social";
 import { buildNav, type NavSection } from "@/lib/nav";
 import type { CourseStats, ContinueTarget } from "@/lib/progress";
@@ -32,7 +32,7 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    const skillMeta = units.flatMap((u) =>
+    const skillMeta = allUnits().flatMap((u) =>
       u.skills.map((s) => ({ id: s.id, title: s.title, unitId: u.id, unitTitle: u.title }))
     );
     setReviewCount(getReviewQueueCount(getProgress().skills, skillMeta));

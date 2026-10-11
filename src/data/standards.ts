@@ -69,6 +69,8 @@ export function officialStandardUrl(code: string): string {
 const DOMAINS: Record<string, string> = {
   "HSN-Q": "Quantities",
   "HSN-RN": "The Real Number System",
+  "HSN-CN": "The Complex Number System",
+  "HSF-TF": "Trigonometric Functions",
   "HSA-SSE": "Seeing Structure in Expressions",
   "HSA-APR": "Arithmetic with Polynomials and Rational Expressions",
   "HSA-CED": "Creating Equations",
@@ -165,6 +167,24 @@ const STANDARD_LIST: Standard[] = [
   std("8.EE.C.8.c", "Solve real-world problems that lead to two linear equations in two variables."),
   std("8.F.A.3", "Interpret y = mx + b as a linear function whose graph is a straight line."),
   std("8.F.B.4", "Find the rate of change and initial value of a linear function from a description or from two (x, y) points."),
+  // ---- Algebra 2 ----
+  std("HSN-CN.A.1", "Know there is a complex number i with i² = −1, and that every complex number has the form a + bi with a and b real."),
+  std("HSN-CN.A.2", "Use the relation i² = −1 and the commutative, associative and distributive properties to add, subtract and multiply complex numbers."),
+  std("HSN-CN.C.7", "Solve quadratic equations with real coefficients that have complex solutions."),
+  std("HSN-RN.A.1", "Explain how the meaning of rational exponents follows from extending the properties of integer exponents, and define b^(1/n) as the nth root of b."),
+  std("HSA-APR.B.2", "Know and apply the Remainder Theorem: for a polynomial p(x) and a number a, the remainder on division by x − a is p(a), so p(a) = 0 exactly when x − a is a factor."),
+  std("HSA-APR.D.6", "Rewrite simple rational expressions in the form q(x) + r(x)/b(x), by inspection, long division or a computer algebra system."),
+  std("HSA-APR.D.7", "Understand that rational expressions form a system like the rational numbers, closed under addition, subtraction, multiplication and division; add, subtract, multiply and divide them."),
+  std("HSA-SSE.B.4", "Derive the formula for the sum of a finite geometric series when the ratio is not 1, and use it to solve problems."),
+  std("HSA-REI.A.2", "Solve simple rational and radical equations in one variable, and give examples showing how extraneous solutions may arise."),
+  std("HSA-REI.C.7", "Solve a simple system of a linear equation and a quadratic equation in two variables algebraically and graphically."),
+  std("HSF-IF.C.8.a", "Use factoring and completing the square in a quadratic function to show zeros, extreme values and symmetry of the graph, and interpret them in context."),
+  std("HSF-BF.B.5", "Understand the inverse relationship between exponents and logarithms and use it to solve problems involving logarithms and exponents."),
+  std("HSF-LE.A.4", "For exponential models, express as a logarithm the solution to ab^(ct) = d where a, c and d are numbers and the base b is 2, 10 or e; evaluate the logarithm using technology."),
+  std("HSF-TF.A.1", "Understand radian measure of an angle as the length of the arc on the unit circle subtended by the angle."),
+  std("HSF-TF.A.2", "Explain how the unit circle in the coordinate plane extends the trigonometric functions to all real numbers, interpreted as radian measures of angles traversed counterclockwise."),
+  std("HSF-TF.A.3", "Use special triangles to determine geometrically the values of sine, cosine and tangent for π/3, π/4 and π/6, and the unit circle to express their values for π − x, π + x and 2π − x in terms of their values for x."),
+  std("HSF-TF.C.8", "Prove the Pythagorean identity sin²(θ) + cos²(θ) = 1 and use it to find sin(θ), cos(θ) or tan(θ) given one of them and the quadrant of the angle."),
 ];
 
 export const STANDARDS: Record<string, Standard> = Object.fromEntries(
@@ -331,6 +351,44 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
   // percent-rate stories, building either model from two points, and a
   // doubling quantity passing a steady one.
   "linear-vs-exponential": ["HSF-LE.A.1.a", "HSF-LE.A.1.b", "HSF-LE.A.1.c", "HSF-LE.A.2", "HSF-LE.A.3"],
+
+  // ======== Algebra 2 (src/data/algebra2/) ========
+  // ---- Unit 1: Complex Numbers ----
+  "imaginary-unit": ["HSN-CN.A.1"],
+  "complex-arithmetic": ["HSN-CN.A.2"],
+  "complex-roots": ["HSN-CN.C.7", "HSA-REI.B.4.b"],
+  // ---- Unit 2: Polynomial Functions ----
+  // Degree, leading coefficient and end behavior in words. The standard that
+  // names end behavior (HSF-IF.C.7.c) asks for the graph, see NOT_CLAIMED.
+  "polynomial-end-behavior": [],
+  "polynomial-division": ["HSA-APR.D.6", "HSA-APR.B.2"],
+  "remainder-factor-theorem": ["HSA-APR.B.2"],
+  // ---- Unit 3: Quadratics Revisited ----
+  "vertex-form": ["HSF-IF.C.8.a", "HSA-SSE.B.3.b"],
+  "discriminant": ["HSA-REI.B.4.b"],
+  "linear-quadratic-systems": ["HSA-REI.C.7"],
+  // ---- Unit 4: Rational Expressions & Equations ----
+  "simplify-rational": ["HSA-APR.D.7", "HSA-SSE.A.2"],
+  "multiply-divide-rational": ["HSA-APR.D.7"],
+  "rational-equations": ["HSA-REI.A.2"],
+  // ---- Unit 5: Radicals & Rational Exponents ----
+  "nth-roots": ["HSN-RN.A.2", "8.EE.A.2"],
+  "rational-exponents-evaluate": ["HSN-RN.A.1", "HSN-RN.A.2"],
+  "radical-equations": ["HSA-REI.A.2"],
+  // ---- Unit 6: Exponential & Logarithmic Functions ----
+  "log-basics": ["HSF-BF.B.5", "HSF-LE.A.4"],
+  "log-properties": ["HSF-BF.B.5"],
+  "solve-exponential-equations": ["HSF-LE.A.4", "HSF-BF.B.5"],
+  // ---- Unit 7: Sequences & Series ----
+  // Summing an arithmetic sequence leans on its explicit formula (HSF-BF.A.2);
+  // the series standard CCSS-M names is the geometric one.
+  "arithmetic-series": ["HSF-BF.A.2"],
+  "geometric-series": ["HSA-SSE.B.4"],
+  "sigma-notation": ["HSA-SSE.B.4"],
+  // ---- Unit 8: Trigonometry ----
+  "radians-degrees": ["HSF-TF.A.1"],
+  "unit-circle-values": ["HSF-TF.A.2", "HSF-TF.A.3"],
+  "reference-angles": ["HSF-TF.A.2", "HSF-TF.C.8"],
 };
 
 export interface NotClaimed {
@@ -344,13 +402,18 @@ export interface NotClaimed {
  * The standards whose point is drawing or reading a graph. None can be
  * claimed until practice has items that show a graph or ask for one.
  */
-export const GRAPHING_STANDARDS = ["6.NS.C.6.c", "HSA-REI.D.10", "HSA-REI.D.11", "HSA-REI.D.12", "HSF-IF.C.7.a", "HSF-IF.C.7.b", "HSS-ID.A.1", "HSF-BF.B.3"];
+export const GRAPHING_STANDARDS = ["6.NS.C.6.c", "HSA-REI.D.10", "HSA-REI.D.11", "HSA-REI.D.12", "HSF-IF.C.7.a", "HSF-IF.C.7.b", "HSF-IF.C.7.c", "HSS-ID.A.1", "HSF-BF.B.3"];
 
 /**
  * Standards that look like a match from a skill's title but that the skill
  * does not actually teach. Listed so the gap is visible, not hidden.
  */
 export const NOT_CLAIMED: NotClaimed[] = [
+  {
+    skillId: "polynomial-end-behavior",
+    code: "HSF-IF.C.7.c",
+    reason: "That standard asks students to graph polynomial functions, identifying zeros and showing end behavior. Practice reads the degree and leading coefficient and states the end behavior in words; no graph is drawn or read.",
+  },
   // No practice item in the course shows a graph or asks for one (Oct 2026), so
   // every standard whose point is making or reading a graph is listed here.
   {

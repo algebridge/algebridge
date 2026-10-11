@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getUnit, units } from "@/data/curriculum";
+import { allUnits, getUnit } from "@/data/curriculum";
 import { CertificateView } from "@/components/CertificateView";
 import { COURSE_ID } from "@/lib/certificates";
 
 export function generateStaticParams() {
-  return [...units.map((u) => ({ id: u.id })), { id: COURSE_ID }];
+  return [...allUnits().map((u) => ({ id: u.id })), { id: COURSE_ID }];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {

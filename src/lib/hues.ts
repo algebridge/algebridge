@@ -127,6 +127,15 @@ const UNIT_HUES: Record<string, HueName> = {
   "absolute-value-piecewise": "pink",
   "data-statistics": "yellow",
   "modeling-functions": "red",
+  // Algebra 2
+  "complex-numbers": "violet",
+  "polynomial-functions": "emerald",
+  "quadratics-revisited": "amber",
+  "rational-expressions": "rose",
+  "radicals-rational-exponents": "teal",
+  "exponential-logarithmic": "indigo",
+  "sequences-series": "orange",
+  "trigonometry": "cyan",
 };
 
 export function unitHue(unitId: string): Hue {
