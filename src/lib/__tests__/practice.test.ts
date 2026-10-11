@@ -134,13 +134,12 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
-  // Algebra 2 early access: the two people, on any of their accounts, and nobody else.
-  const { hasAlgebra2Access } = await import("../early-access.ts");
-  const allowed = ["ivan@algebridge.org", "ivan.malchugan@gmail.com", "wgtsfamily@gmail.com", "zachary@algebridge.org", "zacharybalan865@gmail.com", " Zachary@AlgeBridge.org "];
+  // Algebra 2 early access. No real address is written here: the repo is public.
+  const { hasAlgebra2Access, fingerprint, ALGEBRA2_ACCESS } = await import("../early-access.ts");
+  ok("algebra 2 has its six fingerprints, all distinct", ALGEBRA2_ACCESS.length === 6 && new Set(ALGEBRA2_ACCESS).size === 6 && ALGEBRA2_ACCESS.every((h) => /^[0-9a-f]{64}$/.test(h)));
+  ok("an address is matched in any case, spaces trimmed", (await fingerprint(" Someone@Example.COM ")) === (await fingerprint("someone@example.com")));
   const blocked = ["student@school.edu", "zach@algebridge.org", "a2.tester@example.com", "", null];
-  const yes = await Promise.all(allowed.map((e) => hasAlgebra2Access(e)));
   const no = await Promise.all(blocked.map((e) => hasAlgebra2Access(e)));
-  ok("algebra 2 opens for ivan and zach on every account", yes.every(Boolean), allowed.filter((_, i) => !yes[i]).join(", "));
   ok("algebra 2 stays shut for everyone else", no.every((v) => !v));
 }
 {
