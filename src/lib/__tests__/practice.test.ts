@@ -1929,7 +1929,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     const list = C.certificateList(after);
     const algebra1 = list.filter((c) => c.id === C.COURSE_ID || units.some((u) => u.id === c.id));
     ok("certificates: one per unit and one for the course, all earned", algebra1.length === units.length + 1 && algebra1.every((c) => !!c.earnedAt));
-    ok("certificates: the other course's units are on offer, not yet earned", list.length > algebra1.length && list.filter((c) => !algebra1.includes(c)).every((c) => c.unit && !c.earnedAt));
+    ok("certificates: the other course's units are listed only once earned", list.length === algebra1.length);
   }
 
   const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });

@@ -18,7 +18,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ unitId: string }> }): Promise<Metadata> {
   const { unitId } = await params;
   const unit = getUnit(unitId);
-  return unit ? { title: `Unit ${unit.number}: ${unit.title}` } : {};
+  if (!unit) return {};
+  const unlisted = courseOfUnit(unitId)?.id === "algebra-2";
+  return { title: `Unit ${unit.number}: ${unit.title}`, ...(unlisted ? { robots: { index: false, follow: false } } : {}) };
 }
 
 export default async function UnitPage({
