@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "quadratics-revisited",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Read the vertex and the maximum or minimum straight off y = a(x − h)² + k, and complete the square to get there.",
       learningGoal: "Find the vertex of a quadratic from vertex form, state its maximum or minimum value, and rewrite y = x² + bx + c in vertex form by completing the square.",
       keyIdea: "In y = a(x − h)² + k the vertex is (h, k): flip the sign inside the bracket, keep the sign outside.",
-      video: NO_VIDEO,
+      video: videoFor("vertex-form"),
       problems: [
         {
           id: "a2-qr-p1",
@@ -51,7 +51,7 @@ export const unit: Unit = {
       description: "Use b² − 4ac to tell how many solutions a quadratic has and what kind they are, before solving anything.",
       learningGoal: "Compute the discriminant of ax² + bx + c = 0, read the number and type of solutions from its sign, and choose a constant that makes a quadratic have exactly one real solution.",
       keyIdea: "Compute b² − 4ac first: positive means two real solutions, zero means one, negative means two complex solutions.",
-      video: NO_VIDEO,
+      video: videoFor("discriminant"),
       problems: [
         {
           id: "a2-qr-p3",
@@ -88,7 +88,7 @@ export const unit: Unit = {
       description: "Find where a line meets a parabola by setting the two rules equal and solving the quadratic that falls out.",
       learningGoal: "Decide how many points a line and a parabola share, find the x-values where they meet, and use a line-parabola system to answer a projectile question.",
       keyIdea: "Set the line equal to the parabola, move everything to one side, and the roots of that quadratic are the x-values where they meet.",
-      video: NO_VIDEO,
+      video: videoFor("linear-quadratic-systems"),
       problems: [
         {
           id: "a2-qr-p5",

@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "polynomial-functions",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Read the degree, leading coefficient and number of terms of a polynomial, and predict what y does as x grows very large or very negative.",
       learningGoal: "Classify a polynomial by degree and term count and state its end behavior from the degree and the sign of the leading coefficient.",
       keyIdea: "Only the leading term matters far out: an even degree sends both ends the same way, an odd degree sends them opposite ways, and a negative leading coefficient flips the picture.",
-      video: NO_VIDEO,
+      video: videoFor("polynomial-end-behavior"),
       problems: [
         {
           id: "a2-pf-p1",
@@ -51,7 +51,7 @@ export const unit: Unit = {
       description: "Divide a polynomial by x − k with synthetic division, read off the quotient and the remainder, and evaluate P(k) the fast way.",
       learningGoal: "Carry out synthetic division of a cubic by a linear factor and name the quotient and remainder.",
       keyIdea: "Bring down the first coefficient, then multiply by k and add, over and over; the last number is the remainder and it equals P(k).",
-      video: NO_VIDEO,
+      video: videoFor("polynomial-division"),
       problems: [
         {
           id: "a2-pf-p3",
@@ -87,7 +87,7 @@ export const unit: Unit = {
       description: "Use P(k) to decide whether x − k is a factor, find missing factors and zeros of a cubic, and finish factoring once one factor is known.",
       learningGoal: "Apply the remainder theorem and the factor theorem to test factors, find zeros and write a cubic in factored form.",
       keyIdea: "P(k) is the remainder when you divide by x − k, so x − k is a factor exactly when P(k) = 0.",
-      video: NO_VIDEO,
+      video: videoFor("remainder-factor-theorem"),
       problems: [
         {
           id: "a2-pf-p5",

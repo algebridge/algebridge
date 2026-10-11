@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "radicals-rational-exponents",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Evaluate cube roots and fourth roots, pull perfect cubes out of a cube root, and combine like radicals.",
       learningGoal: "Evaluate and simplify nth roots of whole numbers and add or subtract radicals with the same index and radicand.",
       keyIdea: "An nth root undoes an nth power: look for the biggest perfect nth power inside, take its root out, and leave the rest under the radical.",
-      video: NO_VIDEO,
+      video: videoFor("nth-roots"),
       problems: [
         {
           id: "a2-nr-p1",
@@ -50,7 +50,7 @@ export const unit: Unit = {
       description: "Evaluate powers like 8^(2/3) and 16^(−3/4), and move between radical form and exponent form.",
       learningGoal: "Evaluate expressions with fractional and negative fractional exponents and rewrite radicals as rational exponents.",
       keyIdea: "In b^(p/q) the denominator q is the root and the numerator p is the power: take the qth root first, then raise it to the pth power.",
-      video: NO_VIDEO,
+      video: videoFor("rational-exponents-evaluate"),
       problems: [
         {
           id: "a2-re-p1",
@@ -86,7 +86,7 @@ export const unit: Unit = {
       description: "Solve equations with a square root or cube root in them, and check for extraneous solutions.",
       learningGoal: "Isolate the radical, raise both sides to the matching power, solve, and check every answer in the original equation.",
       keyIdea: "Get the radical alone, square (or cube) both sides, then always check: squaring can create a solution the original equation rejects.",
-      video: NO_VIDEO,
+      video: videoFor("radical-equations"),
       problems: [
         {
           id: "a2-rq-p1",

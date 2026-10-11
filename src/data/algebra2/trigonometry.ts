@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "trigonometry",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Switch an angle between degrees and radians, and use radians to measure an arc.",
       learningGoal: "Convert between degrees and radians in both directions and find an arc length from a radius and a central angle.",
       keyIdea: "180° is π radians, so multiply degrees by π/180 to get radians and radians by 180/π to get degrees; an arc is s = rθ with θ in radians.",
-      video: NO_VIDEO,
+      video: videoFor("radians-degrees"),
       problems: [
         {
           id: "a2-rd-p1",
@@ -50,7 +50,7 @@ export const unit: Unit = {
       description: "Read exact sine, cosine and tangent values straight off the unit circle, with the right sign for the quadrant.",
       learningGoal: "Give exact trig values for the special angles in degrees and radians, place an angle in its quadrant, and know the sign of each function there.",
       keyIdea: "On the unit circle cos θ is the x-coordinate and sin θ is the y-coordinate, so the quadrant tells you the signs and the special triangles tell you the sizes.",
-      video: NO_VIDEO,
+      video: videoFor("unit-circle-values"),
       problems: [
         {
           id: "a2-uc-p1",
@@ -86,7 +86,7 @@ export const unit: Unit = {
       description: "Fold any angle back to the acute angle it makes with the x-axis, and use it to find trig values anywhere on the circle.",
       learningGoal: "Find reference angles and coterminal angles for angles in degrees and radians, and use the quadrant to find one trig value from another.",
       keyIdea: "A reference angle is the acute angle between the terminal side and the x-axis; the size of a trig value comes from it, and the sign comes from the quadrant.",
-      video: NO_VIDEO,
+      video: videoFor("reference-angles"),
       problems: [
         {
           id: "a2-ra-p1",

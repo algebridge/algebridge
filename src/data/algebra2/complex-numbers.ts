@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "complex-numbers",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Define i as √(−1), simplify square roots of negative numbers, and find powers of i.",
       learningGoal: "Simplify √(−n) as a multiple of i and evaluate any power of i.",
       keyIdea: "Pull √(−1) out as i first, then simplify the square root that is left; powers of i repeat every four: i, −1, −i, 1.",
-      video: NO_VIDEO,
+      video: videoFor("imaginary-unit"),
       problems: [
         {
           id: "a2-cn-p1",
@@ -52,7 +52,7 @@ export const unit: Unit = {
       description: "Add, subtract and multiply complex numbers, keeping the real and imaginary parts straight.",
       learningGoal: "Add, subtract and multiply numbers of the form a + bi and write the result in standard form.",
       keyIdea: "Treat i like a variable when you add, subtract and FOIL, then replace every i² with −1 and collect real and imaginary parts.",
-      video: NO_VIDEO,
+      video: videoFor("complex-arithmetic"),
       problems: [
         {
           id: "a2-cn-p3",
@@ -88,7 +88,7 @@ export const unit: Unit = {
       description: "Solve quadratics whose solutions are not real, count real solutions with the discriminant, and find the modulus of a complex number.",
       learningGoal: "Solve x² + c = 0 and completed-square quadratics with complex answers, use b² − 4ac to count real solutions, and compute |a + bi|.",
       keyIdea: "A negative under the square root means the solutions are complex: write √(−n) as i√n, and a negative discriminant means no real solutions at all.",
-      video: NO_VIDEO,
+      video: videoFor("complex-roots"),
       problems: [
         {
           id: "a2-cn-p5",

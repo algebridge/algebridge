@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "rational-expressions",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Find the values a fraction with variables cannot take, factor top and bottom, and cancel what they share.",
       learningGoal: "State the excluded values of a rational expression, simplify it by factoring and canceling a common factor, and evaluate it at a given x.",
       keyIdea: "Factor the top and the bottom first; only whole factors cancel, and any x that makes the bottom 0 stays excluded.",
-      video: NO_VIDEO,
+      video: videoFor("simplify-rational"),
       problems: [
         {
           id: "a2-re-p1",
@@ -52,7 +52,7 @@ export const unit: Unit = {
       description: "Multiply fractions with variables across, flip to divide, and cancel matching factors before anything else.",
       learningGoal: "Multiply and divide rational expressions by factoring, flipping the divisor, and canceling common factors, then evaluate the simplified result.",
       keyIdea: "Dividing by a fraction is multiplying by its flip; cancel a factor that appears on a top and a bottom before multiplying.",
-      video: NO_VIDEO,
+      video: videoFor("multiply-divide-rational"),
       problems: [
         {
           id: "a2-re-p3",
@@ -89,7 +89,7 @@ export const unit: Unit = {
       description: "Clear the fractions, solve what is left, and throw out any answer that makes a bottom zero.",
       learningGoal: "Solve equations with x in a denominator by multiplying through, spot extraneous solutions, and model a shared-work situation with a rational equation.",
       keyIdea: "Multiply every term by the common denominator to clear the fractions, then check each answer against the original bottoms.",
-      video: NO_VIDEO,
+      video: videoFor("rational-equations"),
       problems: [
         {
           id: "a2-re-p5",

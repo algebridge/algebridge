@@ -1,5 +1,5 @@
 import type { Unit } from "@/types";
-import { NO_VIDEO } from "@/data/algebra2/shared";
+import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "exponential-logarithmic",
@@ -14,7 +14,7 @@ export const unit: Unit = {
       description: "Evaluate logarithms of exact powers, switch between exponential and logarithmic form, and use ln and log as inverses.",
       learningGoal: "Read log_b(n) as the exponent that b needs to make n, and translate any exponential equation into log form and back.",
       keyIdea: "log_b(n) asks one question: b to what power gives n? Answer that question and you have evaluated the logarithm.",
-      video: NO_VIDEO,
+      video: videoFor("log-basics"),
       problems: [
         {
           id: "a2-lb-p1",
@@ -50,7 +50,7 @@ export const unit: Unit = {
       description: "Expand a log of a product, quotient or power, condense a sum or difference into one log, and evaluate with given values.",
       learningGoal: "Use the product, quotient and power properties to rewrite and evaluate logarithmic expressions.",
       keyIdea: "A log turns multiplying into adding, dividing into subtracting, and a power into a multiplier out front.",
-      video: NO_VIDEO,
+      video: videoFor("log-properties"),
       problems: [
         {
           id: "a2-lp-p1",
@@ -86,7 +86,7 @@ export const unit: Unit = {
       description: "Solve by matching bases, by rewriting with a common base, and by taking a logarithm, including doubling-time problems.",
       learningGoal: "Solve exponential equations exactly when the bases match and with logarithms when they do not.",
       keyIdea: "If both sides can be written with the same base, set the exponents equal; if they cannot, take a log of both sides and bring the exponent down.",
-      video: NO_VIDEO,
+      video: videoFor("solve-exponential-equations"),
       problems: [
         {
           id: "a2-se-p1",
