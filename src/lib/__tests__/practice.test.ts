@@ -14,7 +14,7 @@ Object.assign(globalThis, {
   },
 });
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 const { numericAnswerMatches, parseNumericAnswer } = await import("../grading.ts");
 const { sanitizeTopics, topicsFromPicks, isSchoolSafe, INTEREST_OPTIONS, cleanSpecifics } = await import("../interests.ts");
 const cleanSpecificsOk = (s: string) => cleanSpecifics(s) === s;
@@ -2233,9 +2233,19 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("walk: a step into the house wall goes nowhere", stuck.x === -4 && stuck.z === -6);
   const slid = W.slideMove({ x: -4, z: -6 }, 0.5, -1.5, rects, 0.32);
   ok("walk: a step along the house slides", slid.x === -3.5 && slid.z === -6);
-  ok("walk: the street ends", W.slideMove({ x: 57.9, z: 5 }, 1, 0, rects, 0.32).x === W.STREET_BOUNDS.x1);
+  ok("walk: the town ends", W.slideMove({ x: W.STREET_BOUNDS.x1 - 0.1, z: 5 }, 1, 0, rects, 0.32).x === W.STREET_BOUNDS.x1);
   const G = await import("../house3d/garden.ts");
-  ok("walk: its street is the one the yard builds", W.LOT_PITCH === G.LOT && Math.abs(W.STREET_MID - G.STREET_MID) < 1e-9 && G.STREET_LOTS.length === 13);
+  ok("walk: its street is the one the yard builds", W.LOT_PITCH === G.LOT && Math.abs(W.STREET_MID - (G.FRONT_LAYOUT.curbZ + 5.05)) < 1e-9 && G.STREET_LOTS.length === 113);
+  const T0 = await import("../house3d/terrain.ts");
+  const C = await import("../house3d/city.ts");
+  const keys = new Set(C.CITY_LOTS.map((l) => `${l.row}:${l.across}:${l.x}`));
+  ok("town: a hundred and thirteen lots, yours left out, none twice, nearest first", keys.size === 113 && !keys.has("0:false:0") && C.CITY_LOTS[0].row === 0 && Math.abs(C.CITY_LOTS[0].x) === 16 && Math.abs(C.CITY_LOTS[1].x) === 16);
+  ok("town: cross streets run where lots would be, between streets only", !keys.has("1:false:64") && !keys.has("0:true:-64") && keys.has("0:false:64") && keys.has("4:true:64") && !keys.has("2:true:64") && C.CROSS_X.length === 4 && C.rowsFor(0) === 1 && C.rowsFor(5) === 1 && C.rowsFor(113) === 5 && C.rowsFor(40) > 1);
+  ok("town: the backs of one street's lots meet the next street's", Math.abs(C.houseCenter({ x: 0, row: 0, across: true }).z - (2 * C.STREET_MID + 11)) < 1e-9 && C.houseCenter({ x: 0, row: 1, across: false }).z === -11 + C.ROW_PITCH && Math.abs(2 * C.STREET_MID + 16.4 - (C.ROW_PITCH - 16.4)) < 1e-9);
+  const far = W.lotBlockers({ x: 16, across: true, row: 2, house: true, drive: 1 });
+  ok("town: a house two streets on is solid where it stands", W.blocked(16, C.houseCenter({ x: 16, row: 2, across: true }).z, far, 0.32) && !W.blocked(16, C.rowMid(2), far, 0.32));
+  ok("town: every lot is on flat ground", C.CITY_LOTS.every((l) => { const h = C.houseCenter(l); return T0.terrainHeight(h.x, h.z) === 0; }) && [...C.STREET_TREES, ...C.STREET_LAMPS].every((p) => T0.terrainHeight(p.x, p.z) === 0));
+  ok("town: open stretches of curb leave the crossings open", JSON.stringify(C.spans(-10, 10, [0], 2)) === JSON.stringify([[-10, -2], [2, 10]]) && C.spans(-10, 10, [50], 2).length === 1);
 
   // Walking into your own house: the door, the porch steps, both floors, the stair, the furniture.
   const H = W.HOME;
@@ -2267,9 +2277,17 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const up = W.homeBlockers("up", 0, -10, []);
   ok("home: upstairs the landing joins the room, and the edges hold", W.floorAt("up", 0, -10) === H.up && !W.blocked(0, -10, up, 0.32) && !W.blocked(3.2, -12, W.homeBlockers("up", 3.2, -12, []), 0.32) && W.blocked(0, -7.7, up, 0.32) && W.blocked(3.5, -9.5, up, 0.32) && !W.blocked(4.5, -11.45, W.homeBlockers("up", 4.5, -12, []), 0.32) && W.onStair(4.5, -11.45) && !W.blocked(4.5, -11.0, W.homeBlockers("up", 4.5, -11.45, []), 0.32));
 
+  const Wd = await import("../world.ts");
+  ok("cities: plots are checked against the list", JSON.stringify(Wd.sanitizePlots([{ city: "paris", plot: "p03" }, { city: "paris", plot: "p03" }, { city: "atlantis", plot: "p01" }, { city: "rome", plot: "x" }, "junk", { city: "tokyo", plot: "p18" }])) === JSON.stringify([{ city: "paris", plot: "p03" }, { city: "tokyo", plot: "p18" }]) && Wd.sanitizePlots(null).length === 0);
+  ok("cities: ground height between grid points is between them", (() => { const d = { size: 100, grid: 2, heights: [0, 10, 0, 10] }; return Wd.heightAt(d, 0, 0) === 5 && Wd.heightAt(d, -50, 0) === 0 && Wd.heightAt(d, 999, 0) > 9.9; })());
+  for (const c of Wd.CITIES) {
+    const file = `public/world/${c.id}/data.json`;
+    const d = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+    ok(`cities: ${c.name} is baked with buildings, ground and plots for sale`, !!d && d.buildings.length > 150 && d.plots.length >= 10 && existsSync(`public/world/${c.id}/ground.jpg`) && d.heights.length === d.grid * d.grid && Math.max(...d.heights) < 80 && d.plots.every((p: { id: string }) => /^p\d{2}$/.test(p.id)));
+  }
   const T = await import("../house3d/terrain.ts");
   ok("land: flat across the neighbourhood and along the street", [[0, 0], [60, -15], [-60, 40], [120, 11.6], [-125, 20]].every(([x, z]) => T.terrainHeight(x, z) === 0));
-  ok("land: hills beyond", T.terrainHeight(150, 150) > 2 && T.terrainHeight(-200, -180) > 8 && T.terrainHeight(0, 200) > 2);
+  ok("land: hills beyond", T.terrainHeight(200, 150) > 2 && T.terrainHeight(-200, -180) > 8 && T.terrainHeight(0, 330) > 2);
   ok("land: the same hill every time", T.terrainHeight(173.3, -91.2) === T.terrainHeight(173.3, -91.2) && Math.abs(T.terrainHeight(173.3, -91.2) - T.terrainHeight(173.4, -91.2)) < 0.5);
   ok("land: the lake lies under its water, with a shore", T.terrainHeight(T.LAKE.x, T.LAKE.z) < -2 && T.terrainHeight(T.LAKE.x, T.LAKE.z - T.LAKE.r - 12) > T.WATER_Y && T.lakeDepth(T.LAKE.x, T.LAKE.z) === 1 && T.lakeDepth(0, 0) === 0);
   ok("land: lush is a share", [[0, 0], [99, 7], [-180, 160]].every(([x, z]) => { const l = T.terrainLush(x, z); return l >= 0 && l <= 1; }));

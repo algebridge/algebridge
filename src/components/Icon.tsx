@@ -6,6 +6,7 @@
  */
 
 export type IconName =
+  | "globe"
   | "course"
   | "review"
   | "turn"
@@ -157,6 +158,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M4 20V12h4v8M10 20V5h4v15M16 20v-6h4v6" />
       <path d="M3 20h18" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5Z" />
     </>
   ),
   house: (

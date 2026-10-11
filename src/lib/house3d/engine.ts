@@ -11,7 +11,8 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { GardenState } from "@/lib/garden";
-import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, skyTexture, type StreetNeighbour, buildInside } from "./garden";
+import { buildFront, buildGarden, FRONT_LAYOUT, GARDEN_LAYOUT, skyTexture, type CityLOD, type Street, type StreetNeighbour, buildInside } from "./garden";
+import { houseCenter, rowMid, rowsFor, STREET_LAMPS, STREET_TREES } from "./city";
 import { Post } from "./post";
 import { buildFigure, poseFigure, type Figure } from "./figure";
 import { floorAt, HOME, homeBlockers, levelAfter, lotBlockers, slideMove, type Level, type Rect, type StreetLot } from "./walk";
@@ -82,14 +83,14 @@ interface SceneLight {
 
 /** How many places to keep built. */
 const KEEP_BUILT = 8;
-/**
- * Pixels drawn per CSS pixel: at most this many for the frame at rest (a
- * Retina screen's full 2 is nearly twice the work for a difference that
- * takes a magnifier), and down to MIN_RATIO for a moving frame on a computer
- * that falls behind (see pacedRatio).
- */
+/** The lots built in full round you (or the camera's middle): this many at most, within this reach; further off they are the town's simple houses. Let go beyond LOT_DROP, kept for a return up to LOT_KEEP. */
+const LOT_DETAIL = 12;
+const LOT_REACH = 54;
+const LOT_OPEN_REACH = 30;
+const LOT_DROP = 66;
+const LOT_KEEP = 16;
+/** Pixels drawn per CSS pixel, at most: a Retina screen's full 2 is nearly twice the work for a difference that takes a magnifier. */
 const MAX_RATIO = 1.5;
-const MIN_RATIO = 0.75;
 
 /** How close (as a zoom) the porch view comes before the walls in the way open up. */
 const DOLLHOUSE_ZOOM = 1.45;
@@ -125,12 +126,26 @@ interface Dollhouse {
 }
 
 /** A place kept built: the room, the garden or the porch, and for the last two the builder of their street. */
+/** The town round a garden or porch: who lives where, the lots built in full, those kept for a return, what is waiting to be built, and the simple town. */
+interface Town {
+  key: string;
+  street: Street;
+  who: StreetNeighbour[];
+  built: Map<number, THREE.Object3D>;
+  parked: Map<number, THREE.Object3D>;
+  queue: number[];
+  busy: boolean;
+  lod: CityLOD | null;
+  from: { x: number; z: number } | null;
+  warmed: boolean;
+}
+
 interface Built {
   group: THREE.Object3D;
   dispose(): void;
   lights: SceneLight[];
   room?: RoomParts;
-  street?: (neighbours: StreetNeighbour[]) => (() => THREE.Object3D)[];
+  street?: Street;
 }
 
 interface Placed {
@@ -148,6 +163,36 @@ interface Placed {
 const MAX_LAMPS = 4;
 
 /** The soft dark patch under a piece, shared by all of them. */
+/**
+ * Everything under `root` that never moves stops having its place worked
+ * out again every frame (three.js otherwise walks every object, every
+ * frame: a quarter second a frame for a porch with its rooms and street).
+ * Left live: the front door's leaf, the pieces (they are moved and turned),
+ * and whatever holds them.
+ */
+function freezeStatic(root: THREE.Object3D): void {
+  const live = (o: THREE.Object3D) => !!(o.userData.doorLeaf || o.userData.instanceId || o.userData.live);
+  const holdsLive = (o: THREE.Object3D): boolean => {
+    // A holder (a dollhouse floor) gets pieces later: it stays live, and what is in it now is looked at one by one.
+    if (o.userData.holder) return true;
+    let found = false;
+    o.traverse((c) => {
+      if (!found && live(c)) found = true;
+    });
+    return found;
+  };
+  const visit = (o: THREE.Object3D) => {
+    if (live(o)) return;
+    if (holdsLive(o)) {
+      for (const c of o.children) visit(c);
+      return;
+    }
+    o.updateMatrixWorld(true);
+    o.matrixWorldAutoUpdate = false;
+  };
+  for (const c of root.children) visit(c);
+}
+
 function blobTexture(): THREE.Texture {
   const c = document.createElement("canvas");
   c.width = c.height = 128;
@@ -238,12 +283,9 @@ export class HouseView {
   private post: Post | null = null;
   private postFailed = false;
   private size = { width: 2, height: 2 };
-  /** Pixels per CSS pixel: for the frame at rest, for a moving frame, and what the canvas has now. */
+  /** Pixels per CSS pixel, and what the canvas has now. */
   private ratioRest = 1;
-  private ratioMove = 1;
   private ratioNow = 1;
-  /** How the moving frames keep up: the last one's time, the running gap between them, and the counts that decide a step down or up. */
-  private pace = { last: 0, ema: 0, slow: 0, fine: 0, changedAt: 0 };
   private lastStep = 0;
   private wasMoving = false;
   /** When the view was last turned by a drag: for that moment the camera follows the pointer exactly. */
@@ -270,7 +312,6 @@ export class HouseView {
     // (seconds on a first visit): the browser compiles them in parallel instead.
     this.renderer.debug.checkShaderErrors = false;
     this.ratioRest = Math.min(window.devicePixelRatio || 1, MAX_RATIO);
-    this.ratioMove = this.ratioRest;
     this.ratioNow = this.ratioRest;
     this.renderer.setPixelRatio(this.ratioRest);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -376,20 +417,21 @@ export class HouseView {
     let moving = turning || Math.abs(this.goal.azimuth - o.azimuth) > 0.0005 || Math.abs(this.goal.polar - o.polar) > 0.0005 || Math.abs(want - o.distance) > 0.002;
     if (this.walk.on) moving = this.stepWalk() || moving;
     this.placeCamera();
+    this.updateDetail();
     this.clearNeighbours();
     if (this.mode === "front" && this.applyCutaway()) {
       // The inside was just built: its shaders compile first.
       this.invalidate();
       return;
     }
-    // A moving frame is drawn plain, at the size the computer keeps up with; the frame at rest in full, with its finish.
-    this.applyRatio(moving ? this.pacedRatio(now) : this.ratioRest);
+    // A moving frame is drawn plain; the frame at rest gets its finish. (The
+    // canvas keeps one size: resizing it to draw moving frames smaller took a
+    // third of a second each time, far worse than the frames it saved.)
     if (moving) this.renderer.render(this.scene, this.camera);
     else this.renderFine();
     this.drawnOnce();
     this.wasMoving = moving;
     if (moving) this.invalidate();
-    else this.pace.last = 0;
   }
 
   /** Sets how many pixels the canvas has per CSS pixel, when that changes. */
@@ -398,45 +440,6 @@ export class HouseView {
     this.ratioNow = ratio;
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(this.size.width, this.size.height, false);
-  }
-
-  /**
-   * How many pixels a moving frame gets. The frames' own timing says
-   * whether the computer keeps up: when they run late (over 20 ms apart on
-   * average, six in a row, so frames are being dropped) the moving picture
-   * drops a step in size, and after a long smooth stretch it steps back up.
-   * The frame at rest is always drawn in full, so a slower computer sees the
-   * same house, and only the swing of a drag is softer.
-   */
-  private pacedRatio(now: number): number {
-    const p = this.pace;
-    if (p.last) {
-      const gap = now - p.last;
-      p.ema = p.ema ? p.ema * 0.8 + gap * 0.2 : gap;
-      if (p.ema > 20) {
-        p.slow += 1;
-        p.fine = 0;
-      } else {
-        p.fine += 1;
-        if (p.ema < 17.5) p.slow = 0;
-      }
-      if (p.slow >= 6 && this.ratioMove > MIN_RATIO) {
-        this.ratioMove = Math.max(MIN_RATIO, Math.round((this.ratioMove - 0.25) * 100) / 100);
-        p.slow = 0;
-        p.ema = 0;
-        p.changedAt = now;
-      } else if (p.fine >= 240 && this.ratioMove < this.ratioRest && now - p.changedAt > 4000) {
-        this.ratioMove = Math.min(this.ratioRest, Math.round((this.ratioMove + 0.25) * 100) / 100);
-        p.fine = 0;
-        p.ema = 0;
-        p.changedAt = now;
-      }
-    } else {
-      p.ema = 0;
-      p.slow = 0;
-    }
-    p.last = now;
-    return this.ratioMove;
   }
 
   /** A frame at rest, with its finish (lib/house3d/post.ts); plain where that is unavailable. */
@@ -748,6 +751,7 @@ export class HouseView {
         else if (c.x < -ROOM_W / 2 + 0.35 && box.max.y > 0.3) cut.push({ obj: o, normal: new THREE.Vector3(-1, 0, 0) });
       }
       const f = floors[floor];
+      f.userData.holder = true;
       f.add(r.group);
       f.position.set(I.x, floor === "down" ? I.down : I.up, I.z);
       group.add(f);
@@ -766,6 +770,9 @@ export class HouseView {
     d.group.userData.dollhouseKey = d.key;
     d.group.userData.dollhouse = d;
     this.garden.group.add(d.group);
+    d.group.userData.holder = true;
+    d.group.updateMatrixWorld(true);
+    freezeStatic(d.group);
     this.dollhouse = d;
     // Free the rooms with the porch scene when it goes.
     const entry = this.built.get(this.gardenKey);
@@ -789,18 +796,20 @@ export class HouseView {
   private applyCutaway(): boolean {
     // Zoomed in, or walked in through the front door.
     const inside = this.walk.on ? this.walk.level !== "ground" : this.orbit.distance < this.fitDistance / DOLLHOUSE_ZOOM;
+    // The rooms show when you are in, and through the open front door as you come to it (the walls stay up then).
+    const rooms = inside || (this.walk.on && this.doorOpen > 0.01);
     let built = false;
-    if (inside && !this.dollhouse && this.garden) {
+    if (rooms && !this.dollhouse && this.garden) {
       this.attachDollhouse();
       this.needsCompile = true;
       built = true;
     }
-    if (inside !== this.dollhouseShown) {
-      this.dollhouseShown = inside;
-      // Going in, the view comes down a little, to see both floors like an open dollhouse.
-      if (inside) this.goal.polar = Math.max(this.goal.polar, 1.24);
-      if (this.dollhouse) this.dollhouse.group.visible = inside;
-      for (const p of this.placed.values()) p.root.visible = inside;
+    if (rooms !== this.dollhouseShown) {
+      this.dollhouseShown = rooms;
+      // Zooming in, the view comes down a little, to see both floors like an open dollhouse.
+      if (inside && !this.walk.on) this.goal.polar = Math.max(this.goal.polar, 1.24);
+      if (this.dollhouse) this.dollhouse.group.visible = rooms;
+      for (const p of this.placed.values()) p.root.visible = rooms;
       this.updateLamps();
     }
     // Which walls face the camera.
@@ -822,41 +831,149 @@ export class HouseView {
     if (!b.street) return;
     const key = JSON.stringify(this.neighbours);
     const group = b.group;
-    if (group.userData.streetKey === key) return;
-    group.userData.streetKey = key;
-    for (const lot of group.children.filter((o) => o.userData.lot)) {
-      group.remove(lot);
-      lot.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
-    }
-    delete group.userData.neighbours;
+    const old = group.userData.town as Town | undefined;
+    if (old?.key === key) return;
+    if (old) this.dropTown(group, old);
+    const town: Town = { key, street: b.street, who: this.neighbours, built: new Map(), parked: new Map(), queue: [], busy: false, lod: null, from: null, warmed: false };
+    group.userData.town = town;
+    // Freed with the place when it goes.
+    const before = b.dispose;
+    b.dispose = () => {
+      before();
+      this.dropTown(group, town);
+    };
     this.refreshBlockers();
-    this.buildLater(group, b.street(this.neighbours), key);
+    // The whole town drawn simply first, then the lots round you in full.
+    if (b.street.city)
+      this.idleRun(
+        [
+          async () => {
+            const lod = b.street!.city!(town.who);
+            await compileQuietly(this.renderer, lod.group, this.camera, this.scene);
+            if (this.disposed || group.userData.town !== town) return lod.dispose();
+            town.lod = lod;
+            for (const i of town.built.keys()) lod.show(i, false);
+            group.add(lod.group);
+            lod.group.updateMatrixWorld(true);
+            lod.group.matrixWorldAutoUpdate = false;
+            this.invalidate();
+          },
+        ],
+        () => group.userData.town === town,
+      );
+    this.updateDetail(true);
+  }
+
+  private dropTown(group: THREE.Object3D, town: Town): void {
+    for (const lot of [...town.built.values(), ...town.parked.values()]) {
+      group.remove(lot);
+      for (const g of (lot.userData.geos as THREE.BufferGeometry[] | undefined) ?? []) g.dispose();
+    }
+    town.built.clear();
+    town.parked.clear();
+    town.queue = [];
+    if (town.lod) {
+      group.remove(town.lod.group);
+      town.lod.dispose();
+      town.lod = null;
+    }
+    if (group.userData.town === town) delete group.userData.town;
+    delete group.userData.neighbours;
   }
 
   /**
-   * The neighbours, one lot at a time once the page is idle and the view
-   * stands still: the porch or the garden is on screen first, then the
-   * street fills in, and no frame waits on it. After the last lot, the
-   * places a click would build next are built ahead (warmPlaces).
+   * Which lots are built in full: the nearest LOT_DETAIL houses within
+   * LOT_REACH of where you are (walking) or what the camera looks at, and
+   * open lots close by. Checked whenever that spot has moved a few metres;
+   * new ones are built one at a time while the page is idle (see pumpLots),
+   * far ones are let go and the town's simple house shows in their place.
    */
-  private buildLater(group: THREE.Object3D, jobs: (() => THREE.Object3D)[], key: string): void {
-    const alive = () => group.userData.streetKey === key;
-    this.idleRun(
-      [
-        ...jobs.map((job) => async () => {
-          // Built and merged in a few milliseconds; its shaders compile against this scene before it joins, so no frame waits on it.
-          const lot = job();
-          await compileQuietly(this.renderer, lot, this.camera, this.scene);
-          if (this.disposed || !alive()) return;
-          group.add(lot);
-          delete group.userData.neighbours;
-          this.refreshBlockers();
-          this.invalidate();
-        }),
-        () => this.warmPlaces(),
-      ],
-      alive,
-    );
+  private updateDetail(force = false): void {
+    const group = this.garden?.group;
+    const town = group?.userData.town as Town | undefined;
+    if (!group || !town) return;
+    const at = this.walk.on ? { x: this.walk.x, z: this.walk.z } : { x: this.orbit.target.x, z: this.orbit.target.z };
+    if (!force && town.from && Math.hypot(at.x - town.from.x, at.z - town.from.z) < 3) return;
+    town.from = at;
+    const dist = (i: number) => {
+      const c = houseCenter(town.street.lots[i]);
+      return Math.hypot(c.x - at.x, c.z - at.z);
+    };
+    const order = town.street.lots.map((_, i) => i).sort((p, q) => dist(p) - dist(q));
+    const want = new Set<number>();
+    for (const i of order) {
+      if (want.size >= LOT_DETAIL) break;
+      const d = dist(i);
+      if (town.who[i] ? d <= LOT_REACH : d <= LOT_OPEN_REACH) want.add(i);
+    }
+    // Let go of the far ones; bring back any kept from before.
+    for (const [i, lot] of town.built)
+      if (!want.has(i) && dist(i) > LOT_DROP) {
+        group.remove(lot);
+        town.built.delete(i);
+        town.parked.set(i, lot);
+        town.lod?.show(i, true);
+      }
+    for (const i of want)
+      if (!town.built.has(i) && town.parked.has(i)) {
+        const lot = town.parked.get(i)!;
+        town.parked.delete(i);
+        town.built.set(i, lot);
+        group.add(lot);
+        town.lod?.show(i, false);
+      }
+    while (town.parked.size > LOT_KEEP) {
+      const [i, lot] = [...town.parked.entries()].sort((p, q) => dist(q[0]) - dist(p[0]))[0];
+      town.parked.delete(i);
+      for (const g of (lot.userData.geos as THREE.BufferGeometry[] | undefined) ?? []) g.dispose();
+    }
+    town.queue = [...want].filter((i) => !town.built.has(i));
+    delete group.userData.neighbours;
+    this.pumpLots(group, town);
+  }
+
+  /** Builds the next wanted lot, nearest first, in an idle moment; its shaders compile against the scene before it joins. A walk waits less between lots than a drag. */
+  private pumpLots(group: THREE.Object3D, town: Town): void {
+    if (town.busy) return;
+    if (!town.queue.length) {
+      if (!town.warmed) {
+        town.warmed = true;
+        this.warmPlaces();
+      }
+      return;
+    }
+    town.busy = true;
+    const idle = (fn: () => void) => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 1200 }) : window.setTimeout(fn, 60));
+    let held = 0;
+    const next = async () => {
+      if (this.disposed || group.userData.town !== town) return;
+      // Walking, a lot comes every 1.5 s at most (each is a short task); the simple house stands there meanwhile.
+      const hold = this.walk.on ? 1500 : 2500;
+      if (this.compiling || this.needsCompile || (this.wasMoving && held < hold)) {
+        held += 120;
+        window.setTimeout(() => idle(() => void next()), 120);
+        return;
+      }
+      const i = town.queue.shift();
+      if (i === undefined || town.built.has(i)) {
+        town.busy = false;
+        this.pumpLots(group, town);
+        return;
+      }
+      const lot = town.street.lot(i, town.who[i] ?? null);
+      await compileQuietly(this.renderer, lot, this.camera, this.scene);
+      if (this.disposed || group.userData.town !== town) return;
+      town.built.set(i, lot);
+      group.add(lot);
+      lot.updateMatrixWorld(true);
+      lot.matrixWorldAutoUpdate = false;
+      town.lod?.show(i, false);
+      delete group.userData.neighbours;
+      this.invalidate();
+      town.busy = false;
+      this.pumpLots(group, town);
+    };
+    this.firstFrame.then(() => idle(() => void next()));
   }
 
   /**
@@ -1118,11 +1235,11 @@ export class HouseView {
   /** Everything solid on the street now: your house, and every lot with a house on it. */
   private refreshBlockers(): void {
     const lots: StreetLot[] = [{ x: 0, across: false, house: true, drive: 1, own: true }];
-    this.garden?.group.traverse((o) => {
-      const lot = o.userData.lot as StreetLot | undefined;
-      if (lot) lots.push(lot);
-    });
-    this.blockers = lots.flatMap(lotBlockers);
+    const town = this.garden?.group.userData.town as Town | undefined;
+    town?.street.lots.forEach((l, i) => lots.push({ x: l.x, across: l.across, row: l.row, drive: l.x < 0 ? -1 : 1, house: !!town.who[i] }));
+    const end = town ? rowMid(rowsFor(town.who.length) - 1) + 30 : 0;
+    const posts: Rect[] = town?.street.city ? [...STREET_TREES, ...STREET_LAMPS].filter((p) => p.z < end).map((p) => ({ x0: p.x - 0.2, x1: p.x + 0.2, z0: p.z - 0.2, z1: p.z + 0.2 })) : [];
+    this.blockers = lots.flatMap(lotBlockers).concat(posts);
   }
 
   /**
@@ -1155,12 +1272,17 @@ export class HouseView {
     }
   }
 
-  private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void; street?: (neighbours: StreetNeighbour[]) => (() => THREE.Object3D)[] }): void {
+  private showOutdoors(key: string, make: () => { group: THREE.Group; dispose(): void; street?: Street }): void {
     const b = this.keep(key, () => {
       const made = make();
       return { group: made.group, dispose: made.dispose, lights: this.takeLights(made.group), street: made.street };
     });
     this.outdoors = b;
+    if (!b.group.userData.frozen) {
+      b.group.userData.frozen = true;
+      b.group.updateMatrixWorld(true);
+      freezeStatic(b.group);
+    }
     this.fillStreet(b);
     this.garden = { group: b.group as THREE.Group, own: [], dispose: () => undefined };
     this.sceneLights = b.lights;
@@ -1229,6 +1351,8 @@ export class HouseView {
       return true;
     };
     const hit = this.raycaster.intersectObject(this.garden.group, true).find((h) => shown(h.object));
+    const far = hit?.object.userData.cityWho as StreetNeighbour[] | undefined;
+    if (far && hit?.instanceId !== undefined && far[hit.instanceId]) return { kind: "neighbour", name: far[hit.instanceId].name, styleId: far[hit.instanceId].styleId };
     let o: THREE.Object3D | null = hit?.object ?? null;
     while (o && o !== this.garden.group) {
       if (typeof o.userData.gardenUnit === "number") return { kind: "bed", unit: o.userData.gardenUnit };

@@ -22,25 +22,29 @@ export interface StreetLot {
   drive: 1 | -1;
   /** Your own lot: a picket fence with a gate, not a hedge. */
   own?: boolean;
+  /** Which street in town (city.ts); 0, yours, when left out. */
+  row?: number;
 }
 
-/** Lots are this far apart, middle to middle (garden.ts LOT). */
-export const LOT_PITCH = 16;
-/** The middle of the road (garden.ts STREET_MID). */
-export const STREET_MID = 11.6;
+import { EDGE_X, LOT, ROW_PITCH, ROWS, STREET_MID } from "./city";
+
+/** Lots are this far apart, middle to middle (city.ts LOT). */
+export const LOT_PITCH = LOT;
+export { STREET_MID };
 /** A house's footprint on its lot, porch and steps included, with a little room round it. */
 const HOUSE = { halfW: 5.9, zBack: -15.1, zFront: -4.1 };
 const DOOR_X = 1.0;
 const FENCE_Z = 4.75;
 const DRIVE_X = 6.95;
-/** How far along the street and back from it a character may walk. */
-export const STREET_BOUNDS: Rect = { x0: -58, x1: 58, z0: -17, z1: 2 * STREET_MID + 17 };
+/** How far a character may walk: the whole town, to the far side of the road round its edge. */
+export const STREET_BOUNDS: Rect = { x0: -EDGE_X - 5, x1: EDGE_X + 5, z0: -17, z1: 2 * STREET_MID + ROW_PITCH * (ROWS - 1) + 17 };
 
-/** A rect on a lot, placed in the world: moved along the street, and turned round across it. */
+/** A rect on a lot, placed in the world: moved along the street and to its street in town, and turned round across it. */
 function placed(lot: StreetLot, r: Rect): Rect {
-  if (!lot.across) return { x0: r.x0 + lot.x, x1: r.x1 + lot.x, z0: r.z0, z1: r.z1 };
+  const off = ROW_PITCH * (lot.row ?? 0);
+  if (!lot.across) return { x0: r.x0 + lot.x, x1: r.x1 + lot.x, z0: r.z0 + off, z1: r.z1 + off };
   // Across the road the lot is turned half round: x and z both mirror.
-  return { x0: lot.x - r.x1, x1: lot.x - r.x0, z0: 2 * STREET_MID - r.z1, z1: 2 * STREET_MID - r.z0 };
+  return { x0: lot.x - r.x1, x1: lot.x - r.x0, z0: 2 * STREET_MID + off - r.z1, z1: 2 * STREET_MID + off - r.z0 };
 }
 
 /**

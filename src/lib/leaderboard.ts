@@ -1,4 +1,6 @@
 import { HOUSE_STYLES } from "@/data/house-catalog";
+import { CITY_LOTS } from "@/lib/house3d/city";
+import { sanitizePlots } from "@/lib/world";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { schoolModeNow } from "@/lib/school-mode";
 import { sanitizeAvatar } from "@/lib/avatar";
@@ -43,6 +45,7 @@ export async function syncLeaderboardStats(
     leaderboardOptIn: boolean;
     houseStyle?: string | null;
     avatar?: AvatarSpec | null;
+    cityPlots?: { city: string; plot: string }[];
   }
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
@@ -65,7 +68,7 @@ export async function syncLeaderboardStats(
   // The street's columns, newest last: a database behind the app (a column
   // missing, a house style its check does not know yet) refuses the row,
   // names what it refused, and that column is left out from then on.
-  const street: Record<string, unknown> = { house_style: style, avatar: snapshot.avatar ?? null };
+  const street: Record<string, unknown> = { house_style: style, avatar: snapshot.avatar ?? null, city_plots: snapshot.cityPlots?.length ? snapshot.cityPlots : null };
   for (let tries = 0; tries <= STREET_COLUMNS.length; tries += 1) {
     const extra: Record<string, unknown> = {};
     for (const col of STREET_COLUMNS) if (!missingColumns.has(col)) extra[col] = street[col];
@@ -77,7 +80,7 @@ export async function syncLeaderboardStats(
   }
 }
 
-const STREET_COLUMNS = ["house_style", "avatar"] as const;
+const STREET_COLUMNS = ["house_style", "avatar", "city_plots"] as const;
 /** Columns of leaderboard_stats this database turned out not to have (or not to accept) during this session. */
 const missingColumns = new Set<string>();
 
@@ -127,7 +130,7 @@ export function pickNeighbours(rows: { name: string; styleId: string; avatar?: u
  * else is on the board yet: the street then has open lots, never houses
  * that belong to nobody.
  */
-export async function fetchNeighbours(count = 13): Promise<Neighbour[]> {
+export async function fetchNeighbours(count = CITY_LOTS.length): Promise<Neighbour[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = createClient();
   if (!supabase) return [];
@@ -136,7 +139,7 @@ export async function fetchNeighbours(count = 13): Promise<Neighbour[]> {
   if (!me) return [];
   // The most recently active students first, then a fixed pick among them.
   const read = (from: string, columns: string) =>
-    supabase.from(from).select(columns).eq("leaderboard_opt_in", true).not("house_style", "is", null).order("updated_at", { ascending: false }).limit(80);
+    supabase.from(from).select(columns).eq("leaderboard_opt_in", true).order("updated_at", { ascending: false }).limit(200);
   // With characters (schema-2026-10-09-street.sql), or without them on a database before that.
   let res = await read(LEADERBOARD_VIEW, "display_name, house_style, avatar, is_me");
   if (res.error) res = await read(LEADERBOARD_VIEW, "display_name, house_style, is_me");
@@ -146,7 +149,8 @@ export async function fetchNeighbours(count = 13): Promise<Neighbour[]> {
   type Row = { display_name: string | null; house_style: string | null; avatar?: unknown; is_me?: boolean; user_id?: string };
   const rows = (res.data as unknown as Row[])
     .filter((r) => !r.is_me && r.user_id !== me)
-    .map((r) => ({ name: publicLeaderboardName(r.display_name), styleId: r.house_style ?? "", avatar: r.avatar }));
+    // Everyone on the board has a house: a student who never moved has the cottage they started in.
+    .map((r) => ({ name: publicLeaderboardName(r.display_name), styleId: r.house_style || "cottage", avatar: r.avatar }));
   return pickNeighbours(rows, me, count);
 }
 
@@ -254,3 +258,38 @@ export async function fetchMyStanding(
   if (res.error) res = await ahead(LEADERBOARD_TABLE);
   return { rank: (res.count ?? 0) + 1, value };
 }
+
+/** Someone with a house in a city: their name, their house style, and the plot it stands on. */
+export interface CityResident {
+  name: string;
+  styleId: string;
+  plot: string;
+}
+
+/**
+ * Who else has a house in this city: other students on the board who
+ * bought a plot there (schema-2026-10-11-city-plots.sql). Empty when signed
+ * out or before that migration; several students may share a plot, and the
+ * city shows the first.
+ */
+export async function fetchCityResidents(cityId: string): Promise<CityResident[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = createClient();
+  if (!supabase) return [];
+  const { data: auth } = await supabase.auth.getUser();
+  const me = auth.user?.id;
+  if (!me) return [];
+  const read = (from: string, columns: string) => supabase.from(from).select(columns);
+  let res = await read(LEADERBOARD_VIEW, "display_name, house_style, city_plots, is_me").eq("leaderboard_opt_in", true).not("city_plots", "is", null).limit(400);
+  if (res.error) res = await read(LEADERBOARD_TABLE, "display_name, house_style, city_plots, user_id").eq("leaderboard_opt_in", true).not("city_plots", "is", null).limit(400);
+  if (res.error || !res.data) return [];
+  type Row = { display_name: string | null; house_style: string | null; city_plots: unknown; is_me?: boolean; user_id?: string };
+  const out: CityResident[] = [];
+  for (const r of res.data as unknown as Row[]) {
+    if (r.is_me || r.user_id === me) continue;
+    const styleId = r.house_style && STREET_STYLES.has(r.house_style) ? r.house_style : "cottage";
+    for (const p of sanitizePlots(r.city_plots)) if (p.city === cityId) out.push({ name: publicLeaderboardName(r.display_name), styleId, plot: p.plot });
+  }
+  return out;
+}
+
