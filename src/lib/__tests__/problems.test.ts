@@ -22,6 +22,7 @@ Object.assign(globalThis, {
 });
 
 const { COURSES } = await import("../../data/curriculum.ts");
+const { sourceId } = await import("../../data/skill-source.ts");
 const { algebra2Checks } = await import("./algebra2-checks.ts");
 // COURSE=algebra-2 npm run test:problems reads one course; the default reads every course.
 const only = process.env.COURSE;
@@ -1670,7 +1671,7 @@ function rootCheck(p: any): string | null | "unread" {
           planted++;
           let r: string | null | "unread";
           try {
-            r = checks[skill.id](v);
+            r = checks[sourceId(skill.id)](v);
           } catch {
             r = "threw";
           }
@@ -1762,7 +1763,7 @@ let unread = 0;
 const shown = new Map<string, number>();
 for (const unit of units) {
   for (const skill of unit.skills) {
-    const check = checks[skill.id];
+    const check = checks[sourceId(skill.id)];
     if (!check) {
       console.log("  FAIL: no checker for", skill.id);
       failures++;
@@ -1834,14 +1835,14 @@ console.log(`\n${checked} generated problems worked out independently: ${failure
   const missing: string[] = [];
   for (const unit of units) {
     for (const skill of unit.skills) {
-      const list = WORKED_EXAMPLES[skill.id] ?? [];
+      const list = WORKED_EXAMPLES[sourceId(skill.id)] ?? [];
       if (list.length < 2) missing.push(skill.id);
       for (const ex of list) {
         read++;
         const card = { id: "worked", hint: "-", explanation: ex.steps.map((s) => s.work).join(" → "), ...ex.card };
         let result: string | null | "unread";
         try {
-          result = checks[skill.id] ? checks[skill.id](card) : "no checker";
+          result = checks[sourceId(skill.id)] ? checks[sourceId(skill.id)](card) : "no checker";
         } catch (e) {
           result = `could not be worked out: ${(e as Error).message}`;
         }

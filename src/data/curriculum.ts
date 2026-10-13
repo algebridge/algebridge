@@ -1,6 +1,7 @@
 import type { Unit } from "@/types";
 import { SKILL_VIDEOS } from "@/data/videos";
 import { algebra2Units } from "@/data/algebra2";
+import { COPY_PREFIX } from "@/data/skill-source";
 
 // Each skill's lesson video lives in src/data/videos.ts, the one verified list.
 
@@ -776,8 +777,42 @@ export interface Course {
  */
 export const COURSES: Course[] = [
   { id: "algebra-1", title: "Algebra 1", units },
-  { id: "algebra-2", title: "Algebra 2", units: algebra2Units },
+  { id: "algebra-2", title: "Algebra 2", units: algebra2Course() },
 ];
+
+/** An Algebra 1 unit taught again in Algebra 2, under its own ids (see skill-source.ts). */
+function fromAlgebra1(unitId: string): Unit {
+  const unit = units.find((u) => u.id === unitId)!;
+  return {
+    ...unit,
+    id: COPY_PREFIX + unit.id,
+    description: `From Algebra 1, the base Algebra 2 builds on. ${unit.description}`,
+    skills: unit.skills.map((s) => ({
+      ...s,
+      id: COPY_PREFIX + s.id,
+      problems: s.problems.map((p) => ({ ...p, id: COPY_PREFIX + p.id })),
+    })),
+  };
+}
+
+/**
+ * Algebra 2 in teaching order: functions, piecewise and systems first, the
+ * Algebra 1 factoring unit right before polynomials. Units are numbered by
+ * their place here, which the unit pages' prev/next rely on.
+ */
+function algebra2Course(): Unit[] {
+  const own = (id: string) => algebra2Units.find((u) => u.id === id)!;
+  const order = [
+    fromAlgebra1("functions"),
+    fromAlgebra1("absolute-value-piecewise"),
+    fromAlgebra1("systems-equations"),
+    own("square-roots-to-i"),
+    own("complex-numbers"),
+    fromAlgebra1("quadratics-factoring"),
+    ...algebra2Units.filter((u) => !["square-roots-to-i", "complex-numbers"].includes(u.id)),
+  ];
+  return order.map((u, i) => ({ ...u, number: i + 1 }));
+}
 
 export function allUnits(): Unit[] {
   return COURSES.flatMap((c) => c.units);

@@ -1,4 +1,5 @@
 import { units } from "@/data/curriculum";
+import { sourceId } from "@/data/skill-source";
 
 /**
  * A line drawing for each unit: the idea of the unit in one stroke, the way a
@@ -124,6 +125,13 @@ const MARKS: Record<string, React.ReactNode> = {
   ),
 
   // Algebra 2
+  // A radical sign over a small square: the root of a square.
+  "square-roots-to-i": (
+    <>
+      <path d="M3 13l3 0 3 7 5-16h7" />
+      <rect x="15" y="8" width="5" height="5" />
+    </>
+  ),
   // The complex plane: a point off the real line.
   "complex-numbers": (
     <>
@@ -186,7 +194,7 @@ const MARKS: Record<string, React.ReactNode> = {
 
 /** A unit's mark as bare paths on the 24-grid, to draw inside a larger SVG (a certificate's seal). */
 export function unitMarkPaths(unitId: string): React.ReactNode {
-  return MARKS[unitId] ?? <circle cx="12" cy="12" r="6" />;
+  return MARKS[sourceId(unitId)] ?? <circle cx="12" cy="12" r="6" />;
 }
 
 export function UnitMark({ unitId, size = 22, className = "" }: { unitId: string; size?: number; className?: string }) {

@@ -1,6 +1,6 @@
 /**
- * Algebra 2 is open to two people for now: Ivan Dubovyi and Zach Balan, on
- * any of their accounts. Everyone else who finds /algebra-2 (or one of its
+ * Algebra 2 is open to a few people for now: Ivan Dubovyi and Zach Balan, on
+ * any of their accounts, and William Connor. Everyone else who finds /algebra-2 (or one of its
  * unit or lesson pages) gets "page not found".
  *
  * The allowed emails are kept as salted SHA-256 fingerprints, so the
@@ -11,8 +11,9 @@
  *   printf '%s' "algebridge-a2:someone@example.com" | shasum -a 256
  * and add the hash below (email in lower case, no spaces).
  *
- * The six today are Ivan's algebridge.org, personal and school accounts, his
- * Claude account email, and Zach's algebridge.org and personal accounts.
+ * The seven today are Ivan's algebridge.org, personal and school accounts, his
+ * Claude account email, Zach's algebridge.org and personal accounts, and
+ * William Connor's school account.
  *
  * This is a gate in the app, not a vault: the lessons' code ships to every
  * browser like the rest of the site. It keeps the section out of sight.
@@ -24,6 +25,7 @@ export const ALGEBRA2_ACCESS: readonly string[] = [
   "d9f0a586a62f3b37e9f6d2fa8d71939403c683e5c235fb18a06cf62d94d87678",
   "fa6bc15ef24510006dd3fe386bc881e1a2049f63651ddaa5bc87e3ce5d2539c2",
   "258e4a66ad677c5509450920129d75780af16fd8fc3ae56d18eb30391f19cd21",
+  "048206bf6d0b3004fcae6cd933b54b767dd52109d939210a0a528462729c529a",
 ];
 
 export async function fingerprint(email: string): Promise<string> {

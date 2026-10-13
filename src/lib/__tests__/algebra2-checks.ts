@@ -1,6 +1,7 @@
 // Independent solvers for every Algebra 2 generator, one file per unit.
 // Each file exports a function taking the harness helpers and returning
 // checks keyed by skill id, the same contract as the Algebra 1 checks.
+import square_roots_to_i from "./algebra2-checks/square-roots.ts";
 import complex_numbers from "./algebra2-checks/complex-numbers.ts";
 import polynomial_functions from "./algebra2-checks/polynomial-functions.ts";
 import quadratics_revisited from "./algebra2-checks/quadratics-revisited.ts";
@@ -24,5 +25,5 @@ export interface CheckHelpers {
 }
 
 export function algebra2Checks(h: CheckHelpers): Checks {
-  return Object.assign({}, complex_numbers(h), polynomial_functions(h), quadratics_revisited(h), rational_expressions(h), radicals_rational_exponents(h), exponential_logarithmic(h), sequences_series(h), trigonometry(h));
+  return Object.assign({}, square_roots_to_i(h), complex_numbers(h), polynomial_functions(h), quadratics_revisited(h), rational_expressions(h), radicals_rational_exponents(h), exponential_logarithmic(h), sequences_series(h), trigonometry(h));
 }

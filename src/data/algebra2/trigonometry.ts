@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "trigonometry",
-  number: 8,
+  number: 9,
   title: "Trigonometry",
   description: "Radians, the unit circle, and reference angles.",
   icon: "",

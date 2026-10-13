@@ -1,4 +1,5 @@
 import type { Video } from "@/types";
+import { sourceId } from "@/data/skill-source";
 
 /**
  * One lesson video per skill, each chosen because it teaches that skill's
@@ -437,11 +438,11 @@ export const BACKUP_VIDEOS: Record<string, Video> = {
 };
 
 export function getVideoForSkill(skillId: string, fallback?: Video): Video {
-  return SKILL_VIDEOS[skillId] ?? fallback!;
+  return SKILL_VIDEOS[sourceId(skillId)] ?? fallback!;
 }
 
 export function getBackupVideoForSkill(skillId: string): Video | undefined {
-  return BACKUP_VIDEOS[skillId];
+  return BACKUP_VIDEOS[sourceId(skillId)];
 }
 
 export function youtubeWatchUrl(youtubeId: string): string {

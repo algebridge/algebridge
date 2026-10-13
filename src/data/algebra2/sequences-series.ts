@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "sequences-series",
-  number: 7,
+  number: 8,
   title: "Sequences & Series",
   description: "Add up arithmetic and geometric sequences, and read sigma notation.",
   icon: "",

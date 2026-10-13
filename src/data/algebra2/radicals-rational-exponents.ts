@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "radicals-rational-exponents",
-  number: 5,
+  number: 6,
   title: "Radicals & Rational Exponents",
   description: "Cube roots and beyond, exponents that are fractions, and equations with a root in them.",
   icon: "",

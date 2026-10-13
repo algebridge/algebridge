@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "quadratics-revisited",
-  number: 3,
+  number: 4,
   title: "Quadratics Revisited",
   description: "Vertex form, the discriminant, and systems that mix a line with a parabola.",
   icon: "",

@@ -19,6 +19,7 @@ import {
   withUniqueChoices,
 } from "@/lib/problem-utils";
 import { ALGEBRA2_GENERATORS } from "@/data/algebra2-generators";
+import { sourceId } from "@/data/skill-source";
 
 /*
  * Every generator draws its numbers from the seeded random source (randInt),
@@ -7447,8 +7448,8 @@ export function generateProblemBank(
   seed = 0
 ): PracticeProblem[] {
   return withSeededGeneration((hashString(skillId) ^ seed) >>> 0, () => {
-    const generator = generators[skillId];
-    const bank = generator ? generator(seedProblems) : genericNumericGenerator(skillId, seedProblems);
+    const generator = generators[sourceId(skillId)];
+    const bank = generator ? generator(seedProblems) : genericNumericGenerator(sourceId(skillId), seedProblems);
     // Hand-written problems keep the order their choices were typed in, which
     // put the answer first on most of them. Shuffled here, from the same seed,
     // so the server rebuilding this bank sees the same order.

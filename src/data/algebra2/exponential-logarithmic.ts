@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "exponential-logarithmic",
-  number: 6,
+  number: 7,
   title: "Exponential & Logarithmic Functions",
   description: "Logarithms undo exponents: evaluate them, use their properties, and solve exponential equations.",
   icon: "",

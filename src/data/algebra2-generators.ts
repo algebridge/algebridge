@@ -1,4 +1,5 @@
 import type { PracticeProblem } from "@/types";
+import { generators as square_roots_to_i } from "@/data/algebra2/square-roots.generators";
 import { generators as complex_numbers } from "@/data/algebra2/complex-numbers.generators";
 import { generators as polynomial_functions } from "@/data/algebra2/polynomial-functions.generators";
 import { generators as quadratics_revisited } from "@/data/algebra2/quadratics-revisited.generators";
@@ -10,6 +11,7 @@ import { generators as trigonometry } from "@/data/algebra2/trigonometry.generat
 
 /** Every Algebra 2 generator, keyed by skill id, merged into the main registry. */
 export const ALGEBRA2_GENERATORS: Record<string, (seeds: PracticeProblem[]) => PracticeProblem[]> = {
+  ...square_roots_to_i,
   ...complex_numbers,
   ...polynomial_functions,
   ...quadratics_revisited,

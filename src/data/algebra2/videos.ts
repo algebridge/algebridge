@@ -17,6 +17,35 @@ import type { Video } from "@/types";
  * 85% of its length, so nothing longer than 15:00 is allowed).
  */
 export const A2_VIDEOS: Record<string, Video> = {
+  // Square Roots, up to i (sourced October 11, 2026, same checks)
+  "square-roots": {
+    id: "a2v-square-roots",
+    title: "What is a Square Root and a Perfect Square?",
+    channel: "Mashup Math",
+    duration: "6:37",
+    youtubeId: "B-Sfvry_h3Q",
+  },
+  "negative-square-roots": {
+    id: "a2v-negative-square-roots",
+    title: "How To Find The Square Root of a Negative Number",
+    channel: "The Organic Chemistry Tutor",
+    duration: "8:04",
+    youtubeId: "BkxCfa5CDe4",
+  },
+  "simplify-square-roots": {
+    id: "a2v-simplify-square-roots",
+    title: "How To Simplify Square Roots",
+    channel: "The Organic Chemistry Tutor",
+    duration: "10:46",
+    youtubeId: "wSBxW7LW3DA",
+  },
+  "operations-square-roots": {
+    id: "a2v-operations-square-roots",
+    title: "Adding and Subtracting Radical Expressions With Square Roots and Cube Roots",
+    channel: "The Organic Chemistry Tutor",
+    duration: "11:19",
+    youtubeId: "83wXAgwcWH0",
+  },
   // Complex Numbers
   "imaginary-unit": {
     id: "a2v-imaginary-unit",

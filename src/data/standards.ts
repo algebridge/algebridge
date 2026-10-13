@@ -1,3 +1,5 @@
+import { sourceId } from "@/data/skill-source";
+
 /**
  * Which Common Core State Standards for Mathematics (CCSS-M) each AlgeBridge
  * skill teaches. Delaware adopted the CCSS-M as its state math standards in
@@ -353,39 +355,48 @@ export const SKILL_STANDARDS: Record<string, string[]> = {
   "linear-vs-exponential": ["HSF-LE.A.1.a", "HSF-LE.A.1.b", "HSF-LE.A.1.c", "HSF-LE.A.2", "HSF-LE.A.3"],
 
   // ======== Algebra 2 (src/data/algebra2/) ========
-  // ---- Unit 1: Complex Numbers ----
+  // ---- Unit 1: Square Roots, up to i ----
+  // Square and square roots of perfect squares, estimating irrational roots,
+  // x² = p with both signs (8.EE.A.2, reviewed); x² = −n having no real
+  // solution leads into N-CN.A.1. Simplifying and multiplying roots rest on
+  // the properties of exponents for rational exponents (N-RN.A.2).
+  "square-roots": ["8.EE.A.2", "HSA-REI.B.4.b"],
+  "negative-square-roots": ["HSA-REI.B.4.b"],
+  "simplify-square-roots": ["HSN-RN.A.2"],
+  "operations-square-roots": ["HSN-RN.A.2"],
+  // ---- Unit 2: Complex Numbers ----
   "imaginary-unit": ["HSN-CN.A.1"],
   "complex-arithmetic": ["HSN-CN.A.2"],
   "complex-roots": ["HSN-CN.C.7", "HSA-REI.B.4.b"],
-  // ---- Unit 2: Polynomial Functions ----
+  // ---- Unit 3: Polynomial Functions ----
   // Degree, leading coefficient and end behavior in words. The standard that
   // names end behavior (HSF-IF.C.7.c) asks for the graph, see NOT_CLAIMED.
   "polynomial-end-behavior": [],
   "polynomial-division": ["HSA-APR.D.6", "HSA-APR.B.2"],
   "remainder-factor-theorem": ["HSA-APR.B.2"],
-  // ---- Unit 3: Quadratics Revisited ----
+  // ---- Unit 4: Quadratics Revisited ----
   "vertex-form": ["HSF-IF.C.8.a", "HSA-SSE.B.3.b"],
   "discriminant": ["HSA-REI.B.4.b"],
   "linear-quadratic-systems": ["HSA-REI.C.7"],
-  // ---- Unit 4: Rational Expressions & Equations ----
+  // ---- Unit 5: Rational Expressions & Equations ----
   "simplify-rational": ["HSA-APR.D.7", "HSA-SSE.A.2"],
   "multiply-divide-rational": ["HSA-APR.D.7"],
   "rational-equations": ["HSA-REI.A.2"],
-  // ---- Unit 5: Radicals & Rational Exponents ----
+  // ---- Unit 6: Radicals & Rational Exponents ----
   "nth-roots": ["HSN-RN.A.2", "8.EE.A.2"],
   "rational-exponents-evaluate": ["HSN-RN.A.1", "HSN-RN.A.2"],
   "radical-equations": ["HSA-REI.A.2"],
-  // ---- Unit 6: Exponential & Logarithmic Functions ----
+  // ---- Unit 7: Exponential & Logarithmic Functions ----
   "log-basics": ["HSF-BF.B.5", "HSF-LE.A.4"],
   "log-properties": ["HSF-BF.B.5"],
   "solve-exponential-equations": ["HSF-LE.A.4", "HSF-BF.B.5"],
-  // ---- Unit 7: Sequences & Series ----
+  // ---- Unit 8: Sequences & Series ----
   // Summing an arithmetic sequence leans on its explicit formula (HSF-BF.A.2);
   // the series standard CCSS-M names is the geometric one.
   "arithmetic-series": ["HSF-BF.A.2"],
   "geometric-series": ["HSA-SSE.B.4"],
   "sigma-notation": ["HSA-SSE.B.4"],
-  // ---- Unit 8: Trigonometry ----
+  // ---- Unit 9: Trigonometry ----
   "radians-degrees": ["HSF-TF.A.1"],
   "unit-circle-values": ["HSF-TF.A.2", "HSF-TF.A.3"],
   "reference-angles": ["HSF-TF.A.2", "HSF-TF.C.8"],
@@ -490,7 +501,7 @@ export const NOT_CLAIMED: NotClaimed[] = [
 
 /** The standards a skill teaches, in the order listed. */
 export function standardsForSkill(skillId: string): Standard[] {
-  return (SKILL_STANDARDS[skillId] ?? [])
+  return (SKILL_STANDARDS[sourceId(skillId)] ?? [])
     .map((code) => STANDARDS[code])
     .filter((s): s is Standard => Boolean(s));
 }

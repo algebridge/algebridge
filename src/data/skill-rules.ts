@@ -1,3 +1,5 @@
+import { sourceId } from "@/data/skill-source";
+
 /**
  * The golden rules and patterns of each skill, shown beside the problem as
  * notes: the thing a teacher would write in the margin. Each rule is one
@@ -245,6 +247,29 @@ export const SKILL_RULES: Record<string, SkillRule[]> = {
   ],
 
   // ===================== Algebra 2 =====================
+  "square-roots": [
+    { rule: "√n asks which number times itself makes n.", example: "√81 = 9, since 9 × 9 = 81" },
+    { rule: "The √ sign alone means the positive root.", example: "√25 = 5, and -5 is written −√25" },
+    { rule: "x² = n (n positive) has two solutions: x = ±√n.", example: "x² = 36 → x = 6 or x = -6" },
+    { rule: "Estimate a root between the perfect squares around it.", example: "25 < 30 < 36, so √30 is between 5 and 6" },
+  ],
+  "negative-square-roots": [
+    { rule: "A minus outside the root comes after the root.", example: "−√64 = −8" },
+    { rule: "Exponents come before a minus in front; parentheses change that.", example: "−5² = −25 and (−5)² = 25" },
+    { rule: "Every real number squared is zero or positive, so √(−n) is not a real number.", example: "√(−9): 3² = 9 and (−3)² = 9, neither is −9" },
+    { rule: "x² = −n has no real solution. Unit 2 builds the number i to solve it.", example: "x² = −4 → no real x; with i, x = ±2i" },
+  ],
+  "simplify-square-roots": [
+    { rule: "Split n into the largest perfect square times what is left.", example: "√72 = √(36 · 2)" },
+    { rule: "The perfect square's root comes out front; the rest stays inside.", example: "√(36 · 2) = 6√2" },
+    { rule: "Fully simplified: no perfect-square factor above 1 left inside.", example: "2√18 still has 9 inside: 2√18 = 6√2" },
+  ],
+  "operations-square-roots": [
+    { rule: "Like roots add like like terms: add the numbers in front, keep the root.", example: "3√5 + 4√5 = 7√5" },
+    { rule: "Multiply under one root, then simplify: √a · √b = √(ab) for a, b ≥ 0.", example: "√2 · √18 = √36 = 6" },
+    { rule: "Squaring undoes a root: (√n)² = n, and (a√n)² = a² · n.", example: "(3√2)² = 9 · 2 = 18" },
+    { rule: "The product rule needs a, b ≥ 0. Negative roots wait for i.", example: "√(−4) · √(−9) = 2i · 3i = −6, not √36 = 6" },
+  ],
   "imaginary-unit": [
     { rule: "i = √(−1), and i² = −1. That one fact does all the work.", example: "i² = −1, so 5i · 2i = 10i² = −10" },
     { rule: "Pull the i out of a negative root before you do anything else.", example: "√(−36) = √36 · i = 6i" },
@@ -374,5 +399,5 @@ export const SKILL_RULES: Record<string, SkillRule[]> = {
 };
 
 export function rulesForSkill(skillId: string): SkillRule[] {
-  return SKILL_RULES[skillId] ?? [];
+  return SKILL_RULES[sourceId(skillId)] ?? [];
 }

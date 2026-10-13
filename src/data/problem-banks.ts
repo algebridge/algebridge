@@ -3,6 +3,7 @@ import { canonicalPrompt, shuffleArray, withUniqueChoices } from "@/lib/problem-
 import { interleaveByShape, shapeKey } from "@/lib/problem-order";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { problemAllowsCalculator } from "@/lib/calculator-access";
+import { sourceId } from "@/data/skill-source";
 
 const problemBanks = new Map<string, PracticeProblem[]>();
 
@@ -106,6 +107,10 @@ export const CALCULATOR_WITHHELD: ReadonlySet<string> = new Set([
   "solving-by-factoring",
   "completing-square",
   // Algebra 2: exact values and symbol work, done by hand.
+  "square-roots",
+  "negative-square-roots",
+  "simplify-square-roots",
+  "operations-square-roots",
   "imaginary-unit",
   "complex-arithmetic",
   "complex-roots",
@@ -163,8 +168,8 @@ const calculatorBySkill = new Map<string, boolean>();
  * visits.
  */
 export function skillOffersCalculator(skillId: string, seedProblems: PracticeProblem[] = []): boolean {
-  if (CALCULATOR_WITHHELD.has(skillId)) return false;
-  if (CALCULATOR_OFFERED.has(skillId)) return true;
+  if (CALCULATOR_WITHHELD.has(sourceId(skillId))) return false;
+  if (CALCULATOR_OFFERED.has(sourceId(skillId))) return true;
   const known = calculatorBySkill.get(skillId);
   if (known !== undefined) return known;
   const bank = getProblemBank(skillId, seedProblems);

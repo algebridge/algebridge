@@ -11,6 +11,7 @@
  */
 
 import type { CSSProperties } from "react";
+import { sourceId } from "@/data/skill-source";
 
 export interface Hue {
   name: string;
@@ -128,6 +129,7 @@ const UNIT_HUES: Record<string, HueName> = {
   "data-statistics": "yellow",
   "modeling-functions": "red",
   // Algebra 2
+  "square-roots-to-i": "sky",
   "complex-numbers": "violet",
   "polynomial-functions": "emerald",
   "quadratics-revisited": "amber",
@@ -139,7 +141,7 @@ const UNIT_HUES: Record<string, HueName> = {
 };
 
 export function unitHue(unitId: string): Hue {
-  return HUES[UNIT_HUES[unitId] ?? "blue"];
+  return HUES[UNIT_HUES[sourceId(unitId)] ?? "blue"];
 }
 
 /** The interests a student can tap at sign-up, by their label. */

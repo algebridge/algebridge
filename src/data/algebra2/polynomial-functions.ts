@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "polynomial-functions",
-  number: 2,
+  number: 3,
   title: "Polynomial Functions",
   description: "Read a polynomial's degree and end behavior, divide polynomials, and use the remainder and factor theorems.",
   icon: "",

@@ -136,7 +136,7 @@ ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
   // Algebra 2 early access. No real address is written here: the repo is public.
   const { hasAlgebra2Access, fingerprint, ALGEBRA2_ACCESS } = await import("../early-access.ts");
-  ok("algebra 2 has its six fingerprints, all distinct", ALGEBRA2_ACCESS.length === 6 && new Set(ALGEBRA2_ACCESS).size === 6 && ALGEBRA2_ACCESS.every((h) => /^[0-9a-f]{64}$/.test(h)));
+  ok("algebra 2 has its seven fingerprints, all distinct", ALGEBRA2_ACCESS.length === 7 && new Set(ALGEBRA2_ACCESS).size === 7 && ALGEBRA2_ACCESS.every((h) => /^[0-9a-f]{64}$/.test(h)));
   ok("an address is matched in any case, spaces trimmed", (await fingerprint(" Someone@Example.COM ")) === (await fingerprint("someone@example.com")));
   const blocked = ["student@school.edu", "zach@algebridge.org", "a2.tester@example.com", "", null];
   const no = await Promise.all(blocked.map((e) => hasAlgebra2Access(e)));
@@ -158,7 +158,8 @@ ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
   const { SKILL_RULES } = await import("../../data/skill-rules.ts");
   const { allUnits } = await import("../../data/curriculum.ts");
   const ids = allUnits().flatMap((u) => u.skills.map((s) => s.id));
-  const missing = ids.filter((id) => !SKILL_RULES[id]?.length);
+  const { sourceId } = await import("../../data/skill-source.ts");
+  const missing = ids.filter((id) => !SKILL_RULES[sourceId(id)]?.length);
   ok("every skill in both courses has rules to remember", missing.length === 0, missing.join(", "));
   ok("no rules for a skill that does not exist", Object.keys(SKILL_RULES).every((id) => ids.includes(id)));
   ok("rules are short, with no em dash", Object.values(SKILL_RULES).flat().every((r) => r.rule.length <= 140 && !/[—–]/.test(r.rule + (r.example ?? ""))));
@@ -1692,7 +1693,12 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("titles carry no channel name and no em dash", all.every((v) => !v.title.includes(v.channel) && !/[—–]/.test(v.title)));
   // Algebra 2: every skill has its own verified video, none borrowed from Algebra 1.
   const A2 = await import("../../data/algebra2/videos.ts");
-  const a2Skills = allUnits().filter((u) => !units.includes(u)).flatMap((u) => u.skills);
+  const { sourceId, COPY_PREFIX } = await import("../../data/skill-source.ts");
+  const a2All = allUnits().filter((u) => !units.includes(u)).flatMap((u) => u.skills);
+  // Units copied from Algebra 1 keep the Algebra 1 lesson video.
+  const copies = a2All.filter((s) => s.id.startsWith(COPY_PREFIX));
+  const a2Skills = a2All.filter((s) => !s.id.startsWith(COPY_PREFIX));
+  ok("Algebra 1 units in Algebra 2 keep their Algebra 1 videos", copies.length > 0 && copies.every((s) => s.video === V.SKILL_VIDEOS[sourceId(s.id)] && V.getVideoForSkill(s.id) === s.video));
   const a2Videos = Object.values(A2.A2_VIDEOS);
   ok("every Algebra 2 skill has a sourced video", a2Skills.every((s) => A2.A2_VIDEOS[s.id] && s.video === A2.A2_VIDEOS[s.id]), a2Skills.filter((s) => !A2.A2_VIDEOS[s.id]).map((s) => s.id).join(", "));
   ok("Algebra 2 videos have YouTube's 11-character shape and unique ids", a2Videos.every((v) => /^[A-Za-z0-9_-]{11}$/.test(v.youtubeId)) && new Set(a2Videos.map((v) => v.youtubeId)).size === a2Videos.length);
@@ -1709,7 +1715,9 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const skillIds = units.flatMap((u) => u.skills.map((s) => s.id));
   // Both courses' skills may carry standards; the coverage checks below read Algebra 1.
   const known = new Set(allUnits().flatMap((u) => u.skills.map((s) => s.id)));
-  const algebra2Ids = allUnits().flatMap((u) => u.skills.map((s) => s.id)).filter((id) => !known.has(id) || !skillIds.includes(id));
+  const { sourceId } = await import("../../data/skill-source.ts");
+  // Algebra 1 units taught again in Algebra 2 cite their originals' standards.
+  const algebra2Ids = allUnits().flatMap((u) => u.skills.map((s) => sourceId(s.id))).filter((id) => !known.has(id) || !skillIds.includes(id));
   ok("every Algebra 2 skill has a standards entry", algebra2Ids.every((id) => id in S.SKILL_STANDARDS), algebra2Ids.filter((id) => !(id in S.SKILL_STANDARDS)).join(", "));
   ok("an Algebra 2 skill that cites nothing is left off for graphing", algebra2Ids.filter((id) => !S.SKILL_STANDARDS[id]?.length).every((id) => S.NOT_CLAIMED.some((n) => n.skillId === id && S.GRAPHING_STANDARDS.includes(n.code))));
   const cited = Object.values(S.SKILL_STANDARDS).flat();

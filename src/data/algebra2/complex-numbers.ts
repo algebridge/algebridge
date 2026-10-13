@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "complex-numbers",
-  number: 1,
+  number: 2,
   title: "Complex Numbers",
   description: "Meet i, the square root of −1, and do arithmetic with numbers that have a real and an imaginary part.",
   icon: "",

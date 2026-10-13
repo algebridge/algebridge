@@ -3,7 +3,7 @@ import { videoFor } from "@/data/algebra2/shared";
 
 export const unit: Unit = {
   id: "rational-expressions",
-  number: 4,
+  number: 5,
   title: "Rational Expressions & Equations",
   description: "Simplify, multiply and divide fractions with variables, and solve equations that have them.",
   icon: "",
