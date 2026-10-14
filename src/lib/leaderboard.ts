@@ -75,7 +75,12 @@ export async function syncLeaderboardStats(
     const { error } = await supabase.from(LEADERBOARD_TABLE).upsert({ ...row, ...extra }, { onConflict: "user_id" });
     if (!error) return;
     const refused = STREET_COLUMNS.find((col) => !missingColumns.has(col) && new RegExp(col).test(error.message ?? ""));
-    if (!refused) return;
+    if (!refused) {
+      // A refused row used to vanish without a word, which is how the board
+      // froze for weeks before the Oct 11 policy fix. Say so in the console.
+      console.warn("[leaderboard] row refused:", error.code, error.message);
+      return;
+    }
     missingColumns.add(refused);
   }
 }
@@ -249,7 +254,11 @@ export async function fetchMyStanding(
     .eq("user_id", userId)
     .maybeSingle();
   if (!me || !me.leaderboard_opt_in) return null;
-  const value = Number(me[col] ?? 0);
+  // On the view, a student with more than one account has one row with all
+  // of them added up (schema-2026-10-14-leaderboard-merge.sql); that row is
+  // their standing, not this one account's.
+  const { data: mine } = await supabase.from(LEADERBOARD_VIEW).select(col).eq("is_me", true).limit(1).maybeSingle();
+  const value = Number((mine as Record<string, unknown> | null)?.[col] ?? me[col] ?? 0);
   // Counted on the view once the migration has run (the table then shows a
   // student only their own row), on the table before.
   const ahead = (from: string) =>
