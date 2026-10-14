@@ -635,6 +635,7 @@ function CourtSolo({
           continueLabel={two ? "Play on" : game.continueLabel}
           note={game.note}
           label={`${game.sport} problem`}
+          jerseys={gameId === "soccer"}
           turn={dialogTurn}
         />
       )}

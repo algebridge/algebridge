@@ -927,6 +927,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
           continueLabel={cheer ? "See the judges" : "Play on"}
           note={game.note}
           label={`${game.sport} problem`}
+          jerseys={gameId === "soccer"}
           turn={dialogTurn}
         />
       )}
