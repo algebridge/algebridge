@@ -780,36 +780,38 @@ export const COURSES: Course[] = [
   { id: "algebra-2", title: "Algebra 2", units: algebra2Course() },
 ];
 
-/** An Algebra 1 unit taught again in Algebra 2, under its own ids (see skill-source.ts). */
-function fromAlgebra1(unitId: string): Unit {
+/**
+ * Algebra 1 lessons taught again in Algebra 2, under their own ids (see
+ * skill-source.ts): picked skills of one Algebra 1 unit, as a unit of their own.
+ */
+function fromAlgebra1(unitId: string, skillIds: string[], title: string, description: string): Unit {
   const unit = units.find((u) => u.id === unitId)!;
   return {
     ...unit,
     id: COPY_PREFIX + unit.id,
-    description: `From Algebra 1, the base Algebra 2 builds on. ${unit.description}`,
-    skills: unit.skills.map((s) => ({
-      ...s,
-      id: COPY_PREFIX + s.id,
-      problems: s.problems.map((p) => ({ ...p, id: COPY_PREFIX + p.id })),
-    })),
+    title,
+    description,
+    skills: skillIds.map((id) => {
+      const s = unit.skills.find((k) => k.id === id)!;
+      return { ...s, id: COPY_PREFIX + s.id, problems: s.problems.map((p) => ({ ...p, id: COPY_PREFIX + p.id })) };
+    }),
   };
 }
 
 /**
- * Algebra 2 in teaching order: functions, piecewise and systems first, the
- * Algebra 1 factoring unit right before polynomials. Units are numbered by
- * their place here, which the unit pages' prev/next rely on.
+ * Algebra 2 in teaching order: the Algebra 1 square root and exponent rules
+ * first, then the course's own units. Units are numbered by their place here,
+ * which the unit pages' prev/next rely on.
  */
 function algebra2Course(): Unit[] {
-  const own = (id: string) => algebra2Units.find((u) => u.id === id)!;
   const order = [
-    fromAlgebra1("functions"),
-    fromAlgebra1("absolute-value-piecewise"),
-    fromAlgebra1("systems-equations"),
-    own("square-roots-to-i"),
-    own("complex-numbers"),
-    fromAlgebra1("quadratics-factoring"),
-    ...algebra2Units.filter((u) => !["square-roots-to-i", "complex-numbers"].includes(u.id)),
+    fromAlgebra1(
+      "exponents-radicals",
+      ["simplifying-radicals", "exponent-rules"],
+      "Square Roots & Exponent Rules",
+      "From Algebra 1: simplify square roots and use the exponent rules, the base Algebra 2 builds on."
+    ),
+    ...algebra2Units,
   ];
   return order.map((u, i) => ({ ...u, number: i + 1 }));
 }
