@@ -43,13 +43,19 @@ export type OpenReason = "first" | "path" | "started" | "checked" | "assigned" |
 
 export type SkillAccess =
   | { open: true; why: OpenReason }
-  | { open: false; after: PathStep };
+  | { open: false; after: PathStep; byTeacher?: false }
+  /** The student's teacher blocked it, or opens only assigned skills. `after` is the skill itself. */
+  | { open: false; after: PathStep; byTeacher: true };
 
 export interface AccessContext {
   /** Teachers and tutors see the whole course. */
   staff?: boolean;
   /** Skills a teacher assigned to this student. */
   assigned?: ReadonlySet<string>;
+  /** Skills the student's teacher blocked (src/lib/class-controls.ts). */
+  blocked?: ReadonlySet<string>;
+  /** The teacher opens only what they assigned (and what is already finished). */
+  assignedOnly?: boolean;
 }
 
 export function isSkillComplete(p: SkillProgress | undefined): boolean {
@@ -65,8 +71,14 @@ export function skillAccess(progress: UserProgress, skillId: string, ctx: Access
   const at = pathIndex.get(skillId);
   if (at === undefined || ctx.staff) return { open: true, why: "staff" };
   const { path, i } = at;
-  if (i === 0) return { open: true, why: "first" };
   const own = progress.skills[skillId];
+  if (ctx.blocked?.has(skillId)) return { open: false, after: path[i], byTeacher: true };
+  if (ctx.assignedOnly) {
+    if (ctx.assigned?.has(skillId)) return { open: true, why: "assigned" };
+    if (isSkillComplete(own)) return { open: true, why: "started" };
+    return { open: false, after: path[i], byTeacher: true };
+  }
+  if (i === 0) return { open: true, why: "first" };
   if (own?.openedBy === "check") return { open: true, why: "checked" };
   if (hasWorkOn(own)) return { open: true, why: "started" };
   const before = path[i - 1];

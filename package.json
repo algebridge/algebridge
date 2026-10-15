@@ -19,7 +19,8 @@
     "extension:icons": "node extension/scripts/build-icons.mjs",
     "extension:pack": "node extension/scripts/pack.mjs",
     "test:detect:dom": "node extension/test/dom.test.mjs",
-    "test:ui": "node extension/test/ui-harness.mjs"
+    "test:ui": "node extension/test/ui-harness.mjs",
+    "test:classroom": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/classroom.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

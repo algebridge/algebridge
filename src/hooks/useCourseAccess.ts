@@ -3,25 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
-import { assignmentSkillIds } from "@/lib/assignments";
 import { skillAccess, unitIsOpen, type SkillAccess } from "@/lib/path";
 import { getProgress } from "@/lib/progress";
-import { getMyClassesAsStudent } from "@/lib/teacher";
-
-/** One read of a student's class assignments per account, shared by every list on the page. */
-let assignedCache: { userId: string; skills: Promise<Set<string>> } | null = null;
-
-function assignedSkills(userId: string): Promise<Set<string>> {
-  if (assignedCache?.userId !== userId) {
-    assignedCache = {
-      userId,
-      skills: getMyClassesAsStudent()
-        .then((classes) => new Set(classes.flatMap((c) => c.assignments.flatMap(assignmentSkillIds))))
-        .catch(() => new Set<string>()),
-    };
-  }
-  return assignedCache.skills;
-}
+import { CLASS_CONTEXT_EVENT, myClassContext, NO_CLASS_CONTEXT, type MyClassContext } from "@/lib/my-class-context";
 
 /**
  * What of the course this person can open right now. See src/lib/path.ts for
@@ -31,7 +15,7 @@ function assignedSkills(userId: string): Promise<Set<string>> {
 export function useCourseAccess() {
   const { user, profile, loading, progressLoaded } = useAuth();
   const { stats, mounted } = useProgress();
-  const [assigned, setAssigned] = useState<Set<string>>(() => new Set());
+  const [classCtx, setClassCtx] = useState<MyClassContext>(NO_CLASS_CONTEXT);
   // A profile that never loads must not leave the page waiting forever.
   const [waitedOut, setWaitedOut] = useState(false);
 
@@ -43,13 +27,16 @@ export function useCourseAccess() {
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId) {
-      setAssigned(new Set());
+      setClassCtx(NO_CLASS_CONTEXT);
       return;
     }
     let live = true;
-    void assignedSkills(userId).then((skills) => live && setAssigned(skills));
+    const load = () => void myClassContext(userId).then((ctx) => live && setClassCtx(ctx));
+    load();
+    window.addEventListener(CLASS_CONTEXT_EVENT, load);
     return () => {
       live = false;
+      window.removeEventListener(CLASS_CONTEXT_EVENT, load);
     };
   }, [userId]);
 
@@ -58,15 +45,18 @@ export function useCourseAccess() {
   // Re-read whenever progress changes; stats is a new object on every change.
   const progress = useMemo(() => getProgress(), [stats]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const { assigned } = classCtx;
+  const blocked = classCtx.controls.blockedSkills;
+  const assignedOnly = classCtx.controls.assignedOnly;
   return useMemo(
     () => ({
       ready,
       staff,
-      skill: (skillId: string): SkillAccess => skillAccess(progress, skillId, { staff, assigned }),
-      unit: (unitId: string): boolean => unitIsOpen(progress, unitId, { staff, assigned }),
+      skill: (skillId: string): SkillAccess => skillAccess(progress, skillId, { staff, assigned, blocked, assignedOnly }),
+      unit: (unitId: string): boolean => unitIsOpen(progress, unitId, { staff, assigned, blocked, assignedOnly }),
       /** What a student would see, so a teacher can tell what is locked for their class. */
       forStudents: (skillId: string): SkillAccess => skillAccess(progress, skillId, { assigned }),
     }),
-    [ready, staff, progress, assigned]
+    [ready, staff, progress, assigned, blocked, assignedOnly]
   );
 }

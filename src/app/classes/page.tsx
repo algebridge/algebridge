@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
 import { getProgress } from "@/lib/progress";
+import { forgetMyClassContext } from "@/lib/my-class-context";
 import { getMyClassesAsStudent, joinClassByCode, leaveClass, type StudentClass } from "@/lib/teacher";
 import {
   assignmentHref,
@@ -56,13 +57,16 @@ export default function StudentClassesPage() {
     }
     setStatus({ ok: true, text: `You joined ${className}. Your teacher can see your progress now.` });
     setCode("");
+    forgetMyClassContext();
     load();
   }
 
   async function handleLeave(cls: StudentClass) {
     if (!confirm(`Leave ${cls.name}? Your progress stays with you, but your teacher won't see it.`))
       return;
-    await leaveClass(cls.id);
+    const error = await leaveClass(cls.id);
+    if (error) setStatus({ ok: false, text: error });
+    forgetMyClassContext();
     load();
   }
 

@@ -26,6 +26,8 @@ import {
   dueLabel,
 } from "@/lib/assignments";
 import { Icon } from "@/components/Icon";
+import { ClassControlsTab } from "@/components/teacher/ClassControlsTab";
+import { MakeAccounts } from "@/components/teacher/MakeAccounts";
 import { StandardsChip } from "@/components/StandardsChip";
 import { standardsForSkill } from "@/data/standards";
 import type { ClassAssignment, ClassColor, ClassInfo, RosterStudent } from "@/types";
@@ -45,7 +47,7 @@ function colorDot(color: ClassColor): string {
   return COLOR_OPTIONS.find((c) => c.value === color)?.dot ?? "bg-bridge-500";
 }
 
-type Tab = "roster" | "assignments" | "settings";
+type Tab = "roster" | "assignments" | "controls" | "settings";
 
 export default function TeacherDashboardPage() {
   const { user, profile, configured, loading } = useAuth();
@@ -496,6 +498,7 @@ function ClassDetail({
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "roster", label: "Roster", count: roster.length },
     { id: "assignments", label: "Assignments", count: assignments.length },
+    { id: "controls", label: "Controls" },
     { id: "settings", label: "Settings" },
   ];
 
@@ -580,6 +583,8 @@ function ClassDetail({
           onChanged={loadAssignments}
         />
       )}
+
+      {tab === "controls" && <ClassControlsTab classInfo={classInfo} />}
 
       {tab === "settings" && (
         <SettingsTab classInfo={classInfo} onChanged={onChanged} onDeleted={onDeleted} />
@@ -710,6 +715,8 @@ function RosterTab({
           )}
         </div>
       </div>
+
+      <MakeAccounts classInfo={classInfo} onMade={onChanged} />
 
       <div className="panel">
         <div className="panel-head">

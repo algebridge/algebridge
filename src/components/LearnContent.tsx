@@ -207,6 +207,23 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               <div className="hidden h-72 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2 lg:block" />
             </div>
           </div>
+        ) : !state.open && state.byTeacher ? (
+          <section className="panel">
+            <div className="mx-auto max-w-lg px-6 py-10 text-center sm:px-10">
+              <span className="hue-wash mx-auto flex h-12 w-12 items-center justify-center rounded-full">
+                <Icon name="lock" size={22} />
+              </span>
+              <h2 className="mt-4 text-lg font-semibold text-slate-900">Your teacher has this closed for now</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Your class works on what your teacher assigns. Your assignments are on My classes.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <Link href="/classes" className="btn-primary">
+                  My classes
+                </Link>
+              </div>
+            </div>
+          </section>
         ) : !state.open && !looking ? (
           <LockedSkill
             skill={skill}
