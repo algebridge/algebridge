@@ -1649,6 +1649,7 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ok("calls: a ring and a decline go out by REST send (a caller may not join someone else's ring channel)", /await ch\.httpSend\(event, payload\)/.test(social) && /broadcastTo\(`ring-\$\{targetId\}`, "ring", payload\)/.test(social) && /broadcastTo\(`ring-\$\{callerId\}`, "decline"/.test(social) && !/type: "broadcast", event: "ring"/.test(social));
   {
     const room = repo("src/app/room/[roomId]/page.tsx");
+    ok("calls: answering never hangs up (connected video counts as here, a late presence update waits, presence alone drops nobody)", /\[\.\.\.present, \.\.\.connectedIds\]/.test(room) && /\}, 5000\);/.test(room) && /\["failed", "closed"\]\.includes\(p\.pc\.connectionState\)/.test(room) && !/if \(!here\.includes\(id\)\) dropPeer\(id\);/.test(room));
     ok("calls: the room keys on the user id, so a tab refocus or token refresh never hangs up", /\}, \[loading, myId, iAmMember, peopleLoaded, allBlocked\]\);/.test(room) && !/\[loading, user, iAmMember, peopleLoaded/.test(room) && /\[myId, members\]/.test(room));
   }
   ok("send error: social.ts and the group thread use it", /sendErrorText\(/.test(social) && /sendErrorText\(error\)/.test(repo("src/components/GroupThread.tsx")));

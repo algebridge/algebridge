@@ -382,7 +382,11 @@ export default function CallRoomPage() {
           const here = Object.keys(channel.presenceState()).filter((k) => k !== me && otherIds.includes(k) && !skip(k));
           setPresent(here);
           for (const id of here) if (!peersRef.current.has(id) && offersTo(me, id)) void offer(id);
-          for (const id of [...peersRef.current.keys()]) if (!here.includes(id)) dropPeer(id);
+          // Presence lags the video: someone the list leaves out while their
+          // connection is up is still here. "bye" or a failed connection ends it.
+          for (const [id, p] of [...peersRef.current.entries()]) {
+            if (!here.includes(id) && ["failed", "closed"].includes(p.pc.connectionState)) dropPeer(id);
+          }
           if (!here.length) setStatus((s) => (s === "ended" ? s : "waiting"));
         })
         .subscribe((st) => {
@@ -406,16 +410,24 @@ export default function CallRoomPage() {
 
   // Everyone has gone, or (for a student) every tutor has: the call is over.
   const connectedIds = remotes.filter((r) => r.live).map((r) => r.id);
+  // Someone counts as here when presence lists them or their video is
+  // connected: the student's presence list can still be empty the moment
+  // their call connects, which used to hang up as they answered. A short wait
+  // rides out a presence update that comes in late.
   useEffect(() => {
     if (status !== "live" && status !== "waiting") return;
     if (!wasLiveRef.current) return;
-    const tutorsLeft = present.some((id) => isStaffRole(people.get(id)));
-    if (present.length === 0 || (iAmStudent && !tutorsLeft)) {
+    const here = [...new Set([...present, ...connectedIds])];
+    const tutorsLeft = here.some((id) => isStaffRole(people.get(id)));
+    if (here.length > 0 && !(iAmStudent && !tutorsLeft)) return;
+    const t = window.setTimeout(() => {
       setStatus("ended");
       void finalize();
       cleanup(true);
-    }
-  }, [present, status, iAmStudent, people, finalize, cleanup]);
+    }, 5000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [present, connectedIds.join(","), status, iAmStudent, people, finalize, cleanup]);
 
   // Best-effort finalize on a hard tab close (React cleanup may not run).
   useEffect(() => {
