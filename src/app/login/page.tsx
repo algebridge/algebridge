@@ -1,5 +1,6 @@
 "use client";
 
+import { signInEmail } from "@/lib/student-accounts";
 import { GoogleIdButton } from "@/components/GoogleIdButton";
 import Image from "next/image";
 import Link from "next/link";
@@ -127,7 +128,8 @@ function LoginPageInner() {
     }
 
     setSubmitting(true);
-    const err = await signIn(email, password);
+    // A username a teacher handed out signs in as username@students.algebridge.org.
+    const err = await signIn(signInEmail(email), password);
     setSubmitting(false);
     if (err) {
       setError(err);
@@ -481,18 +483,20 @@ function LoginPageInner() {
 
             <div>
               <label htmlFor="email" className="label">
-                Email
+                {mode === "signin" ? "Email or username" : "Email"}
               </label>
               <input
                 id="email"
-                type="email"
+                type={mode === "signin" ? "text" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete={mode === "signin" ? "username" : "email"}
+                autoCapitalize="none"
+                spellCheck={false}
                 disabled={!configured}
                 className="field mt-1"
-                placeholder="you@school.edu"
+                placeholder={mode === "signin" ? "you@school.edu or maria.lopez4821" : "you@school.edu"}
               />
             </div>
             <div>

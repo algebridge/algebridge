@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { loadManagedFlag, updateMyProfile, uploadAvatar } from "@/lib/social";
+import { forgetMyClassContext } from "@/lib/my-class-context";
 import { answerClassInvite, getMyClassInvites, type ClassInvite } from "@/lib/teacher";
 import { setManagedAccount } from "@/lib/school-mode";
 import { useSchoolMode } from "@/components/SchoolModePanel";
@@ -258,6 +259,7 @@ function ClassInvites({ userId }: { userId: string }) {
       return;
     }
     setInvites((list) => (list ?? []).filter((i) => i.classId !== invite.classId));
+    if (accept) forgetMyClassContext();
     if (accept) {
       // Joining a class makes this a school account: the menus follow at once.
       void loadManagedFlag(userId).then(setManagedAccount);

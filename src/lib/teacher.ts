@@ -643,10 +643,14 @@ export async function leaveClass(classId: string): Promise<string | null> {
   const { data: userData } = await supabase.auth.getUser();
   const me = userData.user?.id;
   if (!me) return "You must be signed in.";
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("class_members")
     .delete()
     .eq("class_id", classId)
-    .eq("student_id", me);
-  return error?.message ?? null;
+    .eq("student_id", me)
+    .select("class_id");
+  if (error) return error.message;
+  // The database refuses quietly (no row deleted) when the teacher keeps the class closed.
+  if (!data || data.length === 0) return "Your teacher keeps this class closed, so ask them to remove you.";
+  return null;
 }

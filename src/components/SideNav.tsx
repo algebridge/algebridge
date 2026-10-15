@@ -7,8 +7,8 @@ import { isActivePath, type NavItem, type NavSection } from "@/lib/nav";
 import { useAppNavState } from "@/components/AppNavProvider";
 import { UnitMark } from "@/components/UnitMark";
 import { hueVars, unitHue } from "@/lib/hues";
-import { navForSchool, schoolModeNow } from "@/lib/school-mode";
-import { useSchoolMode } from "@/components/SchoolModePanel";
+import { classBlockedNow, navForSchool, schoolModeNow, type ClassFeature } from "@/lib/school-mode";
+import { useClassBlocked, useSchoolMode } from "@/components/SchoolModePanel";
 import { CourseSwitch } from "@/components/CourseSwitch";
 
 /**
@@ -21,8 +21,12 @@ import { CourseSwitch } from "@/components/CourseSwitch";
  */
 const FOR_SCHOOLS: NavItem = { href: "/schools", label: "For schools", icon: "school" };
 
-export function withSchoolsLink(sections: NavSection[], school: boolean = schoolModeNow()): NavSection[] {
-  return navForSchool(sections, school).map((section) =>
+export function withSchoolsLink(
+  sections: NavSection[],
+  school: boolean = schoolModeNow(),
+  blocked: ReadonlySet<ClassFeature> = classBlockedNow()
+): NavSection[] {
+  return navForSchool(sections, school, blocked).map((section) =>
     section.title === "More" && !section.items.some((item) => item.href === FOR_SCHOOLS.href)
       ? { ...section, items: [...section.items, FOR_SCHOOLS] }
       : section
@@ -38,6 +42,7 @@ export function SideNav() {
   const pathname = usePathname();
   const { sections, continueTarget } = useAppNavState();
   const school = useSchoolMode();
+  const blocked = useClassBlocked();
 
   return (
     <aside aria-label="Site menu" className="fixed inset-y-0 left-0 z-30 hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
@@ -46,7 +51,7 @@ export function SideNav() {
       </div>
 
       <nav aria-label="Main" data-lenis-prevent className="flex-1 overflow-y-auto px-3 py-4">
-        {withSchoolsLink(sections, school).map((section) => (
+        {withSchoolsLink(sections, school, blocked).map((section) => (
           <NavGroup key={section.title} section={section} pathname={pathname} />
         ))}
       </nav>

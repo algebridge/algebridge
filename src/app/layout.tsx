@@ -16,6 +16,7 @@ import { AuthProvider } from "@/lib/auth";
 import { MusicCredits } from "@/components/MusicCredits";
 import { Calculator } from "@/components/Calculator";
 import { StudyHelper } from "@/components/StudyHelper";
+import { ClassControlsLoader } from "@/components/ClassControlsLoader";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { sidebarBootScript } from "@/lib/sidebar";
 import { bareRouteBootScript } from "@/lib/bare-route";
@@ -124,6 +125,7 @@ export default function RootLayout({
             </div>
             <Calculator />
             <StudyHelper />
+            <ClassControlsLoader />
             {/* A first visit without an account is walked through the course, the games and the house, up to a free account. */}
             <WelcomeTour />
           </ScratchpadProvider>

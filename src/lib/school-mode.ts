@@ -65,11 +65,42 @@ export function featureForPath(pathname: string | null | undefined): SchoolFeatu
   return null;
 }
 
-/** Menu sections with the turned-off pages taken out, and any section left empty dropped. */
-export function navForSchool<S extends { items: { href: string }[] }>(sections: S[], on: boolean): S[] {
-  if (!on) return sections;
+/**
+ * Parts of the app a teacher can turn off for their class
+ * (src/lib/class-controls.ts). Everything school mode turns off, plus
+ * Bridgey House and Archie.
+ */
+export type ClassFeature = SchoolFeature | "house" | "archie";
+
+/** Pages a teacher's class controls can turn off. */
+const CLASS_OFF_PATHS: Record<string, ClassFeature> = { ...SCHOOL_OFF_PATHS, "/house": "house" };
+
+export function classFeatureForPath(pathname: string | null | undefined): ClassFeature | null {
+  if (!pathname) return null;
+  for (const [base, feature] of Object.entries(CLASS_OFF_PATHS)) {
+    if (pathname === base || pathname.startsWith(`${base}/`)) return feature;
+  }
+  return null;
+}
+
+/**
+ * Menu sections with the turned-off pages taken out, and any section left
+ * empty dropped: school mode's pages when it is on, and whatever the
+ * student's teacher turned off.
+ */
+export function navForSchool<S extends { items: { href: string }[] }>(
+  sections: S[],
+  on: boolean,
+  blocked: ReadonlySet<ClassFeature> = classBlockedNow()
+): S[] {
+  if (!on && blocked.size === 0) return sections;
+  const off = (href: string) => {
+    if (on && featureForPath(href) !== null) return true;
+    const f = classFeatureForPath(href);
+    return f !== null && blocked.has(f);
+  };
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((item) => featureForPath(item.href) === null) }))
+    .map((s) => ({ ...s, items: s.items.filter((item) => !off(item.href)) }))
     .filter((s) => s.items.length > 0);
 }
 
@@ -132,6 +163,27 @@ export function setManagedAccount(on: boolean): void {
 
 export function managedAccountNow(): boolean {
   return managedAccount;
+}
+
+/**
+ * What this student's teachers turned off, read after sign-in
+ * (src/components/ClassControlsLoader.tsx), cleared on sign-out.
+ */
+let classBlocked: ReadonlySet<ClassFeature> = new Set();
+
+export function setClassBlocked(features: Iterable<ClassFeature>): void {
+  const next = new Set(features);
+  if (next.size === classBlocked.size && [...next].every((f) => classBlocked.has(f))) return;
+  classBlocked = next;
+  try {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(SCHOOL_MODE_EVENT));
+  } catch {
+    /* no window in tests */
+  }
+}
+
+export function classBlockedNow(): ReadonlySet<ClassFeature> {
+  return classBlocked;
 }
 
 /** The switch in this browser: the build's, a school-managed account's, or a developer's preview. */

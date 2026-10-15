@@ -80,7 +80,7 @@ export function SkillListItem({ skill, unitId, index }: SkillListItemProps) {
           )}
         </div>
         <p className="mt-0.5 text-sm text-slate-500">
-          {locked && state && !state.open ? `Opens after ${state.after.title}. ` : ""}
+          {locked && state && !state.open ? (state.byTeacher ? "Closed by your teacher. " : `Opens after ${state.after.title}. `) : ""}
           {skill.description}
         </p>
       </div>

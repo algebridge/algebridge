@@ -83,7 +83,7 @@ import { autoReactionFor, responseToReaction, toggleReaction, type ReactionId } 
 import { Chip, ChipGrid, ChipRow, type ChipSpec } from "@/components/helper/Chips";
 import { ContextCard } from "@/components/helper/ContextCard";
 import { CrisisCard } from "@/components/helper/CrisisCard";
-import { useSchoolMode } from "@/components/SchoolModePanel";
+import { useSchoolMode, useClassBlocked } from "@/components/SchoolModePanel";
 import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
 import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble, prefersReducedMotion } from "@/components/helper/MessageBubble";
@@ -294,7 +294,13 @@ interface Reaction {
   mark?: ArchieMark | null;
 }
 
+/** Archie, unless the student's teacher turned him off (src/lib/class-controls.ts). */
 export function StudyHelper() {
+  const blocked = useClassBlocked();
+  return blocked.has("archie") ? null : <StudyHelperPanel />;
+}
+
+function StudyHelperPanel() {
   const { user, profile, loading: authLoading } = useAuth();
   /** School mode: no booking, and an ask for a person points to the teacher. */
   const school = useSchoolMode();
