@@ -13,6 +13,7 @@ import { useAppNavState } from "@/components/AppNavProvider";
 import { isActivePath } from "@/lib/nav";
 import { withSchoolsLink } from "@/components/SideNav";
 import { useSchoolMode } from "@/components/SchoolModePanel";
+import { CourseSwitch } from "@/components/CourseSwitch";
 import { initialsOf } from "@/lib/name";
 import { TitlePlate } from "@/components/TitlePlate";
 import { useWornTitle } from "@/lib/use-worn-title";
@@ -95,6 +96,7 @@ export function Header() {
           <Image src="/brand/logo-icon.png" alt="" width={26} height={26} />
           <span className="font-display text-base tracking-wide text-slate-900">AlgeBridge</span>
         </Link>
+        <CourseSwitch className="-ml-1 lg:hidden" />
 
         {/* Stat chips, desktop. Until progress loads, quiet placeholders hold
             their place so the bar does not jump when they arrive. */}
