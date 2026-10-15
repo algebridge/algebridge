@@ -777,7 +777,7 @@ export interface Course {
  */
 export const COURSES: Course[] = [
   { id: "algebra-1", title: "Algebra 1", units },
-  { id: "algebra-2", title: "Algebra 2", units: algebra2Course() },
+  { id: "algebra-2", title: "AlgeBridge 2", units: algebra2Course() },
 ];
 
 /**

@@ -134,15 +134,6 @@ ok("at most six topics", topicsFromPicks(INTEREST_OPTIONS.map((o) => o.id)).leng
 }
 ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
 {
-  // Algebra 2 early access. No real address is written here: the repo is public.
-  const { hasAlgebra2Access, fingerprint, ALGEBRA2_ACCESS } = await import("../early-access.ts");
-  ok("algebra 2 has its seven fingerprints, all distinct", ALGEBRA2_ACCESS.length === 7 && new Set(ALGEBRA2_ACCESS).size === 7 && ALGEBRA2_ACCESS.every((h) => /^[0-9a-f]{64}$/.test(h)));
-  ok("an address is matched in any case, spaces trimmed", (await fingerprint(" Someone@Example.COM ")) === (await fingerprint("someone@example.com")));
-  const blocked = ["student@school.edu", "zach@algebridge.org", "a2.tester@example.com", "", null];
-  const no = await Promise.all(blocked.map((e) => hasAlgebra2Access(e)));
-  ok("algebra 2 stays shut for everyone else", no.every((v) => !v));
-}
-{
   // Archie hands answers to the card: what counts as an answer in a message.
   const { answerInMessage } = await import("../answer-bridge.ts");
   const yes = ["-63", "x = 4", "is it 2/3?", "my answer is B", "I got 12", "step 2", "3 + 4i"];
@@ -1967,7 +1958,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     const list = C.certificateList(after);
     const algebra1 = list.filter((c) => c.id === C.COURSE_ID || units.some((u) => u.id === c.id));
     ok("certificates: one per unit and one for the course, all earned", algebra1.length === units.length + 1 && algebra1.every((c) => !!c.earnedAt));
-    ok("certificates: the other course's units are listed only once earned", list.length === algebra1.length);
+    ok("certificates: the other course's units are on offer, not yet earned", list.length > algebra1.length && list.filter((c) => !algebra1.includes(c)).every((c) => c.unit && !c.earnedAt));
   }
 
   const again = Pg.recordProblemAttempt(last.id, true, { firstTry: true });

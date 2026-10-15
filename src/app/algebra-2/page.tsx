@@ -4,10 +4,8 @@ import { COURSES } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitCard } from "@/components/UnitCard";
 import { UnitTiles } from "@/components/UnitTiles";
-import { Algebra2Gate } from "@/components/Algebra2Gate";
 
-/** Unlisted: reached by its address only, and kept out of search engines. */
-export const metadata: Metadata = { title: "Algebra 2", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "AlgeBridge 2" };
 
 /**
  * The Algebra 2 outline. A second course beside Algebra 1: its own units,
@@ -18,17 +16,16 @@ export default function Algebra2Page() {
   const course = COURSES.find((c) => c.id === "algebra-2")!;
   const totalSkills = course.units.reduce((sum, u) => sum + u.skills.length, 0);
   return (
-    <Algebra2Gate>
     <div className="space-y-6">
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href="/" className="hover:text-bridge-600">Home</Link>
         <span aria-hidden className="mx-2">/</span>
-        <span aria-current="page" className="text-slate-800">Algebra 2</span>
+        <span aria-current="page" className="text-slate-800">AlgeBridge 2</span>
       </nav>
       <section id="units">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h1 className="section-title">Algebra 2</h1>
+            <h1 className="section-title">AlgeBridge 2</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Starts from the Algebra 1 square root and exponent rules, then goes on to square roots up to i, complex numbers, polynomials, rational and radical equations, logarithms, series and the unit circle. Skills open in order, starting with simplifying radicals. Know one already? Show what you know on its page opens it.
             </p>
@@ -47,9 +44,8 @@ export default function Algebra2Page() {
         </div>
       </section>
       <CourseGate quiet>
-        <p className="text-xs text-slate-500">Algebra 2 is new. Something off? Use Feedback in the menu.</p>
+        <p className="text-xs text-slate-500">AlgeBridge 2 is new. Something off? Use Feedback in the menu.</p>
       </CourseGate>
     </div>
-    </Algebra2Gate>
   );
 }

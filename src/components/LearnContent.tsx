@@ -165,7 +165,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   // The crumb leads back to the course this unit belongs to.
   const inAlgebra2 = courseOfUnit(unitId)?.id === "algebra-2";
   const courseHome = inAlgebra2 ? "/algebra-2" : "/";
-  const courseName = inAlgebra2 ? "Algebra 2" : "Home";
+  const courseName = inAlgebra2 ? "AlgeBridge 2" : "Home";
 
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>

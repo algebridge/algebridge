@@ -41,6 +41,7 @@ export function buildNav({
   // few people open come last, under More.
   const learn: NavItem[] = [
     { href: "/", label: "Course", icon: "course" },
+    { href: "/algebra-2", label: "AlgeBridge 2", icon: "course" },
     { href: "/games", label: "Games", icon: "play" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
   ];

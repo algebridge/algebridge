@@ -9,7 +9,6 @@ import { QuoteCard } from "@/components/QuoteCard";
 import { quoteForUnit } from "@/data/quotes";
 import { hueVars, unitHue } from "@/lib/hues";
 import { Icon } from "@/components/Icon";
-import { Algebra2Gate } from "@/components/Algebra2Gate";
 
 export function generateStaticParams() {
   return allUnits().map((unit) => ({ unitId: unit.id }));
@@ -20,8 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ unitId: s
   const { unitId } = await params;
   const unit = getUnit(unitId);
   if (!unit) return {};
-  const unlisted = courseOfUnit(unitId)?.id === "algebra-2";
-  return { title: `Unit ${unit.number}: ${unit.title}`, ...(unlisted ? { robots: { index: false, follow: false } } : {}) };
+  return { title: `Unit ${unit.number}: ${unit.title}` };
 }
 
 export default async function UnitPage({
@@ -36,10 +34,10 @@ export default async function UnitPage({
   const units = course?.units ?? [];
   const home = course?.id === "algebra-2" ? "/algebra-2" : "/";
 
-  const page = (
+  return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href={home} className="hover:text-bridge-600">{course?.id === "algebra-2" ? "Algebra 2" : "Home"}</Link>
+        <Link href={home} className="hover:text-bridge-600">{course?.id === "algebra-2" ? "AlgeBridge 2" : "Home"}</Link>
         <span aria-hidden className="mx-2">/</span>
         <span aria-current="page" className="text-slate-800">Unit {unit.number}</span>
       </nav>
@@ -82,5 +80,4 @@ export default async function UnitPage({
       <QuoteCard quote={quoteForUnit(unit.id)} variant="banner" />
     </div>
   );
-  return course?.id === "algebra-2" ? <Algebra2Gate>{page}</Algebra2Gate> : page;
 }
