@@ -806,42 +806,37 @@ export async function verifyCaller(callerId: string): Promise<{ ok: boolean; nam
   }
 }
 
-/** Ring a specific user (broadcast to their personal ring channel). */
-export function ringUser(targetId: string, payload: RingPayload): void {
+/**
+ * Send one broadcast on someone else's private ring channel. The database lets
+ * only the owner READ (join) a ring channel and lets callers only WRITE to it,
+ * so joining it to send was refused and the ring never left. The REST send
+ * needs the write permission alone.
+ */
+async function broadcastTo(topic: string, event: string, payload: object): Promise<void> {
   const supabase = createClient();
   if (!supabase) return;
-  const topic = `ring-${targetId}`;
-  (async () => {
-    await removeStaleChannels(topic);
-    await supabase.realtime.setAuth();
-    const ch = supabase.channel(topic, { config: { private: true } });
-    ch.subscribe((st) => {
-      if (st === "SUBSCRIBED") {
-        ch.send({ type: "broadcast", event: "ring", payload });
-        setTimeout(() => supabase.removeChannel(ch), 2000);
-      }
-    });
-  })();
+  await supabase.realtime.setAuth();
+  const ch = supabase.channel(topic, { config: { private: true } });
+  try {
+    await ch.httpSend(event, payload);
+  } catch (e) {
+    console.warn(`Could not send ${event}:`, e);
+  } finally {
+    void supabase.removeChannel(ch);
+  }
+}
+
+/** Ring a specific user (broadcast to their personal ring channel). */
+export function ringUser(targetId: string, payload: RingPayload): void {
+  if (!createClient()) return;
+  void broadcastTo(`ring-${targetId}`, "ring", payload);
   // And their phone or computer rings, even with AlgeBridge closed.
   void sendPush({ kind: "ring", roomId: payload.roomId, targetId });
 }
 
 /** Tell the caller their call was declined. */
 export function sendCallDecline(callerId: string, byName: string): void {
-  const supabase = createClient();
-  if (!supabase) return;
-  const topic = `ring-${callerId}`;
-  (async () => {
-    await removeStaleChannels(topic);
-    await supabase.realtime.setAuth();
-    const ch = supabase.channel(topic, { config: { private: true } });
-    ch.subscribe((st) => {
-      if (st === "SUBSCRIBED") {
-        ch.send({ type: "broadcast", event: "decline", payload: { byName } });
-        setTimeout(() => supabase.removeChannel(ch), 2000);
-      }
-    });
-  })();
+  void broadcastTo(`ring-${callerId}`, "decline", { byName });
 }
 
 /** Subscribe to incoming rings addressed to me. Returns unsubscribe. */

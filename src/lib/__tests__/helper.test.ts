@@ -1646,6 +1646,11 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   ok("send error: no Postgres words", !/row-level|policy|42501|violates/i.test(rls) && /could not be sent/.test(rls));
   ok("send error: a block is never named", !/block/i.test(rls));
   ok("send error: the contact trigger, in plain words", /phone numbers or email addresses/.test(SF.sendErrorText("Messages from students cannot include phone numbers or email addresses. 22023")));
+  ok("calls: a ring and a decline go out by REST send (a caller may not join someone else's ring channel)", /await ch\.httpSend\(event, payload\)/.test(social) && /broadcastTo\(`ring-\$\{targetId\}`, "ring", payload\)/.test(social) && /broadcastTo\(`ring-\$\{callerId\}`, "decline"/.test(social) && !/type: "broadcast", event: "ring"/.test(social));
+  {
+    const room = repo("src/app/room/[roomId]/page.tsx");
+    ok("calls: the room keys on the user id, so a tab refocus or token refresh never hangs up", /\}, \[loading, myId, iAmMember, peopleLoaded, allBlocked\]\);/.test(room) && !/\[loading, user, iAmMember, peopleLoaded/.test(room) && /\[myId, members\]/.test(room));
+  }
   ok("send error: social.ts and the group thread use it", /sendErrorText\(/.test(social) && /sendErrorText\(error\)/.test(repo("src/components/GroupThread.tsx")));
   for (const f of ["src/components/MessageThread.tsx", "src/components/GroupThread.tsx"]) {
     const src = repo(f);

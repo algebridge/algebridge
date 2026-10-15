@@ -72,8 +72,12 @@ export default function CallRoomPage() {
   const { user, profile, loading } = useAuth();
 
   const members = useMemo(() => participantsFromRoom(roomId), [roomId]);
-  const iAmMember = !!user && !!members && members.includes(user.id);
-  const otherIds = useMemo(() => (user && members ? members.filter((m) => m !== user.id) : []), [user, members]);
+  // The id, never the user object: auth hands out a new object each time the
+  // tab comes back into view and on every token refresh, and the call must
+  // not hang up and redial when it does.
+  const myId = user?.id ?? null;
+  const iAmMember = !!myId && !!members && members.includes(myId);
+  const otherIds = useMemo(() => (myId && members ? members.filter((m) => m !== myId) : []), [myId, members]);
   const group = otherIds.length > 1;
 
   const blockedList = useBlockedList();
@@ -196,8 +200,8 @@ export default function CallRoomPage() {
 
   const cleanup = useCallback(
     (broadcastBye: boolean) => {
-      if (broadcastBye && channelRef.current && user) {
-        channelRef.current.send({ type: "broadcast", event: "bye", payload: { from: user.id } });
+      if (broadcastBye && channelRef.current && myId) {
+        channelRef.current.send({ type: "broadcast", event: "bye", payload: { from: myId } });
       }
       recognitionRef.current?.stop?.();
       recognitionRef.current = null;
@@ -211,7 +215,7 @@ export default function CallRoomPage() {
         channelRef.current = null;
       }
     },
-    [user]
+    [myId]
   );
 
   async function endCall() {
@@ -255,14 +259,14 @@ export default function CallRoomPage() {
 
   // ---- main setup (once we know who we are) ----
   useEffect(() => {
-    if (loading || !user || !iAmMember || !peopleLoaded || allBlocked) return;
+    if (loading || !myId || !iAmMember || !peopleLoaded || allBlocked) return;
     const supabase = createClient();
     if (!supabase) {
       setStatus("error");
       setMediaError("Video calls need cloud accounts to be configured.");
       return;
     }
-    const me = user.id;
+    const me = myId;
     let cancelled = false;
     const skip = (id: string) => isBlocked(blockedList, id);
 
@@ -398,7 +402,7 @@ export default function CallRoomPage() {
       cleanup(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, iAmMember, peopleLoaded, allBlocked]);
+  }, [loading, myId, iAmMember, peopleLoaded, allBlocked]);
 
   // Everyone has gone, or (for a student) every tutor has: the call is over.
   const connectedIds = remotes.filter((r) => r.live).map((r) => r.id);
