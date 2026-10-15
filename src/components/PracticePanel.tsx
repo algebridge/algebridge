@@ -55,6 +55,8 @@ import {
   type PersonalizableProblem,
 } from "@/lib/personalize";
 import { displayAnswer, shuffleArray } from "@/lib/problem-utils";
+import { JerseyAnswer, JerseyArt } from "@/components/games/Jersey";
+import { jerseyFor, jerseyNumberIn, playerNamedIn, sportOfTopic } from "@/lib/jerseys";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -510,6 +512,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     scene = shown.get(problem.id) ?? null;
   }
   const displayPrompt = problem ? scene?.prompt ?? stripVariantTag(problem.prompt) : "";
+  // A student into soccer, basketball or football: a story's player shows in
+  // their jersey beside it, and a right answer from 0 to 99 shows the jersey
+  // of the player best known for that number.
+  const sport = sportOfTopic(scene?.topic) ?? topics.map((t) => sportOfTopic(t.label)).find(Boolean) ?? null;
+  const storyPlayer = scene?.topic && sport && sportOfTopic(scene.topic) ? playerNamedIn(displayPrompt, sport) : null;
+  // Outside a sports story, only a number a real player wore is worth showing.
+  const answerRead = sport && problem && problem.type === "numeric" ? jerseyNumberIn(displayAnswer(problem)) : null;
+  const answerJersey =
+    answerRead && sport && (sportOfTopic(scene?.topic) || jerseyFor(answerRead.number, displayPrompt, sport)?.name) ? displayAnswer(problem!) : null;
 
   // Once a question is on screen it counts as asked: the next session deals it last.
   const shownPrompt = problem && !pending ? problem.prompt : null;
@@ -1214,7 +1225,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
             </p>
           </div>
         ) : (
-          <PromptText text={displayPrompt} className="mt-3 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
+          <div className="flex items-start gap-3">
+            <PromptText text={displayPrompt} className="mt-3 min-w-0 flex-1 text-lg leading-relaxed text-slate-800 [text-wrap:pretty] sm:text-xl" />
+            {storyPlayer && (
+              <figure className="mt-2 flex w-16 shrink-0 flex-col items-center sm:w-20">
+                <JerseyArt pick={storyPlayer} className="h-16 w-16 drop-shadow-sm sm:h-20 sm:w-20" />
+                <figcaption className="mt-0.5 text-center text-[10px] font-semibold leading-tight text-slate-500">{storyPlayer.kit.club}</figcaption>
+              </figure>
+            )}
+          </div>
         )}
 
         {/* The answer, written as math: a square root with its bar, a fraction stacked. */}
@@ -1408,6 +1427,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </div>
             ) : (
               <AnswerFeedback state={feedback} seed={feedbackSeed} />
+            )}
+            {feedback === "correct" && answerJersey && sport && (
+              <div className="animate-pop-in mt-2 flex justify-center">
+                <JerseyAnswer text={answerJersey} seed={displayPrompt} sport={sport} />
+              </div>
             )}
             {feedback === "correct" && showExplanation && (
               <div className="mt-2 px-1 text-sm text-slate-600">

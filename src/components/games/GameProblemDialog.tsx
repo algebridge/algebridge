@@ -6,7 +6,7 @@ import { MathText, PromptText } from "@/components/PromptText";
 import { AnswerField } from "@/components/AnswerField";
 import { ScratchpadButton } from "@/components/Scratchpad";
 import { JerseyAnswer } from "@/components/games/Jersey";
-import { jerseyNumberIn } from "@/lib/jerseys";
+import { jerseyNumberIn, type Sport } from "@/lib/jerseys";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { MistakeNote } from "@/components/MistakeNote";
 import { WorkedSteps } from "@/components/WorkedSteps";
@@ -56,7 +56,7 @@ export function GameProblemDialog({
   note,
   label,
   turn,
-  jerseys = false,
+  jerseys,
 }: {
   open: RinkProblem;
   verdict: GameVerdict | null;
@@ -69,8 +69,8 @@ export function GameProblemDialog({
   label: string;
   /** A match: the question belongs to one side, and pays nothing. */
   turn?: GameTurn;
-  /** Soccer: whole numbers from 0 to 99 show as jerseys (lib/jerseys.ts). */
-  jerseys?: boolean;
+  /** Soccer and volleyball: whole numbers from 0 to 99 show as that sport's jerseys (lib/jerseys.ts). */
+  jerseys?: Sport;
 }) {
   // Keyboard: the card takes the focus (the answer box, or the first choice), Tab stays in it, and the
   // focus goes back to the game when it closes.
@@ -99,7 +99,7 @@ export function GameProblemDialog({
   // A wrong answer is read for where it went wrong, in the student's own numbers.
   const mistake = verdict && !verdict.right && verdict.given !== undefined ? diagnoseMistake(problem, { given: verdict.given }) : null;
   // The same problem always picks the same wearer for a number.
-  const jersey = (text: string, size?: "sm" | "md") => (jerseys && jerseyNumberIn(text) ? <JerseyAnswer text={text} seed={problem.prompt} size={size} /> : null);
+  const jersey = (text: string, size?: "sm" | "md") => (jerseys && jerseyNumberIn(text) ? <JerseyAnswer text={text} seed={problem.prompt} size={size} sport={jerseys} /> : null);
   return (
     <div ref={dialogRef} className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
       <div style={hueVars(unitHue(open.unitId))} className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
