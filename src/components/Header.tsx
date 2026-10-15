@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -91,12 +90,8 @@ export function Header() {
     // tiles) show through it on scroll.
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
-        {/* Logo, the sidebar carries it on desktop. */}
-        <Link href="/" className="flex shrink-0 items-center gap-2 lg:hidden">
-          <Image src="/brand/logo-icon.png" alt="" width={26} height={26} />
-          <span className="font-display text-base tracking-wide text-slate-900">AlgeBridge</span>
-        </Link>
-        <CourseSwitch className="-ml-1 lg:hidden" />
+        {/* Logo and course menu, the sidebar carries them on desktop. */}
+        <CourseSwitch className="lg:hidden" />
 
         {/* Stat chips, desktop. Until progress loads, quiet placeholders hold
             their place so the bar does not jump when they arrive. */}

@@ -1,5 +1,5 @@
-import type { GeneratedProblem, MasteryLevel, UserProgress, SkillProgress } from "@/types";
-import { units, TOTAL_SKILLS } from "@/data/curriculum";
+import type { GeneratedProblem, MasteryLevel, UserProgress, SkillProgress, Unit } from "@/types";
+import { units, COURSES, type CourseId } from "@/data/curriculum";
 import {
   BADGES,
   BRIDGEY_REWARDS,
@@ -605,14 +605,19 @@ export function getSkillPracticeStats(skillId: string): SkillPracticeStats {
   };
 }
 
-export function getEmptyCourseStats(): CourseStats {
+/** A course's units; Algebra 1 when no course is named, which every older caller means. */
+export function unitsOfCourse(courseId: CourseId = "algebra-1"): Unit[] {
+  return COURSES.find((c) => c.id === courseId)?.units ?? units;
+}
+
+export function getEmptyCourseStats(courseUnits: Unit[] = units): CourseStats {
   const level = getLevelInfo(0);
   return {
     completedSkills: 0,
-    totalSkills: TOTAL_SKILLS,
+    totalSkills: courseUnits.reduce((sum, u) => sum + u.skills.length, 0),
     percent: 0,
     unitsComplete: 0,
-    totalUnits: units.length,
+    totalUnits: courseUnits.length,
     problemsSolved: 0,
     inProgressSkills: 0,
     xp: 0,
@@ -629,11 +634,12 @@ export function getEmptyCourseStats(): CourseStats {
 }
 
 /** Pure helper so both local progress and a fetched (e.g. teacher-viewed) student's progress can be summarized. */
-export function computeCourseStatsFromProgress(progress: UserProgress): CourseStats {
+export function computeCourseStatsFromProgress(progress: UserProgress, courseUnits: Unit[] = units): CourseStats {
   let completedSkills = 0;
   let inProgressSkills = 0;
+  const totalSkills = courseUnits.reduce((sum, u) => sum + u.skills.length, 0);
 
-  for (const unit of units) {
+  for (const unit of courseUnits) {
     for (const skill of unit.skills) {
       const level = progress.skills[skill.id]?.level ?? "locked";
       const simple = getSimpleStatus(level);
@@ -642,7 +648,7 @@ export function computeCourseStatsFromProgress(progress: UserProgress): CourseSt
     }
   }
 
-  const unitsComplete = units.filter((unit) => {
+  const unitsComplete = courseUnits.filter((unit) => {
     const total = unit.skills.length;
     const completed = unit.skills.filter((s) => {
       const level = progress.skills[s.id]?.level;
@@ -655,12 +661,12 @@ export function computeCourseStatsFromProgress(progress: UserProgress): CourseSt
 
   return {
     completedSkills,
-    totalSkills: TOTAL_SKILLS,
-    percent: TOTAL_SKILLS
-      ? Math.round((completedSkills / TOTAL_SKILLS) * 100)
+    totalSkills,
+    percent: totalSkills
+      ? Math.round((completedSkills / totalSkills) * 100)
       : 0,
     unitsComplete,
-    totalUnits: units.length,
+    totalUnits: courseUnits.length,
     problemsSolved: progress.totalProblemsSolved,
     inProgressSkills,
     xp: progress.xp,
@@ -676,12 +682,12 @@ export function computeCourseStatsFromProgress(progress: UserProgress): CourseSt
   };
 }
 
-export function getCourseStats(): CourseStats {
-  return computeCourseStatsFromProgress(getProgress());
+export function getCourseStats(courseUnits: Unit[] = units): CourseStats {
+  return computeCourseStatsFromProgress(getProgress(), courseUnits);
 }
 
-export function getContinueLearning(): ContinueTarget | null {
-  for (const unit of units) {
+export function getContinueLearning(courseUnits: Unit[] = units): ContinueTarget | null {
+  for (const unit of courseUnits) {
     for (const skill of unit.skills) {
       const level = getSkillProgress(skill.id).level;
       if (level !== "proficient" && level !== "mastered") {

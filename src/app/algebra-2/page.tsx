@@ -1,48 +1,67 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COURSES } from "@/data/curriculum";
+import { COURSES, units as algebra1Units } from "@/data/curriculum";
+import { CourseHeader } from "@/components/CourseHeader";
 import { CourseGate } from "@/components/CourseGate";
+import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
-import { UnitTiles } from "@/components/UnitTiles";
+import { GamesBanner } from "@/components/GamesBanner";
+import { HowEachSkillWorks } from "@/components/HowEachSkillWorks";
 
 export const metadata: Metadata = { title: "AlgeBridge 2" };
 
+const ALGEBRA_2 = COURSES.find((c) => c.id === "algebra-2")!;
+const TOTAL_SKILLS = ALGEBRA_2.units.reduce((sum, u) => sum + u.skills.length, 0);
+
 /**
- * The Algebra 2 outline. A second course beside Algebra 1: its own units,
- * its own path, the same lesson and practice pages. Open to everyone to
- * read, like the Algebra 1 outline; the unit pages gate the work.
+ * The AlgeBridge 2 home, built like the Algebra 1 home: its own header and
+ * numbers, its own outline and path, the same lesson and practice pages.
+ * The outline is open to everyone to read; the unit pages gate the work.
  */
 export default function Algebra2Page() {
-  const course = COURSES.find((c) => c.id === "algebra-2")!;
-  const totalSkills = course.units.reduce((sum, u) => sum + u.skills.length, 0);
   return (
     <div className="space-y-6">
-      <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href="/" className="hover:text-bridge-600">Home</Link>
-        <span aria-hidden className="mx-2">/</span>
-        <span aria-current="page" className="text-slate-800">AlgeBridge 2</span>
-      </nav>
+      <CourseHeader course="algebra-2" />
+
       <section id="units">
         <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="section-title">AlgeBridge 2</h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Starts from the Algebra 1 square root and exponent rules, then goes on to square roots up to i, complex numbers, polynomials, rational and radical equations, logarithms, series and the unit circle. Skills open in order, starting with simplifying radicals. Know one already? Show what you know on its page opens it.
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <UnitTiles variant="row" units={course.units} />
-            <p className="text-sm text-slate-500">
-              {course.units.length} units · {totalSkills} skills
-            </p>
-          </div>
+          <h2 className="section-title">Course outline</h2>
+          <p className="text-sm text-slate-500">
+            {ALGEBRA_2.units.length} units · {TOTAL_SKILLS} skills
+          </p>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {course.units.map((unit) => (
+          {ALGEBRA_2.units.map((unit) => (
             <UnitCard key={unit.id} unit={unit} />
           ))}
         </div>
       </section>
+
+      {/* The course before this one, for a student who wants the base first. */}
+      <section id="algebra-1" className="panel">
+        <div className="panel-head">
+          <p className="panel-title">AlgeBridge 1</p>
+          <span className="badge-brand">The base</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="max-w-xl text-sm text-slate-600">
+            Algebra 1 in {algebra1Units.length} units, the course this one builds on. Same lessons, same practice, same path.
+          </p>
+          <Link href="/#units" className="btn-primary text-sm">
+            See the AlgeBridge 1 outline
+          </Link>
+        </div>
+      </section>
+
+      {/* A visitor gets the sign-up panel here, right under the outline. */}
+      <CourseGate>
+        <ProgressOverview course="algebra-2" />
+      </CourseGate>
+
+      <GamesBanner />
+
+      <HowEachSkillWorks />
+
       <CourseGate quiet>
         <p className="text-xs text-slate-500">AlgeBridge 2 is new. Something off? Use Feedback in the menu.</p>
       </CourseGate>

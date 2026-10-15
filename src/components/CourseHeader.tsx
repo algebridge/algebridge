@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
-import { units } from "@/data/curriculum";
+import { COURSES, type CourseId } from "@/data/curriculum";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { UnitMark } from "@/components/UnitMark";
 import { UnitTiles } from "@/components/UnitTiles";
@@ -11,17 +11,32 @@ import { hueVars, unitHue } from "@/lib/hues";
 import { DailyGoalRing } from "@/components/DailyGoalRing";
 import { BRIDGEY_REWARDS } from "@/lib/gamification";
 
-const TOTAL_UNITS = units.length;
-const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
+/** What the top of each course's home says, before and after sign-in. */
+const COPY: Record<CourseId, { kicker: string; title: string; pitch: string }> = {
+  "algebra-1": {
+    kicker: "Algebra 1 · Grades 7-10",
+    title: "Core Algebra\u00a01 skills, one at a time.",
+    pitch:
+      "Watch a short lesson, read the key idea, then practice until it sticks. Teachers can run their classes here, and students can ask a tutor for help. Free, with no ads.",
+  },
+  "algebra-2": {
+    kicker: "Algebra 2",
+    title: "Core Algebra\u00a02 skills, one at a time.",
+    pitch:
+      "Starts from the Algebra 1 square roots and exponent rules, then on to complex numbers, polynomials, logarithms and the unit circle. Same lessons, same practice, same path. Free, with no ads.",
+  },
+};
 
 /**
  * Top of the course page. Signed-out visitors get the pitch; signed-in
  * students get their own numbers, because by then the product has to look
  * like a place they're working, not a landing page.
  */
-export function CourseHeader() {
+export function CourseHeader({ course = "algebra-1" }: { course?: CourseId }) {
   const { user, profile } = useAuth();
-  const { stats, continueTarget, mounted } = useProgress();
+  const { stats, continueTarget, mounted } = useProgress(course);
+  const units = COURSES.find((c) => c.id === course)!.units;
+  const copy = COPY[course];
   // A teacher sees the course, not the student game layer (daily goal pay,
   // streak, level).
   const teacher = profile?.role === "teacher";
@@ -41,19 +56,17 @@ export function CourseHeader() {
         {/* The course's fifteen units as tiles, beside the text on wide
             screens and as a strip under it on phones. */}
         <div className="pointer-events-none absolute inset-y-0 right-8 hidden items-center md:flex lg:right-12">
-          <UnitTiles variant="mosaic" />
+          <UnitTiles variant="mosaic" units={units} />
         </div>
         <div className="relative z-10 px-6 py-9 sm:px-10 sm:py-11 md:pr-64 lg:pr-72">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-bridge-300">
-            Algebra 1 · Grades 7-10
+            {copy.kicker}
           </p>
           <h1 className="mt-2.5 max-w-2xl text-balance font-display text-[36px] font-normal leading-[1.04] tracking-[0.01em] sm:text-[48px]">
-            Core Algebra&nbsp;1 skills, one at a time.
+            {copy.title}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-bridge-100">
-            Watch a short lesson, read the key idea, then practice until it
-            sticks. Teachers can run their classes here, and students can ask a
-            tutor for help. Free, with no ads.
+            {copy.pitch}
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
@@ -70,11 +83,11 @@ export function CourseHeader() {
             </Link>
           </div>
           <div className="mt-7 md:hidden">
-            <UnitTiles variant="row" />
+            <UnitTiles variant="row" units={units} />
           </div>
           <dl className="mt-8 grid max-w-lg grid-cols-3 gap-6 border-t border-white/15 pt-5">
-            <Stat label="Units" value={String(TOTAL_UNITS)} />
-            <Stat label="Skills" value={String(TOTAL_SKILLS)} />
+            <Stat label="Units" value={String(units.length)} />
+            <Stat label="Skills" value={String(units.reduce((sum, u) => sum + u.skills.length, 0))} />
             <Stat label="Cost" value="Free" />
           </dl>
         </div>
@@ -92,7 +105,7 @@ export function CourseHeader() {
       )}
       <div className="relative flex flex-wrap items-start justify-between gap-4 px-6 py-6 sm:px-8">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em]">Algebra 1 · Grades 7-10</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em]">{copy.kicker}</p>
           <h1 className="mt-1 text-balance font-display text-[30px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[38px]">
             {mounted && continueTarget ? `Unit ${continueTarget.unitNumber}: ${continueTarget.unitTitle}` : "Your course"}
           </h1>
@@ -104,7 +117,7 @@ export function CourseHeader() {
                 : "Start with Unit 1, or jump to whatever your class is working on."}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           {/* Today, as a ring: ten right answers is a good day, and it pays. */}
           {mounted && !teacher && (
             <div className="flex items-center gap-2.5 rounded-xl bg-black/10 px-3 py-2">

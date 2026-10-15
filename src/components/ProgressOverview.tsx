@@ -4,14 +4,15 @@ import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { useProgress } from "@/hooks/useProgress";
 import { useAuth } from "@/lib/auth";
+import type { CourseId } from "@/data/curriculum";
 
 /**
  * Level / XP summary. The course header above already carries the headline
  * numbers and the unit cards carry per-unit progress, so this panel only shows
  * what neither of them does.
  */
-export function ProgressOverview() {
-  const { stats, mounted } = useProgress();
+export function ProgressOverview({ course = "algebra-1" }: { course?: CourseId }) {
+  const { stats, mounted } = useProgress(course);
   const { user, configured } = useAuth();
 
   if (configured && !user) return null;

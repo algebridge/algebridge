@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppNavState } from "@/components/AppNavProvider";
-import { units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { liveFromProgress } from "@/lib/house-functions";
 import type { LiveData } from "@/lib/house3d/types";
 import type { UserProgress } from "@/types";
@@ -22,7 +22,7 @@ export function useHouseLive(progress: UserProgress, { tick = false }: { tick?: 
   }, [tick]);
   const next = useMemo(() => {
     if (!continueTarget) return null;
-    const skill = units.flatMap((u) => u.skills).find((s) => s.id === continueTarget.skillId);
+    const skill = allUnits().flatMap((u) => u.skills).find((s) => s.id === continueTarget.skillId);
     return skill ? { title: skill.title, keyIdea: skill.keyIdea } : { title: continueTarget.skillTitle, keyIdea: "" };
   }, [continueTarget]);
   return useMemo(() => liveFromProgress(progress, next, new Date(minute * 60000)), [progress, next, minute]);

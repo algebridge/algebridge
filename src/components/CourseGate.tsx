@@ -25,7 +25,7 @@ export function CourseGate({ children, quiet = false }: { children: React.ReactN
       quiet={quiet}
       // The title says what the primary button does.
       title="Create a free account to open the lessons"
-      blurb="The whole Algebra 1 course is free. The account is what makes it yours: lessons unlock, your work saves as you go, and your teacher or tutor can see where you are. It takes about 20 seconds."
+      blurb="Every course here is free. The account is what makes it yours: lessons unlock, your work saves as you go, and your teacher or tutor can see where you are. It takes about 20 seconds."
       bullets={BULLETS}
       badge="Free forever"
       nameBlurb="AlgeBridge uses real names, not usernames. Your teacher has to be able to find you on their roster, and tutors join calls with you by name. Add yours to open the course."

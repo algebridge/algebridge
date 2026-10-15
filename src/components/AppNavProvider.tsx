@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
+import { useCurrentCourse } from "@/components/CourseSwitch";
 import { getProgress } from "@/lib/progress";
 import { getReviewQueueCount } from "@/lib/spaced-repetition";
 import { allUnits } from "@/data/curriculum";
@@ -27,7 +28,9 @@ const AppNavContext = createContext<AppNavState | null>(null);
  */
 export function AppNavProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, configured } = useAuth();
-  const { stats, continueTarget, mounted } = useProgress();
+  // The top bar, the sidebar and Continue follow the course of the page.
+  const course = useCurrentCourse();
+  const { stats, continueTarget, mounted } = useProgress(course);
   const [reviewCount, setReviewCount] = useState(0);
   const [unread, setUnread] = useState(0);
 
