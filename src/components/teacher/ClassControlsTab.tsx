@@ -10,7 +10,14 @@ import {
   saveClassControls,
   type ClassControls,
 } from "@/lib/class-controls";
-import type { ClassFeature } from "@/lib/school-mode";
+import { SCHOOL_MODE_OFF, type ClassFeature } from "@/lib/school-mode";
+
+/**
+ * What school mode already turns off. Joining a class sets profiles.managed,
+ * which turns school mode on for that student, so these are off for every
+ * class member whatever the teacher sets.
+ */
+const ALWAYS_OFF: ReadonlySet<ClassFeature> = new Set(SCHOOL_MODE_OFF.map((f) => f.feature));
 import type { ClassInfo } from "@/types";
 
 /**
@@ -106,7 +113,7 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
           <p className="panel-title">Turn off parts of AlgeBridge</p>
         </div>
         <ul className="divide-y divide-slate-100">
-          {CLASS_FEATURES.map((f) => (
+          {CLASS_FEATURES.filter((f) => !ALWAYS_OFF.has(f.feature)).map((f) => (
             <li key={f.feature} className="px-5 py-3">
               <Switch
                 checked={draft.blockedFeatures.includes(f.feature)}
@@ -118,6 +125,20 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
             </li>
           ))}
         </ul>
+        <div className="border-t border-slate-200 px-5 py-4">
+          <p className="text-sm font-medium text-slate-900">Already off for everyone in a class</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+            Joining a class makes a student a school account, which keeps these off for safety. Nothing to set here.
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {CLASS_FEATURES.filter((f) => ALWAYS_OFF.has(f.feature)).map((f) => (
+              <li key={f.feature} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                <Icon name="lock" size={12} />
+                {f.name}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <div className="panel">
