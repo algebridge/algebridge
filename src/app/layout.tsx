@@ -3,6 +3,7 @@ import { Anton, Inter } from "next/font/google";
 import "./globals.css";
 import "./helper.css";
 import "./polish.css";
+import "./display.css";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { SideNav } from "@/components/SideNav";
@@ -20,6 +21,7 @@ import { ClassControlsLoader } from "@/components/ClassControlsLoader";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { sidebarBootScript } from "@/lib/sidebar";
 import { bareRouteBootScript } from "@/lib/bare-route";
+import { displayBootScript } from "@/lib/display";
 import { IncomingCall } from "@/components/IncomingCall";
 import { ScratchpadProvider } from "@/components/Scratchpad";
 
@@ -63,6 +65,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: sidebarBootScript() }} />
         {/* /try and other bare routes: the shell is hidden from the first frame (lib/bare-route.ts). */}
         <script dangerouslySetInnerHTML={{ __html: bareRouteBootScript() }} />
+        {/* Text size and motion chosen on this device, applied before the first paint (lib/display.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: displayBootScript() }} />
       </head>
       <body className="min-h-screen bg-slate-50 font-body">
         {/* First in the Tab order: past the menus, straight to the page. */}

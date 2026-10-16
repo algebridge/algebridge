@@ -81,7 +81,7 @@ function NavGroup({ section, pathname }: { section: NavSection; pathname: string
   if (section.items.length === 0) return null;
   return (
     <div className="mb-5 last:mb-0">
-      <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+      <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
         {section.title}
       </p>
       <ul className="space-y-0.5">

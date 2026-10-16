@@ -136,7 +136,7 @@ export default function GroupsPage() {
             aria-modal="true"
             aria-labelledby="new-group-title"
             aria-describedby="new-group-help"
-            className="max-h-[85vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">

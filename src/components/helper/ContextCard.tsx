@@ -57,7 +57,7 @@ export function ContextCard({ skillTitle, problem }: { skillTitle?: string; prob
         <button
           type="button"
           onClick={() => setFull((v) => !v)}
-          className="mt-0.5 text-[11px] font-semibold text-bridge-700 hover:text-bridge-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
+          className="-mx-1 mt-0.5 rounded px-1 py-1 text-xs font-semibold text-bridge-700 hover:text-bridge-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
         >
           {full ? "Show less" : "Show all"}
         </button>

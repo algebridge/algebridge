@@ -267,6 +267,8 @@ interface Props {
   /** Marks the row as the place a dialog puts the focus when it opens (see useDialogFocus). */
   autoFocus?: boolean;
   placeholder?: string;
+  /** The id of the problem this box answers, read out with the box. */
+  describedBy?: string;
   /** An operator typed on an empty row works on the answer above (Scientific). */
   ansFirst?: boolean;
   onEnter?: () => void;
@@ -287,6 +289,7 @@ export function MathField({
   label,
   inputMode,
   placeholder,
+  describedBy,
   ansFirst,
   onEnter,
   onLeave,
@@ -744,6 +747,10 @@ export function MathField({
           onBlur?.();
         }}
         aria-label={label}
+        aria-describedby={describedBy}
+        // The placeholder is drawn in the view below; here too, so a screen
+        // reader gets "Your answer, rounded" with the box.
+        placeholder={placeholder}
         // Both: data-autofocus is what a dialog focuses when it opens, and
         // autoFocus covers a box that mounts later in the same dialog (a
         // two-player steal swaps in a fresh box for the other player).

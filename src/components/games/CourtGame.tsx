@@ -22,6 +22,7 @@ import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { RINK_DAILY_CAP, rinkRemainingToday, type RinkProblem } from "@/lib/rink";
 import type { UserProgress } from "@/types";
+import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * A team game on its court: the same loop as the rink, with footing instead
@@ -388,7 +389,7 @@ function CourtSolo({
       setNetHit(true);
       window.setTimeout(() => setNetHit(false), 600);
     };
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (prefersReducedMotion()) {
       scored();
       return;
     }

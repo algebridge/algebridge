@@ -89,7 +89,7 @@ export function WorkedExamples({ skillId }: { skillId: string }) {
             <button
               type="button"
               onClick={() => setAt((at + 1) % examples.length)}
-              className="text-sm font-semibold text-bridge-700 hover:underline"
+              className="text-sm font-semibold text-bridge-700 hover:underline -my-1 rounded px-1 py-1"
             >
               {at + 1 < examples.length ? `Next kind: ${examples[at + 1].kind}` : "Back to the first example"}
             </button>

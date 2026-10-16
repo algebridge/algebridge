@@ -299,7 +299,7 @@ export default function LeaderboardPage() {
       {mounted && user && configured && (
         <section className="panel">
           <div className="panel-head">
-            <p className="panel-title">Where you stand</p>
+            <h2 className="panel-title">Where you stand</h2>
           </div>
           <div className="panel-body flex flex-wrap items-center justify-between gap-4">
             {optIn && myRank ? (

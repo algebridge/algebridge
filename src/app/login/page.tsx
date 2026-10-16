@@ -1,6 +1,7 @@
 "use client";
 
 import { signInEmail } from "@/lib/student-accounts";
+import { DisplayControls } from "@/components/DisplayMenu";
 import { GoogleIdButton } from "@/components/GoogleIdButton";
 import Image from "next/image";
 import Link from "next/link";
@@ -50,11 +51,17 @@ function LoginPageInner() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [role, setRole] = useState<UserRole>("student");
-  const [roleCode, setRoleCode] = useState("");
+  // A teacher's invitation link carries the role and the code
+  // (/login?role=teacher&code=...), so neither has to be typed or looked for.
+  const [role, setRole] = useState<UserRole>(() => {
+    const r = params.get("role");
+    return r === "teacher" || r === "tutor" ? r : "student";
+  });
+  const [roleCode, setRoleCode] = useState(() => params.get("code") ?? "");
   const [switchCode, setSwitchCode] = useState("");
   const [switchFeedback, setSwitchFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [switching, setSwitching] = useState(false);
+  const switchCodeRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -118,11 +125,22 @@ function LoginPageInner() {
       const err = await signUp(email, password, check.formatted, role, roleCode.trim() || undefined);
       setSubmitting(false);
       if (err) {
+        if (role !== "student" && /code|role/i.test(err)) {
+          // The account was made as a student; the code is what failed. The
+          // Account type panel below carries the message and the code field.
+          setSwitchCode(roleCode.trim());
+          setSwitchFeedback({
+            ok: false,
+            text: `${err} Your account is a student account for now. Check the code and switch below.`,
+          });
+          return;
+        }
         setError(err);
         return;
       }
       await syncProgress();
       if (next) router.push(next);
+      else if (role === "teacher") router.push("/teacher");
       else setMessage("You're all set, your progress now saves to your account.");
       return;
     }
@@ -151,6 +169,10 @@ function LoginPageInner() {
     const err = await signInWithGoogle(next ?? undefined);
     if (err) setError(err);
   }
+
+  useEffect(() => {
+    if (switchFeedback && !switchFeedback.ok) switchCodeRef.current?.focus();
+  }, [switchFeedback]);
 
   async function handleSwitch(target: UserRole) {
     setError("");
@@ -225,7 +247,7 @@ function LoginPageInner() {
         {needsRealName && (
           <div className="panel border-amber-200">
             <div className="panel-head border-amber-200 bg-amber-50">
-              <p className="panel-title text-amber-900">Add your real name</p>
+              <h2 className="panel-title text-amber-900">Add your real name</h2>
             </div>
             <div className="panel-body space-y-3">
               <p className="text-sm text-slate-600">
@@ -240,7 +262,7 @@ function LoginPageInner() {
 
         <div className="panel">
           <div className="panel-head">
-            <p className="panel-title">Your progress</p>
+            <h2 className="panel-title">Your progress</h2>
             <span className="badge-success">Syncing</span>
           </div>
           <div className="panel-body space-y-3">
@@ -260,7 +282,7 @@ function LoginPageInner() {
 
         <div className="panel">
           <div className="panel-head">
-            <p className="panel-title">Go to</p>
+            <h2 className="panel-title">Go to</h2>
           </div>
           <div className="grid gap-2 p-4 sm:grid-cols-2">
             <Link href="/profile" className="btn-secondary justify-start">Edit profile</Link>
@@ -283,24 +305,50 @@ function LoginPageInner() {
           </div>
         </div>
 
+        {/* Text size and motion for this device; the same controls as the header's Display menu. */}
         <div className="panel">
           <div className="panel-head">
-            <p className="panel-title">Account type</p>
+            <h2 className="panel-title">Display</h2>
+          </div>
+          <div className="panel-body">
+            <DisplayControls />
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <h2 className="panel-title">Account type</h2>
           </div>
           <div className="panel-body space-y-3">
             <p className="text-sm text-slate-600">
               {school
                 ? "Teacher accounts need a shared access code from AlgeBridge."
-                : "Teacher and tutor accounts need a shared access code from AlgeBridge."}
+                : "Teacher and tutor accounts need a shared access code from AlgeBridge."}{" "}
+              Ask for one at{" "}
+              <a href="mailto:info@algebridge.org" className="font-medium text-bridge-700 underline underline-offset-2">
+                info@algebridge.org
+              </a>
+              .
             </p>
             {!isAdmin && (
-              <input
-                value={switchCode}
-                onChange={(e) => setSwitchCode(e.target.value)}
-                placeholder="Access code"
-                aria-label="Role access code"
-                className="field"
-              />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleSwitch(isTeacher ? "tutor" : "teacher");
+                }}
+              >
+                <label htmlFor="switch-code" className="label">
+                  Access code
+                </label>
+                <input
+                  id="switch-code"
+                  ref={switchCodeRef}
+                  value={switchCode}
+                  onChange={(e) => setSwitchCode(e.target.value)}
+                  autoComplete="off"
+                  className="field mt-1"
+                />
+              </form>
             )}
             <div className="flex flex-wrap gap-2">
               {currentRole !== "student" && (
@@ -319,9 +367,9 @@ function LoginPageInner() {
                 </button>
               )}
             </div>
-            {switching && <p className="text-xs text-slate-500">Switching…</p>}
+            {switching && <p role="status" className="text-xs text-slate-500">Switching…</p>}
             {switchFeedback && (
-              <p className={`text-sm ${switchFeedback.ok ? "text-emerald-700" : "text-red-600"}`}>
+              <p role={switchFeedback.ok ? "status" : "alert"} className={`text-sm ${switchFeedback.ok ? "text-emerald-700" : "text-red-600"}`}>
                 {switchFeedback.text}
               </p>
             )}
@@ -329,7 +377,7 @@ function LoginPageInner() {
         </div>
 
         {error && <p role="alert" className="notice-error">{error}</p>}
-        {message && <p className="notice-success">{message}</p>}
+        {message && <p role="status" className="notice-success">{message}</p>}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <button type="button" onClick={() => signOut()} className="btn-secondary">
@@ -338,7 +386,7 @@ function LoginPageInner() {
           <button
             type="button"
             onClick={handleDeleteAccount}
-            className="text-xs text-slate-500 transition hover:text-red-700"
+            className="rounded-md px-2 py-1.5 text-xs text-slate-500 transition hover:bg-red-50 hover:text-red-700"
           >
             Delete my account
           </button>
@@ -433,8 +481,12 @@ function LoginPageInner() {
                         placeholder="Enter the code you were given"
                       />
                       <p className="field-hint">
-                        {role === "tutor" ? "Tutor" : "Teacher"} accounts need a shared access
-                        code from AlgeBridge.
+                        {role === "tutor" ? "Tutor" : "Teacher"} accounts need a shared access code from AlgeBridge.
+                        Ask for one at{" "}
+                        <a href="mailto:info@algebridge.org" className="font-medium text-bridge-700 underline underline-offset-2">
+                          info@algebridge.org
+                        </a>
+                        .
                       </p>
                     </div>
                   )}
@@ -541,9 +593,14 @@ function LoginPageInner() {
                 />
                 <span>
                   I agree to the{" "}
-                  <Link href="/terms" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">Terms of Use</Link>{" "}
+                  <Link href="/terms" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">
+                    Terms of Use<span className="sr-only"> (opens in a new tab)</span>
+                  </Link>{" "}
                   and{" "}
-                  <Link href="/privacy" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">Privacy Policy</Link>,
+                  <Link href="/privacy" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">
+                    Privacy Policy<span className="sr-only"> (opens in a new tab)</span>
+                  </Link>
+                  ,
                   including that my first name, last initial and progress are shown on the leaderboard
                   unless I turn it off.
                 </span>

@@ -26,8 +26,8 @@ export function ProgressOverview({ course = "algebra-1" }: { course?: CourseId }
   return (
     <section id="progress" className="panel">
       <div className="panel-head">
-        <p className="panel-title">Your progress</p>
-        <Link href="/achievements" className="inline-flex items-center gap-1 text-xs font-medium text-bridge-700 hover:underline">
+        <h2 className="panel-title">Your progress</h2>
+        <Link href="/achievements" className="-my-1 inline-flex items-center gap-1 rounded px-1 py-1 text-xs font-medium text-bridge-700 hover:underline">
           All achievements
           <Icon name="arrow-right" size={13} />
         </Link>
@@ -40,8 +40,8 @@ export function ProgressOverview({ course = "algebra-1" }: { course?: CourseId }
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
               {stats.xpForNextLevel > 0
-                ? `${stats.xpIntoLevel} / ${stats.xpForNextLevel} XP to the next level`
-                : `${stats.xp} XP earned`}
+                ? `${stats.xpIntoLevel} of ${stats.xpForNextLevel} XP to the next level. XP are points for right answers and lesson videos.`
+                : `${stats.xp} XP earned. XP are points for right answers and lesson videos.`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

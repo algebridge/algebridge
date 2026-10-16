@@ -86,7 +86,8 @@ import { CrisisCard } from "@/components/helper/CrisisCard";
 import { useSchoolMode, useClassBlocked } from "@/components/SchoolModePanel";
 import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
 import { guardFreeText } from "@/lib/safety";
-import { AssistantBubble, UserBubble, prefersReducedMotion } from "@/components/helper/MessageBubble";
+import { AssistantBubble, UserBubble } from "@/components/helper/MessageBubble";
+import { prefersReducedMotion } from "@/lib/display";
 import { TypingDots } from "@/components/helper/TypingDots";
 import { SlipSteps } from "@/components/SlipSteps";
 import { answerInMessage, submitAnswerToCard } from "@/lib/answer-bridge";
@@ -1402,7 +1403,7 @@ function StudyHelperPanel() {
                 <p className="text-[13px] leading-[18px] text-slate-600">your AI study buddy</p>
               )}
             </div>
-            <p className="mt-0.5 text-[11.5px] leading-snug text-slate-500">Archie is an AI, not a person.</p>
+            <p className="mt-0.5 text-[13px] leading-snug text-slate-500">Archie is an AI, not a person.</p>
           </div>
           <button
             type="button"
@@ -1488,7 +1489,7 @@ function StudyHelperPanel() {
                       {chips.length > 0 && <ChipGrid chips={chips} disabled={busy} label={chipsLabel} />}
                       {mode === "tutor" && problem && (
                         <div>
-                          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Or just chat</p>
+                          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Or just chat</p>
                           <div role="group" aria-label="Chat with Archie" className="flex flex-wrap gap-1.5">
                             {chatChips.map((c) => (
                               <Chip key={c.id} chip={c} disabled={busy} compact />
@@ -1523,7 +1524,7 @@ function StudyHelperPanel() {
           {/* Under the conversation: the booking buttons, or chips and the box. */}
           {step === "offered" ? (
             <div className="shrink-0 border-t border-slate-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Booking, step 1 of 3</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Booking, step 1 of 3</p>
               <div className="flex gap-2">
                 <button type="button" data-autofocus className="btn-primary flex-1 text-sm" onClick={() => void send("yes")}>
                   Yes, find a time
@@ -1536,7 +1537,7 @@ function StudyHelperPanel() {
           ) : (
             <div className="shrink-0 border-t border-slate-100 bg-white pt-2">
               {bookingStep > 0 && (
-                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Booking, step {bookingStep} of 3
                 </p>
               )}

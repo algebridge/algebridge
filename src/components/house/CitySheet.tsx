@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { Icon } from "@/components/Icon";
 import { buyCityPlot, spendable } from "@/lib/bridgeys";
 import { fetchCityResidents, type CityResident } from "@/lib/leaderboard";
@@ -31,6 +32,8 @@ export function CitySheet({ progress, user, onClose, onUpdate, showMessage }: { 
   const [failed, setFailed] = useState(false);
   const [shown, setShown] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog, true, onClose);
   const view = useRef<View | null>(null);
   const pickRef = useRef<(id: string | null) => void>(() => undefined);
   const city = CITIES.find((c) => c.id === cityId)!;
@@ -368,7 +371,7 @@ export function CitySheet({ progress, user, onClose, onUpdate, showMessage }: { 
 
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-labelledby="city-title" className="animate-modal-in flex h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-[88vh] sm:rounded-3xl">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="city-title" className="animate-modal-in flex h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-[88vh] sm:rounded-3xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-3">
           <div className="min-w-0">
             <p className="eyebrow">Real cities</p>

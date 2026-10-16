@@ -18,6 +18,11 @@ export interface TourStep {
   route?: string;
   /** What it points at: a data-tour name on that page. None: the card sits in the middle. */
   target?: string;
+  /**
+   * The window is for using (a problem to answer, Archie to open), so the
+   * card does not hold the keyboard or hide the page from a screen reader.
+   */
+  interactive?: boolean;
   title: string;
   body: string;
   pose: ArchiePose;
@@ -42,6 +47,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     id: "try",
+    interactive: true,
     route: "/try",
     target: "try",
     title: "Try a real problem",
@@ -50,6 +56,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     id: "archie",
+    interactive: true,
     route: "/try",
     target: "archie",
     title: "Meet Archie, your study buddy",

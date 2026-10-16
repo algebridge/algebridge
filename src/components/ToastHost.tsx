@@ -42,10 +42,10 @@ export function ToastHost() {
     };
   }, []);
 
-  if (toasts.length === 0) return null;
-
-  // Under the 56px header, so a badge earned on finishing a skill never
-  // covers Create account or the account menu at that moment.
+  // Always mounted, even empty: a screen reader announces changes to a live
+  // region it already knows about, so a region born with its first toast
+  // was routinely silent. Under the 56px header, so a badge earned on
+  // finishing a skill never covers Create account or the account menu.
   return (
     <div
       role="status"

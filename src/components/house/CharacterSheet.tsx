@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { AvatarStage } from "@/components/house/AvatarStage";
 import { BOTTOMS, BUILDS, CLOTHES_COLORS, COLOR_NAMES, COVERS_BOTTOM, EXTRAS, EYE_COLORS, FIGURES, HAIR_COLORS, HAIR_STYLES, HEIGHTS, randomAvatar, SKIN_TONES, TOPS, toggleExtra, withFigure, type Choice } from "@/lib/avatar";
 import type { AvatarSpec } from "@/types";
@@ -17,13 +18,9 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
   const set = (patch: Partial<AvatarSpec>) => setSpec((s) => ({ ...s, ...patch }));
   const covered = COVERS_BOTTOM.has(spec.top);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Focus moves in, Tab stays inside, Escape closes, focus goes back to the button that opened it.
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog, true, onClose);
 
   return (
     <div
@@ -32,7 +29,7 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div role="dialog" aria-modal="true" aria-labelledby="character-title" className="animate-modal-in flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-3xl">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="character-title" className="animate-modal-in flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-3xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
             <p className="eyebrow">Your character</p>

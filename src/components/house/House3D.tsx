@@ -46,6 +46,7 @@ import { getUnreadCount } from "@/lib/social";
 import type { GardenPick, HouseView, ScenePiece } from "@/lib/house3d/engine";
 import type { LiveData } from "@/lib/house3d/types";
 import type { HouseFloor, UserProgress } from "@/types";
+import { prefersReducedMotion } from "@/lib/display";
 
 type View = "front" | "down" | "up" | "garden";
 
@@ -679,7 +680,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                 Boy
               </button>
             </div>
-            <button type="button" onClick={askFigureLater} className="mt-2 text-xs font-medium text-slate-500 hover:text-slate-800">
+            <button type="button" onClick={askFigureLater} className="mt-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
               Later
             </button>
           </div>
@@ -815,7 +816,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               type="button"
               onClick={() => {
                 onShop();
-                const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                const still = prefersReducedMotion();
                 window.scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
               }}
               className="btn-primary btn-sm"

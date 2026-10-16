@@ -9,14 +9,7 @@ import { HelperAvatar } from "./HelperAvatar";
 import { ArchieReactionPill, ReactionBar, ReactionPill } from "./Reactions";
 import { revealParts, revealSchedule } from "./reveal";
 import type { ChatMessage } from "./types";
-
-export function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
-}
+import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * Brings a reply in word by word: each word fades and rises a few pixels as

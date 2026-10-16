@@ -112,9 +112,9 @@ export function ReviewDemo() {
         ) : (
           <div className="panel">
             <div className="panel-head">
-              <p className="panel-title">
+              <h2 className="panel-title">
                 {dueItems.length} skill{dueItems.length !== 1 ? "s" : ""} due for review
-              </p>
+              </h2>
             </div>
             <ul className="divide-y divide-slate-100">
               {dueItems.map((item) => (

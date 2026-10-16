@@ -37,7 +37,7 @@ export default async function UnitPage({
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href={home} className="hover:text-bridge-600">{course?.id === "algebra-2" ? "AlgeBridge 2" : "Home"}</Link>
+        <Link href={home} className="-my-1 inline-block rounded px-0.5 py-1 hover:text-bridge-600">{course?.id === "algebra-2" ? "AlgeBridge 2" : "Home"}</Link>
         <span aria-hidden className="mx-2">/</span>
         <span aria-current="page" className="text-slate-800">Unit {unit.number}</span>
       </nav>

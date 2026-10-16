@@ -38,6 +38,7 @@ import {
 } from "@/lib/match-rules";
 import type { RinkProblem } from "@/lib/rink";
 import type { UserProgress } from "@/types";
+import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * Two players, one court, the sport itself (rules in lib/match-rules.ts):
@@ -726,7 +727,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   }
 
   // ── Ball flights ────────────────────────────────────────────────────────
-  const still = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const still = () => prefersReducedMotion();
 
   /** Soccer: a shot into a goal; the net ripples. */
   function shoot(end: "left" | "right", side: 0 | 1) {

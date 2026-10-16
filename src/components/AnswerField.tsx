@@ -167,7 +167,7 @@ function FullKeys({ onKey, onClose }: { onKey: (a: KeyAction) => void; onClose: 
           type="button"
           onPointerDown={(e) => e.preventDefault()}
           onClick={onClose}
-          className="rounded-md px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+          className="-my-1 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
         >
           Close
         </button>
@@ -223,6 +223,7 @@ export function AnswerField({
   onEnter,
   label = "Your answer",
   placeholder,
+  describedBy,
   tone = "idle",
   locked = false,
   full = true,
@@ -236,6 +237,8 @@ export function AnswerField({
   onEnter: () => void;
   label?: string;
   placeholder?: string;
+  /** The id of the problem this box answers, read out with the box. */
+  describedBy?: string;
   tone?: AnswerTone;
   /** The problem is over: the answer is shown as it was written, and no longer edited. */
   locked?: boolean;
@@ -323,6 +326,7 @@ export function AnswerField({
             label={label}
             inputMode={keysOpen ? "none" : "decimal"}
             placeholder={placeholder}
+            describedBy={describedBy}
             onEnter={onEnter}
             handle={field}
             autoFocus={autoFocus}

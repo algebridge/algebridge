@@ -10,6 +10,8 @@ import { useSchoolMode } from "@/components/SchoolModePanel";
 import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
 import { placeCard, tourMayStartOn, tourSteps, TOUR_DONE_KEY, TOUR_STEP_KEY, type Box } from "@/lib/tour";
+import { prefersReducedMotion } from "@/lib/display";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 /** Room around what the spotlight points at. */
 const PAD = 8;
@@ -32,7 +34,7 @@ function store(key: string, value: string | null, session = false): void {
   }
 }
 
-const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const reducedMotion = () => prefersReducedMotion();
 
 /**
  * The welcome tour for a first visit without an account (lib/tour.ts has the
@@ -196,16 +198,23 @@ export function WelcomeTour() {
     };
   }, [step, ready]);
 
-  // The card takes the focus at each step, and Esc ends the tour.
+  // The card holds the keyboard at each step (Tab stays inside, Esc ends the
+  // tour), re-armed per step since the card is keyed by step. On a step whose
+  // window is for using, the page stays reachable instead, and the card is
+  // not announced as modal.
+  const current = step === null ? null : (steps[step] ?? null);
+  const interactive = !!current?.interactive;
+  const escapeTour = useCallback(() => end(`tour-skip-${current?.id ?? "step"}`), [end, current?.id]);
+  useDialogFocus(card, step !== null && ready && !interactive, escapeTour, current?.id);
   useEffect(() => {
-    if (step === null || !ready) return;
+    if (step === null || !ready || !interactive) return;
     primary.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") end(`tour-skip-${steps[step]?.id ?? "step"}`);
+      if (e.key === "Escape") escapeTour();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, ready, end, steps]);
+  }, [step, ready, interactive, escapeTour]);
 
   // Reaching the last step is counted once per tour.
   const countedDone = useRef(false);
@@ -257,9 +266,9 @@ export function WelcomeTour() {
             ref={card}
             key={s.id}
             role="dialog"
-            aria-modal="true"
+            aria-modal={interactive ? undefined : "true"}
             aria-labelledby="tour-title"
-            aria-describedby="tour-body"
+            aria-describedby="tour-step tour-body"
             className="animate-pop-in fixed z-[901] rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-slate-900/5"
             style={{ top: place.top, bottom: place.bottom, left: place.left, width: place.width }}
           >
@@ -268,7 +277,7 @@ export function WelcomeTour() {
                 <Archie pose={s.pose} size={52} />
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-bridge-600">
+                <p id="tour-step" className="text-xs font-semibold uppercase tracking-[0.08em] text-bridge-600">
                   {step === 0 ? "A quick tour" : `Step ${step} of ${steps.length - 1}`}
                 </p>
                 <h2 id="tour-title" className="text-lg font-bold leading-snug text-slate-900">
@@ -296,6 +305,7 @@ export function WelcomeTour() {
                   </button>
                   <button
                     ref={primary as React.RefObject<HTMLButtonElement>}
+              data-autofocus
                     type="button"
                     onClick={() => {
                       countClick("tour-start");

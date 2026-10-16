@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { units } from "@/data/curriculum";
 import {
@@ -26,6 +26,9 @@ import {
   dueLabel,
 } from "@/lib/assignments";
 import { Icon } from "@/components/Icon";
+import { showToast } from "@/lib/notify";
+import { useDialogFocus } from "@/components/useDialogFocus";
+import { prefersReducedMotion } from "@/lib/display";
 import { ClassControlsTab } from "@/components/teacher/ClassControlsTab";
 import { MakeAccounts } from "@/components/teacher/MakeAccounts";
 import { signInName, StudentDetail } from "@/components/teacher/StudentDetail";
@@ -87,6 +90,19 @@ export default function TeacherDashboardPage() {
   );
   const selectedClass = classes.find((c) => c.id === selectedId) ?? null;
   const archivedCount = classes.filter((c) => c.archived).length;
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  /** Pick a class. Under lg the detail sits below the list, so go to it. */
+  function selectClass(id: string) {
+    setSelectedId(id);
+    if (typeof window === "undefined" || window.innerWidth >= 1024) return;
+    requestAnimationFrame(() => {
+      const el = detailRef.current;
+      if (!el) return;
+      el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+      el.focus({ preventScroll: true });
+    });
+  }
 
   async function handleMove(classId: string, direction: -1 | 1) {
     const ordered = [...classes].sort((a, b) => a.position - b.position);
@@ -141,7 +157,7 @@ export default function TeacherDashboardPage() {
     return (
       <EmptyState
         title="This account isn't a teacher account"
-        body="Teacher accounts need an access code from AlgeBridge. Enter your code on the account page to switch."
+        body="Teacher accounts need an access code from AlgeBridge. Enter your code on the account page to switch, or ask for one at info@algebridge.org."
         action={
           <Link href="/login" className="btn-primary">
             Go to account settings
@@ -178,18 +194,19 @@ export default function TeacherDashboardPage() {
 
       {error && <p role="alert" className="notice-error">{error}</p>}
 
-      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      {/* minmax(0,1fr) on the single phone column too: an auto column grows to the roster table's width and scrolls the whole page sideways. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-4">
-          <NewClassForm onCreated={() => refreshClasses()} />
+          <NewClassForm onCreated={(id) => refreshClasses(id)} />
 
           <div className="panel">
             <div className="panel-head">
-              <p className="panel-title">Class list</p>
+              <h2 className="panel-title">Class list</h2>
               {archivedCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowArchived((v) => !v)}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                  className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
                 >
                   {showArchived ? "Hide" : "Show"} archived ({archivedCount})
                 </button>
@@ -208,7 +225,7 @@ export default function TeacherDashboardPage() {
                   <li key={c.id} className="flex items-stretch">
                     <button
                       type="button"
-                      onClick={() => setSelectedId(c.id)}
+                      onClick={() => selectClass(c.id)}
                       aria-pressed={selectedId === c.id}
                       className={`flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition ${
                         selectedId === c.id ? "bg-bridge-50" : "hover:bg-slate-50"
@@ -233,24 +250,24 @@ export default function TeacherDashboardPage() {
                         </span>
                       </span>
                     </button>
-                    <div className="flex shrink-0 flex-col justify-center gap-0.5 pr-2">
+                    <div className="flex shrink-0 flex-col justify-center gap-1 pr-2">
                       <button
                         type="button"
                         onClick={() => handleMove(c.id, -1)}
                         disabled={i === 0}
                         aria-label={`Move ${c.name} up`}
-                        className="rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                        className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                       >
-                        <Icon name="chevron-up" size={14} />
+                        <Icon name="chevron-up" size={16} />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleMove(c.id, 1)}
                         disabled={i === visibleClasses.length - 1}
                         aria-label={`Move ${c.name} down`}
-                        className="rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                        className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                       >
-                        <Icon name="chevron-down" size={14} />
+                        <Icon name="chevron-down" size={16} />
                       </button>
                     </div>
                   </li>
@@ -260,7 +277,7 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
-        <div>
+        <div ref={detailRef} id="class-detail" tabIndex={-1} className="scroll-mt-16 focus:outline-none">
           {selectedClass ? (
             <ClassDetail
               key={selectedClass.id}
@@ -313,7 +330,7 @@ function EmptyState({
 // Create a class
 // ---------------------------------------------------------------------------
 
-function NewClassForm({ onCreated }: { onCreated: () => void }) {
+function NewClassForm({ onCreated }: { onCreated: (id?: string) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [period, setPeriod] = useState("");
@@ -330,7 +347,7 @@ function NewClassForm({ onCreated }: { onCreated: () => void }) {
     }
     setSaving(true);
     setError("");
-    const { error: createError } = await createClass({ name, period, gradeLevel, color });
+    const { error: createError, id } = await createClass({ name, period, gradeLevel, color });
     setSaving(false);
     if (createError) {
       setError(createError);
@@ -341,7 +358,7 @@ function NewClassForm({ onCreated }: { onCreated: () => void }) {
     setGradeLevel("");
     setColor("blue");
     setOpen(false);
-    onCreated();
+    onCreated(id);
   }
 
   if (!open) {
@@ -356,11 +373,11 @@ function NewClassForm({ onCreated }: { onCreated: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="panel">
       <div className="panel-head">
-        <p className="panel-title">New class</p>
+        <h2 className="panel-title">New class</h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-xs font-medium text-slate-500 hover:text-slate-800"
+          className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
         >
           Cancel
         </button>
@@ -473,12 +490,17 @@ function ClassDetail({
   const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
   const [assignmentsUnavailable, setAssignmentsUnavailable] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showCode, setShowCode] = useState(false);
 
-  const loadRoster = useCallback(async () => {
-    setRosterLoading(true);
-    setRoster(await getClassRoster(classInfo.id));
-    setRosterLoading(false);
-  }, [classInfo.id]);
+  /** `quiet`: refresh in place, with no loading line, for the background checks. */
+  const loadRoster = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setRosterLoading(true);
+      setRoster(await getClassRoster(classInfo.id));
+      setRosterLoading(false);
+    },
+    [classInfo.id]
+  );
 
   const loadAssignments = useCallback(async () => {
     const { assignments: list, unavailable } = await getClassAssignments(classInfo.id);
@@ -491,10 +513,36 @@ function ClassDetail({
     loadAssignments();
   }, [loadRoster, loadAssignments]);
 
-  function copyCode() {
-    navigator.clipboard.writeText(classInfo.joinCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  // While the roster is open, students who type the code show up on their
+  // own: a check every 15 seconds while the tab is visible, and one more the
+  // moment it comes back into view.
+  useEffect(() => {
+    if (tab !== "roster") return;
+    const tick = () => {
+      if (document.visibilityState === "visible") void loadRoster(true);
+    };
+    const timer = setInterval(tick, 15_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [tab, loadRoster]);
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(classInfo.joinCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      showToast({ icon: "copy", tone: "success", title: "Join code copied", description: classInfo.joinCode });
+    } catch {
+      showToast({
+        icon: "copy",
+        tone: "info",
+        title: `The code is ${classInfo.joinCode}`,
+        description: "Read it off the screen, or use Show to class.",
+      });
+    }
   }
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
@@ -522,23 +570,32 @@ function ClassDetail({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              Join code
-            </p>
-            <button
-              type="button"
-              onClick={copyCode}
-              title="Copy join code"
-              aria-label={`Copy join code ${classInfo.joinCode}`}
-              className="mt-1 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-[0.2em] text-slate-900 transition hover:border-bridge-400 hover:bg-bridge-50"
-            >
-              {classInfo.joinCode}
-              {copied ? (
-                <Icon name="check" size={15} className="text-emerald-600" />
-              ) : (
-                <Icon name="copy" size={15} className="text-slate-400" />
-              )}
-            </button>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Join code</p>
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={copyCode}
+                title="Copy join code"
+                aria-label={`Copy join code ${classInfo.joinCode}`}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-[0.2em] text-slate-900 transition hover:border-bridge-400 hover:bg-bridge-50"
+              >
+                {classInfo.joinCode}
+                {copied ? (
+                  <Icon name="check" size={15} className="text-emerald-600" />
+                ) : (
+                  <Icon name="copy" size={15} className="text-slate-400" />
+                )}
+              </button>
+              {/* The code across the whole screen, for a projector. */}
+              <button
+                type="button"
+                onClick={() => setShowCode(true)}
+                className="btn-secondary btn-sm"
+                title="Put the code on the screen in big type"
+              >
+                Show to class
+              </button>
+            </div>
           </div>
         </div>
 
@@ -564,20 +621,25 @@ function ClassDetail({
         </div>
       </div>
 
-      {tab === "roster" && (
+      {/* Every tab stays mounted and is hidden when it is not the one open,
+          so what a teacher has in hand survives a look at another tab: the
+          passwords of accounts just made, an email result, a sort, a half
+          written assignment. */}
+      <div hidden={tab !== "roster"}>
         <RosterTab
           classInfo={classInfo}
           roster={roster}
           assignments={assignments}
           loading={rosterLoading}
+          onRefresh={() => loadRoster(true)}
           onChanged={() => {
             loadRoster();
             onChanged();
           }}
         />
-      )}
+      </div>
 
-      {tab === "assignments" && (
+      <div hidden={tab !== "assignments"}>
         <AssignmentsTab
           classInfo={classInfo}
           assignments={assignments}
@@ -585,13 +647,52 @@ function ClassDetail({
           unavailable={assignmentsUnavailable}
           onChanged={loadAssignments}
         />
-      )}
+      </div>
 
-      {tab === "controls" && <ClassControlsTab classInfo={classInfo} />}
+      <div hidden={tab !== "controls"}>
+        <ClassControlsTab classInfo={classInfo} assignmentCount={assignments.length} />
+      </div>
 
-      {tab === "settings" && (
+      <div hidden={tab !== "settings"}>
         <SettingsTab classInfo={classInfo} onChanged={onChanged} onDeleted={onDeleted} />
-      )}
+      </div>
+
+      {showCode && <ShowCodeOverlay classInfo={classInfo} onClose={() => setShowCode(false)} />}
+    </div>
+  );
+}
+
+/**
+ * The join code across the whole screen, for a projector or a shared
+ * screen, with where to type it. Codes use the digits and A to F only, so
+ * nobody has to tell an O from a 0.
+ */
+function ShowCodeOverlay({ classInfo, onClose }: { classInfo: ClassInfo; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref, true, onClose);
+  const site = typeof window !== "undefined" ? window.location.host : "learn.algebridge.org";
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="show-code-title"
+      className="fixed inset-0 z-[130] flex flex-col items-center justify-center overflow-y-auto bg-white px-6 py-10 text-center"
+    >
+      <p className="text-xl font-medium text-slate-600 sm:text-3xl">
+        Go to <span className="font-semibold text-slate-900">{site}</span>, then{" "}
+        <span className="font-semibold text-slate-900">My classes</span>
+      </p>
+      <h2 id="show-code-title" className="mt-6 text-2xl font-semibold text-slate-600 sm:text-4xl">
+        Class code for {classInfo.name}
+      </h2>
+      <p className="mt-4 font-mono text-[20vw] font-bold leading-none tracking-[0.12em] text-slate-900 sm:text-[15vw]">
+        {classInfo.joinCode}
+      </p>
+      <p className="mt-6 text-lg text-slate-500 sm:text-2xl">Codes use only 0 to 9 and A to F.</p>
+      <button type="button" data-autofocus onClick={onClose} className="btn-secondary mt-10">
+        Close
+      </button>
     </div>
   );
 }
@@ -607,14 +708,18 @@ function RosterTab({
   roster,
   assignments,
   loading,
+  onRefresh,
   onChanged,
 }: {
   classInfo: ClassInfo;
   roster: RosterStudent[];
   assignments: ClassAssignment[];
   loading: boolean;
+  /** Check for new students now, in place. */
+  onRefresh: () => void;
   onChanged: () => void;
 }) {
+  const [error, setError] = useState("");
   const [emails, setEmails] = useState("");
   const [adding, setAdding] = useState(false);
   const [result, setResult] = useState<BulkAddResult | null>(null);
@@ -639,7 +744,8 @@ function RosterTab({
   async function handleRemove(student: RosterStudent) {
     const label = student.displayName ?? student.email ?? "this student";
     if (!confirm(`Remove ${label} from ${classInfo.name}? You can add them back later.`)) return;
-    await removeStudentFromClass(classInfo.id, student.id);
+    const err = await removeStudentFromClass(classInfo.id, student.id);
+    setError(err ? `${label} is still in the class: ${err}` : "");
     onChanged();
   }
 
@@ -662,16 +768,21 @@ function RosterTab({
 
   return (
     <div className="space-y-4">
+      {error && <p role="alert" className="notice-error">{error}</p>}
+
+      {/* First, the way in for students with no account yet: the common case
+          in 7th to 9th grade. Then the two ways for students who have one. */}
+      <MakeAccounts classInfo={classInfo} onMade={onChanged} />
+
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Add students</p>
+          <h3 className="panel-title">Students who already have an account</h3>
         </div>
         <div className="space-y-3 p-5">
           <div className="notice-info">
-            The fastest way: give students the join code{" "}
-            <strong className="font-mono tracking-wider">{classInfo.joinCode}</strong> and have
-            them enter it under <strong>My classes</strong>. They&apos;ll appear here
-            automatically.
+            Give them the class code <strong className="font-mono tracking-wider">{classInfo.joinCode}</strong>.
+            They enter it under <strong>My classes</strong> and appear here within a few seconds.{" "}
+            <strong>Show to class</strong>, above, puts the code on the screen in big type.
           </div>
           <form onSubmit={handleAdd} className="space-y-2">
             <label htmlFor="bulk-emails" className="label">
@@ -686,8 +797,8 @@ function RosterTab({
               className="field font-mono text-xs"
             />
             <p className="field-hint">
-              One per line, or separated by commas, paste a whole column from your
-              gradebook. Students must already have an AlgeBridge account.
+              One per line, or separated by commas, paste a whole column from your gradebook. Each student gets an
+              invite to accept under My classes, so they are on the roster once they say yes.
             </p>
             <button type="submit" disabled={adding} className="btn-secondary">
               {adding ? "Adding…" : "Add to class"}
@@ -695,7 +806,7 @@ function RosterTab({
           </form>
 
           {result && (
-            <div className="space-y-1.5 text-sm">
+            <div role="status" className="space-y-1.5 text-sm">
               {result.added.length > 0 && (
                 <p className="text-emerald-700">
                   Added {result.added.length}: {result.added.join(", ")}
@@ -703,8 +814,8 @@ function RosterTab({
               )}
               {result.invited.length > 0 && (
                 <p className="text-sky-700">
-                  Invited {result.invited.length}: {result.invited.join(", ")}. They join once
-                  they accept the invite on their account page.
+                  Invited {result.invited.length}: {result.invited.join(", ")}. They join once they accept the
+                  invite under My classes.
                 </p>
               )}
               {result.alreadyIn.length > 0 && (
@@ -726,38 +837,51 @@ function RosterTab({
         </div>
       </div>
 
-      <MakeAccounts classInfo={classInfo} onMade={onChanged} />
-
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Students</p>
-          <label className="flex items-center gap-2 text-xs text-slate-500">
-            Sort by
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
-            >
-              <option value="name">Name</option>
-              <option value="progress">Progress</option>
-              <option value="grade">Grade</option>
-              <option value="active">Last active</option>
-            </select>
-          </label>
+          <h3 className="panel-title">Students</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={onRefresh} className="btn-ghost btn-sm" title="Check for new students now">
+              Refresh
+            </button>
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              Sort by
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+              >
+                <option value="name">Name</option>
+                <option value="progress">Progress</option>
+                <option value="grade">Grade</option>
+                <option value="active">Last active</option>
+              </select>
+            </label>
+          </div>
         </div>
+        {/* What the columns mean, said once: a grade here is work done, a level is the game. */}
+        <p className="border-b border-slate-100 px-5 py-2.5 text-xs leading-relaxed text-slate-500">
+          Grade is the share of assigned work finished: A from 90%, B from 80, C from 70, D from 60. Level is the
+          game level earned by practicing. New students appear on their own, about every 15 seconds.
+        </p>
         {loading ? (
-          <p className="px-5 py-6 text-sm text-slate-500">Loading roster…</p>
+          <p role="status" className="px-5 py-6 text-sm text-slate-500">Loading roster…</p>
         ) : sorted.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-slate-500">
-            No students yet. Share the join code above, or add them by email.
+          <p role="status" className="px-5 py-6 text-sm text-slate-500">
+            No students yet. Make their accounts above, or share the code{" "}
+            <strong className="font-mono tracking-wider text-slate-700">{classInfo.joinCode}</strong>. They appear
+            here on their own once they join.
           </p>
         ) : (
-          <div tabIndex={0} role="region" aria-label="Class roster" className="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
-            {/* Focusable, so a keyboard can scroll the roster sideways on a phone. */}
+          <div tabIndex={0} role="region" aria-label="Class roster" className="relative overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
+            {/* Focusable, so a keyboard can scroll the roster sideways on a phone. `relative`, so
+                the sr-only "Actions" heading (position: absolute) is clipped with the table instead
+                of escaping the scroller and widening the whole page. */}
             <table className="data-table min-w-[820px]">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  {/* The name stays put while the rest scrolls sideways on a phone. */}
+                  <th className="sticky left-0 z-[1] bg-slate-50 shadow-[inset_-1px_0_0_#e2e8f0]">Student</th>
                   <th>Grade</th>
                   <th>Accuracy</th>
                   <th>Course progress</th>
@@ -773,11 +897,11 @@ function RosterTab({
               <tbody>
                 {sorted.map((student) => (
                   <tr key={student.id}>
-                    <td>
+                    <td className="sticky left-0 z-[1] bg-white shadow-[inset_-1px_0_0_#f1f5f9]">
                       <button
                         type="button"
                         onClick={() => setOpenId(student.id)}
-                        className="text-left font-medium text-bridge-700 hover:underline"
+                        className="-my-1 rounded-md py-1 text-left font-medium text-bridge-700 hover:underline"
                       >
                         {student.displayName ?? "Unnamed student"}
                       </button>
@@ -832,7 +956,7 @@ function RosterTab({
                         type="button"
                         onClick={() => handleRemove(student)}
                         aria-label={`Remove ${student.displayName ?? "this student"} from the class`}
-                        className="py-1 text-xs text-slate-400 transition hover:text-red-600"
+                        className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600"
                       >
                         Remove
                       </button>
@@ -854,6 +978,14 @@ function RosterTab({
       )}
     </div>
   );
+}
+
+/** The coming Friday as yyyy-mm-dd; a week out when today is a Friday. */
+function nextFriday(): string {
+  const d = new Date();
+  const ahead = (5 - d.getDay() + 7) % 7 || 7;
+  d.setDate(d.getDate() + ahead);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatRelative(iso: string | null): string {
@@ -885,11 +1017,20 @@ function AssignmentsTab({
   onChanged: () => void;
 }) {
   const [unitId, setUnitId] = useState(units[0]?.id ?? "");
+  const [unitTouched, setUnitTouched] = useState(false);
   const [skillId, setSkillId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Until the teacher picks a unit, offer the first one with nothing assigned
+  // yet: the next thing to assign, most weeks.
+  useEffect(() => {
+    if (unitTouched) return;
+    const next = units.find((u) => !assignments.some((a) => a.unitId === u.id));
+    if (next) setUnitId(next.id);
+  }, [assignments, unitTouched]);
 
   const selectedUnit = units.find((u) => u.id === unitId);
 
@@ -909,15 +1050,20 @@ function AssignmentsTab({
       setError(err);
       return;
     }
+    const skill = selectedUnit?.skills.find((s) => s.id === skillId);
+    const what = skill ? skill.title : selectedUnit ? `Unit ${selectedUnit.number}: ${selectedUnit.title}` : "The work";
+    showToast({ icon: "check", tone: "success", title: "Assigned", description: `${what} is on ${classInfo.name}'s list.` });
     setSkillId("");
     setDueDate("");
     setNote("");
+    setUnitTouched(false);
     onChanged();
   }
 
   async function handleDelete(assignment: ClassAssignment) {
     if (!confirm(`Remove "${assignmentTitle(assignment)}" from this class?`)) return;
-    await deleteAssignment(assignment.id);
+    const err = await deleteAssignment(assignment.id);
+    if (err) setError(`That assignment is still on the list: ${err}`);
     onChanged();
   }
 
@@ -951,7 +1097,7 @@ function AssignmentsTab({
     <div className="space-y-4">
       <form onSubmit={handleAdd} className="panel">
         <div className="panel-head">
-          <p className="panel-title">Assign work</p>
+          <h3 className="panel-title">Assign work</h3>
         </div>
         <div className="space-y-3 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -963,6 +1109,7 @@ function AssignmentsTab({
                 id="assign-unit"
                 value={unitId}
                 onChange={(e) => {
+                  setUnitTouched(true);
                   setUnitId(e.target.value);
                   setSkillId("");
                 }}
@@ -977,7 +1124,7 @@ function AssignmentsTab({
             </div>
             <div>
               <label htmlFor="assign-skill" className="label">
-                Scope
+                What to assign
               </label>
               <select
                 id="assign-skill"
@@ -1001,13 +1148,18 @@ function AssignmentsTab({
               <label htmlFor="assign-due" className="label">
                 Due date <span className="font-normal text-slate-400">(optional)</span>
               </label>
-              <input
-                id="assign-due"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="field mt-1"
-              />
+              <div className="mt-1 flex gap-2">
+                <input
+                  id="assign-due"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="field"
+                />
+                <button type="button" onClick={() => setDueDate(nextFriday())} className="btn-secondary btn-sm shrink-0">
+                  Next Friday
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="assign-note" className="label">
@@ -1033,7 +1185,7 @@ function AssignmentsTab({
 
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Assigned, in order</p>
+          <h3 className="panel-title">Assigned, in order</h3>
           <span className="text-xs text-slate-500">Students see this list on their dashboard</span>
         </div>
         {assignments.length === 0 ? (
@@ -1050,24 +1202,24 @@ function AssignmentsTab({
               ).length;
               return (
                 <li key={a.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <div className="flex shrink-0 flex-col gap-0.5 pt-0.5">
+                  <div className="flex shrink-0 flex-col gap-1 pt-0.5">
                     <button
                       type="button"
                       onClick={() => handleMove(i, -1)}
                       disabled={i === 0}
                       aria-label="Move up"
-                      className="rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                     >
-                      <Icon name="chevron-up" size={14} />
+                      <Icon name="chevron-up" size={16} />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleMove(i, 1)}
                       disabled={i === assignments.length - 1}
                       aria-label="Move down"
-                      className="rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
                     >
-                      <Icon name="chevron-down" size={14} />
+                      <Icon name="chevron-down" size={16} />
                     </button>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -1162,7 +1314,7 @@ function SettingsTab({
     <div className="space-y-4">
       <form onSubmit={handleSave} className="panel">
         <div className="panel-head">
-          <p className="panel-title">Class details</p>
+          <h3 className="panel-title">Class details</h3>
         </div>
         <div className="space-y-3 p-5">
           <div>
@@ -1210,7 +1362,9 @@ function SettingsTab({
           </div>
           <ColorPicker value={color} onChange={setColor} />
           {status && (
-            <p className={status.ok ? "text-sm text-emerald-700" : "field-error"}>{status.text}</p>
+            <p role={status.ok ? "status" : "alert"} className={status.ok ? "text-sm text-emerald-700" : "field-error"}>
+              {status.text}
+            </p>
           )}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? "Saving…" : "Save changes"}
@@ -1220,7 +1374,7 @@ function SettingsTab({
 
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Archive or delete</p>
+          <h3 className="panel-title">Archive or delete</h3>
         </div>
         <div className="space-y-4 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">

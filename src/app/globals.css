@@ -6,6 +6,18 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
 
+/* ---- Text size (src/lib/display.ts) ------------------------------
+   Chosen on this device from the Display menu in the header, with or
+   without an account. Nearly everything is sized in rem, so it all
+   follows the root: text, spacing, the header, the side menu. */
+html[data-text="large"] {
+  font-size: 112.5%;
+}
+
+html[data-text="largest"] {
+  font-size: 125%;
+}
+
 /* ---- Gray text tokens (WCAG 2.1 AA) ------------------------------
    Small text needs 4.5:1 against the surface it sits on. Tailwind's
    slate-400 is 2.56:1 on white, and slate-500 falls to 4.1-4.5:1 on the
@@ -1496,10 +1508,13 @@ html[data-bare] main {
 @media (hover: none) and (pointer: coarse) {
   input.text-sm,
   input.text-xs,
+  input.field,
   textarea.text-sm,
   textarea.text-xs,
+  textarea.field,
   select.text-sm,
-  select.text-xs {
+  select.text-xs,
+  select.field {
     font-size: 16px;
   }
 }

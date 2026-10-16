@@ -96,15 +96,11 @@ export function InterestsPicker({
     // Every interest goes into specifics: "soccer" alone writes generic
     // problems; "Arsenal, Messi" writes problems a fan recognizes.
     const own: Record<string, string> = {};
+    // A blank line is fine: that interest writes general problems, and the
+    // ones with names write problems a fan recognizes.
     for (const id of picks) {
       const line = cleanSpecifics(specifics[id]);
-      if (!line) {
-        const o = INTEREST_OPTIONS.find((x) => x.id === id);
-        setError(`${o?.label ?? "Each interest"}: ${o?.ask.toLowerCase() ?? "name a few specifics."} Name at least one.`);
-        document.getElementById(`specifics-${id}`)?.focus();
-        return;
-      }
-      own[id] = line;
+      if (line) own[id] = line;
     }
     // Everything they typed, the note and every specifics line, read for danger together.
     const trimmed = [written, ...Object.values(own)].join(" ").trim();

@@ -38,7 +38,7 @@ export function StandardsChip({
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
       {label && (
-        <span className="mr-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <span className="mr-0.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
           {label}
         </span>
       )}
@@ -50,7 +50,7 @@ export function StandardsChip({
               target="_blank"
               rel="noopener noreferrer"
               title={`${s.code} (${levelLabel(s.level)}): ${s.summary}`}
-              className={`standards-chip inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-medium leading-5 ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
+              className={`standards-chip inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-medium leading-5 ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
                 s.level === "HS"
                   ? "bg-bridge-50 text-bridge-800 ring-bridge-100 hover:bg-bridge-100 hover:ring-bridge-200"
                   : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300"

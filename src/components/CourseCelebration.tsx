@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { units } from "@/data/curriculum";
 import { CourseCertificate } from "@/components/Certificate";
 import { Icon } from "@/components/Icon";
@@ -9,6 +10,7 @@ import { UnitMark } from "@/components/UnitMark";
 import { unitHue } from "@/lib/hues";
 import { certificateDateText, courseFacts } from "@/lib/certificates";
 import type { UserProgress } from "@/types";
+import { prefersReducedMotion } from "@/lib/display";
 
 /** How long new fireworks go up. The last ones fade out after it, and the loop stops. */
 const SHOW_MS = 9000;
@@ -34,7 +36,7 @@ function Fireworks() {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
 
     const colors = units.map((u) => unitHue(u.id).bar);
     const sparks: Spark[] = [];
@@ -113,22 +115,19 @@ export function CourseCelebration({ progress, name, onClose }: { progress: UserP
   const facts = courseFacts(progress);
   const date = certificateDateText(progress.courseCompletedAt ?? new Date().toISOString());
   const primary = useRef<HTMLAnchorElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  // Focus lands on the certificate link (data-autofocus) without scrolling
+  // to it, Tab stays inside, Escape closes.
+  useDialogFocus(dialog, true, onClose);
 
   useEffect(() => {
-    // Focus without scrolling to the button: the headline is what shows first.
-    primary.current?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
     // The page under it holds still while it is up.
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
     };
-  }, [onClose]);
+  }, []);
 
   const stats = [
     { value: facts.units, label: facts.units === 1 ? "unit" : "units" },
@@ -139,6 +138,7 @@ export function CourseCelebration({ progress, name, onClose }: { progress: UserP
 
   return (
     <div
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="course-done-title"
@@ -190,6 +190,7 @@ export function CourseCelebration({ progress, name, onClose }: { progress: UserP
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link
             ref={primary}
+          data-autofocus
             href="/certificate/course"
             className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-amber-300 px-6 py-3 text-base font-bold text-slate-900 shadow-lg transition hover:-translate-y-px hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/60"
           >

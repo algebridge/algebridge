@@ -14,7 +14,7 @@ export default function ReviewPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="eyebrow">Spaced repetition</p>
+        <p className="eyebrow">Keep it sharp</p>
         <h1 className="page-title">Review</h1>
         <p className="page-subtitle">
           Skills you&apos;ve completed come back for a quick check at 1, 3, 7, 14
@@ -86,9 +86,9 @@ function ReviewQueue() {
   return (
     <div className="panel">
       <div className="panel-head">
-        <p className="panel-title">
+        <h2 className="panel-title">
           {dueItems.length} skill{dueItems.length !== 1 ? "s" : ""} due for review
-        </p>
+        </h2>
       </div>
       <ul className="divide-y divide-slate-100">
         {dueItems.map((item) => (

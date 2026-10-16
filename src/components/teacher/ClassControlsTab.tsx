@@ -26,7 +26,7 @@ import type { ClassInfo } from "@/types";
  * Saved as a whole with one button, so a half-made change never reaches
  * students.
  */
-export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
+export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: ClassInfo; assignmentCount?: number }) {
   const [saved, setSaved] = useState<ClassControls>(() => emptyControls(classInfo.id));
   const [draft, setDraft] = useState<ClassControls>(() => emptyControls(classInfo.id));
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
 
   if (unavailable) {
     return (
-      <div className="notice-warning">
+      <div className="notice-warn">
         Class controls need a database update first: run <code>supabase/schema-2026-10-15-class-controls.sql</code>.
       </div>
     );
@@ -90,7 +90,7 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
     <div className="space-y-4 pb-20">
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">What the class works on</p>
+          <h3 className="panel-title">What the class works on</h3>
         </div>
         <div className="space-y-3 p-5">
           <Switch
@@ -99,6 +99,12 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
             label="Only what I assign"
             detail="Students open only the skills on the Assignments tab, plus any they already finished. Everything else stays locked until you assign it."
           />
+          {draft.assignedOnly && assignmentCount === 0 && (
+            <p role="status" className="notice-warn">
+              Nothing is assigned yet, so students would see every skill locked. Add work on the Assignments tab
+              first, then turn this on.
+            </p>
+          )}
           <Switch
             checked={!draft.allowLeave}
             onChange={(v) => setDraft((d) => ({ ...d, allowLeave: !v }))}
@@ -110,7 +116,7 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
 
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Turn off parts of AlgeBridge</p>
+          <h3 className="panel-title">Turn off parts of AlgeBridge</h3>
         </div>
         <ul className="divide-y divide-slate-100">
           {CLASS_FEATURES.filter((f) => !ALWAYS_OFF.has(f.feature)).map((f) => (
@@ -143,7 +149,7 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
 
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Close units and skills</p>
+          <h3 className="panel-title">Close units and skills</h3>
           <span className="text-xs text-slate-500">
             {draft.blockedUnits.length} unit{draft.blockedUnits.length === 1 ? "" : "s"}, {blockedSkillCount} skill
             {blockedSkillCount === 1 ? "" : "s"} closed
@@ -207,7 +213,11 @@ export function ClassControlsTab({ classInfo }: { classInfo: ClassInfo }) {
       </div>
 
       <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 shadow-panel">
-        {status && <p className={`text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>{status.text}</p>}
+        {status && (
+          <p role={status.ok ? "status" : "alert"} className={`text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>
+            {status.text}
+          </p>
+        )}
         {dirty && !status && <p className="text-sm text-slate-500">Unsaved changes</p>}
         <button type="button" disabled={!dirty} onClick={() => setDraft(saved)} className="btn-secondary">
           Undo

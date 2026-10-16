@@ -26,6 +26,7 @@ export function MathText({ text }: { text: string }): ReactNode {
     const exp = m[1].startsWith("(") ? m[1].slice(1, -1) : m[1];
     out.push(
       <sup key={key++} className="ml-px text-[0.72em] font-semibold">
+        <span className="sr-only">to the power of </span>
         {exp.replace(/^-/, "−")}
       </sup>
     );

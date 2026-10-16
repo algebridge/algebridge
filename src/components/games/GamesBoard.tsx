@@ -17,6 +17,7 @@ import { ATHLETE_HEIGHT, DEFAULT_SETUP, readSetup, saveSetup, sideName, topicLab
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
+import { prefersReducedMotion } from "@/lib/display";
 
 const LAST_GAME_KEY = "algebridge:last-game";
 
@@ -88,7 +89,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
     const top = phone
       ? window.scrollY + box.top - (parseFloat(getComputedStyle(el).scrollMarginTop) || 64)
       : window.scrollY + box.top - header - Math.max(0, (room - box.height) / 2);
-    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const still = prefersReducedMotion();
     if (Math.abs(top - window.scrollY) > 4) window.scrollTo({ top: Math.max(0, top), behavior: still ? "auto" : "smooth" });
   }, []);
 

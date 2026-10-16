@@ -26,6 +26,7 @@ import { buildRoom, viewTexture, type RoomParts } from "./room";
 import { BACK_WALL_Z, clearOfOpenings, floorToWorld, ROOM_D, ROOM_H, ROOM_W, wallToWorld, worldToFloor, worldToWall } from "./space";
 import { themeFor, type WindowShape } from "./themes";
 import { DEFAULT_LIVE, type ItemModel, type LiveData } from "./types";
+import { prefersReducedMotion } from "@/lib/display";
 
 export type Mount = "floor" | "wall" | "ceiling";
 
@@ -320,7 +321,7 @@ export class HouseView {
     this.renderer.shadowMap.enabled = true;
     // Plain PCF: a third of the soft kind's cost on every pixel, the edge softened by the radius below.
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.reduceMotion = prefersReducedMotion();
 
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
     this.kit = makeKit();

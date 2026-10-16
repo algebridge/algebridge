@@ -136,7 +136,7 @@
   z-index: 2;
   cursor: ew-resize;
   touch-action: none;
-  outline: none;
+  outline: 2px solid transparent;
 }
 .helper-resize::after {
   content: "";
@@ -176,7 +176,7 @@
   transform: translateY(0) scale(0.94);
 }
 .helper-launch:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: 0 10px 24px -8px rgb(30 58 138 / 0.55), 0 0 0 3px #fff, 0 0 0 6px rgb(59 130 246);
 }
 .helper-launch[data-away] {
@@ -597,7 +597,7 @@
   transform: scale(0.9);
 }
 .rx-btn:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: 0 0 0 2px rgb(59 130 246);
 }
 .rx-btn[aria-pressed="true"] {
@@ -647,7 +647,7 @@
   transform: scale(1.08);
 }
 .rx-pill-btn:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: 0 0 0 2px rgb(59 130 246);
 }
 .rx-pop {

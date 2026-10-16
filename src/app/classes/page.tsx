@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ClassInvites } from "@/components/ClassInvites";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
@@ -49,7 +50,9 @@ export default function StudentClassesPage() {
     if (!code.trim()) return;
     setJoining(true);
     setStatus(null);
-    const { className, error } = await joinClassByCode(code.trim());
+    // Codes are 0 to 9 and A to F, so an O read off the board is a 0, and an I or L a 1.
+    const clean = code.trim().toUpperCase().replace(/O/g, "0").replace(/[IL]/g, "1");
+    const { className, error } = await joinClassByCode(clean);
     setJoining(false);
     if (error) {
       setStatus({ ok: false, text: error });
@@ -105,7 +108,7 @@ export default function StudentClassesPage() {
 
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Join a class</p>
+          <h2 className="panel-title">Join a class</h2>
         </div>
         <div className="p-5">
           <form onSubmit={handleJoin} className="flex flex-wrap items-end gap-3">
@@ -119,20 +122,25 @@ export default function StudentClassesPage() {
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 maxLength={6}
                 placeholder="ABC123"
+                autoComplete="off"
                 className="field mt-1 w-40 font-mono text-base uppercase tracking-[0.25em]"
               />
+              <p className="field-hint">Six characters from your teacher. An O counts as a zero.</p>
             </div>
             <button type="submit" disabled={joining} className="btn-primary">
               {joining ? "Joining…" : "Join class"}
             </button>
           </form>
           {status && (
-            <p className={`mt-3 text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>
+            <p role={status.ok ? "status" : "alert"} className={`mt-3 text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>
               {status.text}
             </p>
           )}
         </div>
       </div>
+
+      {/* A teacher who added this student by email sent an invite; it is answered here. */}
+      <ClassInvites userId={user.id} />
 
       {listLoading ? (
         <p className="text-sm text-slate-500">Loading your classes…</p>
@@ -176,7 +184,7 @@ function ClassPanel({
     <div className="panel">
       <div className="panel-head">
         <div>
-          <p className="panel-title">{cls.name}</p>
+          <h2 className="panel-title">{cls.name}</h2>
           {cls.period && <p className="text-xs text-slate-500">{cls.period}</p>}
         </div>
         <div className="flex items-center gap-3">
@@ -188,7 +196,7 @@ function ClassPanel({
           <button
             type="button"
             onClick={onLeave}
-            className="text-xs text-slate-400 transition hover:text-red-600"
+            className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600"
           >
             Leave
           </button>

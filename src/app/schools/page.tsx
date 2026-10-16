@@ -188,7 +188,7 @@ const TEACHER_ITEMS: Item[] = [
   {
     mark: { icon: "students" },
     title: "Rosters",
-    body: "Students join with the class's 6-character code. Or paste a column of school emails from a gradebook: each student needs an AlgeBridge account first, and is added without being asked.",
+    body: "Students join with the class's 6-character code, which the teacher can put on the screen in big type. For students with no account, the teacher makes the accounts and prints login cards. Or paste a column of school emails from a gradebook: each of those students gets an invite to accept.",
   },
   {
     mark: { icon: "course" },
@@ -297,7 +297,12 @@ const ACCESS_ITEMS: Item[] = [
   {
     mark: { glyph: "motion" },
     title: "Reduced motion",
-    body: "When a device is set to reduce motion, AlgeBridge turns its animations and transitions off.",
+    body: "When a device is set to reduce motion, AlgeBridge turns its animations and transitions off. The same switch is in the app's own Display menu, for a student on a school computer whose settings are locked.",
+  },
+  {
+    mark: { icon: "text-size" },
+    title: "Text size",
+    body: "The Display menu in the header makes all the text larger, in two steps, on that device, with or without an account. A projector or a tired pair of eyes gets the big size; a phone keeps the small one.",
   },
 ];
 
@@ -444,7 +449,8 @@ export default function SchoolsPage() {
           <p className="schools-fineprint mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
             <span className="font-semibold text-slate-800">Not built yet:</span> a skill-by-skill grid for each
             student, CSV export, co-teachers, and rostering or sign-in through Clever, ClassLink or Google Classroom.
-            Students create their own accounts. <span className="font-semibold text-slate-800">For IT:</span> Google
+            Students create their own accounts, or the teacher makes them.{" "}
+            <span className="font-semibold text-slate-800">For IT:</span> Google
             sign-in is a third-party app to Google Workspace, so a district that limits those apps for students under
             18 needs to allow it first.
           </p>
@@ -562,13 +568,14 @@ export default function SchoolsPage() {
                 className="font-medium text-bridge-700 underline decoration-bridge-200 underline-offset-2 hover:decoration-bridge-500"
               >
                 thecorestandards.org/Math
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
               .
             </p>
             <PhoneFold summary="Show what each code asks">
             <div className="schools-key-groups mt-4 gap-6 md:columns-2">
-              {keyGroups().map((g) => (
-                <div key={g.title} className="schools-key-group mb-5 break-inside-avoid">
+              {keyGroups().map((g, i) => (
+                <div key={`${i}-${g.title}`} className="schools-key-group mb-5 break-inside-avoid">
                   <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{g.title}</h4>
                   <dl className="mt-2 space-y-2">
                     {g.items.map((s) => (
@@ -581,6 +588,7 @@ export default function SchoolsPage() {
                             className="hover:text-bridge-700 hover:underline"
                           >
                             {s.code}
+                            <span className="sr-only"> (opens in a new tab)</span>
                           </a>
                         </dt>
                         <dd className="leading-5 text-slate-600">{s.summary}</dd>

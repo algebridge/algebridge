@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * Archie, the AlgeBridge study buddy: the arch of a bridge with a face.
@@ -50,7 +51,7 @@ const BODY =
 
 export function reducedMotion(): boolean {
   try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return prefersReducedMotion();
   } catch {
     return false;
   }

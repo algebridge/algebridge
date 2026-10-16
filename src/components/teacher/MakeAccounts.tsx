@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import {
   createStudentAccounts,
@@ -11,14 +11,65 @@ import {
 import type { ClassInfo } from "@/types";
 
 /**
+ * Accounts made this visit, by class, so the passwords survive a look at
+ * another class and come back when the teacher returns. They live in memory
+ * only: a reload clears them, and nothing is ever stored.
+ */
+const madeThisVisit = new Map<string, MadeAccount[]>();
+
+/**
  * Roster: make accounts for students who don't have one yet. The passwords
- * are shown once, here, on cards the teacher prints.
+ * are shown once, here, on cards the teacher prints or a list they copy.
  */
 export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMade: () => void }) {
   const [text, setText] = useState("");
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [made, setMade] = useState<MadeAccount[]>([]);
+  const [made, setMade] = useState<MadeAccount[]>(() => madeThisVisit.get(classInfo.id) ?? []);
+  const [kept, setKept] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    madeThisVisit.set(classInfo.id, made);
+  }, [made, classInfo.id]);
+
+  const okCount = made.filter((m) => m.password).length;
+
+  // Passwords on screen that were neither printed nor copied: a closing tab
+  // asks first, since they cannot be shown again.
+  useEffect(() => {
+    if (okCount === 0 || kept) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [okCount, kept]);
+
+  function handlePrint() {
+    setNote(null);
+    if (printCards(classInfo, made.filter((m) => m.password))) {
+      setKept(true);
+      return;
+    }
+    setNote({
+      ok: false,
+      text: "Your browser blocked the print window. Allow pop-ups for this site and try again, or use Copy list.",
+    });
+  }
+
+  async function handleCopy() {
+    setNote(null);
+    const rows = made.filter((m) => m.password).map((m) => `${m.name}\t${m.signIn}\t${m.password}`);
+    try {
+      await navigator.clipboard.writeText(`Student\tSigns in with\tPassword\n${rows.join("\n")}`);
+      setKept(true);
+      setNote({ ok: true, text: "Copied. Paste the list into a document or a spreadsheet." });
+    } catch {
+      setNote({ ok: false, text: "Copying was blocked here. Select the table and copy it by hand." });
+    }
+  }
 
   const lines = parseStudentLines(text);
   const bad = lines.filter((l) => l.error);
@@ -28,6 +79,8 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
     if (lines.length === 0 || bad.length > 0) return;
     setRunning(true);
     setMade([]);
+    setKept(false);
+    setNote(null);
     setProgress({ done: 0, total: lines.length });
     const results = await createStudentAccounts(classInfo.joinCode, lines, (one, done) => {
       setMade((list) => [...list, one]);
@@ -51,9 +104,13 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
   return (
     <div className="panel">
       <div className="panel-head">
-        <p className="panel-title">Make accounts for your students</p>
+        <h3 className="panel-title">Make accounts for your students</h3>
       </div>
       <form onSubmit={handleMake} className="space-y-2 p-5">
+        <p className="text-sm text-slate-600">
+          The simplest start when students have no accounts yet: you make them here, print the login cards, and
+          every student is in {classInfo.name} already.
+        </p>
         <label htmlFor="make-accounts" className="label">
           One student a line: first and last name, and a school email if they have one
         </label>
@@ -68,10 +125,11 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
         />
         <p className="field-hint">
           Students without an email get a username, like maria.lopez4821. Each account gets a password and joins{" "}
-          {classInfo.name} straight away. You see the passwords once, so print the cards before you leave this page.
+          {classInfo.name} straight away. The passwords show once, on this visit only: print the cards or copy the
+          list before you close or reload the page.
         </p>
         {bad.length > 0 && (
-          <ul className="space-y-0.5 text-sm text-red-600">
+          <ul role="alert" className="space-y-0.5 text-sm text-red-600">
             {bad.map((l) => (
               <li key={l.line}>
                 Line {l.line} ({l.name || "blank"}): {l.error}
@@ -86,12 +144,17 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
               ? `Make ${lines.length} account${lines.length === 1 ? "" : "s"}`
               : "Make accounts"}
         </button>
+        {running && progress && (
+          <p role="status" className="sr-only">
+            Making account {progress.done + 1} of {progress.total}
+          </p>
+        )}
       </form>
 
       {made.length > 0 && (
         <div className="border-t border-slate-200 p-5">
           {failed.length > 0 && (
-            <ul className="mb-3 space-y-0.5 text-sm text-red-600">
+            <ul role="alert" className="mb-3 space-y-0.5 text-sm text-red-600">
               {failed.map((m) => (
                 <li key={m.name + m.signIn}>
                   {m.name}: {m.error}
@@ -102,32 +165,46 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
           {ok.length > 0 && (
             <>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium text-slate-800">
-                  {ok.length} account{ok.length === 1 ? "" : "s"} made and in the class
+                <p role="status" className="text-sm font-medium text-slate-800">
+                  {ok.length} account{ok.length === 1 ? "" : "s"} made and in the class. Print or copy the passwords
+                  now: they show once.
                 </p>
-                <button type="button" onClick={() => printCards(classInfo, ok)} className="btn-secondary btn-sm">
-                  <Icon name="printer" size={15} />
-                  Print login cards
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={handleCopy} className="btn-secondary btn-sm">
+                    <Icon name="copy" size={15} />
+                    Copy list
+                  </button>
+                  <button type="button" onClick={handlePrint} className="btn-primary btn-sm">
+                    <Icon name="printer" size={15} />
+                    Print login cards
+                  </button>
+                </div>
               </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Signs in with</th>
-                    <th>Password</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ok.map((m) => (
-                    <tr key={m.signIn}>
-                      <td>{m.name}</td>
-                      <td className="font-mono text-xs">{m.signIn}</td>
-                      <td className="font-mono text-xs">{m.password}</td>
+              {note && (
+                <p role={note.ok ? "status" : "alert"} className={`mb-3 text-sm ${note.ok ? "text-emerald-700" : "text-red-600"}`}>
+                  {note.text}
+                </p>
+              )}
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Signs in with</th>
+                      <th>Password</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {ok.map((m) => (
+                      <tr key={m.signIn}>
+                        <td>{m.name}</td>
+                        <td className="font-mono text-xs">{m.signIn}</td>
+                        <td className="font-mono text-xs">{m.password}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>
@@ -140,8 +217,8 @@ function escape(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-/** A page of cut-out cards, one a student, printed from a new window. */
-function printCards(classInfo: ClassInfo, accounts: MadeAccount[]) {
+/** A page of cut-out cards, one a student, printed from a new window. False when the window was blocked. */
+function printCards(classInfo: ClassInfo, accounts: MadeAccount[]): boolean {
   const site = typeof window !== "undefined" ? window.location.host : "learn.algebridge.org";
   const cards = accounts
     .map(
@@ -155,7 +232,7 @@ function printCards(classInfo: ClassInfo, accounts: MadeAccount[]) {
     )
     .join("");
   const w = window.open("", "_blank");
-  if (!w) return;
+  if (!w) return false;
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escape(classInfo.name)} login cards</title>
 <style>
   body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; color: #0f172a; }
@@ -173,4 +250,5 @@ function printCards(classInfo: ClassInfo, accounts: MadeAccount[]) {
 <script>window.onload = () => window.print();</script>
 </body></html>`);
   w.document.close();
+  return true;
 }

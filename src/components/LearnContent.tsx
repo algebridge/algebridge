@@ -11,7 +11,7 @@ import { SkillIdea } from "@/components/SkillIdea";
 import { ideaFor } from "@/data/skill-ideas";
 import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
-import { PracticePanel } from "@/components/PracticePanel";
+import { FAST_RUN, FAST_SECONDS, PracticePanel } from "@/components/PracticePanel";
 import { CourseGate } from "@/components/CourseGate";
 import { Icon } from "@/components/Icon";
 import { LockedSkill } from "@/components/LockedSkill";
@@ -170,9 +170,9 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-        <Link href={courseHome} className="hover:text-bridge-600">{courseName}</Link>
+        <Link href={courseHome} className="-my-1 inline-block rounded px-0.5 py-1 hover:text-bridge-600">{courseName}</Link>
         <span aria-hidden className="mx-2">/</span>
-        <Link href={`/unit/${unitId}`} className="hover:text-bridge-600">
+        <Link href={`/unit/${unitId}`} className="-my-1 inline-block rounded px-0.5 py-1 hover:text-bridge-600">
           Unit {unit.number}
         </Link>
         <span aria-hidden className="mx-2">/</span>
@@ -186,6 +186,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
         <Link
           href={`/unit/${unitId}`}
           title={`Unit ${unit.number}: ${unit.title}`}
+          aria-label={`Unit ${unit.number}: ${unit.title}`}
           className="hue-wash flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition hover:scale-105"
         >
           <UnitMark unitId={unit.id} size={24} />
@@ -204,6 +205,13 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             {!gated && state && (state.open || looking) && <ProgressStatus level={mastery} />}
           </div>
           <p className="page-subtitle">{skill.description}</p>
+          {/* Back for more practice: straight to the card, past the lesson. */}
+          {!gated && state?.open && !isSkillComplete && (videoStepSatisfied || practiceStats.attempted > 0) && (
+            <a href="#practice" className="btn-secondary btn-sm mt-3 inline-flex">
+              Jump to practice
+              <Icon name="arrow-right" size={14} />
+            </a>
+          )}
         </div>
       </header>
 
@@ -255,7 +263,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 <p className="mt-0.5 text-sm text-slate-600">
                   {practiceRight >= CHECK_LENGTH && canTryCheck(getSkillProgress(skill.id))
                     ? `${practiceRight} right already. Show what you know, ${CHECK_LENGTH} in a row, and this skill opens for real.`
-                    : `You are ahead of your path, so this is for practice only and your progress stays as it is. Finish ${state.after.title} and this skill opens.`}
+                    : `You are ahead of your path, so this is for practice only and your progress stays as it is. Finish ${state.after.title} and this skill opens. Or answer ${FAST_RUN} right in a row, each within ${FAST_SECONDS} seconds, and it opens now.`}
                 </p>
               </div>
               <div className="mt-3 flex shrink-0 flex-wrap gap-2 sm:mt-0">
@@ -295,6 +303,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                     <h2 className="section-title flex items-center gap-2">
                       <StepMark n={1} done={isSkillComplete} />
                       Get the idea
+                      {isSkillComplete && <span className="sr-only">, done</span>}
                     </h2>
                     <p className="text-sm text-slate-500">What this is really about, before any steps.</p>
                   </div>
@@ -334,6 +343,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                     <h2 className="section-title flex items-center gap-2">
                       <StepMark n={first + 1} done={isSkillComplete} />
                       See it done
+                      {isSkillComplete && <span className="sr-only">, done</span>}
                     </h2>
                     <p className="text-sm text-slate-500">Every kind of problem in the practice, worked step by step.</p>
                   </div>
@@ -341,7 +351,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 </section>
               )}
 
-              <section>
+              <section id="practice" className="scroll-mt-20">
                 <h2 className="section-title mb-3 flex items-center gap-2">
                   <StepMark n={workedExamplesFor(skill.id).length > 0 ? first + 2 : first + 1} done={isSkillComplete} />
                   Practice

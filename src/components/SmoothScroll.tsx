@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * In-page anchors (#units, #progress) glide instead of jump.
@@ -22,7 +23,7 @@ export function SmoothScroll() {
       const target = document.querySelector(href);
       if (!target) return;
       e.preventDefault();
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const reduce = prefersReducedMotion();
       // Clear the sticky header so the heading is not hidden underneath it.
       const top = target.getBoundingClientRect().top + window.scrollY - 80;
       window.scrollTo({ top, behavior: reduce ? "auto" : "smooth" });

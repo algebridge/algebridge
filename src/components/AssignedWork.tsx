@@ -51,7 +51,7 @@ export function AssignedWork() {
   return (
     <section className="panel">
       <div className="panel-head">
-        <p className="panel-title">Assigned to you</p>
+        <h2 className="panel-title">Assigned to you</h2>
         <Link href="/classes" className="inline-flex items-center gap-1 text-xs font-medium text-bridge-700 hover:underline">
           All classes
           <Icon name="arrow-right" size={13} />

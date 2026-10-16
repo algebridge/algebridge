@@ -109,7 +109,8 @@ function toClassInfo(row: ClassRow, studentCount: number, fallbackPosition: numb
   };
 }
 
-export async function createClass(draft: ClassDraft): Promise<{ error: string | null }> {
+/** Makes a class; `id` is the new class, so the page can open it at once. */
+export async function createClass(draft: ClassDraft): Promise<{ error: string | null; id?: string }> {
   const supabase = createClient();
   if (!supabase) return { error: "Cloud login is not configured yet." };
   const { data: userData } = await supabase.auth.getUser();
@@ -132,12 +133,12 @@ export async function createClass(draft: ClassDraft): Promise<{ error: string | 
     sort_order: nextPosition,
   };
 
-  const { error } = await supabase.from("classes").insert(full);
+  const { data, error } = await supabase.from("classes").insert(full).select("id").single();
   if (error && isMissingSchema(error)) {
-    const retry = await supabase.from("classes").insert({ teacher_id: teacherId, name });
-    return { error: retry.error?.message ?? null };
+    const retry = await supabase.from("classes").insert({ teacher_id: teacherId, name }).select("id").single();
+    return { error: retry.error?.message ?? null, id: retry.data?.id ?? undefined };
   }
-  return { error: error?.message ?? null };
+  return { error: error?.message ?? null, id: data?.id ?? undefined };
 }
 
 export async function getMyClasses(

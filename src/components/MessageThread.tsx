@@ -117,7 +117,7 @@ export function MessageThread({
       <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
         <Avatar name={otherName} url={otherAvatarUrl} size={40} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-slate-900">{otherName ?? "AlgeBridge user"}</p>
+          <h1 className="truncate text-base font-semibold text-slate-900">{otherName ?? "AlgeBridge user"}</h1>
           {otherRole && (
             <p className="text-xs capitalize text-slate-500">{otherRole}</p>
           )}

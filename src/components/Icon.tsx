@@ -67,7 +67,8 @@ export type IconName =
   | "enter"
   | "printer"
   | "download"
-  | "versus";
+  | "versus"
+  | "text-size";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -176,6 +177,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="m12 3 7 3v5.5c0 4.2-2.9 7.6-7 8.5-4.1-.9-7-4.3-7-8.5V6Z" />
       <path d="m9.2 12 2 2 3.6-3.8" />
+    </>
+  ),
+  /* A big A beside a small one: the Display menu (text size and motion). */
+  "text-size": (
+    <>
+      <path d="M3 18 8 6l5 12M5 14h6" />
+      <path d="M14.5 18l3-7 3 7M15.6 15.5h3.8" />
     </>
   ),
   settings: (

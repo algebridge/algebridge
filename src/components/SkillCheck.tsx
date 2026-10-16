@@ -22,7 +22,8 @@ type Phase = "asking" | "right" | "passed" | "failed";
  * "Show what you know": a few of the skill's problems, all to be answered
  * right in a row, to open a skill ahead of the learning path. The try is
  * spent the moment it starts, so reloading the page mid-check does not buy
- * another one.
+ * another one. A choice is picked, then checked, so one stray tap on a
+ * phone never ends the day's one try.
  */
 export function SkillCheck({
   skill,
@@ -41,10 +42,13 @@ export function SkillCheck({
   );
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState("");
+  const [picked, setPicked] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("asking");
   /** The answer that ended the check, read for where it went wrong. */
   const [lastGiven, setLastGiven] = useState("");
   const answerField = useRef<AnswerFieldHandle>(null);
+  const choices = useRef<HTMLDivElement>(null);
+  const result = useRef<HTMLDivElement>(null);
   /** Unfinished arithmetic or a typo, said gently: the one try of the day is not spent on it. */
   const [nudge, setNudge] = useState<string | null>(null);
   const day = useRef(today()).current;
@@ -54,8 +58,15 @@ export function SkillCheck({
     if (problems.length) recordSkillCheck(skill.id, false, day);
   }, [skill.id, problems.length, day]);
 
+  // The keyboard follows the question: the answer box, or the first choice;
+  // and the verdict screen, so a screen reader starts reading it at once.
   useEffect(() => {
-    if (phase === "asking") answerField.current?.focus();
+    if (phase === "asking") {
+      if (answerField.current) answerField.current.focus();
+      else choices.current?.querySelector<HTMLElement>("button:not(:disabled)")?.focus();
+    } else if (phase === "failed" || phase === "passed") {
+      result.current?.focus({ preventScroll: true });
+    }
   }, [phase, index]);
 
   const problem = problems[index];
@@ -93,6 +104,7 @@ export function SkillCheck({
     window.setTimeout(() => {
       setIndex((i) => i + 1);
       setAnswer("");
+      setPicked(null);
       setPhase("asking");
     }, 700);
   }
@@ -101,7 +113,7 @@ export function SkillCheck({
     // The page opens the lesson as soon as progress saves; this shows only
     // for the moment in between.
     return (
-      <div className="text-center">
+      <div ref={result} tabIndex={-1} role="status" className="text-center focus:outline-none">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
           <Icon name="check" size={22} />
         </span>
@@ -115,10 +127,9 @@ export function SkillCheck({
   if (phase === "failed") {
     const mistake = diagnoseMistake(problem, { given: lastGiven });
     return (
-      <div className="text-center">
-        <p className="font-semibold text-slate-900">Good try.</p>
-        <p className="mt-1 text-sm text-slate-600">
-          The answer was <span className="font-semibold text-slate-900"><MathText text={String(problem.answer)} /></span>.
+      <div ref={result} tabIndex={-1} className="text-center focus:outline-none">
+        <p role="status" className="font-semibold text-slate-900">
+          Good try. The answer was <span className="font-semibold text-slate-900"><MathText text={String(problem.answer)} /></span>.
         </p>
         {mistake.note && (
           <div className="mt-3 text-left">
@@ -138,6 +149,8 @@ export function SkillCheck({
     );
   }
 
+  const multiple = problem.type === "multiple-choice" && !!problem.choices;
+
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -154,25 +167,57 @@ export function SkillCheck({
           ))}
         </span>
       </div>
+      {/* The rule, on the screen where it applies. */}
+      <p className="mt-1 text-xs text-slate-500">
+        All {problems.length} right in a row opens the skill. One try a day.
+      </p>
       <PromptText text={stripVariantTag(problem.prompt)} className="mt-3 text-lg leading-relaxed text-slate-800" />
 
-      {problem.type === "multiple-choice" && problem.choices ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {problem.choices.map((choice, i) => (
-            <button
-              key={choice}
-              type="button"
-              disabled={phase !== "asking"}
-              onClick={() => submit(choice)}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-bridge-300 hover:bg-bridge-50 disabled:opacity-60"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
-                {String.fromCharCode(65 + i)}
-              </span>
-              <MathText text={choice} />
-            </button>
-          ))}
-        </div>
+      {multiple ? (
+        <>
+          <div ref={choices} role="group" aria-label="Answer choices" className="mt-4 grid gap-2 sm:grid-cols-2">
+            {problem.choices!.map((choice, i) => {
+              const on = picked === choice;
+              return (
+                <button
+                  key={choice}
+                  type="button"
+                  disabled={phase !== "asking"}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setPicked(choice);
+                    setNudge(null);
+                  }}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition disabled:opacity-60 ${
+                    on ? "hue-tint hue-ink border-current" : "border-slate-200 bg-white text-slate-800 hover:border-bridge-300 hover:bg-bridge-50"
+                  }`}
+                >
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
+                      on ? "hue-solid" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {String.fromCharCode(65 + i)}
+                  </span>
+                  <MathText text={choice} />
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => (picked ? submit(picked) : setNudge("Pick an answer first."))}
+            disabled={phase !== "asking"}
+            className="hue-solid mt-3 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
+          >
+            Check
+          </button>
+          {nudge && (
+            <p role="status" className="mt-2 text-sm font-medium text-slate-600">
+              {nudge}
+            </p>
+          )}
+        </>
       ) : (
         <div className="mt-4">
           <AnswerField
@@ -191,15 +236,15 @@ export function SkillCheck({
           />
           <button
             type="button"
-            onClick={() => submit(answer)}
-            disabled={phase !== "asking" || !answer.trim()}
+            onClick={() => (answer.trim() ? submit(answer) : setNudge("Type your answer first."))}
+            disabled={phase !== "asking"}
             className="hue-solid mt-3 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 disabled:opacity-50"
           >
             Check
           </button>
         </div>
       )}
-      <p className="mt-3 h-5 text-sm font-medium text-emerald-700" aria-live="polite">
+      <p className="mt-3 h-5 text-sm font-medium text-emerald-700" role="status">
         {phase === "right" ? "Right." : ""}
       </p>
     </div>

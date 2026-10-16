@@ -12,7 +12,7 @@ const FOCUSABLE =
  * behind; Escape calls `onEscape` when one is given. On close, focus goes
  * back to where it was before the dialog opened.
  */
-export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean, onEscape?: () => void) {
+export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean, onEscape?: () => void, token?: unknown) {
   const escape = useRef(onEscape);
   escape.current = onEscape;
 
@@ -50,5 +50,7 @@ export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean
       document.removeEventListener("keydown", onKey);
       if (before && before !== document.body && before.isConnected) before.focus({ preventScroll: true });
     };
-  }, [open, ref]);
+    // `token`: a dialog whose root element is replaced while it stays open
+    // (the tour's card, keyed by step) passes something that changes with it.
+  }, [open, ref, token]);
 }

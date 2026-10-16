@@ -109,6 +109,16 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
   }, [paint]);
 
   const stop = useCallback(() => setDrawing(false), []);
+  // Starting to draw unmounts the corner pen, so the keyboard goes to the
+  // first tool; stopping brings it back to the pen.
+  const penButton = useRef<HTMLButtonElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
+  const wasDrawing = useRef(false);
+  useEffect(() => {
+    if (drawing) toolbar.current?.querySelector<HTMLElement>("button")?.focus();
+    else if (wasDrawing.current) penButton.current?.focus();
+    wasDrawing.current = drawing;
+  }, [drawing]);
   const toggle = useCallback(() => setDrawing((d) => !d), []);
   const register = useCallback(() => {
     setSurfaces((n) => n + 1);
@@ -196,6 +206,7 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
           the phone menu's scrim (z-40), like the other corner buttons. */}
       {surfaces > 0 && !drawing && (
         <button
+          ref={penButton}
           type="button"
           onClick={toggle}
           aria-label="Draw on the screen"
@@ -221,6 +232,7 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
       )}
       {drawing && (
         <div
+          ref={toolbar}
           role="toolbar"
           aria-label="Drawing tools"
           className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg"

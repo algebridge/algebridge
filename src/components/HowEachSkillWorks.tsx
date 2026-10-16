@@ -12,7 +12,7 @@ export function HowEachSkillWorks() {
   return (
     <section className="panel">
       <div className="panel-head">
-        <p className="panel-title">How each skill works</p>
+        <h2 className="panel-title">How each skill works</h2>
       </div>
       <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
         {HOW_IT_WORKS.map((s) => (

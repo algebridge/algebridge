@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CONFETTI_EVENT, type ConfettiIntensity } from "@/lib/notify";
+import { prefersReducedMotion } from "@/lib/display";
 
 interface Particle {
   x: number;
@@ -86,6 +87,7 @@ export function Confetti() {
     }
 
     function handleConfetti(e: Event) {
+      if (prefersReducedMotion()) return;
       const intensity = (e as CustomEvent<ConfettiIntensity>).detail ?? "small";
       spawn(intensity === "big" ? 160 : 70);
       if (rafRef.current === null) {

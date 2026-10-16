@@ -59,7 +59,8 @@ export function AuthGate({
 
   if (loading) {
     return (
-      <div className="card animate-pulse space-y-3">
+      <div role="status" className="card animate-pulse space-y-3">
+        <span className="sr-only">Loading</span>
         <div className="h-4 w-1/3 rounded bg-slate-200" />
         <div className="h-3 w-2/3 rounded bg-slate-100" />
       </div>
@@ -71,7 +72,7 @@ export function AuthGate({
     return (
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">{title}</p>
+          <h2 className="panel-title">{title}</h2>
           <span className="badge-brand">{badge}</span>
         </div>
         <div className="panel-body space-y-4">
@@ -104,7 +105,7 @@ export function AuthGate({
     return (
       <div className="panel">
         <div className="panel-head">
-          <p className="panel-title">Add your real name to continue</p>
+          <h2 className="panel-title">Add your real name to continue</h2>
         </div>
         <div className="panel-body space-y-4">
           <p className="text-sm leading-relaxed text-slate-600">{nameBlurb}</p>

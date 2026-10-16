@@ -40,7 +40,7 @@ export default function Algebra2Page() {
       {/* The course before this one, for a student who wants the base first. */}
       <section id="algebra-1" className="panel">
         <div className="panel-head">
-          <p className="panel-title">AlgeBridge 1</p>
+          <h2 className="panel-title">AlgeBridge 1</h2>
           <span className="badge-brand">The base</span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">

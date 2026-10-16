@@ -211,9 +211,10 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
             href={watchUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-slate-200 hover:text-white"
+            className="inline-flex items-center gap-1 rounded px-1 py-1.5 -my-1.5 text-xs text-slate-200 hover:text-white"
           >
             Open on YouTube
+            <span className="sr-only">, opens in a new tab</span>
             <Icon name="external" size={13} />
           </a>
           {backupVideo && (
@@ -222,7 +223,7 @@ export function VideoPlayer({ video, backupVideo, onWatched }: VideoPlayerProps)
               onClick={() =>
                 setActiveVideo(activeVideo.id === video.id ? backupVideo : video)
               }
-              className="text-xs text-slate-200 hover:text-white"
+              className="rounded px-1 py-1.5 -my-1.5 text-xs text-slate-200 hover:text-white"
             >
               Switch video:{" "}
               {activeVideo.id === video.id ? backupVideo.title : video.title}

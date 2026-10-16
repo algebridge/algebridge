@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { initialsOf } from "@/lib/name";
 import { classGrade, overallAccuracy, unitReport, type Accuracy } from "@/lib/student-report";
 import { USERNAME_DOMAIN } from "@/lib/student-accounts";
@@ -35,7 +36,7 @@ export function StudentDetail({
   assignments: ClassAssignment[];
   onClose: () => void;
 }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLElement>(null);
   const [openUnit, setOpenUnit] = useState<string | null>(null);
   const progress = student.progress;
   const grade = classGrade(progress, assignments);
@@ -44,16 +45,14 @@ export function StudentDetail({
   const name = student.displayName ?? "Unnamed student";
   const stats = student.stats;
 
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Focus moves in, Tab stays inside, Escape closes, and focus goes back to
+  // the roster row that opened it.
+  useDialogFocus(panel, true, onClose);
 
   return (
     <div className="fixed inset-0 z-[120] flex justify-end bg-slate-900/40" onClick={onClose}>
       <aside
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={`${name}, student report`}
@@ -70,7 +69,7 @@ export function StudentDetail({
               {classInfo.name} · signs in as <span className="font-mono">{signInName(student.email)}</span>
             </p>
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+          <button data-autofocus type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -85,7 +84,7 @@ export function StudentDetail({
 
           <section className="panel">
             <div className="panel-head">
-              <p className="panel-title">Profile</p>
+              <h3 className="panel-title">Profile</h3>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 p-5 text-sm sm:grid-cols-3">
               <Field label="Name" value={name} />
@@ -102,7 +101,7 @@ export function StudentDetail({
 
           <section className="panel">
             <div className="panel-head">
-              <p className="panel-title">Grade</p>
+              <h3 className="panel-title">Grade</h3>
               <span className="text-xs text-slate-500">Assigned skills completed</span>
             </div>
             {grade.assignments.length === 0 ? (
@@ -140,7 +139,7 @@ export function StudentDetail({
 
           <section className="panel">
             <div className="panel-head">
-              <p className="panel-title">What they completed</p>
+              <h3 className="panel-title">What they completed</h3>
               <span className="text-xs text-slate-500">Accuracy is right answers out of all answers</span>
             </div>
             <ul className="divide-y divide-slate-100">
@@ -195,7 +194,7 @@ export function StudentDetail({
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
       <p className="text-xs text-slate-500">{sub}</p>
     </div>

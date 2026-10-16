@@ -51,7 +51,7 @@ export default function HomePage() {
       {/* The next course, for a student who finished this one or is placed past it. */}
       <section id="algebra-2" className="panel">
         <div className="panel-head">
-          <p className="panel-title">AlgeBridge 2</p>
+          <h2 className="panel-title">AlgeBridge 2</h2>
           <span className="badge-brand">New course</span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
@@ -75,7 +75,7 @@ export default function HomePage() {
           the subject. Every quote is real and carries its source. */}
       <section className="panel" id="why-algebra">
         <div className="panel-head">
-          <p className="panel-title">Why Algebra 1</p>
+          <h2 className="panel-title">Why Algebra 1</h2>
         </div>
         <div className="p-5">
           <p className="max-w-2xl text-sm leading-relaxed text-slate-600">

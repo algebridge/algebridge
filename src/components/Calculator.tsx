@@ -363,6 +363,26 @@ export function Calculator() {
     saveOffset(NUDGE_KEY, d.last);
   }, []);
 
+  /** Arrow keys on the grip move the panel, for a keyboard (WCAG 2.5.7). */
+  const onMoveKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      const step: Record<string, [number, number]> = {
+        ArrowLeft: [-KEY_STEP, 0],
+        ArrowRight: [KEY_STEP, 0],
+        ArrowDown: [0, KEY_STEP],
+        ArrowUp: [0, -KEY_STEP],
+      };
+      const move = step[e.key];
+      if (!move || !canDrag) return;
+      e.preventDefault();
+      const want = { x: nudge.x + move[0], y: nudge.y + move[1] };
+      const next = keepOnScreen(panelRef.current?.getBoundingClientRect(), appliedRef.current, want, areaRef.current);
+      setNudge(next);
+      saveOffset(NUDGE_KEY, next);
+    },
+    [canDrag, nudge]
+  );
+
   // --- Resizing from the bottom-left corner --------------------------------------
 
   const measureStart = useCallback((): ResizeStart | null => {
@@ -555,7 +575,17 @@ export function Calculator() {
               canDrag ? "touch-none cursor-grab active:cursor-grabbing" : ""
             }`}
           >
-            {canDrag && <Icon name="grip" size={14} className="shrink-0 text-slate-300" />}
+            {canDrag && (
+              <button
+                type="button"
+                aria-label="Move calculator. Use the arrow keys."
+                title="Drag the bar to move"
+                onKeyDown={onMoveKey}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-300 transition hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400"
+              >
+                <Icon name="grip" size={14} />
+              </button>
+            )}
             {/* The name only where it fits beside the switch and the buttons: at the smallest size it would push Close out of the panel. */}
             {!desmos && panelWidth >= 360 && (
               <span className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">Calculator</span>
