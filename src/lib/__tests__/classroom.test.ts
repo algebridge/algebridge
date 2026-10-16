@@ -83,5 +83,21 @@ const pw = A.makePassword();
 check("passwords are two words and a number", /^[a-z]+-[a-z]+-\d\d$/.test(pw) && pw.length >= 8, pw);
 check("the two words differ", A.makePassword(() => [3, 3, 5]).split("-")[0] !== A.makePassword(() => [3, 3, 5]).split("-")[1]);
 
+// Student reports.
+const R = await import("../student-report.ts");
+const sp = (attempted: number, correct: number, level = "attempted") => ({ skillId: "x", level, problemsAttempted: attempted, problemsCorrect: correct, videoWatched: false });
+check("accuracy adds up", R.accuracyOf([sp(10, 7), sp(10, 9), undefined]).percent === 80);
+check("no answers, no accuracy", R.accuracyOf([]).percent === null);
+check("correct never beats attempted", R.accuracyOf([sp(2, 5)]).percent === 100);
+check("letters", ["A", "B", "C", "D", "F"].join() === [95, 85, 75, 65, 10].map(R.letterFor).join());
+const u1 = P.PATH[0].unitId;
+const asg = [{ id: "a1", classId: "c", unitId: u1, skillId: null, title: null, note: null, dueDate: "2000-01-01", position: 1, createdAt: "" }];
+const prog = { skills: { [P.PATH[0].skillId]: sp(5, 5, "proficient") } } as unknown as typeof empty;
+const g = R.classGrade(prog, asg as never, new Date("2026-10-15"));
+check("grade is assigned skills done", g.total > 1 && g.done === 1 && g.percent === Math.round(100 / g.total), JSON.stringify(g));
+check("unfinished past due is late", g.assignments[0].late);
+check("nothing assigned, no grade", R.classGrade(prog, []).letter === null);
+check("unit report covers every unit", R.unitReport(prog).length > 10 && R.unitReport(prog)[0].completed === 1);
+
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
