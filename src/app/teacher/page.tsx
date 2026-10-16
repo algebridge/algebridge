@@ -28,6 +28,8 @@ import {
 import { Icon } from "@/components/Icon";
 import { ClassControlsTab } from "@/components/teacher/ClassControlsTab";
 import { MakeAccounts } from "@/components/teacher/MakeAccounts";
+import { signInName, StudentDetail } from "@/components/teacher/StudentDetail";
+import { classGrade, overallAccuracy } from "@/lib/student-report";
 import { StandardsChip } from "@/components/StandardsChip";
 import { standardsForSkill } from "@/data/standards";
 import type { ClassAssignment, ClassColor, ClassInfo, RosterStudent } from "@/types";
@@ -566,6 +568,7 @@ function ClassDetail({
         <RosterTab
           classInfo={classInfo}
           roster={roster}
+          assignments={assignments}
           loading={rosterLoading}
           onChanged={() => {
             loadRoster();
@@ -597,16 +600,18 @@ function ClassDetail({
 // Roster
 // ---------------------------------------------------------------------------
 
-type SortKey = "name" | "progress" | "active";
+type SortKey = "name" | "progress" | "grade" | "active";
 
 function RosterTab({
   classInfo,
   roster,
+  assignments,
   loading,
   onChanged,
 }: {
   classInfo: ClassInfo;
   roster: RosterStudent[];
+  assignments: ClassAssignment[];
   loading: boolean;
   onChanged: () => void;
 }) {
@@ -614,6 +619,8 @@ function RosterTab({
   const [adding, setAdding] = useState(false);
   const [result, setResult] = useState<BulkAddResult | null>(null);
   const [sort, setSort] = useState<SortKey>("name");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openStudent = roster.find((s) => s.id === openId) ?? null;
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -640,6 +647,9 @@ function RosterTab({
     const list = [...roster];
     if (sort === "progress") {
       list.sort((a, b) => (b.stats?.percent ?? -1) - (a.stats?.percent ?? -1));
+    } else if (sort === "grade") {
+      const g = (s: RosterStudent) => classGrade(s.progress, assignments).percent ?? -1;
+      list.sort((a, b) => g(b) - g(a));
     } else if (sort === "active") {
       list.sort((a, b) => (b.lastActiveAt ?? "").localeCompare(a.lastActiveAt ?? ""));
     } else {
@@ -648,7 +658,7 @@ function RosterTab({
       );
     }
     return list;
-  }, [roster, sort]);
+  }, [roster, sort, assignments]);
 
   return (
     <div className="space-y-4">
@@ -730,6 +740,7 @@ function RosterTab({
             >
               <option value="name">Name</option>
               <option value="progress">Progress</option>
+              <option value="grade">Grade</option>
               <option value="active">Last active</option>
             </select>
           </label>
@@ -743,10 +754,12 @@ function RosterTab({
         ) : (
           <div tabIndex={0} role="region" aria-label="Class roster" className="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
             {/* Focusable, so a keyboard can scroll the roster sideways on a phone. */}
-            <table className="data-table min-w-[680px]">
+            <table className="data-table min-w-[820px]">
               <thead>
                 <tr>
                   <th>Student</th>
+                  <th>Grade</th>
+                  <th>Accuracy</th>
                   <th>Course progress</th>
                   <th>Level</th>
                   <th>Streak</th>
@@ -761,10 +774,32 @@ function RosterTab({
                 {sorted.map((student) => (
                   <tr key={student.id}>
                     <td>
-                      <p className="font-medium text-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(student.id)}
+                        className="text-left font-medium text-bridge-700 hover:underline"
+                      >
                         {student.displayName ?? "Unnamed student"}
-                      </p>
-                      <p className="text-xs text-slate-500">{student.email}</p>
+                      </button>
+                      <p className="text-xs text-slate-500">{signInName(student.email)}</p>
+                    </td>
+                    <td className="text-xs">
+                      {(() => {
+                        const g = classGrade(student.progress, assignments);
+                        return g.letter ? (
+                          <span className="font-semibold text-slate-900">
+                            {g.letter} <span className="font-normal text-slate-500">{g.percent}%</span>
+                          </span>
+                        ) : (
+                          "-"
+                        );
+                      })()}
+                    </td>
+                    <td className="text-xs">
+                      {(() => {
+                        const a = overallAccuracy(student.progress);
+                        return a.percent === null ? "-" : `${a.percent}%`;
+                      })()}
                     </td>
                     <td>
                       {student.stats ? (
@@ -809,6 +844,14 @@ function RosterTab({
           </div>
         )}
       </div>
+      {openStudent && (
+        <StudentDetail
+          student={openStudent}
+          classInfo={classInfo}
+          assignments={assignments}
+          onClose={() => setOpenId(null)}
+        />
+      )}
     </div>
   );
 }
