@@ -41,7 +41,7 @@ import { today } from "@/lib/path";
 import { setMusicEnabled } from "@/lib/progress";
 import { useAuth } from "@/lib/auth";
 import { fetchNeighbours, publicLeaderboardName, type Neighbour } from "@/lib/leaderboard";
-import { DEFAULT_AVATAR, randomAvatar, sanitizeAvatar } from "@/lib/avatar";
+import { DEFAULT_AVATAR, randomAvatar, sanitizeAvatar, withFigure } from "@/lib/avatar";
 import { getUnreadCount } from "@/lib/social";
 import type { GardenPick, HouseView, ScenePiece } from "@/lib/house3d/engine";
 import type { LiveData } from "@/lib/house3d/types";
@@ -84,6 +84,9 @@ interface Props {
  * Watch, Play, Read, Draw, Music, Ask Archie. Drag a piece to move it; drag
  * the room to look round it.
  */
+/** Session storage: "Later" was tapped on the first-visit question. */
+const FIGURE_ASK_LATER = "algebridge-house-figure-later";
+
 export function House3D({ progress, onUpdate, onShop, embedded = false }: Props) {
   const router = useRouter();
   const { continueTarget } = useAppNavState();
@@ -107,6 +110,15 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
   const [walking, setWalking] = useState(true);
   const [editingCharacter, setEditingCharacter] = useState(false);
   const [visitingCity, setVisitingCity] = useState(false);
+  /** "Later" on the first-visit question keeps it quiet for this visit only; it asks again next time until a character is saved. */
+  const [askLater, setAskLater] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return window.sessionStorage.getItem(FIGURE_ASK_LATER) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [ready, setReady] = useState(false);
   /** The first frame is on screen (shaders compile in the background before it). */
   const [drawn, setDrawn] = useState(false);
@@ -240,6 +252,21 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
 
   // Your character, on the porch; everyone has one, made or still the default.
   const avatar = useMemo(() => sanitizeAvatar(progress.avatar ?? DEFAULT_AVATAR), [progress.avatar]);
+  // Until a character is saved, the porch asks who stands on it: one tap, girl or boy, and the rest can wait.
+  const askFigure = view === "front" && drawn && !embedded && !progress.avatar && !askLater && !editingCharacter && !visitingCity;
+  function chooseFigure(figure: "girl" | "boy") {
+    setAvatar(withFigure(DEFAULT_AVATAR, figure));
+    showToast({ icon: "check", tone: "success", title: "Your character is on the porch. My character makes it you." });
+    onUpdate();
+  }
+  function askFigureLater() {
+    try {
+      window.sessionStorage.setItem(FIGURE_ASK_LATER, "1");
+    } catch {
+      // Storage off: it stays quiet for this render and asks again next visit.
+    }
+    setAskLater(true);
+  }
   useEffect(() => {
     if (ready && view === "front") engine.current?.setAvatar(avatar);
   }, [ready, view, avatar]);
@@ -638,6 +665,25 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               ? "Tap a piece to use it. Drag it to move it, or drag the room to look round."
               : "An empty room. Put pieces in from the tray below."}
         </p>
+        {askFigure && (
+          <div role="group" aria-labelledby="figure-ask-title" className="absolute inset-x-3 top-[4.75rem] mx-auto w-auto max-w-xs rounded-xl bg-white/95 p-3 shadow-lg ring-1 ring-slate-200 backdrop-blur sm:top-16">
+            <p id="figure-ask-title" className="text-sm font-semibold text-slate-900">
+              Who stands on your porch?
+            </p>
+            <p className="mt-0.5 text-xs text-slate-600">One tap. Hair, clothes and the rest can wait.</p>
+            <div className="mt-2.5 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => chooseFigure("girl")} className="btn-primary btn-sm">
+                Girl
+              </button>
+              <button type="button" onClick={() => chooseFigure("boy")} className="btn-primary btn-sm">
+                Boy
+              </button>
+            </div>
+            <button type="button" onClick={askFigureLater} className="mt-2 text-xs font-medium text-slate-500 hover:text-slate-800">
+              Later
+            </button>
+          </div>
+        )}
         <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
           <button type="button" onClick={() => engine.current?.zoom(1.15)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-slate-900" aria-label="Zoom in">
             <Icon name="plus" size={16} />
