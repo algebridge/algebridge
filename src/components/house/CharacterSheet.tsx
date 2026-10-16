@@ -3,18 +3,19 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { AvatarStage } from "@/components/house/AvatarStage";
-import { BOTTOMS, BUILDS, CLOTHES_COLORS, COLOR_NAMES, EXTRAS, EYE_COLORS, HAIR_COLORS, HAIR_STYLES, HEIGHTS, randomAvatar, SKIN_TONES, TOPS, type Choice } from "@/lib/avatar";
+import { BOTTOMS, BUILDS, CLOTHES_COLORS, COLOR_NAMES, COVERS_BOTTOM, EXTRAS, EYE_COLORS, FIGURES, HAIR_COLORS, HAIR_STYLES, HEIGHTS, randomAvatar, SKIN_TONES, TOPS, toggleExtra, withFigure, type Choice } from "@/lib/avatar";
 import type { AvatarSpec } from "@/types";
 
 /**
  * Making your character: a figure on a turntable and the choices beside it,
- * each one shown the moment it is picked. Saved when you say so; closed
+ * each one shown the moment it is picked. Girl or boy comes first; every
+ * hairstyle, top and extra is open to both. Saved when you say so; closed
  * without saving otherwise.
  */
 export function CharacterSheet({ initial, name, onSave, onClose }: { initial: AvatarSpec; name: string | null; onSave: (spec: AvatarSpec) => void; onClose: () => void }) {
   const [spec, setSpec] = useState<AvatarSpec>(initial);
   const set = (patch: Partial<AvatarSpec>) => setSpec((s) => ({ ...s, ...patch }));
-  const toggleExtra = (id: string) => setSpec((s) => ({ ...s, extras: s.extras.includes(id) ? s.extras.filter((e) => e !== id) : [...s.extras, id] }));
+  const covered = COVERS_BOTTOM.has(spec.top);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -44,11 +45,26 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
             <Icon name="close" size={16} />
           </button>
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[240px_1fr]">
-          <div className="h-56 shrink-0 bg-gradient-to-b from-[#eef1f5] to-[#dfe4ea] sm:h-auto">
+        <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[260px_1fr]">
+          <div className="h-60 shrink-0 bg-gradient-to-b from-[#eef1f5] to-[#dfe4ea] sm:h-auto">
             <AvatarStage spec={spec} className="h-full w-full" />
           </div>
           <div className="min-h-0 overflow-y-auto px-5 py-4">
+            <div role="group" aria-label="Figure" className="mb-5">
+              <div className="grid grid-cols-2 gap-2">
+                {FIGURES.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setSpec((s) => withFigure(s, f.id as AvatarSpec["figure"]))}
+                    aria-pressed={spec.figure === f.id}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${spec.figure === f.id ? "border-bridge-600 bg-bridge-50 text-bridge-700 ring-2 ring-bridge-600" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Group label="Skin">
               <Swatches colors={SKIN_TONES} value={spec.skin} onPick={(skin) => set({ skin })} />
             </Group>
@@ -64,8 +80,14 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
               <Swatches colors={CLOTHES_COLORS} value={spec.topColor} onPick={(topColor) => set({ topColor })} />
             </Group>
             <Group label="Bottom">
-              <Chips choices={BOTTOMS} value={spec.bottom} onPick={(bottom) => set({ bottom })} />
-              <Swatches colors={CLOTHES_COLORS} value={spec.bottomColor} onPick={(bottomColor) => set({ bottomColor })} />
+              {covered ? (
+                <p className="text-xs text-slate-500">The dress covers it. Pick another top to choose a bottom.</p>
+              ) : (
+                <>
+                  <Chips choices={BOTTOMS} value={spec.bottom} onPick={(bottom) => set({ bottom })} />
+                  <Swatches colors={CLOTHES_COLORS} value={spec.bottomColor} onPick={(bottomColor) => set({ bottomColor })} />
+                </>
+              )}
             </Group>
             <Group label="Shoes">
               <Swatches colors={CLOTHES_COLORS} value={spec.shoes} onPick={(shoes) => set({ shoes })} />
@@ -73,7 +95,7 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
             <Group label="Extras">
               <div className="flex flex-wrap gap-1.5">
                 {EXTRAS.map((e) => (
-                  <button key={e.id} type="button" onClick={() => toggleExtra(e.id)} aria-pressed={spec.extras.includes(e.id)} className={`btn-sm ${spec.extras.includes(e.id) ? "btn-primary" : "btn-secondary"}`}>
+                  <button key={e.id} type="button" onClick={() => setSpec((s) => ({ ...s, extras: toggleExtra(s.extras, e.id) }))} aria-pressed={spec.extras.includes(e.id)} className={`btn-sm ${spec.extras.includes(e.id) ? "btn-primary" : "btn-secondary"}`}>
                     {e.label}
                   </button>
                 ))}

@@ -13,40 +13,65 @@ export interface Choice {
   label: string;
 }
 
+/** Girl or boy: the first choice, and the one the body is built from. */
+export const FIGURES: Choice[] = [
+  { id: "girl", label: "Girl" },
+  { id: "boy", label: "Boy" },
+];
+
 export const SKIN_TONES = ["#f6d9c4", "#f1c7a5", "#e0ac86", "#c98d63", "#b07a55", "#8d5a3b", "#6f432a", "#4b2d1c"];
 export const HAIR_COLORS = ["#1c1210", "#4a2c17", "#7a5230", "#a8713d", "#c9a24a", "#e8d9a6", "#b23a2a", "#8e8e94", "#2f6bd6", "#d653a8", "#2f9e6a"];
 export const EYE_COLORS = ["#2b1b12", "#6b4426", "#3b5a8c", "#4f7a3a", "#7a8a94"];
 export const CLOTHES_COLORS = ["#2563eb", "#ea580c", "#dc2626", "#f59e0b", "#16a34a", "#0d9488", "#7c3aed", "#db2777", "#f4f1ea", "#1f2937", "#6b7280", "#8b5e34", "#0ea5e9", "#a3e635"];
 
+/** Every style is open to every figure; the order here is the order on the sheet. */
 export const HAIR_STYLES: Choice[] = [
-  { id: "short", label: "Short" },
-  { id: "buzz", label: "Buzz cut" },
-  { id: "curly", label: "Curly" },
   { id: "long", label: "Long" },
+  { id: "wavy", label: "Wavy" },
+  { id: "bob", label: "Bob" },
   { id: "ponytail", label: "Ponytail" },
   { id: "bun", label: "Bun" },
   { id: "braids", label: "Braids" },
+  { id: "pigtails", label: "Pigtails" },
+  { id: "puffs", label: "Puffs" },
+  { id: "afro", label: "Afro" },
+  { id: "curly", label: "Curly" },
+  { id: "short", label: "Short" },
+  { id: "buzz", label: "Buzz cut" },
   { id: "bald", label: "Shaved" },
 ];
 export const TOPS: Choice[] = [
   { id: "tee", label: "T-shirt" },
   { id: "hoodie", label: "Hoodie" },
+  { id: "sweater", label: "Sweater" },
+  { id: "cardigan", label: "Cardigan" },
   { id: "jacket", label: "Jacket" },
   { id: "jersey", label: "Jersey" },
-  { id: "sweater", label: "Sweater" },
+  { id: "tank", label: "Tank top" },
+  { id: "dress", label: "Dress" },
 ];
 export const BOTTOMS: Choice[] = [
   { id: "jeans", label: "Jeans" },
   { id: "shorts", label: "Shorts" },
   { id: "joggers", label: "Joggers" },
+  { id: "leggings", label: "Leggings" },
   { id: "skirt", label: "Skirt" },
 ];
 export const EXTRAS: Choice[] = [
   { id: "glasses", label: "Glasses" },
+  { id: "earrings", label: "Earrings" },
+  { id: "necklace", label: "Necklace" },
+  { id: "bow", label: "Hair bow" },
   { id: "cap", label: "Cap" },
+  { id: "beanie", label: "Beanie" },
   { id: "headphones", label: "Headphones" },
   { id: "backpack", label: "Backpack" },
 ];
+/** Extras that cannot be worn together: picking one takes the other off. */
+export const EXCLUSIVE_EXTRAS: [string, string][] = [["cap", "beanie"]];
+/** A dress is a top and a bottom in one: the bottom choice is covered. */
+export const COVERS_BOTTOM = new Set(["dress"]);
+
 export const BUILDS: Choice[] = [
   { id: "slim", label: "Slim" },
   { id: "medium", label: "Medium" },
@@ -100,7 +125,13 @@ export const COLOR_NAMES: Record<string, string> = {
   "#a3e635": "Lime",
 };
 
+/**
+ * Everyone's character until they make their own. A save from before the
+ * figure choice existed has no `figure`, so the default is what those
+ * characters were: a boy. Making it a girl is one tap on the sheet.
+ */
 export const DEFAULT_AVATAR: AvatarSpec = {
+  figure: "boy",
   skin: "#e0ac86",
   hair: "short",
   hairColor: "#4a2c17",
@@ -115,8 +146,42 @@ export const DEFAULT_AVATAR: AvatarSpec = {
   height: "medium",
 };
 
+/**
+ * Switching figure on the sheet: a character still wearing the default look
+ * gets a fresh start for the new figure (long hair and a tee for the girl,
+ * short hair and the hoodie for the boy); one that has been made their own
+ * keeps every choice and only changes body.
+ */
+export function withFigure(spec: AvatarSpec, figure: AvatarSpec["figure"]): AvatarSpec {
+  if (spec.figure === figure) return spec;
+  const starts: Record<AvatarSpec["figure"], Partial<AvatarSpec>> = {
+    girl: { hair: "long", top: "tee", topColor: "#db2777", bottom: "jeans", bottomColor: "#2563eb" },
+    boy: { hair: "short", top: "hoodie", topColor: "#2563eb", bottom: "jeans", bottomColor: "#1f2937" },
+  };
+  const untouched = ["hair", "top", "topColor", "bottom", "bottomColor"].every((k) => spec[k as keyof AvatarSpec] === starts[spec.figure][k as keyof AvatarSpec]);
+  return untouched ? { ...spec, figure, ...starts[figure] } : { ...spec, figure };
+}
+
 const has = (list: readonly Choice[], id: unknown): id is string => typeof id === "string" && list.some((c) => c.id === id);
 const colorIn = (list: readonly string[], v: unknown, fallback: string): string => (typeof v === "string" && list.includes(v.toLowerCase()) ? v.toLowerCase() : fallback);
+
+/** Extras with the ones that cannot be worn together settled: the later pick wins. */
+export function settleExtras(extras: string[]): string[] {
+  const out = [...new Set(extras)];
+  for (const [a, b] of EXCLUSIVE_EXTRAS) {
+    if (out.includes(a) && out.includes(b)) {
+      const keep = out.indexOf(a) > out.indexOf(b) ? a : b;
+      return settleExtras(out.filter((e) => e === keep || (e !== a && e !== b)));
+    }
+  }
+  return out;
+}
+
+/** Toggles one extra, taking off anything it cannot be worn with. */
+export function toggleExtra(extras: string[], id: string): string[] {
+  if (extras.includes(id)) return extras.filter((e) => e !== id);
+  return settleExtras([...extras, id]);
+}
 
 /**
  * A spec with every field checked against the choices above: anything else
@@ -128,6 +193,7 @@ export function sanitizeAvatar(raw: unknown): AvatarSpec {
   const d = DEFAULT_AVATAR;
   const extras = Array.isArray(r.extras) ? r.extras.filter((e): e is string => has(EXTRAS, e)) : [];
   return {
+    figure: has(FIGURES, r.figure) ? (r.figure as AvatarSpec["figure"]) : d.figure,
     skin: colorIn(SKIN_TONES, r.skin, d.skin),
     hair: has(HAIR_STYLES, r.hair) ? r.hair : d.hair,
     hairColor: colorIn(HAIR_COLORS, r.hairColor, d.hairColor),
@@ -137,17 +203,18 @@ export function sanitizeAvatar(raw: unknown): AvatarSpec {
     bottom: has(BOTTOMS, r.bottom) ? r.bottom : d.bottom,
     bottomColor: colorIn(CLOTHES_COLORS, r.bottomColor, d.bottomColor),
     shoes: colorIn(CLOTHES_COLORS, r.shoes, d.shoes),
-    extras: [...new Set(extras)],
+    extras: settleExtras(extras),
     build: has(BUILDS, r.build) ? (r.build as AvatarSpec["build"]) : d.build,
     height: has(HEIGHTS, r.height) ? (r.height as AvatarSpec["height"]) : d.height,
   };
 }
 
-/** A character picked at random, for a "surprise me" button. */
+/** A character picked at random, for a "surprise me" button: a girl or a boy, half and half. */
 export function randomAvatar(random: () => number = Math.random): AvatarSpec {
   const pick = <T>(list: readonly T[]): T => list[Math.min(list.length - 1, Math.floor(random() * list.length))];
-  const extras = EXTRAS.filter(() => random() < 0.3).map((e) => e.id);
+  const extras = settleExtras(EXTRAS.filter(() => random() < 0.25).map((e) => e.id));
   return {
+    figure: random() < 0.5 ? "girl" : "boy",
     skin: pick(SKIN_TONES),
     hair: pick(HAIR_STYLES).id,
     hairColor: pick(HAIR_COLORS),
@@ -165,5 +232,5 @@ export function randomAvatar(random: () => number = Math.random): AvatarSpec {
 
 /** One string for a spec, for telling two apart and for cache keys. */
 export function avatarKey(spec: AvatarSpec): string {
-  return [spec.skin, spec.hair, spec.hairColor, spec.eyes, spec.top, spec.topColor, spec.bottom, spec.bottomColor, spec.shoes, [...spec.extras].sort().join("+"), spec.build, spec.height].join("|");
+  return [spec.figure, spec.skin, spec.hair, spec.hairColor, spec.eyes, spec.top, spec.topColor, spec.bottom, spec.bottomColor, spec.shoes, [...spec.extras].sort().join("+"), spec.build, spec.height].join("|");
 }

@@ -2224,6 +2224,24 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("avatar: a random one passes the check", [1, 2, 3, 4, 5].every((i) => { const r = A.randomAvatar(lcg(i)); return JSON.stringify(A.sanitizeAvatar(r)) === JSON.stringify(r); }));
   ok("avatar: the key tells specs apart", A.avatarKey(A.DEFAULT_AVATAR) !== A.avatarKey({ ...A.DEFAULT_AVATAR, top: "tee" }) && A.avatarKey({ ...A.DEFAULT_AVATAR, extras: ["cap", "glasses"] }) === A.avatarKey({ ...A.DEFAULT_AVATAR, extras: ["glasses", "cap"] }));
   ok("avatar: every colour has a name", [...A.SKIN_TONES, ...A.HAIR_COLORS, ...A.EYE_COLORS, ...A.CLOTHES_COLORS].every((c) => A.COLOR_NAMES[c]));
+  // Girl or boy: a save from before the choice is the boy it was; the girl is kept; junk falls back.
+  ok("avatar: a save without a figure is the boy it was", A.sanitizeAvatar({ hair: "long" }).figure === "boy");
+  ok("avatar: the girl figure is kept", A.sanitizeAvatar({ figure: "girl", hair: "braids", top: "dress" }).figure === "girl" && A.sanitizeAvatar({ figure: "girl", hair: "braids", top: "dress" }).top === "dress");
+  ok("avatar: an unknown figure falls back", A.sanitizeAvatar({ figure: "robot" }).figure === "boy");
+  ok("avatar: the key tells the figures apart", A.avatarKey(A.DEFAULT_AVATAR) !== A.avatarKey({ ...A.DEFAULT_AVATAR, figure: "girl" }));
+  ok("avatar: every hair, top, bottom and extra is open to both figures", ["girl", "boy"].every((figure) => A.HAIR_STYLES.every((h) => A.sanitizeAvatar({ figure, hair: h.id }).hair === h.id) && A.TOPS.every((t) => A.sanitizeAvatar({ figure, top: t.id }).top === t.id) && A.BOTTOMS.every((b) => A.sanitizeAvatar({ figure, bottom: b.id }).bottom === b.id) && A.EXTRAS.every((e) => A.sanitizeAvatar({ figure, extras: [e.id] }).extras.join() === e.id)));
+  // Switching figure: the untouched default gets the new figure's start; a made character keeps its choices.
+  const girl = A.withFigure(A.DEFAULT_AVATAR, "girl");
+  ok("avatar: switching the default to a girl gives her start", girl.figure === "girl" && girl.hair === "long" && girl.top === "tee");
+  ok("avatar: switching back gives the boy's start", A.withFigure(girl, "boy").hair === "short" && A.withFigure(girl, "boy").top === "hoodie");
+  const made = { ...A.DEFAULT_AVATAR, hair: "curly", top: "jersey" };
+  ok("avatar: a made character keeps its look when the figure changes", A.withFigure(made, "girl").hair === "curly" && A.withFigure(made, "girl").top === "jersey" && A.withFigure(made, "girl").figure === "girl");
+  ok("avatar: the same figure is a no-op", A.withFigure(made, "boy") === made);
+  // A cap and a beanie cannot both be worn: the later pick wins, in saves too.
+  ok("avatar: a beanie takes the cap off", A.toggleExtra(["glasses", "cap"], "beanie").join() === "glasses,beanie" && A.toggleExtra(["beanie"], "cap").join() === "cap");
+  ok("avatar: toggling an extra off", A.toggleExtra(["glasses", "cap"], "cap").join() === "glasses");
+  ok("avatar: a save with both keeps one", A.sanitizeAvatar({ extras: ["cap", "beanie"] }).extras.length === 1);
+  ok("avatar: surprise me gives both figures", (() => { const seen = new Set(); for (let i = 0; i < 40; i += 1) seen.add(A.randomAvatar(lcg(i)).figure); return seen.size === 2; })());
 
   const lots: import("../house3d/walk.ts").StreetLot[] = [
     { x: 0, across: false, house: true, drive: 1, own: true },

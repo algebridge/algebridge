@@ -206,6 +206,8 @@ export interface PlacedOrnamentEntry {
  * in lib/avatar.ts and a few picks. Built in lib/house3d/figure.ts.
  */
 export interface AvatarSpec {
+  /** Girl or boy: the build of the body and the face. */
+  figure: "girl" | "boy";
   skin: string;
   hair: string;
   hairColor: string;

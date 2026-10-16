@@ -530,7 +530,8 @@ function drawAsphalt(g: CanvasRenderingContext2D, w: number, h: number) {
 function drawTuft(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(61);
   g.clearRect(0, 0, w, h);
-  const tones = ["#4d8a33", "#5f9c3d", "#79b34a", "#43792d", "#8fc257"];
+  // The lawn's own greens, a shade lighter: a tuft is the grass the mower missed, not a stick in it.
+  const tones = ["#6b9c45", "#7bae4f", "#8fbe5c", "#5f8e3d", "#a2cb6a"];
   for (let i = 0; i < 9; i += 1) {
     const lean = (rnd() - 0.5) * 1.4;
     const tall = h * (0.45 + rnd() * 0.5);
@@ -1825,8 +1826,8 @@ function grassTufts(c: Ctx, area: { x0: number; x1: number; z0: number; z1: numb
     const at = spot();
     if (!at) continue;
     const [x, z] = at;
-    const w = 0.2 + rnd() * 0.14;
-    const h = 0.12 + rnd() * 0.12;
+    const w = 0.16 + rnd() * 0.12;
+    const h = 0.07 + rnd() * 0.08;
     const yaw = rnd() * PI;
     for (const a of [yaw, yaw + PI / 2]) {
       const dx = (Math.cos(a) * w) / 2;
