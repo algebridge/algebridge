@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { allUnits } from "@/data/curriculum";
+import { COURSES } from "@/data/curriculum";
+import { useCurrentCourse } from "@/components/CourseSwitch";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { getSkillsDueForReview, type ReviewItem } from "@/lib/spaced-repetition";
 import { PracticeGate } from "@/components/PracticeGate";
@@ -31,10 +32,13 @@ export default function ReviewPage() {
 
 function ReviewQueue() {
   const [dueItems, setDueItems] = useState<ReviewItem[]>([]);
-  const { stats, continueTarget } = useProgress();
+  // Only the course you are in: AlgeBridge 1 and 2 are separate spaces.
+  const course = useCurrentCourse();
+  const { stats, continueTarget } = useProgress(course);
 
   useEffect(() => {
-    const skillMeta = allUnits().flatMap((u) =>
+    const units = COURSES.find((c) => c.id === course)?.units ?? [];
+    const skillMeta = units.flatMap((u) =>
       u.skills.map((s) => ({
         id: s.id,
         title: s.title,
@@ -48,7 +52,7 @@ function ReviewQueue() {
     refresh();
     window.addEventListener(PROGRESS_UPDATED_EVENT, refresh);
     return () => window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh);
-  }, []);
+  }, [course]);
 
   if (dueItems.length === 0) {
     // What the queue does (src/lib/spaced-repetition.ts): a finished skill
@@ -71,7 +75,7 @@ function ReviewQueue() {
             <Icon name="arrow-right" size={16} />
           </Link>
         ) : (
-          <Link href="/" className="btn-primary mt-5 inline-flex">
+          <Link href={course === "algebra-2" ? "/algebra-2" : "/"} className="btn-primary mt-5 inline-flex">
             Continue the course
           </Link>
         )}

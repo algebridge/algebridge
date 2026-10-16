@@ -6,7 +6,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { useCurrentCourse } from "@/components/CourseSwitch";
 import { getProgress } from "@/lib/progress";
 import { getReviewQueueCount } from "@/lib/spaced-repetition";
-import { allUnits } from "@/data/curriculum";
+import { COURSES } from "@/data/curriculum";
 import { getUnreadCount, subscribeToIncomingMessages, MESSAGES_READ_EVENT } from "@/lib/social";
 import { buildNav, type NavSection } from "@/lib/nav";
 import type { CourseStats, ContinueTarget } from "@/lib/progress";
@@ -35,11 +35,13 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    const skillMeta = allUnits().flatMap((u) =>
+    // Review counts only the course you are in, like everything else in the shell.
+    const units = COURSES.find((c) => c.id === course)?.units ?? [];
+    const skillMeta = units.flatMap((u) =>
       u.skills.map((s) => ({ id: s.id, title: s.title, unitId: u.id, unitTitle: u.title }))
     );
     setReviewCount(getReviewQueueCount(getProgress().skills, skillMeta));
-  }, [stats.completedSkills]);
+  }, [stats.completedSkills, course]);
 
   useEffect(() => {
     if (!user) {
@@ -66,8 +68,9 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
         isAdmin: !!profile?.isAdmin,
         reviewCount,
         unreadCount: unread,
+        course,
       }),
-    [user, profile?.role, profile?.isAdmin, reviewCount, unread]
+    [user, profile?.role, profile?.isAdmin, reviewCount, unread, course]
   );
 
   // "Continue" drops the student straight into a lesson, and lessons sit behind

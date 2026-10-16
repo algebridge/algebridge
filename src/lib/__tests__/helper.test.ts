@@ -1499,7 +1499,9 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     // The real menu, most used first, and what school mode leaves of it.
     const NV = await import("../nav.ts");
     const visitor = NV.buildNav({ signedIn: false, role: "student", isAdmin: false, reviewCount: 0, unreadCount: 0 });
-    ok("menu: most used first", hrefs(visitor) === "/ /algebra-2 /games /review /house /leaderboard /achievements /classes /tutors /notebook /feedback /?tour=1", hrefs(visitor));
+    ok("menu: most used first", hrefs(visitor) === "/ /games /review /house /leaderboard /achievements /classes /tutors /notebook /feedback /?tour=1", hrefs(visitor));
+    const a2 = NV.buildNav({ signedIn: false, role: "student", isAdmin: false, reviewCount: 0, unreadCount: 0, course: "algebra-2" });
+    ok("menu: in AlgeBridge 2, Course goes to its home and AlgeBridge 1 is not listed", hrefs(a2).startsWith("/algebra-2 /games") && !hrefs(a2).startsWith("/ "), hrefs(a2));
     ok("menu: grouped Learn, Rewards, Classroom, More", visitor.map((x) => x.title).join() === "Learn,Rewards,Classroom,More");
     const student = NV.buildNav({ signedIn: true, role: "student", isAdmin: false, reviewCount: 2, unreadCount: 1 });
     ok("menu: a signed-in student has messages and no tour link", hrefs(student).includes("/messages") && !hrefs(student).includes("tour"), hrefs(student));

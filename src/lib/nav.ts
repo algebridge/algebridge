@@ -1,5 +1,5 @@
 import type { IconName } from "@/components/Icon";
-import { courseOfUnit } from "@/data/curriculum";
+import { courseOfUnit, type CourseId } from "@/data/curriculum";
 import type { UserRole } from "@/types";
 
 export interface NavItem {
@@ -20,6 +20,9 @@ interface NavContext {
   isAdmin: boolean;
   reviewCount: number;
   unreadCount: number;
+  /** The course the student is in. Each course is its own space: the menu
+   *  only ever shows the one you are in, the switch top left changes it. */
+  course?: CourseId;
 }
 
 /**
@@ -32,6 +35,7 @@ export function buildNav({
   isAdmin,
   reviewCount,
   unreadCount,
+  course = "algebra-1",
 }: NavContext): NavSection[] {
   const isTeacher = role === "teacher";
   const isTutor = role === "tutor";
@@ -40,8 +44,7 @@ export function buildNav({
   // (the admin console's busiest pages, Oct 2026), so they lead; the pages
   // few people open come last, under More.
   const learn: NavItem[] = [
-    { href: "/", label: "Course", icon: "course" },
-    { href: "/algebra-2", label: "AlgeBridge 2", icon: "course" },
+    { href: course === "algebra-2" ? "/algebra-2" : "/", label: "Course", icon: "course" },
     { href: "/games", label: "Games", icon: "play" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
   ];
