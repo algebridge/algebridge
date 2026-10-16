@@ -94,7 +94,7 @@ export function tourSteps(school: boolean): TourStep[] {
 }
 
 /** Pages a visitor reaches with a job of their own: signing in, a teacher reading /schools, the fine print. */
-const QUIET_PATHS = ["/login", "/schools", "/privacy", "/terms", "/safety", "/guidelines", "/admin", "/workspace", "/teacher", "/tutor-hub", "/certificate"];
+const QUIET_PATHS = ["/login", "/schools", "/privacy", "/terms", "/safety", "/guidelines", "/accessibility", "/admin", "/workspace", "/teacher", "/tutor-hub", "/certificate"];
 
 /** Can the tour start on this page by itself? It still runs here once started. */
 export function tourMayStartOn(pathname: string | null): boolean {

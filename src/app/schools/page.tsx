@@ -304,6 +304,16 @@ const ACCESS_ITEMS: Item[] = [
     title: "Text size",
     body: "The Display menu in the header makes all the text larger, in two steps, on that device, with or without an account. A projector or a tired pair of eyes gets the big size; a phone keeps the small one.",
   },
+  {
+    mark: { icon: "notebook" },
+    title: "Accessibility statement",
+    body: (
+      <>
+        What works today, what does not yet, and how to report a problem, on one page:{" "}
+        <Link href="/accessibility" className="font-medium text-bridge-700 underline decoration-bridge-200 underline-offset-2 hover:decoration-bridge-500">the accessibility statement</Link>, reviewed October 16, 2026.
+      </>
+    ),
+  },
 ];
 
 /** The cited standards grouped for the key: high school by domain, then grades 6 to 8. */

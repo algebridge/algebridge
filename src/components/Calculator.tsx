@@ -113,7 +113,7 @@ const PANEL_SHADOW = "shadow-[0_18px_50px_-12px_rgb(15_23_42/0.28)]";
 const PHONE_QUERY = "(max-width: 639.98px)";
 
 /** Pages with no math on them. The calculator stays off these, so its button never covers a form or a policy. */
-const NO_MATH_PATHS = new Set(["/login", "/privacy", "/terms", "/safety", "/guidelines"]);
+const NO_MATH_PATHS = new Set(["/login", "/privacy", "/terms", "/safety", "/guidelines", "/accessibility"]);
 function subscribePhone(fn: () => void) {
   const mq = window.matchMedia(PHONE_QUERY);
   mq.addEventListener("change", fn);
