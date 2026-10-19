@@ -28,6 +28,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { bumpScale, canvasTexture, TEX, type Kit, type V3 } from "./kit";
+import { CARTOON, pop, toon } from "./style";
 import { themeFor, type HouseLook, type RoomTheme, type WallKind, type WindowShape } from "./themes";
 import { boardsTexture } from "./room";
 import { buildFigure, poseFigure } from "./figure";
@@ -350,8 +351,56 @@ function wrapped(w: number, h: number, x: number, y: number, reach: number, fn: 
 }
 
 /** Mown grass for the whole lawn in one picture: stripes, patches, clover, dry bits, thinner by the fence and the wall. */
+/** A filled rectangle with round corners, for the cartoon's bold tabs and blocks. */
+function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  g.beginPath();
+  if (typeof g.roundRect === "function") g.roundRect(x, y, w, h, r);
+  else g.rect(x, y, w, h);
+  g.fill();
+}
+
+/** The cartoon's lawn: one bright green, big soft patches of two more, clover in little threes, and a few white and yellow flowers. */
+function drawToonLawn(g: CanvasRenderingContext2D, w: number, h: number, rnd: () => number) {
+  g.fillStyle = "#5cbd4b";
+  g.fillRect(0, 0, w, h);
+  const patch = ["112,206,92", "76,170,64", "132,214,104"];
+  for (let i = 0; i < 90; i += 1) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    const r = 90 + rnd() * 260;
+    const c = patch[i % patch.length];
+    const grad = g.createRadialGradient(x, y, r * 0.3, x, y, r);
+    grad.addColorStop(0, `rgba(${c},0.55)`);
+    grad.addColorStop(1, `rgba(${c},0)`);
+    g.fillStyle = grad;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  g.fillStyle = "rgba(52,140,48,0.8)";
+  for (let i = 0; i < 520; i += 1) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    const s = 2.2 + rnd() * 1.6;
+    for (let l = 0; l < 3; l += 1) {
+      const a = (l / 3) * PI * 2 + rnd() * 0.5;
+      g.beginPath();
+      g.arc(x + Math.cos(a) * s, y + Math.sin(a) * s, s, 0, PI * 2);
+      g.fill();
+    }
+  }
+  for (let i = 0; i < 160; i += 1) {
+    g.fillStyle = rnd() < 0.6 ? "#fbfaf2" : "#ffd84a";
+    g.beginPath();
+    g.arc(rnd() * w, rnd() * h, 3.2 + rnd() * 1.5, 0, PI * 2);
+    g.fill();
+  }
+}
+
 function drawLawn(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(7);
+  if (CARTOON) {
+    drawToonLawn(g, w, h, rnd);
+    return;
+  }
   g.fillStyle = "#4f6d33";
   g.fillRect(0, 0, w, h);
   // Broad patches, a little lusher here and drier there.
@@ -454,6 +503,25 @@ function drawLawn(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Rougher grass beyond the fence: the neighbours' yards and the field past them. */
 function drawFarGrass(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(9);
+  if (CARTOON) {
+    // Flat green with soft patches of two more: the hills' own colour does the rest.
+    g.fillStyle = "#56b547";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 40; i += 1) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      const r = 40 + rnd() * 120;
+      const c = i % 2 ? "104,196,86" : "72,160,62";
+      wrapped(w, h, x, y, r, (px, py) => {
+        const grad = g.createRadialGradient(px, py, r * 0.3, px, py, r);
+        grad.addColorStop(0, `rgba(${c},0.5)`);
+        grad.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = grad;
+        g.fillRect(px - r, py - r, r * 2, r * 2);
+      });
+    }
+    return;
+  }
   g.fillStyle = "#54703a";
   g.fillRect(0, 0, w, h);
   for (let i = 0; i < 90; i += 1) {
@@ -491,6 +559,20 @@ function drawFarGrass(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Asphalt: aggregate in the tar, the two wheel paths worn paler, a few patches and cracks. The texture's v runs across the road. */
 function drawAsphalt(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(53);
+  if (CARTOON) {
+    // A flat blue-grey road, the wheel paths a shade paler.
+    g.fillStyle = "#545a70";
+    g.fillRect(0, 0, w, h);
+    for (const y of [h * 0.3, h * 0.7]) {
+      const grad = g.createLinearGradient(0, y - 50, 0, y + 50);
+      grad.addColorStop(0, "rgba(100,106,126,0)");
+      grad.addColorStop(0.5, "rgba(100,106,126,0.4)");
+      grad.addColorStop(1, "rgba(100,106,126,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, y - 50, w, 100);
+    }
+    return;
+  }
   g.fillStyle = "#3a3c40";
   g.fillRect(0, 0, w, h);
   for (let i = 0; i < 16000; i += 1) {
@@ -530,8 +612,8 @@ function drawAsphalt(g: CanvasRenderingContext2D, w: number, h: number) {
 function drawTuft(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(61);
   g.clearRect(0, 0, w, h);
-  // The lawn's own greens, a shade lighter: a tuft is the grass the mower missed, not a stick in it.
-  const tones = ["#6b9c45", "#7bae4f", "#8fbe5c", "#5f8e3d", "#a2cb6a"];
+  // The cartoon's blades are as bright as its lawn, so a tuft reads as grass standing up, never as a dark speck; the photographic tufts are the lawn's own greens, a shade lighter.
+  const tones = CARTOON ? ["#7fd45a", "#95e06a", "#6cc44d", "#a9ea78", "#86d85e"] : ["#6b9c45", "#7bae4f", "#8fbe5c", "#5f8e3d", "#a2cb6a"];
   for (let i = 0; i < 9; i += 1) {
     const lean = (rnd() - 0.5) * 1.4;
     const tall = h * (0.45 + rnd() * 0.5);
@@ -567,6 +649,30 @@ function drawDaisy(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Garden soil: crumbs, clods, a few pebbles and bits of straw. */
 function drawSoil(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(31);
+  if (CARTOON) {
+    // Warm flat brown, a few soft clods lighter and darker, and a handful of round pebbles.
+    g.fillStyle = "#6e4b33";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 70; i += 1) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      const r = 10 + rnd() * 26;
+      wrapped(w, h, x, y, r, (px, py) => {
+        g.fillStyle = i % 2 ? "rgba(140,100,70,0.45)" : "rgba(70,46,30,0.45)";
+        g.beginPath();
+        g.ellipse(px, py, r, r * 0.7, 0, 0, PI * 2);
+        g.fill();
+      });
+    }
+    g.fillStyle = "#b9a48c";
+    for (let i = 0; i < 40; i += 1) {
+      const r = 3 + rnd() * 4;
+      g.beginPath();
+      g.ellipse(rnd() * w, rnd() * h, r, r * 0.75, 0, 0, PI * 2);
+      g.fill();
+    }
+    return;
+  }
   g.fillStyle = "#4a3628";
   g.fillRect(0, 0, w, h);
   for (let i = 0; i < 700; i += 1) {
@@ -619,6 +725,29 @@ function drawSoil(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Bark mulch: chips of shredded bark, every shade of brown. */
 function drawMulch(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(37);
+  if (CARTOON) {
+    // Bigger chips in three flat browns, no shadows.
+    g.fillStyle = "#5a3a24";
+    g.fillRect(0, 0, w, h);
+    const tones = ["#7a5236", "#8f6240", "#66442c"];
+    for (let i = 0; i < 700; i += 1) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      const l = 12 + rnd() * 20;
+      const t = 5 + rnd() * 6;
+      const a = rnd() * PI;
+      const tone = tones[i % 3];
+      wrapped(w, h, x, y, l, (px, py) => {
+        g.save();
+        g.translate(px, py);
+        g.rotate(a);
+        g.fillStyle = tone;
+        g.fillRect(-l / 2, -t / 2, l, t);
+        g.restore();
+      });
+    }
+    return;
+  }
   g.fillStyle = "#2e1f15";
   g.fillRect(0, 0, w, h);
   const tones = ["#4a2f1d", "#5a3a24", "#6e4a2e", "#7d5636", "#8a6240", "#3c271a"];
@@ -645,6 +774,24 @@ function drawMulch(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Pea gravel along the foot of the wall. */
 function drawGravel(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(41);
+  if (CARTOON) {
+    // Round pebbles in three flat greys on a grey ground.
+    g.fillStyle = "#8f8982";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 1200; i += 1) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      const r = 4 + rnd() * 6;
+      const tone = i % 3 === 0 ? "#b4ada4" : i % 3 === 1 ? "#a39c93" : "#c4beb5";
+      wrapped(w, h, x, y, r + 2, (px, py) => {
+        g.fillStyle = tone;
+        g.beginPath();
+        g.ellipse(px, py, r, r * 0.8, 0, 0, PI * 2);
+        g.fill();
+      });
+    }
+    return;
+  }
   g.fillStyle = "#6f6a62";
   g.fillRect(0, 0, w, h);
   for (let i = 0; i < 3400; i += 1) {
@@ -673,6 +820,28 @@ function drawGravel(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Bark: fissures running up the trunk, ridges between, a little lichen. Grey-brown, tinted by the material. */
 function drawBark(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(61);
+  if (CARTOON) {
+    // Flat bark with a few broad, soft darker stripes up the trunk.
+    g.fillStyle = "#aa9c8e";
+    g.fillRect(0, 0, w, h);
+    g.lineCap = "round";
+    g.strokeStyle = "rgba(60,44,34,0.28)";
+    for (let i = 0; i < 6; i += 1) {
+      const x0 = (i + 0.5) * (w / 6) + (rnd() - 0.5) * 20;
+      g.lineWidth = 10 + rnd() * 14;
+      for (const dx of [-w, 0, w]) {
+        let x = x0 + dx;
+        g.beginPath();
+        g.moveTo(x, -20);
+        for (let y = 0; y <= h + 20; y += 40) {
+          x += (rnd() - 0.5) * 10;
+          g.lineTo(x, y);
+        }
+        g.stroke();
+      }
+    }
+    return;
+  }
   g.fillStyle = "#8a7e72";
   g.fillRect(0, 0, w, h);
   for (let i = 0; i < 160; i += 1) {
@@ -774,6 +943,25 @@ function drawBoxwood(g: CanvasRenderingContext2D, w: number, h: number) {
 /** Three-tab shingles, grey to be tinted: rows of tabs with their slots, each row's edge shadowing the one below. */
 function drawShingles(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(71);
+  if (CARTOON) {
+    // Rows of big rounded tabs in three flat tones, each row's edge a crisp line on the row below.
+    const rows = 6;
+    const rowH = h / rows;
+    const tabW = w / 4;
+    g.fillStyle = "#6a6a6a";
+    g.fillRect(0, 0, w, h);
+    for (let r = 0; r < rows; r += 1) {
+      const off = (r % 2) * (tabW / 2);
+      for (let i = -1; i < 5; i += 1) {
+        const v = [150, 178, 164][(((i + r) % 3) + 3) % 3];
+        g.fillStyle = `rgb(${v},${v},${v})`;
+        rrect(g, i * tabW + off + 2, r * rowH - 6, tabW - 4, rowH + 2, 10);
+      }
+      g.fillStyle = "rgba(30,30,30,0.6)";
+      g.fillRect(0, (r + 1) * rowH - 4, w, 4);
+    }
+    return;
+  }
   const rows = 8;
   const rowH = h / rows;
   const tabW = w / 4;
@@ -862,6 +1050,18 @@ function drawFenceBoards(g: CanvasRenderingContext2D, w: number, h: number) {
   const rnd = rng(79);
   const n = 6;
   const bw = w / n;
+  if (CARTOON) {
+    // Boards in three flat tones with a crisp dark gap between.
+    const tones = [0.9, 1.0, 1.08];
+    for (let i = 0; i < n; i += 1) {
+      const base = new THREE.Color("#c48a58").multiplyScalar(tones[i % 3]);
+      g.fillStyle = `#${base.getHexString()}`;
+      g.fillRect(i * bw, 0, bw, h);
+      g.fillStyle = "rgba(50,30,16,0.85)";
+      g.fillRect(i * bw, 0, 4, h);
+    }
+    return;
+  }
   for (let i = 0; i < n; i += 1) {
     const x0 = i * bw;
     const base = new THREE.Color("#b98458").multiplyScalar(0.8 + rnd() * 0.28);
@@ -943,8 +1143,101 @@ function drawInterior(night: boolean) {
 }
 
 /** The sky all round, with a soft line of distant trees on the horizon: day blue with clouds, or night with stars and the moon. */
+/**
+ * The cartoon's sky: a clean blue, puffy flat-white clouds with a pale blue
+ * underside, and rounded green hills along the horizon; at night a deep
+ * blue with bold stars and a moon.
+ */
+function drawToonSky(g: CanvasRenderingContext2D, w: number, h: number, night: boolean) {
+  const rnd = rng(night ? 83 : 89);
+  const horizon = h / 2;
+  const sky = g.createLinearGradient(0, 0, 0, horizon);
+  if (night) {
+    sky.addColorStop(0, "#0b1740");
+    sky.addColorStop(0.6, "#1a2d6b");
+    sky.addColorStop(1, "#2d4a8c");
+  } else {
+    sky.addColorStop(0, "#2d8ae6");
+    sky.addColorStop(0.55, "#62b8f7");
+    sky.addColorStop(1, "#bfe6ff");
+  }
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, horizon + 2);
+  g.fillStyle = night ? "#0a1a0f" : "#4faf45";
+  g.fillRect(0, horizon, w, h - horizon);
+  if (night) {
+    for (let i = 0; i < 500; i += 1) {
+      const y = rnd() * horizon * 0.9;
+      g.fillStyle = `rgba(255,255,255,${0.5 + rnd() * 0.5})`;
+      const s = rnd() < 0.1 ? 3 : 2;
+      g.fillRect(rnd() * w, y, s, s);
+    }
+    const mx = w * 0.3;
+    const my = horizon * 0.6;
+    g.fillStyle = "rgba(255,245,200,0.18)";
+    g.beginPath();
+    g.arc(mx, my, 34, 0, PI * 2);
+    g.fill();
+    g.fillStyle = "#fff4c8";
+    g.beginPath();
+    g.arc(mx, my, 18, 0, PI * 2);
+    g.fill();
+  } else {
+    // Clouds: a puff of five rounds on a flat base, drawn twice, pale blue under white.
+    const rounds = [
+      [-1.1, 0.1, 0.62],
+      [-0.45, -0.35, 0.8],
+      [0.3, -0.45, 0.92],
+      [1.0, -0.1, 0.7],
+      [1.5, 0.2, 0.5],
+    ];
+    for (let i = 0; i < 26; i += 1) {
+      const x = rnd() * w;
+      const y = horizon * (0.2 + rnd() * 0.55);
+      const s = 26 + rnd() * 44;
+      for (const [fill, lift] of [
+        ["#cfe7fb", 0],
+        ["#ffffff", 0.14],
+      ] as [string, number][]) {
+        g.fillStyle = fill;
+        for (const [dx, dy, r] of rounds) {
+          g.beginPath();
+          g.arc(x + dx * s, y + (dy - lift) * s, r * s, 0, PI * 2);
+          g.fill();
+        }
+        g.fillRect(x - 1.5 * s, y - lift * s, 3.05 * s, 0.45 * s);
+      }
+    }
+  }
+  // Rounded hills along the horizon, the far row paler.
+  const rows: [number, number, string][] = night
+    ? [
+        [34, 0.05, "#122a3a"],
+        [26, 0.0, "#0e2213"],
+      ]
+    : [
+        [36, 0.05, "#8fd27e"],
+        [26, 0.0, "#5fbd55"],
+      ];
+  for (const [size, lift, color] of rows) {
+    g.fillStyle = color;
+    const base = horizon - lift * h;
+    g.fillRect(0, base - 2, w, h - base + 2);
+    for (let x = -40; x < w + 40; x += size * (1.1 + rnd() * 0.9)) {
+      const r = size * (1.2 + rnd() * 1.2);
+      g.beginPath();
+      g.ellipse(x, base + r * 0.25, r * 1.6, r, 0, PI, PI * 2);
+      g.fill();
+    }
+  }
+}
+
 function drawSky(night: boolean) {
   return (g: CanvasRenderingContext2D, w: number, h: number) => {
+    if (CARTOON) {
+      drawToonSky(g, w, h, night);
+      return;
+    }
     const rnd = rng(night ? 83 : 89);
     const horizon = h / 2;
     const sky = g.createLinearGradient(0, 0, 0, horizon);
@@ -1061,8 +1354,9 @@ function drawNeedles(g: CanvasRenderingContext2D, w: number, h: number) {
 /** A painted texture on a surface, with its own roughness and, optionally, a colour it is tinted with. */
 function printed(c: Ctx, key: string, t: () => THREE.Texture, roughness: number, tint?: string, bump?: number): THREE.MeshStandardMaterial {
   return once(c, key, () => {
-    const m = c.k.print(t(), { roughness, bump }) as THREE.MeshStandardMaterial;
-    if (tint) m.color.set(tint);
+    // The cartoon's paintings are flat: no relief read from them, and their tints in the world's own colours.
+    const m = c.k.print(t(), { roughness, bump: CARTOON ? undefined : bump }) as THREE.MeshStandardMaterial;
+    if (tint) m.color.set(pop(tint));
     return m;
   });
 }
@@ -1078,6 +1372,8 @@ export function skyTexture(night: boolean): THREE.Texture {
  * so a leaf is a few centimetres across whatever the clump.
  */
 function foliage(c: Ctx, color: string, r = 0.5): THREE.MeshStandardMaterial {
+  // The cartoon's crowns and shrubs are solid rounds of flat colour.
+  if (CARTOON) return c.k.paint(color, 0.12) as THREE.MeshStandardMaterial;
   const cls = [0.12, 0.25, 0.45, 0.75, 1.15, 1.7].reduce((a, b) => (Math.abs(b - r) < Math.abs(a - r) ? b : a));
   return once(c, `foliage:${color}:${cls}`, () => {
     const repeat: [number, number] = [Math.max(1, Math.round(3.9 * cls)), Math.max(0.6, 1.96 * cls)];
@@ -1096,6 +1392,7 @@ function barkMat(c: Ctx, tint = "#8a7a6c"): THREE.MeshStandardMaterial {
 /** The house's walls, in the style's own material, laid out in metres (the walls carry world-sized UVs). */
 function wallMat(c: Ctx, kind: WallKind, color: string): THREE.MeshStandardMaterial {
   return once(c, `wall:${kind}:${color}`, () => {
+    if (CARTOON && kind === "plaster") return c.k.paint(color, 0.15) as THREE.MeshStandardMaterial;
     const pick = (): [THREE.Texture, number, number] => {
       if (kind === "brick") return [TEX.brick(), 0.85, 0.9];
       if (kind === "logs") return [TEX.logs(), 0.57, 0.85];
@@ -1110,7 +1407,7 @@ function wallMat(c: Ctx, kind: WallKind, color: string): THREE.MeshStandardMater
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(per, per);
     t.needsUpdate = true;
-    const m = c.k.print(t, { roughness, bump: kind === "plaster" ? 0.22 : kind === "boards" || kind === "timber" ? 0.5 : 0.7 }) as THREE.MeshStandardMaterial;
+    const m = c.k.print(t, { roughness, bump: CARTOON ? 0 : kind === "plaster" ? 0.22 : kind === "boards" || kind === "timber" ? 0.5 : 0.7 }) as THREE.MeshStandardMaterial;
     if (kind === "plaster") m.color.set(color);
     return m;
   });
@@ -1996,7 +2293,7 @@ function buildLake(c: Ctx, night: boolean): THREE.Group {
   const g = new THREE.Group();
   const water = once(c, `lake:${night}`, () => {
     const ripple = paint("ripples", 512, 512, drawRipples, [14, 14]);
-    return new THREE.MeshPhysicalMaterial({ color: night ? "#16283d" : "#3f93c9", roughness: 0.05, metalness: 0.05, transparent: true, opacity: 0.94, bumpMap: ripple, bumpScale: bumpScale(0.3), envMapIntensity: 1.4 });
+    return toon(new THREE.MeshPhysicalMaterial({ color: night ? "#16283d" : CARTOON ? "#3cb4f2" : "#3f93c9", roughness: CARTOON ? 0.2 : 0.05, metalness: 0.05, transparent: true, opacity: 0.94, bumpMap: ripple, bumpScale: bumpScale(CARTOON ? 0.12 : 0.3), envMapIntensity: CARTOON ? 0.9 : 1.4 }));
   });
   const geo = new THREE.CircleGeometry(LAKE.r + 6, 72);
   c.geos?.push(geo);
@@ -2018,6 +2315,41 @@ function buildLake(c: Ctx, night: boolean): THREE.Group {
   return g;
 }
 
+/** Puffy clouds over the town, each a few rounds merged into one, in flat white: the cartoon's sky has weather you can see from the street. */
+function buildClouds(c: Ctx): THREE.Group {
+  const g = new THREE.Group();
+  const rnd = rng(131);
+  const parts: THREE.BufferGeometry[] = [];
+  const rounds: [number, number, number, number][] = [
+    [-1.1, 0.05, 0, 0.6],
+    [-0.4, 0.35, 0.1, 0.85],
+    [0.35, 0.4, -0.1, 0.95],
+    [1.05, 0.1, 0.05, 0.7],
+    [0.2, -0.1, 0.55, 0.6],
+    [-0.3, 0, -0.5, 0.55],
+  ];
+  for (let i = 0; i < 18; i += 1) {
+    const x = (rnd() - 0.5) * 420;
+    const z = (rnd() - 0.5) * 420 + TERRAIN.centerZ;
+    const y = 34 + rnd() * 22;
+    const s = 5 + rnd() * 7;
+    for (const [dx, dy, dz, r] of rounds) {
+      const sp = new THREE.SphereGeometry(r * s, 10, 8);
+      sp.scale(1, 0.72, 1);
+      sp.translate(x + dx * s, y + dy * s, z + dz * s);
+      parts.push(sp);
+    }
+  }
+  const geo = mergeGeometries(parts, false)!;
+  for (const p of parts) p.dispose();
+  c.geos?.push(geo);
+  const cloud = new THREE.Mesh(geo, c.k.paint("#ffffff", 0.05));
+  cloud.castShadow = false;
+  cloud.receiveShadow = false;
+  g.add(cloud);
+  return g;
+}
+
 function buildGround(c: Ctx, night: boolean): THREE.Group {
   const { k } = c;
   const g = new THREE.Group();
@@ -2028,6 +2360,7 @@ function buildGround(c: Ctx, night: boolean): THREE.Group {
   g.add(buildLand(c));
   g.add(buildWoods(c));
   g.add(buildLake(c, night));
+  if (CARTOON) g.add(buildClouds(c));
   // The sky: a dome lit by nothing but itself.
   const skyM = once(c, `sky:${night}`, () => {
     const m = c.k.print(paint(`sky:${night}`, 2048, 1024, drawSky(night)), { roughness: 1, glow: 1 }) as THREE.MeshStandardMaterial;
@@ -2061,13 +2394,15 @@ function farTree(c: Ctx, at: V3, height: number, crown: number, tint: string, se
 function farSpruce(c: Ctx, at: V3, height: number): THREE.Group {
   const { k } = c;
   const g = new THREE.Group();
-  const needles = once(c, "spruce", () => {
-    const m = c.k.print(paint("needles", 512, 512, drawNeedles, [4, 2]), { roughness: 0.85 }) as THREE.MeshStandardMaterial;
-    m.color.set("#3f5c47");
-    m.alphaTest = 0.5;
-    m.side = THREE.DoubleSide;
-    return m;
-  });
+  const needles = CARTOON
+    ? k.paint("#3d8f49", 0.2)
+    : once(c, "spruce", () => {
+        const m = c.k.print(paint("needles", 512, 512, drawNeedles, [4, 2]), { roughness: 0.85 }) as THREE.MeshStandardMaterial;
+        m.color.set("#3f5c47");
+        m.alphaTest = 0.5;
+        m.side = THREE.DoubleSide;
+        return m;
+      });
   g.add(k.cyl(height * 0.012, height * 0.028, height * 0.92, barkMat(c, "#5d5047"), { at: [0, height * 0.46, 0], seg: 8 }));
   g.add(k.cone(height * 0.15, height * 0.78, k.leaf(3), { at: [0, height * 0.12 + height * 0.39, 0], seg: 12 }));
   const tiers = 6;
@@ -3852,7 +4187,7 @@ function neighbourLot(c: Ctx, who: StreetNeighbour, night: boolean, number: numb
   // The driveway up the side of the house.
   g.add(k.box(2.5, 0.03, 13.4, k.stone("concrete"), { at: [dx, 0.015, -0.15] }));
   // A clipped hedge along the front, open at the walk and the drive.
-  const hedge = printed(c, "boxwood", () => paint("boxwood", 256, 256, drawBoxwood, [5, 2.5]), 0.82, "#5c7f45");
+  const hedge = CARTOON ? k.paint("#4fa347", 0.3) : printed(c, "boxwood", () => paint("boxwood", 256, 256, drawBoxwood, [5, 2.5]), 0.82, "#5c7f45");
   const runs: [number, number][] = drive > 0 ? [[-LOT / 2 + 0.3, L.doorX - 0.8], [L.doorX + 0.8, dx - 1.5]] : [[dx + 1.5, L.doorX - 0.8], [L.doorX + 0.8, LOT / 2 - 0.3]];
   for (const [a, b] of runs) if (b - a > 0.3) g.add(k.box(b - a, 0.85, 0.6, hedge, { at: [(a + b) / 2, 0.425, 4.75], r: 0.12 }));
   // Shrubs by the porch, a shade tree, the mailbox.
@@ -4000,9 +4335,9 @@ function buildCity(c: Ctx, night: boolean, lots: CityLot[], who: StreetNeighbour
         gg.fillStyle = lit ? "#000000" : "#8f8a82";
         gg.fillRect(0, Hh * 0.95, W, Hh * 0.05);
       });
-    const wallM = new THREE.MeshStandardMaterial({ map: facade(false), roughness: 0.85, emissiveMap: facade(true), emissive: new THREE.Color(night ? "#ffc982" : "#000000"), emissiveIntensity: night ? 1.4 : 0 });
-    const roofM = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 });
-    const doorM = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.6 });
+    const wallM = toon(new THREE.MeshStandardMaterial({ map: facade(false), roughness: 0.85, emissiveMap: facade(true), emissive: new THREE.Color(night ? "#ffc982" : "#000000"), emissiveIntensity: night ? 1.4 : 0 }));
+    const roofM = toon(new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 }));
+    const doorM = toon(new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.6 }));
     const walls = new THREE.BoxGeometry(L.houseWidth, H, L.houseDepth).translate(0, H / 2, 0);
     const tri = new THREE.Shape([new THREE.Vector2(-L.houseDepth / 2 - 0.35, 0), new THREE.Vector2(L.houseDepth / 2 + 0.35, 0), new THREE.Vector2(0, 2.9)]);
     const pitched = new THREE.ExtrudeGeometry(tri, { depth: L.houseWidth + 0.6, bevelEnabled: false }).rotateY(PI / 2).translate(-(L.houseWidth + 0.6) / 2, H, 0);
@@ -4042,13 +4377,13 @@ function buildCity(c: Ctx, night: boolean, lots: CityLot[], who: StreetNeighbour
       g.add(mesh);
     };
     const look = (h: (typeof houses)[number]) => themeFor(h.who!.styleId);
-    const wallColor = (h: (typeof houses)[number]) => look(h).look.wall?.color ?? look(h).down.wallColor;
-    const roofColor = (h: (typeof houses)[number]) => look(h).look.roofTint ?? "#5b4a42";
+    const wallColor = (h: (typeof houses)[number]) => pop(look(h).look.wall?.color ?? look(h).down.wallColor);
+    const roofColor = (h: (typeof houses)[number]) => pop(look(h).look.roofTint ?? "#5b4a42");
     const flatRoof = (h: (typeof houses)[number]) => look(h).look.roof === "flat" || look(h).look.roof === "battlements";
     make(walls, wallM, houses, wallColor, place);
     make(pitched, roofM, houses.filter((h) => !flatRoof(h)), roofColor, place);
     make(flat, roofM, houses.filter(flatRoof), roofColor, place);
-    make(door, doorM, houses, (h) => look(h).look.door.color ?? "#5a3d2b", place, false);
+    make(door, doorM, houses, (h) => pop(look(h).look.door.color ?? "#5a3d2b"), place, false);
     // The driveway beside the house, from the garage line to the curb.
     make(drive, k.stone("concrete"), houses, () => "#ffffff", (h) => {
       const sx = h.lot.x < 0 ? -1 : 1;
@@ -4273,7 +4608,7 @@ export function buildFront(k: Kit, opts: { night: boolean; styleId: string; unre
     // The sidewalk across the road, a car parked at the curb, and the neighbours.
     for (const [a, b] of spans(-ROAD / 2, ROAD / 2, CROSS_X, 5.7)) g.add(k.box(b - a, 0.05, 1.25, conc, { at: [(a + b) / 2, 0.025, 2 * STREET_MID - 5.75] }));
     for (let x = -ROAD / 2 + 1; x <= ROAD / 2 - 1; x += 1.5) if (!CROSS_X.some((cx) => Math.abs(x - cx) < 5.7)) g.add(k.box(0.012, 0.004, 1.25, joint, { at: [x, 0.051, 2 * STREET_MID - 5.75] }));
-    const parked = car(c, "#5b6f7c");
+    const parked = car(c, CARTOON ? "#e2473a" : "#5b6f7c");
     parked.rotation.y = PI / 2;
     parked.position.set(-8.6, 0, F.curbZ + 1.25);
     g.add(parked);

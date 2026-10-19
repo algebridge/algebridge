@@ -15,6 +15,7 @@
 
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { bevel as chunkyBevel, CARTOON, corner, pop, toon } from "./style";
 
 export type V3 = [number, number, number];
 
@@ -135,6 +136,37 @@ function paintGrain(g: CanvasRenderingContext2D, w: number, h: number, rnd: () =
   }
 }
 
+/** The cartoon's wood: a near-white ground with a few broad, clean bands, so a board reads as wood with none of the grit. */
+function paintToonGrain(g: CanvasRenderingContext2D, w: number, h: number, rnd: () => number) {
+  g.fillStyle = "#f4f4f4";
+  g.fillRect(0, 0, w, h);
+  g.lineCap = "round";
+  for (let i = 0; i < 7; i += 1) {
+    const y0 = (i + 0.5) * (h / 7) + (rnd() - 0.5) * 20;
+    const amp = 6 + rnd() * 10;
+    // Whole waves across the width, so the picture repeats without a seam.
+    const freq = (1 + Math.floor(rnd() * 2)) * ((Math.PI * 2) / w);
+    const phase = rnd() * 6;
+    g.strokeStyle = `rgba(120,90,60,${0.07 + rnd() * 0.05})`;
+    g.lineWidth = 7 + rnd() * 9;
+    g.beginPath();
+    for (let x = 0; x <= w; x += 16) {
+      const y = y0 + Math.sin(x * freq + phase) * amp;
+      if (x === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+}
+
+/** A filled rectangle with round corners (a cartoon brick, block or tile). */
+function roundedRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  g.beginPath();
+  if (typeof g.roundRect === "function") g.roundRect(x, y, w, h, r);
+  else g.rect(x, y, w, h);
+  g.fill();
+}
+
 const textureCache = new Map<string, THREE.Texture>();
 
 function cachedTexture(key: string, make: () => THREE.Texture): THREE.Texture {
@@ -150,7 +182,8 @@ export const TEX = {
   grain(repeat: [number, number] = [1, 1]) {
     return cachedTexture(`grain:${repeat}`, () => {
       const c = makeCanvas(512, 512);
-      paintGrain(c.getContext("2d")!, 512, 512, seeded(7), 150);
+      if (CARTOON) paintToonGrain(c.getContext("2d")!, 512, 512, seeded(7));
+      else paintGrain(c.getContext("2d")!, 512, 512, seeded(7), 150);
       return texture(c, repeat);
     });
   },
@@ -164,6 +197,27 @@ export const TEX = {
       const rnd = seeded(11);
       const rows = 8;
       const rowH = H / rows;
+      if (CARTOON) {
+        // Clean planks in three flat tones, with crisp dark seams and staggered ends.
+        const tones = [0.9, 1.0, 1.1];
+        for (let r = 0; r < rows; r += 1) {
+          let x = -((r * 173) % 400);
+          let n = r;
+          while (x < W) {
+            const len = 340 + ((n * 97) % 220);
+            const base = new THREE.Color(tone).multiplyScalar(tones[n % 3]);
+            g.fillStyle = `#${base.getHexString()}`;
+            g.fillRect(x, r * rowH, len, rowH);
+            g.fillStyle = "rgba(40,24,12,0.7)";
+            g.fillRect(x, r * rowH, 4, rowH);
+            x += len;
+            n += 1;
+          }
+          g.fillStyle = "rgba(40,24,12,0.7)";
+          g.fillRect(0, r * rowH, W, 4);
+        }
+        return texture(c, repeat);
+      }
       const grain = makeCanvas(512, 128);
       paintGrain(grain.getContext("2d")!, 512, 128, seeded(3), 40);
       for (let r = 0; r < rows; r += 1) {
@@ -240,6 +294,24 @@ export const TEX = {
       const c = makeCanvas(W, H);
       const g = c.getContext("2d")!;
       const rnd = seeded(17);
+      if (CARTOON) {
+        // Big, bold bricks in a few flat tones, pale mortar between: the cartoon's brick.
+        g.fillStyle = "#f3dcc0";
+        g.fillRect(0, 0, W, H);
+        const bh = 64;
+        const bw = 128;
+        const gap = 7;
+        const tones = [0.92, 1.07, 1.0, 0.96];
+        for (let r = 0; r < H / bh; r += 1) {
+          const off = r % 2 ? bw / 2 : 0;
+          for (let i = -1; i <= W / bw; i += 1) {
+            const col = new THREE.Color("#d8532c").multiplyScalar(tones[(((i + r) % 4) + 4) % 4]);
+            g.fillStyle = `#${col.getHexString()}`;
+            roundedRect(g, i * bw + off + gap / 2, r * bh + gap / 2, bw - gap, bh - gap, 6);
+          }
+        }
+        return texture(c, repeat);
+      }
       g.fillStyle = "#cfc6bb";
       g.fillRect(0, 0, W, H);
       const bh = 32;
@@ -267,6 +339,24 @@ export const TEX = {
       const c = makeCanvas(W, W);
       const g = c.getContext("2d")!;
       const rnd = seeded(23);
+      if (CARTOON) {
+        // Big rounded blocks in flat tones, each row shifted along, drawn again across the edge so the picture repeats.
+        g.fillStyle = "#7a746c";
+        g.fillRect(0, 0, W, W);
+        const bh = W / 6;
+        const widths = [148, 108, 134, 122];
+        const tones = [0.9, 1.08, 1.0, 0.95, 1.04];
+        for (let r = 0; r < 6; r += 1) {
+          let x = (r * 37) % W;
+          widths.forEach((bw, i) => {
+            const col = new THREE.Color("#c2bbb0").multiplyScalar(tones[(r + i) % tones.length]);
+            g.fillStyle = `#${col.getHexString()}`;
+            for (const dx of [0, -W]) roundedRect(g, x + dx + 4, r * bh + 4, bw - 8, bh - 8, 10);
+            x += bw;
+          });
+        }
+        return texture(c, repeat);
+      }
       g.fillStyle = "#8d8a86";
       g.fillRect(0, 0, W, W);
       const bh = 64;
@@ -297,6 +387,22 @@ export const TEX = {
       const g = c.getContext("2d")!;
       const rnd = seeded(29);
       const lh = 64;
+      if (CARTOON) {
+        // Each log three flat bands, light on top and dark below, with a crisp line between logs.
+        for (let r = 0; r < W / lh; r += 1) {
+          const tone = new THREE.Color("#9a6238").multiplyScalar([0.95, 1.0, 1.05][r % 3]);
+          const band = (f: number, y0: number, y1: number) => {
+            g.fillStyle = `#${tone.clone().multiplyScalar(f).getHexString()}`;
+            g.fillRect(0, r * lh + y0 * lh, W, (y1 - y0) * lh + 1);
+          };
+          band(1.14, 0, 0.3);
+          band(1.0, 0.3, 0.7);
+          band(0.78, 0.7, 1);
+          g.fillStyle = "rgba(40,24,12,0.8)";
+          g.fillRect(0, (r + 1) * lh - 4, W, 4);
+        }
+        return texture(c, repeat);
+      }
       for (let r = 0; r < W / lh; r += 1) {
         const tone = new THREE.Color("#8a5a36").multiplyScalar(0.85 + rnd() * 0.25);
         const grad = g.createLinearGradient(0, r * lh, 0, (r + 1) * lh);
@@ -328,6 +434,20 @@ export const TEX = {
       const g = c.getContext("2d")!;
       const rnd = seeded(31);
       const sw = 32;
+      if (CARTOON) {
+        // Stalks in two flat tones, lit on the left, with dark joints every so often.
+        for (let i = 0; i < W / sw; i += 1) {
+          const tone = new THREE.Color("#d9bc7e").multiplyScalar([0.96, 1.04, 1.0][i % 3]);
+          g.fillStyle = `#${tone.clone().multiplyScalar(1.04).getHexString()}`;
+          g.fillRect(i * sw, 0, sw * 0.55, W);
+          g.fillStyle = `#${tone.clone().multiplyScalar(0.84).getHexString()}`;
+          g.fillRect(i * sw + sw * 0.55, 0, sw * 0.45, W);
+          g.fillStyle = "rgba(70,50,20,0.7)";
+          g.fillRect(i * sw, 0, 2, W);
+          for (let y = (i * 53) % 128; y < W; y += 128) g.fillRect(i * sw, y, sw, 5);
+        }
+        return texture(c, repeat);
+      }
       for (let i = 0; i < W / sw; i += 1) {
         const tone = new THREE.Color("#cdb27a").multiplyScalar(0.88 + rnd() * 0.2);
         const grad = g.createLinearGradient(i * sw, 0, (i + 1) * sw, 0);
@@ -352,6 +472,25 @@ export const TEX = {
       const c = makeCanvas(W, W);
       const g = c.getContext("2d")!;
       const rnd = seeded(41);
+      if (CARTOON) {
+        // White with three wide, soft grey streaks.
+        g.fillStyle = "#f4f2ee";
+        g.fillRect(0, 0, W, W);
+        g.lineCap = "round";
+        for (let i = 0; i < 3; i += 1) {
+          g.strokeStyle = `rgba(150,150,162,${0.1 + rnd() * 0.06})`;
+          g.lineWidth = 12 + rnd() * 8;
+          g.beginPath();
+          let x = W * (0.2 + i * 0.3);
+          g.moveTo(x, -20);
+          for (let y = 0; y <= W + 20; y += 40) {
+            x += (rnd() - 0.5) * 36;
+            g.lineTo(x, y);
+          }
+          g.stroke();
+        }
+        return texture(c, repeat);
+      }
       g.fillStyle = "#f3f1ed";
       g.fillRect(0, 0, W, W);
       g.filter = "blur(1.2px)";
@@ -390,6 +529,19 @@ export const TEX = {
       const c = makeCanvas(W, W);
       const g = c.getContext("2d")!;
       const rnd = seeded(47);
+      if (CARTOON) {
+        // A checker of two flat tones with pale grout and rounded tiles.
+        g.fillStyle = "#e8e2d8";
+        g.fillRect(0, 0, W, W);
+        const s = 128;
+        for (let y = 0; y < W; y += s)
+          for (let x = 0; x < W; x += s) {
+            const col = new THREE.Color(color).multiplyScalar((x / s + y / s) % 2 ? 1.1 : 0.97);
+            g.fillStyle = `#${col.getHexString()}`;
+            roundedRect(g, x + 3, y + 3, s - 6, s - 6, 8);
+          }
+        return texture(c, repeat);
+      }
       g.fillStyle = "#cfcac2";
       g.fillRect(0, 0, W, W);
       const s = 128;
@@ -500,7 +652,9 @@ export function makeKit(): Kit {
   const geos = new Map<string, THREE.BufferGeometry>();
   /** While a piece is being built, its own pictures go here instead of the kit's store. */
   let collector: (THREE.Material | THREE.Texture)[] | null = null;
+  // Every material the kit makes takes the world's look (style.ts) on its way out.
   const own = (m: THREE.Material, picture: THREE.Texture) => {
+    toon(m);
     if (collector) collector.push(m, picture);
     else made.push(m, picture);
     return m;
@@ -509,7 +663,7 @@ export function makeKit(): Kit {
   const mat = (key: string, make: () => THREE.Material) => {
     let m = mats.get(key);
     if (!m) {
-      m = make();
+      m = toon(make());
       mats.set(key, m);
     }
     return m;
@@ -532,46 +686,58 @@ export function makeKit(): Kit {
 
   const kit: Kit = {
     wood(tone = "oak", opts = {}) {
-      const color = (WOOD_TONES as Record<string, string>)[tone] ?? tone;
+      const color = pop((WOOD_TONES as Record<string, string>)[tone] ?? tone);
       const gloss = opts.gloss ?? 0.45;
       // White-painted wood shows no grain; any other tone shows it.
-      if (tone === "white") return mat(`wood:${color}:${gloss}:painted`, () => new THREE.MeshStandardMaterial({ color, map: TEX.plaster([2, 2]), roughness: 0.55, metalness: 0 }));
+      if (tone === "white") return mat(`wood:${color}:${gloss}:painted`, () => new THREE.MeshStandardMaterial({ color, map: CARTOON ? null : TEX.plaster([2, 2]), roughness: 0.55, metalness: 0 }));
       return mat(`wood:${color}:${gloss}:${opts.repeat ?? ""}`, () => {
         const map = TEX.grain(opts.repeat ?? [1, 1]);
+        // The cartoon's wood is flat colour with a few broad bands, and no relief.
+        if (CARTOON) return new THREE.MeshStandardMaterial({ color, map, roughness: 0.78 - gloss * 0.3, metalness: 0 });
         return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.45), roughness: 1 - gloss * 0.8, metalness: 0 });
       });
     },
     fabric(color, opts = {}) {
       return mat(`fabric:${color}:${opts.repeat ?? ""}`, () => {
+        if (CARTOON) return new THREE.MeshStandardMaterial({ color: pop(color), roughness: 0.9, metalness: 0 });
         const map = TEX.weave(opts.repeat ?? [3, 3]);
         return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.3), roughness: 0.96, metalness: 0 });
       });
     },
     velvet(color) {
-      return mat(`velvet:${color}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 0.82, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.35) }));
+      const c = pop(color);
+      return mat(`velvet:${color}`, () => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.82, sheen: 1, sheenRoughness: 0.45, sheenColor: new THREE.Color(c).lerp(new THREE.Color("#ffffff"), 0.35) }));
     },
     leather(color) {
-      return mat(`leather:${color}`, () => new THREE.MeshStandardMaterial({ color, map: TEX.plaster([2, 2]), roughness: 0.5, metalness: 0 }));
+      return mat(`leather:${color}`, () => new THREE.MeshStandardMaterial({ color: pop(color), map: CARTOON ? null : TEX.plaster([2, 2]), roughness: 0.5, metalness: 0 }));
     },
     paint(color, gloss = 0.35) {
-      return mat(`paint:${color}:${gloss}`, () => new THREE.MeshStandardMaterial({ color, roughness: 1 - gloss * 0.85, metalness: 0 }));
+      return mat(`paint:${color}:${gloss}`, () => new THREE.MeshStandardMaterial({ color: pop(color), roughness: CARTOON ? 1 - gloss * 0.7 : 1 - gloss * 0.85, metalness: 0 }));
     },
     plastic(color, gloss = 0.6) {
-      return mat(`plastic:${color}:${gloss}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 1 - gloss * 0.8, metalness: 0, clearcoat: gloss * 0.4, clearcoatRoughness: 0.3 }));
+      return mat(`plastic:${color}:${gloss}`, () => new THREE.MeshPhysicalMaterial({ color: pop(color), roughness: 1 - gloss * 0.8, metalness: 0, clearcoat: gloss * 0.4, clearcoatRoughness: 0.3 }));
     },
     metal(kind = "steel", roughness) {
       const m = (METALS as Record<string, { color: string; roughness: number; metalness: number }>)[kind] ?? { color: kind, roughness: 0.3, metalness: 1 };
-      const r = roughness ?? m.roughness;
-      return mat(`metal:${m.color}:${r}`, () => new THREE.MeshStandardMaterial({ color: m.color, roughness: r, metalness: m.metalness }));
+      // The cartoon's metal has a soft sheen rather than a mirror finish.
+      const r = CARTOON ? Math.max(roughness ?? m.roughness, 0.28) : (roughness ?? m.roughness);
+      return mat(`metal:${m.color}:${r}`, () => new THREE.MeshStandardMaterial({ color: pop(m.color), roughness: r, metalness: m.metalness }));
     },
     glass(tint = "#dfe9ee", opacity = 0.22) {
       return mat(`glass:${tint}:${opacity}`, () => new THREE.MeshPhysicalMaterial({ color: tint, roughness: 0.04, metalness: 0, transparent: true, opacity, depthWrite: false, envMapIntensity: 1.6, side: THREE.DoubleSide }));
     },
     ceramic(color) {
-      return mat(`ceramic:${color}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.2 }));
+      return mat(`ceramic:${color}`, () => new THREE.MeshPhysicalMaterial({ color: pop(color), roughness: 0.3, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.2 }));
     },
     stone(kind = "marble") {
       return mat(`stone:${kind}`, () => {
+        if (CARTOON) {
+          // Flat colour; marble keeps its few bold streaks.
+          if (kind === "marble") return new THREE.MeshPhysicalMaterial({ color: "#f6f3ee", map: TEX.marble(), roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.2 });
+          const flat: Record<string, [string, number]> = { concrete: ["#bdbab4", 0.9], granite: ["#8d8984", 0.6], slate: ["#4f5a6b", 0.7], terracotta: ["#cf6f44", 0.8], sandstone: ["#dcc49c", 0.9] };
+          const [color, roughness] = flat[kind] ?? flat.sandstone;
+          return new THREE.MeshStandardMaterial({ color: pop(color), roughness, metalness: 0 });
+        }
         if (kind === "marble") return new THREE.MeshPhysicalMaterial({ color: "#f1efea", map: TEX.marble(), roughness: 0.16, clearcoat: 0.5, clearcoatRoughness: 0.15 });
         if (kind === "concrete") return new THREE.MeshStandardMaterial({ color: "#a9a7a3", map: TEX.concrete(), bumpMap: TEX.concrete(), bumpScale: bumpScale(0.35), roughness: 0.92 });
         if (kind === "granite") return new THREE.MeshStandardMaterial({ color: "#77736f", map: TEX.concrete([2, 2]), bumpMap: TEX.concrete([2, 2]), bumpScale: bumpScale(0.35), roughness: 0.4 });
@@ -583,25 +749,26 @@ export function makeKit(): Kit {
     leaf(shade = 0) {
       const tones = ["#3f6b34", "#4c7d3d", "#5a8c45", "#35602f", "#6b9a4f"];
       const color = tones[Math.abs(Math.round(shade)) % tones.length];
-      return mat(`leaf:${color}`, () => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, side: THREE.DoubleSide }));
+      return mat(`leaf:${color}`, () => new THREE.MeshStandardMaterial({ color: pop(color), roughness: 0.55, metalness: 0, side: THREE.DoubleSide }));
     },
     soil() {
-      return mat("soil", () => new THREE.MeshStandardMaterial({ color: "#3d2c22", map: TEX.carpet([2, 2]), roughness: 1 }));
+      return mat("soil", () => (CARTOON ? new THREE.MeshStandardMaterial({ color: pop("#5a3f2c"), roughness: 1, metalness: 0 }) : new THREE.MeshStandardMaterial({ color: "#3d2c22", map: TEX.carpet([2, 2]), roughness: 1 })));
     },
     rubber(color = "#1f1f22") {
-      return mat(`rubber:${color}`, () => new THREE.MeshStandardMaterial({ color, roughness: 0.88, metalness: 0 }));
+      return mat(`rubber:${color}`, () => new THREE.MeshStandardMaterial({ color: pop(color), roughness: 0.88, metalness: 0 }));
     },
     paper(color = "#f6f3ec") {
-      return mat(`paper:${color}`, () => new THREE.MeshStandardMaterial({ color, roughness: 0.92, metalness: 0 }));
+      return mat(`paper:${color}`, () => new THREE.MeshStandardMaterial({ color: pop(color), roughness: 0.92, metalness: 0 }));
     },
     water(color = "#5fa8c8") {
-      return mat(`water:${color}`, () => new THREE.MeshPhysicalMaterial({ color, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.55, depthWrite: false, envMapIntensity: 1.4 }));
+      return mat(`water:${color}`, () => new THREE.MeshPhysicalMaterial({ color: pop(color), roughness: 0.04, metalness: 0, transparent: true, opacity: 0.55, depthWrite: false, envMapIntensity: 1.4 }));
     },
     glow(color, on, strength = 2.2) {
+      const c = pop(color);
       return mat(`glow:${color}:${on}:${strength}`, () =>
         on
-          ? new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: strength, roughness: 0.4 })
-          : new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color("#888888"), 0.55), roughness: 0.35 })
+          ? new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: strength, roughness: 0.4 })
+          : new THREE.MeshStandardMaterial({ color: new THREE.Color(c).lerp(new THREE.Color("#888888"), 0.55), roughness: 0.35 })
       );
     },
     screen(on, picture, strength = 1.3) {
@@ -623,7 +790,7 @@ export function makeKit(): Kit {
     },
 
     box(w, h, d, m, p = {}) {
-      const r = Math.min(p.r ?? 0, w / 2 - 0.0005, h / 2 - 0.0005, d / 2 - 0.0005);
+      const r = corner(w, h, d, p.r);
       const g =
         r > 0.0005
           ? geo(`rbox:${r3(w)}:${r3(h)}:${r3(d)}:${r3(r)}`, () => new RoundedBoxGeometry(w, h, d, 3, r))
@@ -656,7 +823,7 @@ export function makeKit(): Kit {
       );
     },
     extrude(outline, depth, m, p = {}) {
-      const bevel = p.bevel ?? Math.min(0.01, depth / 4);
+      const bevel = chunkyBevel(depth, p.bevel);
       const key = `ext:${outline.map((q) => q.map(r3).join(",")).join(";")}:${r3(depth)}:${r3(bevel)}:${(p.holes ?? []).map((h) => h.map((q) => q.map(r3).join(",")).join(";")).join("|")}`;
       const g = geo(key, () => {
         const shape = new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)));
