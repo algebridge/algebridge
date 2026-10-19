@@ -14,6 +14,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { compileQuietly } from "./compile";
+import { CARTOON } from "./style";
 
 const VIGNETTE = {
   uniforms: { tDiffuse: { value: null as THREE.Texture | null }, strength: { value: 0.26 } },
@@ -50,7 +51,8 @@ export class Post {
     this.composer.addPass(new RenderPass(scene, camera));
     this.gtao = new GTAOPass(scene, camera, Math.round(width * dpr), Math.round(height * dpr));
     this.gtao.output = GTAOPass.OUTPUT.Default;
-    this.gtao.blendIntensity = 0.9;
+    // The cartoon keeps its corners lighter: a touch of occlusion, no grime.
+    this.gtao.blendIntensity = CARTOON ? 0.6 : 0.9;
     this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 16 });
     const self = this;
     const pass = this.gtao as unknown as { _overrideVisibility(): void; _restoreVisibility(): void };
@@ -78,6 +80,7 @@ export class Post {
     this.composer.addPass(this.bloom);
     this.output = new OutputPass();
     this.vignette = new ShaderPass(VIGNETTE);
+    if (CARTOON) this.vignette.uniforms.strength.value = 0.1;
     this.composer.addPass(this.output);
     this.composer.addPass(this.vignette);
     this.setSize(width, height, dpr);

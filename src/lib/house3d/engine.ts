@@ -18,6 +18,7 @@ import { lotBlockers, slideMove, type Rect, type StreetLot } from "./walk";
 import { avatarKey } from "@/lib/avatar";
 import type { AvatarSpec } from "@/types";
 import { makeKit, SWATCH_HEX, type Kit } from "./kit";
+import { CARTOON } from "./style";
 import { compileQuietly } from "./compile";
 import { liveSlice, watchReads } from "./live";
 import { modelFor, ornamentModelFor } from "./registry";
@@ -268,7 +269,7 @@ export class HouseView {
     this.renderer.setPixelRatio(this.ratioRest);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = CARTOON ? 1.06 : 1.0;
     this.renderer.shadowMap.enabled = true;
     // Plain PCF: a third of the soft kind's cost on every pixel, the edge softened by the radius below.
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -596,17 +597,17 @@ export class HouseView {
   private setNightLight(night: boolean): void {
     this.night = night;
     const out = this.mode !== "room";
-    this.sun.intensity = night ? 0 : out ? 3.4 : 2.6;
+    // The cartoon's day: a warm sun, a strong blue fill from the sky and green from the ground, so shade stays bright and coloured.
+    this.sun.intensity = night ? 0 : out ? (CARTOON ? 3.0 : 3.4) : CARTOON ? 2.3 : 2.6;
     this.moon.intensity = night ? (out ? 0.55 : 0.35) : 0;
-    this.hemi.intensity = night ? (out ? 0.14 : 0.05) : out ? 0.75 : 0.45;
-    this.hemi.color.set(night ? "#5b6c9a" : out ? "#dfeaf7" : "#e9eef6");
-    this.hemi.groundColor.set(out ? "#6f7d4c" : "#b49a7c");
+    this.hemi.color.set(night ? "#5b6c9a" : out ? (CARTOON ? "#bfe0ff" : "#dfeaf7") : CARTOON ? "#dde8ff" : "#e9eef6");
+    this.hemi.groundColor.set(out ? (CARTOON ? "#7cc95f" : "#6f7d4c") : CARTOON ? "#c9a98a" : "#b49a7c");
     // Outdoors the light comes from the sky itself; indoors from a studio's soft bounce.
     this.scene.environment = out ? this.skyEnv(night) : this.envTarget.texture;
-    this.scene.environmentIntensity = night ? (out ? 0.3 : 0.1) : out ? 1.0 : 0.6;
-    this.hemi.intensity = night ? (out ? 0.1 : 0.05) : out ? 0.5 : 0.45;
+    this.scene.environmentIntensity = night ? (out ? 0.3 : 0.1) : out ? (CARTOON ? 0.7 : 1.0) : CARTOON ? 0.45 : 0.6;
+    this.hemi.intensity = night ? (out ? 0.1 : 0.05) : out ? (CARTOON ? 0.95 : 0.5) : CARTOON ? 0.8 : 0.45;
     // Outdoors the far hills fade into the sky's own colour at the horizon; indoors there is nothing far away.
-    this.scene.fog = out ? new THREE.Fog(night ? "#222f4b" : "#dbe5ec", 80, 330) : null;
+    this.scene.fog = out ? new THREE.Fog(night ? "#222f4b" : CARTOON ? "#a7dcff" : "#dbe5ec", CARTOON ? 100 : 80, CARTOON ? 360 : 330) : null;
     for (const v of this.room?.views ?? []) {
       const m = v.material as THREE.MeshBasicMaterial;
       m.map = viewTexture(themeFor(this.roomKey.split(":")[0]).view, night);
@@ -626,7 +627,7 @@ export class HouseView {
     const dome = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.MeshBasicMaterial({ map: skyTexture(night), side: THREE.BackSide }));
     dome.rotation.y = -0.35;
     sky.add(dome);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(9.5, 32), new THREE.MeshBasicMaterial({ color: night ? "#0b100c" : "#55703e" }));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(9.5, 32), new THREE.MeshBasicMaterial({ color: night ? "#0b100c" : CARTOON ? "#5fbf4f" : "#55703e" }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.4;
     sky.add(ground);

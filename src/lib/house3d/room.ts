@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { bumpScale, canvasTexture, TEX, type Kit } from "./kit";
+import { CARTOON, pop, toon } from "./style";
 import { BACK_WINDOW, DOOR, ROOM_D, ROOM_H, ROOM_W, SIDE_WINDOW, WALL_T, windowSize } from "./space";
 import type { RoomFinish, RoomTheme, ViewKind, WallKind, WindowShape } from "./themes";
 
@@ -47,7 +48,9 @@ function windowOutline(shape: WindowShape, w: number, h: number): Pt[] {
 }
 
 function wallMaterial(kind: WallKind, color: string): THREE.Material {
-  const m = (map: THREE.Texture, roughness: number, bump: number, tint = "#ffffff") => new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: bumpScale(bump), color: tint, roughness, metalness: 0 });
+  // The cartoon's patterns are bold and flat: no relief read from them.
+  const m = (map: THREE.Texture, roughness: number, bump: number, tint = "#ffffff") => toon(CARTOON ? new THREE.MeshStandardMaterial({ map, color: tint, roughness, metalness: 0 }) : new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: bumpScale(bump), color: tint, roughness, metalness: 0 }));
+  if (CARTOON && kind === "plaster") return toon(new THREE.MeshStandardMaterial({ color: pop(color), roughness: 0.9, metalness: 0 }));
   switch (kind) {
     case "brick":
       return m(TEX.brick([0.85, 0.85]), 0.9, 0.7);
@@ -63,7 +66,7 @@ function wallMaterial(kind: WallKind, color: string): THREE.Material {
       return m(boardsTexture(color, false), 0.6, 0.5);
     default: {
       const map = TEX.plaster([0.5, 0.5]);
-      return new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.22), roughness: 0.92 });
+      return toon(new THREE.MeshStandardMaterial({ color, map, bumpMap: map, bumpScale: bumpScale(0.22), roughness: 0.92 }));
     }
   }
 }
@@ -82,6 +85,21 @@ export function boardsTexture(tone: string, vertical: boolean, repeat: [number, 
 function floorMaterial(f: RoomFinish): THREE.Material {
   const w = ROOM_W + 0.3;
   const d = ROOM_D + 0.2;
+  if (CARTOON) {
+    // Flat colour for carpet and concrete; bold planks, tiles and blocks, with no relief.
+    switch (f.floor) {
+      case "carpet":
+        return toon(new THREE.MeshStandardMaterial({ color: pop(f.floorColor), roughness: 1 }));
+      case "concrete":
+        return toon(new THREE.MeshPhysicalMaterial({ color: pop(f.floorColor), roughness: 0.55, clearcoat: 0.25, clearcoatRoughness: 0.4 }));
+      case "tiles":
+        return toon(new THREE.MeshStandardMaterial({ map: TEX.tiles(pop(f.floorColor), [w / 2, d / 2]), roughness: 0.35 }));
+      case "stone":
+        return toon(new THREE.MeshStandardMaterial({ map: TEX.stoneBlocks([w / 2.8, d / 2.8]), color: "#e2ded8", roughness: 0.7 }));
+      default:
+        return toon(new THREE.MeshPhysicalMaterial({ map: TEX.planks(pop(f.floorColor), [w / 1.44, d / 1.44]), roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.35 }));
+    }
+  }
   switch (f.floor) {
     case "carpet": {
       const map = TEX.carpet([6, 5]);
@@ -430,7 +448,7 @@ export function buildRoom(k: Kit, theme: RoomTheme, which: "down" | "up", night:
   floor.position.set(-WALL_T / 2 + WALL_T / 2, -0.1, -WALL_T / 2);
   floor.receiveShadow = true;
   g.add(floor);
-  const edgeM = keep(new THREE.MeshStandardMaterial({ color: "#d9d4cb", roughness: 0.9 }));
+  const edgeM = keep(toon(new THREE.MeshStandardMaterial({ color: "#d9d4cb", roughness: 0.9 })));
   const edge = new THREE.Mesh(keep(new THREE.BoxGeometry(ROOM_W + WALL_T * 2, 0.2, 0.02)), edgeM);
   edge.position.set(0, -0.1, ROOM_D / 2 + 0.001);
   g.add(edge);
@@ -462,7 +480,7 @@ export function buildRoom(k: Kit, theme: RoomTheme, which: "down" | "up", night:
   g.add(side);
 
   // The cut along the tops of the walls.
-  const capM = keep(new THREE.MeshStandardMaterial({ color: "#e4dfd6", roughness: 0.85 }));
+  const capM = keep(toon(new THREE.MeshStandardMaterial({ color: "#e4dfd6", roughness: 0.85 })));
   const capBack = new THREE.Mesh(keep(new THREE.BoxGeometry(ROOM_W + WALL_T, 0.012, WALL_T + 0.004)), capM);
   capBack.position.set(-WALL_T / 2, ROOM_H + 0.006, -ROOM_D / 2 - WALL_T / 2);
   g.add(capBack);

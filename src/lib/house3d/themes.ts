@@ -6,6 +6,8 @@
  * the city), now in real materials instead of a drawing of one.
  */
 
+import { CARTOON } from "./style";
+
 export type WallKind = "plaster" | "brick" | "logs" | "bamboo" | "stone" | "boards" | "timber";
 export type FloorKind = "planks" | "carpet" | "concrete" | "tiles" | "stone";
 export type ViewKind = "countryside" | "forest" | "city" | "ocean" | "mountains" | "desert" | "lake";
@@ -168,6 +170,25 @@ export const THEMES: Record<string, RoomTheme> = {
   },
 };
 
+/** The cartoon world's roofs: each house keeps its shape and its walls, and wears a roof in a bold colour of its own. */
+const CARTOON_ROOFS: Record<string, string> = {
+  cottage: "#e2493b",
+  treehouse: "#d97a2b",
+  beach: "#5cc8ea",
+  barn: "#46557f",
+  victorian: "#5a3f9e",
+  chalet: "#b5542e",
+  modern: "#2f3b5c",
+};
+const cartoonThemes = new Map<string, RoomTheme>();
+
 export function themeFor(styleId: string | null | undefined): RoomTheme {
-  return THEMES[styleId ?? ""] ?? THEMES.cottage;
+  const theme = THEMES[styleId ?? ""] ?? THEMES.cottage;
+  if (!CARTOON || !CARTOON_ROOFS[theme.id]) return theme;
+  let made = cartoonThemes.get(theme.id);
+  if (!made) {
+    made = { ...theme, look: { ...theme.look, roofTint: CARTOON_ROOFS[theme.id] } };
+    cartoonThemes.set(theme.id, made);
+  }
+  return made;
 }
