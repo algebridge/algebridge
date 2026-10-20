@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { allUnits, courseOfUnit, getUnit } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitPath } from "@/components/UnitPath";
+import { UnitArena } from "@/components/UnitArena";
 import { UnitProgressHeader } from "@/components/UnitProgressHeader";
 import { QuoteCard } from "@/components/QuoteCard";
 import { quoteForUnit } from "@/data/quotes";
@@ -52,6 +53,11 @@ export default async function UnitPage({
           <div>
             <h2 className="eyebrow mb-2">Your path through this unit</h2>
             <UnitPath unit={unit} />
+          </div>
+
+          <div>
+            <h2 className="eyebrow mb-2">Arena</h2>
+            <UnitArena unit={unit} />
           </div>
 
           <div className="flex justify-between border-t border-slate-200 pt-4">

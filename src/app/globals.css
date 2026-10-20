@@ -1606,3 +1606,63 @@ html[data-bare] main {
 @media (prefers-reduced-motion: reduce) {
   .tp::after { animation: none !important; }
 }
+
+/* The run on the problem card (RunHud): a meter that heats with the combo,
+   cracks on a miss, and a wallet the answer's Bridgeys fly into. */
+.run-meter {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border-radius: 9999px; padding: 0.25rem 0.7rem;
+  font-size: 0.75rem; color: #475569; background: #fff;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+  transition: background-color 0.25s, color 0.25s;
+}
+.run-bar { position: relative; display: inline-block; width: 3.25rem; height: 0.4rem; border-radius: 9999px; background: rgba(15, 23, 42, 0.1); overflow: hidden; }
+.run-bar > span { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: currentColor; transition: width 0.35s cubic-bezier(.3,1.4,.5,1); }
+.run-hot-1 { background: #fffbeb; color: #b45309; box-shadow: inset 0 0 0 1px #fde68a; }
+.run-hot-2 { background: linear-gradient(90deg, #fcd34d, #fb923c); color: #431407; box-shadow: 0 2px 8px -2px rgba(251, 146, 60, 0.6); }
+.run-hot-3 { background: linear-gradient(90deg, #fb923c, #ef4444); color: #fff; box-shadow: 0 2px 12px -2px rgba(239, 68, 68, 0.7); animation: run-glow 1.4s ease-in-out infinite; }
+.run-crack { animation: run-crack 0.45s ease-out; }
+.run-wallet {
+  position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
+  border-radius: 9999px; padding: 0.25rem 0.7rem; font-size: 0.75rem; color: #334155;
+  background: #fff; box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+.run-wallet:hover { box-shadow: inset 0 0 0 1px #cbd5e1; }
+.run-wallet-pulse { animation: run-pulse 0.5s ease-out 0.35s; }
+.run-coin {
+  position: absolute; left: 0.6rem; top: -0.2rem; pointer-events: none;
+  font-weight: 800; font-size: 0.85rem; color: #b45309;
+  text-shadow: 0 1px 0 #fff, 0 0 6px #fff;
+  animation: run-coin 0.9s ease-out forwards;
+}
+@keyframes run-coin { 0% { transform: translateY(1.4rem) scale(0.6); opacity: 0; } 25% { transform: translateY(-0.2rem) scale(1.25); opacity: 1; } 100% { transform: translateY(-1.6rem) scale(1); opacity: 0; } }
+@keyframes run-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes run-glow { 50% { box-shadow: 0 2px 18px -1px rgba(239, 68, 68, 0.9); } }
+@keyframes run-crack {
+  0% { transform: translateX(0) rotate(0); background: #fee2e2; color: #b91c1c; }
+  20% { transform: translateX(-4px) rotate(-3deg); }
+  40% { transform: translateX(4px) rotate(3deg); }
+  60% { transform: translateX(-3px) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-hot-3, .run-crack, .run-wallet-pulse { animation: none; }
+  .run-coin { animation: none; opacity: 0; }
+}
+
+/* The unit arena (UnitArena, ArenaPlay). */
+.arena-tile { display: block; border-radius: 1rem; padding: 1rem 1.1rem; background: #fff; color: #0f172a; box-shadow: inset 0 0 0 1px #e2e8f0, 0 1px 2px rgba(15,23,42,.05); transition: transform .15s, box-shadow .15s; }
+.arena-tile:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px #cbd5e1, 0 8px 20px -10px rgba(15,23,42,.3); }
+.arena-tile-boss { background: linear-gradient(135deg, #1e1b4b, #7c2d12); color: #fff; box-shadow: 0 8px 24px -12px rgba(124,45,18,.8); }
+.arena-tile-locked { background: #f1f5f9; color: #64748b; box-shadow: inset 0 0 0 1px #e2e8f0; }
+.arena-card { border-radius: 1rem; background: #fff; padding: 1.5rem; box-shadow: inset 0 0 0 1px #e2e8f0, 0 2px 6px rgba(15,23,42,.05); animation: arena-in .25s ease-out; }
+.arena-right { box-shadow: inset 0 0 0 2px #10b981, 0 0 0 4px rgba(16,185,129,.15); }
+.arena-wrong { box-shadow: inset 0 0 0 2px #ef4444; animation: run-crack .45s ease-out; }
+.arena-clock { display: inline-flex; align-items: center; gap: .3rem; border-radius: 9999px; padding: .2rem .6rem; font-weight: 800; font-variant-numeric: tabular-nums; background: #eef2ff; color: #3730a3; }
+.arena-clock-low { background: #fee2e2; color: #b91c1c; animation: run-pulse .9s ease-in-out infinite; }
+.arena-life { color: #ef4444; transition: transform .3s, opacity .3s; }
+.arena-life-lost { color: #cbd5e1; transform: scale(.8); }
+.arena-boss-bar { height: .6rem; border-radius: 9999px; background: #e2e8f0; overflow: hidden; }
+.arena-boss-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ef4444, #7c2d12); transition: width .5s cubic-bezier(.3,1.4,.5,1); }
+@keyframes arena-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .arena-card, .arena-wrong, .arena-clock-low { animation: none; } }

@@ -168,9 +168,11 @@ export interface UserProgress {
   /** When this copy was last written, so the newer of two copies can be kept. */
   updatedAt?: string;
   /** Today's right answers toward the daily goal, and whether its Bridgeys were paid. */
-  daily?: { day: string; right: number; paid: boolean };
+  daily?: { day: string; right: number; paid: boolean; /** Bridgeys today's answers paid, toward ANSWER_PAY_CAP. */ coins?: number };
   /** The days the daily goal was reached (YYYY-MM-DD, the latest 30): the house's plants grow with them. */
   goalDays?: string[];
+  /** The unit arena (lib/arena.ts): bosses beaten (unit ids) and best scores by "unitId:mode". */
+  arena?: { beaten: string[]; best: Record<string, number> };
   /** The week (its Monday) a bed's rest day was last used to keep the streak. */
   restDayWeek?: string;
   /** The colour a student chose for a piece, by item id: a swatch id from furniture-art. */

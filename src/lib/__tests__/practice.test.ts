@@ -723,10 +723,12 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   let last: ReturnType<typeof recordProblemAttempt> | null = null;
   for (let i = 0; i < 5; i += 1) last = recordProblemAttempt(first, true, { firstTry: true });
   ok("five first tries finish the skill", last!.skillJustCompleted && last!.newLevel === "mastered");
-  ok("finishing it pays its Bridgeys", last!.bridgeysGained === G.bridgeysForSkill(first) && Pr.getProgress().bridgeys === 25 + G.bridgeysForSkill(first));
+  // Each of the five first tries also paid its answer (1 at a run of one).
+  ok("finishing it pays its Bridgeys", last!.bridgeysGained === G.bridgeysForSkill(first) && Pr.getProgress().bridgeys === 25 + 5 + G.bridgeysForSkill(first));
+  ok("each first try pays its answer", last!.answerBridgeys === 1);
   ok("the pay is recorded as claimed", Pr.getProgress().bridgeyRewardsClaimed!.complete.includes(first));
   const again = recordProblemAttempt(first, true, { firstTry: true });
-  ok("a sixth answer pays nothing more", again.bridgeysGained === 0 && !again.skillJustCompleted);
+  ok("a sixth answer pays nothing more for the skill", again.bridgeysGained === 0 && !again.skillJustCompleted && again.answerBridgeys === 1);
   ok("the work is in storage, dated", (() => { const raw = JSON.parse(store.get("algebridge-progress")!); return raw.skills[first].level === "mastered" && raw.skills[first].solved >= 5 && typeof raw.updatedAt === "string"; })());
   ok("a reload reads it back", Pr.getProgress().skills[first].problemsAttempted === 6);
 
@@ -734,7 +736,8 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   let unitResult: ReturnType<typeof recordProblemAttempt> | null = null;
   for (const sk of u1.skills.slice(1)) for (let i = 0; i < 5; i += 1) unitResult = recordProblemAttempt(sk.id, true, { firstTry: true });
   // Fifteen right answers in a day also meet the daily goal, which pays once on top.
-  const expected = 25 + u1.skills.reduce((n, sk) => n + G.bridgeysForSkill(sk.id), 0) + G.BRIDGEY_REWARDS.unitComplete + G.BRIDGEY_REWARDS.dailyGoal;
+  const answers = 6 + (u1.skills.length - 1) * 5;
+  const expected = 25 + answers + u1.skills.reduce((n, sk) => n + G.bridgeysForSkill(sk.id), 0) + G.BRIDGEY_REWARDS.unitComplete + G.BRIDGEY_REWARDS.dailyGoal;
   ok("finishing the unit pays every skill, the unit bonus and the day's goal", unitResult!.unitJustCompleted && Pr.getProgress().bridgeys === expected, `${Pr.getProgress().bridgeys} vs ${expected}`);
   ok("the daily goal paid exactly once", Pr.getProgress().daily?.paid === true && Pr.getProgress().daily!.right >= G.DAILY_GOAL);
   ok("and hands over the unit prize", unitResult!.unitPrizeId === "prize-ruler" && Pr.getProgress().ownedFurniture.includes("prize-ruler"));
@@ -1439,6 +1442,56 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a student who chose to show themselves stays on", normalizeProgress(chose).leaderboardOptIn === true);
   ok("the snapshot never reads a missing choice as yes", (await import("../bridgeys.ts")).getLeaderboardSnapshot(normalizeProgress({})).leaderboardOptIn === false);
   ok("the board only ever gets First L.", L.publicLeaderboardName("Jordyn Harwood") === "Jordyn H." && L.publicLeaderboardName("") === "Anonymous Student");
+}
+
+// --- Answer pay and the combo ----------------------------------------------------
+{
+  const Pr = await import("../progress.ts");
+  const G = await import("../gamification.ts");
+  store.clear();
+  ok("a run pays more as it grows", G.answerPay(1) === 1 && G.answerPay(2) === 1 && G.answerPay(3) === 2 && G.answerPay(5) === 3 && G.answerPay(10) === 4 && G.answerPay(40) === 4);
+  ok("the next tier is named", G.nextComboTier(0)?.run === 1 && G.nextComboTier(3)?.run === 5 && G.nextComboTier(10) === null);
+  const skill = "unit-basics";
+  const start = Pr.getProgress().bridgeys;
+  const r5 = Pr.recordProblemAttempt(skill, true, { firstTry: true, run: 5 });
+  ok("a first try pays at its run", r5.answerBridgeys === 3);
+  const retry = Pr.recordProblemAttempt(skill, true, { firstTry: false, run: 5 });
+  ok("a retry pays nothing", retry.answerBridgeys === 0);
+  const miss = Pr.recordProblemAttempt(skill, false);
+  ok("a miss pays nothing", miss.answerBridgeys === 0);
+  let total = 3;
+  for (let i = 0; i < 30; i++) total += Pr.recordProblemAttempt(skill, true, { firstTry: true, run: 10 }).answerBridgeys;
+  const daily = Pr.dailyStatus(Pr.getProgress());
+  ok("a day's answer pay stops at the cap", total === G.ANSWER_PAY_CAP && Pr.answerPayLeft(Pr.getProgress()) === 0, `${total}`);
+  ok("the cap counts only answer pay", Pr.getProgress().bridgeys >= start + G.ANSWER_PAY_CAP && daily.met);
+}
+
+// --- The arena -------------------------------------------------------------------
+{
+  const A = await import("../arena.ts");
+  const C = await import("../../data/curriculum.ts");
+  const PB = await import("../../data/problem-banks.ts");
+  let cards = 0, bad = 0, sample = "";
+  for (const u of C.units) for (const sk of u.skills) for (const p of PB.getFreshProblemsForSkill(sk.id, sk.problems, 7)) {
+    const right = A.checkCard(p, false);
+    const wrong = A.checkCard(p, true, () => 0);
+    if (!right) continue;
+    cards += 1;
+    const ok1 = right.right && right.steps.join("|").length > 0;
+    const ok2 = !wrong || (!wrong.right && wrong.steps.length === right.steps.length && wrong.steps.at(-1) !== right.steps.at(-1) && wrong.steps.slice(0, -1).join("|") === right.steps.slice(0, -1).join("|") && !!wrong.why);
+    if (!ok1 || !ok2) { bad += 1; sample ||= `${sk.id}: ${right.steps.at(-1)} / ${wrong?.steps.at(-1)}`; }
+  }
+  ok("mistake cards: a wrong card changes only the last step, and says why", cards > 1000 && bad === 0, `${cards} cards, ${bad} bad ${sample}`);
+  const u1 = C.units[0];
+  for (const mode of ["speed", "mistakes", "boss"] as const) {
+    const round = A.buildRound(u1, mode, () => true);
+    ok(`a ${mode} round deals problems`, round.length >= (mode === "boss" ? u1.skills.length : 5), `${round.length}`);
+  }
+  ok("a round only uses open skills", A.buildRound(u1, "speed", (id) => id === u1.skills[0].id).every((p) => p.skillId === u1.skills[0].id));
+  store.clear();
+  const won = A.finishRound(u1.id, "boss", 3, true);
+  const again = A.finishRound(u1.id, "boss", 3, true);
+  ok("the first boss win pays once", won.bossPay === A.BOSS_PAY && again.bossPay === 0 && won.best && !again.best);
 }
 
 // --- The daily goal ---------------------------------------------------------------

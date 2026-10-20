@@ -58,6 +58,7 @@ import { displayAnswer, shuffleArray } from "@/lib/problem-utils";
 import { JerseyAnswer, JerseyArt } from "@/components/games/Jersey";
 import { jerseyFor, jerseyNumberIn, playerNamedIn, sportOfTopic } from "@/lib/jerseys";
 import { prefersReducedMotion } from "@/lib/display";
+import { RunHud } from "@/components/RunHud";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -261,6 +262,9 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   /** The seed the current bank was generated from; the server regenerates it to rewrite problems. */
   const [seed, setSeed] = useState<number | null>(null);
   const [combo, setCombo] = useState(0);
+  /** The last answer's Bridgeys and the last run a miss ended, for RunHud. */
+  const [pay, setPay] = useState<{ amount: number; key: number } | null>(null);
+  const [broke, setBroke] = useState<{ run: number; key: number } | null>(null);
   const [feedbackSeed, setFeedbackSeed] = useState(0);
   const [xpPopup, setXpPopup] = useState<{ amount: number; key: number } | null>(null);
   /** Wrong answers this visit, and where the student last waved the AI offer away. */
@@ -271,7 +275,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   // identical to the SSR output, avoiding a hydration mismatch.
   const [mounted, setMounted] = useState(false);
 
-  const { playCorrect, playWrong, playLevelUp } = useSound();
+  const { playCorrect, playWrong, playLevelUp, playCombo, playBreak } = useSound();
   const { speak, stop: stopSpeech, speaking, supported: speechSupported } = useSpeech();
   const { topics, key: topicsKey, loaded: topicsLoaded } = useInterestTopics();
 
@@ -658,8 +662,11 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
     if (correct) {
       setShowExplanation(true);
-      playCorrect();
-      setCombo((c) => c + 1);
+      // Only a first try builds the run; a right retry is a fresh start.
+      const run = firstTry ? combo + 1 : 0;
+      if (run > 0) playCombo(run);
+      else playCorrect();
+      setCombo(run);
 
       if (practiceOnly) {
         // Looking ahead: the answer is checked and explained, and that is all.
@@ -675,12 +682,12 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         return;
       }
 
-      const result = recordProblemAttempt(skill.id, true, { firstTry });
+      const result = recordProblemAttempt(skill.id, true, { firstTry, run });
       setMastery(result.newLevel);
       onMasteryChange?.(result.newLevel);
+      setPay({ amount: result.answerBridgeys, key: Date.now() });
 
-      const run = combo + 1;
-      if (run % 5 === 0) {
+      if (run > 0 && run % 5 === 0) {
         fireConfetti(run >= 10 ? "big" : "small");
         showToast({
           icon: "flame",
@@ -752,9 +759,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         setEliminatedSteps((e) => (e.includes(selectedStep) ? e : [...e, selectedStep]));
         setSelectedStep(null);
       }
+      if (combo >= 2) {
+        setBroke({ run: combo, key: Date.now() });
+        playBreak();
+      } else {
+        playWrong();
+      }
       setCombo(0);
+      setPay(null);
       setMisses((m) => m + 1);
-      playWrong();
       if (attempts + 1 >= 2) setShowHint(true);
       if (!practiceOnly) recordProblemAttempt(skill.id, false);
     }
@@ -779,6 +792,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     playCorrect,
     playWrong,
     playLevelUp,
+    playCombo,
+    playBreak,
     displayPrompt,
     calculatorAllowed,
   ]);
@@ -1145,19 +1160,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           </div>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {combo >= 2 && (
-            // Hotter the longer the run: amber at two, a flame-orange fill from three.
-            <span
-              key={combo}
-              className={`animate-pop-in inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                combo >= 3
-                  ? "bg-gradient-to-r from-amber-300 to-orange-400 text-slate-900 shadow-sm"
-                  : "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100"
-              }`}
-            >
-              <Icon name="flame" size={14} />
-              {combo} in a row
-            </span>
+          {mounted && !practiceOnly ? (
+            <RunHud combo={combo} pay={pay} broke={broke} />
+          ) : (
+            combo >= 2 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-100">
+                <Icon name="flame" size={14} />
+                {combo} in a row
+              </span>
+            )
           )}
           {mounted && !practiceOnly && (
             <span
@@ -1481,6 +1492,18 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </div>
             ) : (
               <AnswerFeedback state={feedback} seed={feedbackSeed} />
+            )}
+            {feedback === "correct" && !practiceOnly && pay && pay.amount > 0 && (
+              // The pay, where the student is looking, with the run that earned it.
+              <p key={pay.key} className="animate-pop-in mt-2 flex items-center gap-2 px-1 text-sm font-semibold text-amber-800">
+                <BridgeysLogo size={15} />+{pay.amount} {pay.amount === 1 ? "Bridgey" : "Bridgeys"}
+                {combo >= 2 && (
+                  <span className="inline-flex items-center gap-1 text-orange-600">
+                    <Icon name="flame" size={14} />
+                    {combo} in a row
+                  </span>
+                )}
+              </p>
             )}
             {feedback === "correct" && answerJersey && sport && (
               <div className="animate-pop-in mt-2 flex justify-center">

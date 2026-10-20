@@ -12,14 +12,14 @@ import { useDialogFocus } from "@/components/useDialogFocus";
 
 const STEPS: { icon: IconName; title: string; body: string }[] = [
   {
-    icon: "play",
-    title: "Watch a short video",
-    body: "Every skill starts with a short YouTube lesson from a math teacher who explains it clearly.",
+    icon: "flame",
+    title: "Jump straight into a problem",
+    body: "Every skill starts with a problem. Each one you get right on the first try pays Bridgeys, and a run of them pays more. Stuck? A short video and worked examples are right below.",
   },
   {
     icon: "check",
-    title: "Practice until it clicks",
-    body: "Get five right on the first try and the skill is done. Every one you get stays banked, even after a miss. Stuck? Ask Archie, your AI study buddy, or message a real tutor from the Tutors page.",
+    title: "Five right and it's done",
+    body: "Get five right on the first try and the skill is done. Every one you get stays banked, even after a miss. Then take on the unit's speed round, spot the mistake, and the boss.",
   },
   {
     icon: "lock",

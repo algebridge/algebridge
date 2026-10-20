@@ -72,5 +72,18 @@ export function useSound({ muted = false }: { muted?: boolean } = {}) {
     playTones([523.25, 659.25, 783.99, 1046.5], [0.08, 0.08, 0.08, 0.3], "triangle");
   }, [enabled]);
 
-  return { enabled, mounted, toggle, playCorrect, playWrong, playLevelUp };
+  /** A right answer in a run: the chime climbs a step with each one, up to an octave. */
+  const playCombo = useCallback((run: number) => {
+    if (!enabled) return;
+    const up = Math.pow(2, Math.min(12, Math.max(0, run - 1)) / 12);
+    playTones([523.25 * up, 659.25 * up, 783.99 * up], [0.07, 0.07, 0.16], run >= 5 ? "triangle" : "sine");
+  }, [enabled]);
+
+  /** A run of two or more ends: a short falling crack. */
+  const playBreak = useCallback(() => {
+    if (!enabled) return;
+    playTones([392, 196, 98], [0.05, 0.08, 0.22], "square");
+  }, [enabled]);
+
+  return { enabled, mounted, toggle, playCorrect, playWrong, playLevelUp, playCombo, playBreak };
 }

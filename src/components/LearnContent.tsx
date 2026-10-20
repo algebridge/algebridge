@@ -7,8 +7,6 @@ import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { SkillRules } from "@/components/SkillRules";
 import { WorkedExamples } from "@/components/WorkedExamples";
-import { SkillIdea } from "@/components/SkillIdea";
-import { ideaFor } from "@/data/skill-ideas";
 import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
 import { FAST_RUN, FAST_SECONDS, PracticePanel } from "@/components/PracticePanel";
@@ -58,9 +56,6 @@ interface LearnContentProps {
 }
 
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
-  const idea = ideaFor(skill.id);
-  // The steps are numbered from the idea when the skill has one.
-  const first = idea ? 2 : 1;
   const { stats, mounted } = useProgress();
   // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
   const auth = useAuth();
@@ -205,13 +200,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
             {!gated && state && (state.open || looking) && <ProgressStatus level={mastery} />}
           </div>
           <p className="page-subtitle">{skill.description}</p>
-          {/* Back for more practice: straight to the card, past the lesson. */}
-          {!gated && state?.open && !isSkillComplete && (videoStepSatisfied || practiceStats.attempted > 0) && (
-            <a href="#practice" className="btn-secondary btn-sm mt-3 inline-flex">
-              Jump to practice
-              <Icon name="arrow-right" size={14} />
-            </a>
-          )}
         </div>
       </header>
 
@@ -294,31 +282,54 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           )}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
             <div className="min-w-0 space-y-6 lg:col-span-3">
-              {/* The two steps, watch then practice, each marked done in its own heading.
+              {/* Problem first: the student tries one before any teaching, and the
+                  video and worked examples sit right under it for when they are stuck.
                   #watch is where the house's TV and projector open the lesson. */}
-              {/* First the meaning, in plain words with a picture, so the steps after it make sense. */}
-              {idea && (
-                <section id="idea" className="scroll-mt-20">
-                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h2 className="section-title flex items-center gap-2">
-                      <StepMark n={1} done={isSkillComplete} />
-                      Get the idea
-                      {isSkillComplete && <span className="sr-only">, done</span>}
-                    </h2>
-                    <p className="text-sm text-slate-500">What this is really about, before any steps.</p>
-                  </div>
-                  <SkillIdea idea={idea} />
-                </section>
-              )}
+              <section id="practice" className="scroll-mt-20">
+                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h2 className="section-title flex items-center gap-2">
+                    <StepMark n={1} done={isSkillComplete} />
+                    Practice
+                    {isSkillComplete && <span className="sr-only">, done</span>}
+                  </h2>
+                  {!isSkillComplete && (
+                    <p className="text-sm text-slate-500">
+                      Try one first. Stuck? The <a href="#watch" className="font-semibold text-bridge-700 hover:underline">video</a>
+                      {workedExamplesFor(skill.id).length > 0 && (
+                        <> and <a href="#examples" className="font-semibold text-bridge-700 hover:underline">worked examples</a></>
+                      )}{" "}
+                      are right below.
+                    </p>
+                  )}
+                </div>
+                <PracticePanel
+                  skill={skill}
+                  onMasteryChange={handleMasteryChange}
+                  practiceOnly={looking}
+                  onPracticeRight={setPracticeRight}
+                  onOpenSkill={() => {
+                    // A fast run opens the skill the way passing "Show what you know" does.
+                    recordSkillCheck(skill.id, true, today());
+                    setPracticeOnly(false);
+                    showToast({
+                      icon: "check",
+                      tone: "reward",
+                      title: `${skill.title} is open`,
+                      description: "Your answers count from here.",
+                    });
+                  }}
+                  next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
+                />
+              </section>
 
               <section id="watch" className="scroll-mt-20">
                 <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={first} done={videoStepSatisfied} />
+                    <StepMark n={2} done={videoStepSatisfied} />
                     Watch
                     {videoStepSatisfied && <span className="sr-only">, done</span>}
                   </h2>
-                  {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
+                  {!videoStepSatisfied && <p className="text-sm text-slate-500">For when a problem stumps you.</p>}
                 </div>
                 {video.youtubeId ? (
                   <VideoPlayer
@@ -341,7 +352,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                 <section id="examples" className="scroll-mt-20">
                   <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <h2 className="section-title flex items-center gap-2">
-                      <StepMark n={first + 1} done={isSkillComplete} />
+                      <StepMark n={3} done={isSkillComplete} />
                       See it done
                       {isSkillComplete && <span className="sr-only">, done</span>}
                     </h2>
@@ -350,32 +361,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <WorkedExamples skillId={skill.id} />
                 </section>
               )}
-
-              <section id="practice" className="scroll-mt-20">
-                <h2 className="section-title mb-3 flex items-center gap-2">
-                  <StepMark n={workedExamplesFor(skill.id).length > 0 ? first + 2 : first + 1} done={isSkillComplete} />
-                  Practice
-                  {isSkillComplete && <span className="sr-only">, done</span>}
-                </h2>
-                <PracticePanel
-                  skill={skill}
-                  onMasteryChange={handleMasteryChange}
-                  practiceOnly={looking}
-                  onPracticeRight={setPracticeRight}
-                  onOpenSkill={() => {
-                    // A fast run opens the skill the way passing "Show what you know" does.
-                    recordSkillCheck(skill.id, true, today());
-                    setPracticeOnly(false);
-                    showToast({
-                      icon: "check",
-                      tone: "reward",
-                      title: `${skill.title} is open`,
-                      description: "Your answers count from here.",
-                    });
-                  }}
-                  next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
-                />
-              </section>
 
               <section>
                 <h2 className="section-title mb-3">Need a hand?</h2>

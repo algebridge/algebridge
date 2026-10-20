@@ -10,6 +10,8 @@ import {
   REQUIRED_CORRECT,
   XP_REWARDS,
   type Badge,
+  ANSWER_PAY_CAP,
+  answerPay,
 } from "@/lib/gamification";
 import {
   awardBridgeys,
@@ -111,6 +113,8 @@ export interface AttemptResult {
   dailyBonus: number;
   /** Right answers today, this one included. */
   dailyRight: number;
+  /** Bridgeys this answer paid by itself, at its combo rate (0 for a miss, a retry, or past today's cap). */
+  answerBridgeys: number;
 }
 
 export interface DailyStatus {
@@ -144,6 +148,23 @@ export function tallyDaily(progress: UserProgress, now = new Date()): number {
   }
   progress.daily = d;
   return bonus;
+}
+
+/** Pays one first-try answer at its combo rate, inside today's cap. Call after tallyDaily. */
+export function payAnswer(progress: UserProgress, run: number): number {
+  const d = progress.daily && progress.daily.day === today() ? progress.daily : null;
+  if (!d) return 0;
+  const room = Math.max(0, ANSWER_PAY_CAP - (d.coins ?? 0));
+  const amount = Math.min(room, answerPay(run));
+  if (amount <= 0) return 0;
+  progress.daily = { ...d, coins: (d.coins ?? 0) + amount };
+  return awardBridgeys(progress, amount);
+}
+
+/** What today's answers can still pay. */
+export function answerPayLeft(progress: UserProgress): number {
+  const d = progress.daily && progress.daily.day === today() ? progress.daily : null;
+  return Math.max(0, ANSWER_PAY_CAP - (d?.coins ?? 0));
 }
 
 export interface VideoWatchedResult {
@@ -352,7 +373,7 @@ export function markVideoWatched(skillId: string): VideoWatchedResult {
 export function recordProblemAttempt(
   skillId: string,
   correct: boolean,
-  opts?: { firstTry?: boolean }
+  opts?: { firstTry?: boolean; run?: number }
 ): AttemptResult {
   const progress = getProgress();
   const existing = getSkillProgress(skillId);
@@ -394,6 +415,7 @@ export function recordProblemAttempt(
   if (correct) progress.totalProblemsSolved += 1;
   applyStreakForActivity(progress);
   const dailyBonus = correct ? tallyDaily(progress) : 0;
+  const answerBridgeys = correct && opts?.firstTry ? payAnswer(progress, opts.run ?? 1) : 0;
 
   const isNowComplete = level === "proficient" || level === "mastered";
   const skillJustCompleted = !wasComplete && isNowComplete;
@@ -465,6 +487,7 @@ export function recordProblemAttempt(
     newBadges,
     dailyBonus,
     dailyRight: dailyStatus(progress).right,
+    answerBridgeys,
   };
 }
 

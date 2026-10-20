@@ -46,6 +46,34 @@ export const BRIDGEY_REWARDS = {
 export const DAILY_GOAL = 10;
 
 /**
+ * Every first-try right answer pays a little, more the longer the run, so the
+ * house moves while the student works and not only when a skill finishes.
+ * A day's answer pay stops at ANSWER_PAY_CAP, so grinding a finished skill
+ * all night is never the best way to a couch.
+ */
+export const ANSWER_PAY_CAP = 40;
+
+/** The combo tiers: a run this long pays this much per answer. */
+export const COMBO_TIERS = [
+  { run: 1, pay: 1 },
+  { run: 3, pay: 2 },
+  { run: 5, pay: 3 },
+  { run: 10, pay: 4 },
+] as const;
+
+/** What one first-try right answer pays, at this run length (1 = first in the run). */
+export function answerPay(run: number): number {
+  let pay = 0;
+  for (const t of COMBO_TIERS) if (run >= t.run) pay = t.pay;
+  return pay;
+}
+
+/** The run length that reaches the next tier, or null at the top. */
+export function nextComboTier(run: number): { run: number; pay: number } | null {
+  return COMBO_TIERS.find((t) => t.run > run) ?? null;
+}
+
+/**
  * What finishing a skill pays: 10 in Unit 1, 34 by Unit 13, 38 by Unit 15.
  * Algebra 2 carries on from there (its Unit 1 pays like a 16th unit), so a
  * student who moves up never earns less than the unit they just finished.
