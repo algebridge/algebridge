@@ -5,7 +5,7 @@ import { Arm, Braid, ClothGradient, aoFill, Face, GroundShadow, Head, JOINT, Leg
 import type { CourtGameId } from "@/lib/games";
 
 /**
- * The team, drawn from their photos: Shaurya the wrestler, Jo the cheerleader,
+ * The team, drawn from their photos: Shaurya the wrestler, Kenise the cheerleader,
  * Jordyn the volleyball player, Rayla the striker. Each is one SVG built from
  * the shared figure (see figure.tsx), with the limbs in groups the court CSS
  * rotates: `.p-arm-*` and `.p-fore-*` (shoulder and elbow), `.p-leg-*`,
@@ -272,31 +272,28 @@ export function Shaurya({ pose = "idle", facing = 1, className }: Props) {
   );
 }
 
-/* ── Jo: cheer ──────────────────────────────────────────────────── */
+/* ── Kenise: cheer ──────────────────────────────────────────────────── */
 
-const JO: Look = {
-  skin: "#503021",
-  skinShade: "#3a2215",
-  skinLight: "#74503b",
-  hair: "#120b09",
-  hairLight: "#3b2a22",
-  iris: "#241611",
-  lip: "#5e2f25",
-  lipLight: "#8f5244",
+const KEN: Look = {
+  skin: "#8a5537",
+  skinShade: "#673c25",
+  skinLight: "#a9714f",
+  hair: "#140c0a",
+  hairLight: "#3d2b23",
+  iris: "#2a1810",
+  lip: "#7a3f33",
+  lipLight: "#a5604f",
 };
-const JO_KIT = {
+const KEN_KIT = {
   shell: "#2563eb",
   shellShade: "#1840b0",
   white: "#f8fafc",
   whiteShade: "#cbd5e1",
-  bow: "#facc15",
-  bowShade: "#ca8a04",
   pom: "#facc15",
   pomLight: "#fde68a",
   pomDeep: "#d4a10c",
-  tortoise: "#5a3417",
-  tortoiseLight: "#c08442",
-  gold: "#d4a017",
+  pink: "#e0708e",
+  pinkLight: "#f4a6bb",
 };
 
 // The streamers, from the hand outward: [dx, dy, width, tone], the tone 0 for the
@@ -311,10 +308,10 @@ const POM: [number, number, number, number][] = [[6.43, 2.21, 1.3, 2], [7.13, 3.
  * one next to her (about her head's width).
  */
 function PomPom({ x, y, back }: { x: number; y: number; back: boolean }) {
-  const tones = [JO_KIT.pom, JO_KIT.pomLight, JO_KIT.pomDeep, JO_KIT.white];
+  const tones = [KEN_KIT.pom, KEN_KIT.pomLight, KEN_KIT.pomDeep, KEN_KIT.white];
   return (
     <g opacity={back ? 0.92 : 1} transform={`translate(${n(x)} ${n(y)}) scale(1.3)`}>
-      <circle r="4.5" fill={JO_KIT.pom} />
+      <circle r="4.5" fill={KEN_KIT.pom} />
       {POM.map(([dx, dy, w, tone], i) => (
         <path key={i} d={`M${n(dx * 0.25)} ${n(dy * 0.25)} L${dx} ${dy}`} stroke={tones[tone]} strokeWidth={w} strokeLinecap="round" />
       ))}
@@ -322,99 +319,90 @@ function PomPom({ x, y, back }: { x: number; y: number; back: boolean }) {
   );
 }
 
-/** Jo's scalp, in head space: the crown down to her hairline. */
-const JO_SCALP = "M39.4 21.8 C38.6 14 43.4 8.6 50.6 8.6 C57.8 8.6 62.6 13.8 61.8 22 C60.8 18.2 58.6 16 56 15.2 C54 14.6 52.2 14.4 50.4 14.4 C48.4 14.4 46.4 14.6 44.6 15.2 C42 16 40.2 18.2 39.4 21.8Z";
+/** Kenise's hair over the crown, in head space, parted down the middle. */
+const KEN_SCALP = "M38.8 24 C37.8 14 43 8.2 50.6 8.2 C58.2 8.2 63.4 14 62.4 24 C61.4 19 59.6 16.4 56.6 15.4 C54.6 14.8 52.6 14.6 50.6 14.6 C48.6 14.6 46.6 14.8 44.6 15.4 C41.6 16.4 39.8 19 38.8 24Z";
 
-export function Jo({ pose = "idle", facing = 1, className }: Props) {
+// The braids: [path, width, pink]. Behind her, they fall past the shoulders to
+// mid back; in front, a few frame her face and drop onto her chest.
+const BACK_BRAIDS: [string, number, boolean][] = [
+  ["M39.6 18 Q35.4 30 36 44 Q36.4 52 37.6 58", 1.9, false],
+  ["M41.2 15 Q37.6 28 38.6 42 Q39.2 52 40.4 60", 1.9, false],
+  ["M61.4 18 Q65.4 30 64.8 44 Q64.4 52 63.2 58", 1.9, false],
+  ["M59.8 15 Q63.2 28 62.4 42 Q61.8 52 60.6 60", 1.9, true],
+];
+const FACE_BRAIDS: [string, number, boolean][] = [
+  ["M40.4 16.6 Q38.2 26 38.4 34 Q38.6 40 39.8 45", 1.7, false],
+  ["M42.2 15.4 Q40 26 40.4 33.6", 1.5, false],
+  ["M60.8 16.6 Q63 26 62.8 34 Q62.6 40 61.4 45", 1.7, true],
+  ["M59 15.4 Q61.2 26 60.8 33.6", 1.5, false],
+];
+
+export function Kenise({ pose = "idle", facing = 1, className }: Props) {
   const id = useArtId();
-  const sock = { fill: JO_KIT.white, shade: "#dbe2ea", from: 138 };
-  const sneaker = (x: number, back: boolean) => <Sneaker x={x} upper={JO_KIT.white} shade="#c8d1dc" outsole="#94a3b8" accent={JO_KIT.shell} lace="#e2e8f0" back={back} />;
+  const sock = { fill: KEN_KIT.white, shade: "#dbe2ea", from: 138 };
+  const sneaker = (x: number, back: boolean) => <Sneaker x={x} upper={KEN_KIT.white} shade="#c8d1dc" outsole="#94a3b8" accent={KEN_KIT.shell} lace="#e2e8f0" back={back} />;
   const defs = (
     <>
-      <SkinDefs id={id} look={JO} />
+      <SkinDefs id={id} look={KEN} />
       <defs>
-        <ClothGradient id={`${id}-shell`} base={JO_KIT.shell} shade={JO_KIT.shellShade} />
+        <ClothGradient id={`${id}-shell`} base={KEN_KIT.shell} shade={KEN_KIT.shellShade} />
       </defs>
     </>
   );
-  // Cornrows, from just inside the hairline back over the crown to where they gather.
-  const rows = ["M40.6 19.4 C40.8 15.6 42.4 12.2 45 10.2", "M43.1 16.2 C43.6 13.8 45 11.2 46.8 9.6", "M46 14.4 C46.4 12.6 47.4 10.6 48.6 9.2", "M49.3 13.8 C49.4 12.4 50 10.4 50.6 9", "M52.5 13.8 C52.4 12.6 52.2 10.6 52.4 9.2", "M55.7 14.6 C55.4 13 54.8 11 54.4 9.6", "M58.8 16.9 C58.2 14.8 57.2 12.4 56.2 10.4"];
   return (
-    <Frame game="cheer" art={id} name="Jo" pose={pose} facing={facing} className={className} defs={defs}>
-      <Leg cls="p-leg p-leg-back" side="back" look={JO} id={id} sock={sock} shoe={sneaker(JOINT.backLegX, true)} thigh={<HemShadow id={id} x={JOINT.backLegX} y={96} />} />
+    <Frame game="cheer" art={id} name="Kenise" pose={pose} facing={facing} className={className} defs={defs}>
+      <Leg cls="p-leg p-leg-back" side="back" look={KEN} id={id} sock={sock} shoe={sneaker(JOINT.backLegX, true)} thigh={<HemShadow id={id} x={JOINT.backLegX} y={96} />} />
       <g className="p-body" style={BODY}>
-        {/* Braids gathered into a long ponytail, hanging behind her. */}
-        <Braid d="M42.2 10.4 Q31.6 17 32.2 36 Q32.8 54 36 72" color={JO.hair} tint={JO.hairLight} width={2.3} />
-        <Braid d="M43.6 9.8 Q34.4 17.4 35.4 36.4 Q36.2 55 39.6 74" color={JO.hair} tint={JO.hairLight} width={2.8} />
-        <Braid d="M45 9.6 Q37.4 17.6 38.4 35.6 Q39.2 52 42.6 69" color={JO.hair} tint={JO.hairLight} width={2.3} />
-        <Arm cls="p-arm p-arm-back" side="back" look={JO} id={id} hand={<PomPom x={JOINT.backArmX} y={91} back />} hideHand />
-        <Neck id={id} look={JO} chest />
+        {/* Long box braids hanging behind her shoulders, a pink one mixed in. */}
+        {BACK_BRAIDS.map(([d, w, pink]) => (
+          <Braid key={d} d={d} color={pink ? KEN_KIT.pink : KEN.hair} tint={pink ? KEN_KIT.pinkLight : KEN.hairLight} width={w} />
+        ))}
+        <Arm cls="p-arm p-arm-back" side="back" look={KEN} id={id} hand={<PomPom x={JOINT.backArmX} y={91} back />} hideHand />
+        <Neck id={id} look={KEN} chest />
         {/* The shell top: blue, sleeveless, a white V and a white band. */}
         <path d="M44.6 33.6 L50.6 46 L56.6 33.6 L60.8 33.8 C61.6 37.2 62.8 40.2 64.2 42 C63.2 46.6 62 52 61.6 58 C61.4 62 61.6 66 62 70.4 L39.2 70.4 C39.6 66 39.8 62 39.6 58 C39.2 52 38 46.6 37 42 C38.4 40.2 39.6 37.2 40.4 33.8Z" fill={`url(#${id}-shell)`} />
-        <path d="M44.4 33.6 L50.6 46.4 L56.8 33.6" stroke={JO_KIT.white} strokeWidth="1.6" fill="none" strokeLinejoin="round" />
-        <path d="M40.4 33.8 C39.6 37.2 38.4 40.2 37 42 M60.8 33.8 C61.6 37.2 62.8 40.2 64.2 42" stroke={JO_KIT.white} strokeWidth="0.9" fill="none" />
-        <path d="M39.6 61 L61.6 61 L61.8 64.4 L39.5 64.4Z" fill={JO_KIT.white} />
-        <path d="M39.5 63.6 L61.8 63.6" stroke={JO_KIT.whiteShade} strokeWidth="0.6" />
+        <path d="M44.4 33.6 L50.6 46.4 L56.8 33.6" stroke={KEN_KIT.white} strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+        <path d="M40.4 33.8 C39.6 37.2 38.4 40.2 37 42 M60.8 33.8 C61.6 37.2 62.8 40.2 64.2 42" stroke={KEN_KIT.white} strokeWidth="0.9" fill="none" />
+        <path d="M39.6 61 L61.6 61 L61.8 64.4 L39.5 64.4Z" fill={KEN_KIT.white} />
+        <path d="M39.5 63.6 L61.8 63.6" stroke={KEN_KIT.whiteShade} strokeWidth="0.6" />
         {/* The shape of her under the cloth: the chest, a crease at the waist. */}
-        <path d="M40.6 50 C43 51.8 46.4 52 49 51 M52.6 51 C55.2 52 58.2 51.6 60.4 49.8" stroke={JO_KIT.shellShade} strokeWidth="0.5" fill="none" opacity="0.5" strokeLinecap="round" />
+        <path d="M40.6 50 C43 51.8 46.4 52 49 51 M52.6 51 C55.2 52 58.2 51.6 60.4 49.8" stroke={KEN_KIT.shellShade} strokeWidth="0.5" fill="none" opacity="0.5" strokeLinecap="round" />
         <path d="M38.6 44 C39.6 50 40.2 56 40.2 62" stroke="#ffffff" strokeWidth="0.9" opacity="0.25" strokeLinecap="round" />
         <path d="M63.4 43.6 C62.4 49 61.8 56 61.8 66" stroke={RIM} strokeWidth="0.5" opacity="0.2" />
         {/* Soft shade where the near arm meets the body. */}
         <ellipse cx={n(JOINT.frontArmX - 3.4)} cy="46" rx="2.4" ry="6.5" fill={aoFill(id)} />
         <Head
           id={id}
-          look={JO}
+          look={KEN}
           jaw="round"
-          shade={<path d="M39 21 C40.6 17.6 43.4 16 46.6 15.8 C49 15.6 52.4 15.6 55 16 C58 16.6 60.4 18.6 61.8 21.4 L62 12 L38.6 12Z" fill={JO.skinShade} opacity="0.5" />}
+          shade={<path d="M39 21 C40.6 17.6 43.4 16 46.6 15.8 C49 15.6 52.4 15.6 55 16 C58 16.6 60.4 18.6 61.8 21.4 L62 12 L38.6 12Z" fill={KEN.skinShade} opacity="0.5" />}
         >
-          <Face id={id} look={JO} spec={{ eye: "round", eyeSize: 1, brow: "thin-arched", nose: "wide", lips: "full", mouth: "closed-smile", lashes: true }} />
-          {/* The scalp shows in the partings between the rows; the rows lie flat on it, trimmed to its outline. */}
-          <clipPath id={`${id}-scalp`}>
-            <path d={JO_SCALP} />
-          </clipPath>
-          <path d={JO_SCALP} fill={mix(JO.skinShade, "#000000", 0.2)} />
-          <g clipPath={`url(#${id}-scalp)`}>
-            {rows.map((d) => (
-              <Braid key={d} d={d} color={JO.hair} tint={JO.hairLight} width={1.45} cap="butt" />
-            ))}
-          </g>
-          {/* Edges laid at the temples. */}
-          <path d="M39.6 20.4 q1.4 0.4 0.8 1.6 q-0.6 0.9 0.6 1.3 M61.4 20.6 q-1.2 0.4 -0.7 1.5 q0.5 0.9 -0.5 1.3" stroke={JO.hair} strokeWidth="0.45" fill="none" strokeLinecap="round" />
-          {/* The bow where the braids gather. */}
-          <path d="M42.6 10.4 C40 7 37 7.4 37.4 9.8 C37.8 11.6 40.6 11.6 42.6 10.4Z M42.6 10.4 C41.8 13.8 39.4 15.4 38.2 14 C37.2 12.8 39.6 11 42.6 10.4Z" fill={JO_KIT.bow} />
-          <path d="M42.4 10.6 C40.4 9 38.6 8.8 38.2 9.6 M42.4 10.6 C41 12.4 39.6 13.4 38.8 13.2" stroke={JO_KIT.bowShade} strokeWidth="0.45" fill="none" />
-          <circle cx="42.7" cy="10.5" r="1.2" fill={JO_KIT.bowShade} />
-          {/* Big round tortoiseshell glasses. */}
-          <g fill="none">
-            <circle cx="46.2" cy="25.5" r="4.4" fill="#ffffff" fillOpacity="0.07" stroke={JO_KIT.tortoise} strokeWidth="1.05" />
-            <circle cx="55.9" cy="25.5" r="4.1" fill="#ffffff" fillOpacity="0.07" stroke={JO_KIT.tortoise} strokeWidth="1.05" />
-            <circle cx="46.2" cy="25.5" r="4.4" stroke={JO_KIT.tortoiseLight} strokeWidth="0.5" strokeDasharray="2.6 1.1 0.8 1.6 3.2 0.9 1.4 2.2" opacity="0.6" />
-            <circle cx="55.9" cy="25.5" r="4.1" stroke={JO_KIT.tortoiseLight} strokeWidth="0.5" strokeDasharray="1.8 2.4 3 0.9 0.7 1.5 2.2 1.2" opacity="0.6" />
-            <path d="M50.6 24.6 Q51.2 24 51.8 24.6" stroke={JO_KIT.tortoise} strokeWidth="1" />
-            <path d="M41.8 25 L39.4 24.6 M60 25 L61.6 24.6" stroke={JO_KIT.tortoise} strokeWidth="0.9" />
-            <path d="M43.2 23.4 A3.4 3.4 0 0 1 45.6 22" stroke="#ffffff" strokeWidth="0.5" opacity="0.6" strokeLinecap="round" />
-            <path d="M53.2 23.4 A3.2 3.2 0 0 1 55.4 22.1" stroke="#ffffff" strokeWidth="0.45" opacity="0.45" strokeLinecap="round" />
-          </g>
-          <Hoop x={38.8} y={32.6} r={1.9} gold={JO_KIT.gold} />
-          <Hoop x={61.8} y={32.2} r={1.6} gold={JO_KIT.gold} />
+          <Face id={id} look={KEN} spec={{ eye: "round", eyeSize: 1, brow: "thin-arched", nose: "wide", lips: "full", mouth: "smile", lashes: true }} />
+          {/* Braids from a middle part: the scalp lines fanning out from it, then the braids down past her face. */}
+          <path d={KEN_SCALP} fill={KEN.hair} />
+          <path d="M50.6 9 L50.8 15" stroke={mix(KEN.skinShade, "#000000", 0.2)} strokeWidth="0.55" strokeLinecap="round" />
+          <path d="M47 10 L44.4 15.6 M44 11.6 L41.4 17.8 M54.4 10 L57 15.6 M57.4 11.6 L60 17.8" stroke={KEN.hairLight} strokeWidth="0.4" opacity="0.6" strokeLinecap="round" />
+          {FACE_BRAIDS.map(([d, w, pink]) => (
+            <Braid key={d} d={d} color={pink ? KEN_KIT.pink : KEN.hair} tint={pink ? KEN_KIT.pinkLight : KEN.hairLight} width={w} />
+          ))}
         </Head>
       </g>
-      <Leg cls="p-leg p-leg-front" side="front" look={JO} id={id} sock={sock} shoe={sneaker(JOINT.frontLegX, false)} thigh={<HemShadow id={id} x={JOINT.frontLegX} y={96} />} />
+      <Leg cls="p-leg p-leg-front" side="front" look={KEN} id={id} sock={sock} shoe={sneaker(JOINT.frontLegX, false)} thigh={<HemShadow id={id} x={JOINT.frontLegX} y={96} />} />
       {/* The pleated skirt, over both legs; it moves with the body. */}
       <g className="p-skirt" style={BODY}>
         <path d="M38.8 67.4 L62.4 67.4 L71.6 96.4 Q61 99.4 50.6 97.8 Q40 99.4 29.6 96.4Z" fill={`url(#${id}-shell)`} />
         {[33.4, 41.8, 50.6, 59.4, 67.6].map((x) => (
           <g key={x}>
-            <path d={`M${n(50.6 + (x - 50.6) * 0.6)} 73 L${n(x - 2.1)} 97.6 Q${x} 98.4 ${n(x + 2.1)} 97.6Z`} fill={JO_KIT.white} opacity={x > 55 ? 0.82 : 0.95} />
-            <path d={`M${n(50.6 + (x - 50.6) * 0.6 + 0.4)} 73 L${n(x + 2.4)} 97.4`} stroke={JO_KIT.shellShade} strokeWidth="0.55" opacity="0.8" />
+            <path d={`M${n(50.6 + (x - 50.6) * 0.6)} 73 L${n(x - 2.1)} 97.6 Q${x} 98.4 ${n(x + 2.1)} 97.6Z`} fill={KEN_KIT.white} opacity={x > 55 ? 0.82 : 0.95} />
+            <path d={`M${n(50.6 + (x - 50.6) * 0.6 + 0.4)} 73 L${n(x + 2.4)} 97.4`} stroke={KEN_KIT.shellShade} strokeWidth="0.55" opacity="0.8" />
           </g>
         ))}
-        <path d="M38.8 67.4 L62.4 67.4 L62.8 70.6 L38.4 70.6Z" fill={JO_KIT.shellShade} />
-        <path d="M38.6 68.2 L62.6 68.2" stroke={JO_KIT.white} strokeWidth="0.7" />
+        <path d="M38.8 67.4 L62.4 67.4 L62.8 70.6 L38.4 70.6Z" fill={KEN_KIT.shellShade} />
+        <path d="M38.6 68.2 L62.6 68.2" stroke={KEN_KIT.white} strokeWidth="0.7" />
         <path d="M70 92 L71.4 96" stroke={RIM} strokeWidth="0.5" opacity="0.2" />
       </g>
       <g className="p-body p-front" style={BODY}>
-        <Arm cls="p-arm p-arm-front" side="front" look={JO} id={id} hand={<PomPom x={JOINT.frontArmX} y={91} back={false} />} hideHand />
+        <Arm cls="p-arm p-arm-front" side="front" look={KEN} id={id} hand={<PomPom x={JOINT.frontArmX} y={91} back={false} />} hideHand />
       </g>
     </Frame>
   );
@@ -840,7 +828,7 @@ export function Athlete({
 
 export const PLAYER_BY_GAME: Record<CourtGameId, (p: Props) => ReactNode> = {
   wrestling: Shaurya,
-  cheer: Jo,
+  cheer: Kenise,
   volleyball: Jordyn,
   soccer: Rayla,
 };

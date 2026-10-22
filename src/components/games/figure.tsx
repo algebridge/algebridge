@@ -3,7 +3,7 @@
 import { useId, type ReactNode } from "react";
 
 /**
- * The parts the team shares: Shaurya, Jo, Jordyn and Rayla are all built
+ * The parts the team shares: Shaurya, Kenise, Jordyn and Rayla are all built
  * from these (Veronica keeps her own drawing and rig, in
  * src/components/house/Veronica.tsx). One figure is 100 wide and 160 tall, feet
  * on the ground at 154, facing a little to the right; light comes from the

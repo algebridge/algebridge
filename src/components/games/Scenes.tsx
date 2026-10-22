@@ -270,12 +270,12 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
   );
 }
 
-/* ── Jo: a cheer competition ────────────────────────────────────── */
+/* ── Kenise: a cheer competition ────────────────────────────────────── */
 
 /**
  * A cheer competition: a blue spring floor under arena lights, the judges'
  * table at the back with a video board over it, stands either side, an
- * announcer and the trophies, and a banner over the lot. Jo throws her
+ * announcer and the trophies, and a banner over the lot. Kenise throws her
  * passes for the judges, not a crowd on a sideline.
  */
 export function CheerScene({ board }: { board?: MatchBoard }) {

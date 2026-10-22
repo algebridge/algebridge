@@ -79,9 +79,9 @@ export const COURT_GAMES: CourtGame[] = [
   },
   {
     id: "cheer",
-    player: "Jo",
+    player: "Kenise",
     sport: "Cheer",
-    title: "Cheer with Jo",
+    title: "Cheer with Kenise",
     blurb: "Hit the star on the mat and throw a jump for the crowd.",
     area: { kind: "rect", x0: 170, x1: 1030, y0: 505, y1: 760 },
     start: { x: 600, y: 700 },

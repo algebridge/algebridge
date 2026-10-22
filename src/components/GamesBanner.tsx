@@ -34,7 +34,7 @@ export function GamesBanner() {
               Play with the team
             </h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-white/90">
-              Skate with Veronica, wrestle with Shaurya, cheer with Jo, spike with Jordyn, or score with Rayla. Each game
+              Skate with Veronica, wrestle with Shaurya, cheer with Kenise, spike with Jordyn, or score with Rayla. Each game
               stops for a quick head-math question from the unit you are on, and every right answer pays.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">

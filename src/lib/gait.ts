@@ -60,7 +60,7 @@ export const GAITS: Record<CourtGameId, Gait> = {
     lean: 9,
     base: { ...STAND, armF: -10, armB: 7, foreF: -22, foreB: -22 },
   },
-  // Jo: a bouncy jog, pom-poms held at her sides.
+  // Kenise: a bouncy jog, pom-poms held at her sides.
   cheer: {
     strideSlow: 110,
     strideFast: 230,

@@ -1555,9 +1555,9 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const B = await import("../bridgeys.ts");
   const R = await import("../rink.ts");
   const Pr = await import("../progress.ts");
-  ok("four team games, one per teammate", G.COURT_GAMES.length === 4 && new Set(G.COURT_GAMES.map((g) => g.id)).size === 4 && G.COURT_GAMES.map((g) => g.player).join() === "Shaurya,Jo,Jordyn,Rayla");
+  ok("four team games, one per teammate", G.COURT_GAMES.length === 4 && new Set(G.COURT_GAMES.map((g) => g.id)).size === 4 && G.COURT_GAMES.map((g) => g.player).join() === "Shaurya,Kenise,Jordyn,Rayla");
   ok("each game is found by its id, and only real ids", G.COURT_GAMES.every((g) => G.getCourtGame(g.id) === g) && !G.getCourtGame("rink") && !G.getCourtGame("hockey"));
-  ok("Jo is the shortest, Jordyn the tallest", Math.min(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("cheer")!.height && Math.max(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("volleyball")!.height);
+  ok("Kenise is the shortest, Jordyn the tallest", Math.min(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("cheer")!.height && Math.max(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("volleyball")!.height);
   ok("every player starts inside their court", G.COURT_GAMES.every((g) => G.inArea(g.area, g.start.x, g.start.y, 22)));
   ok("every court sits inside the picture", G.COURT_GAMES.every((g) => {
     const a = g.area;

@@ -617,7 +617,7 @@ html.lenis body {
   to { rotate: y 720deg; }
 }
 
-/* ── The team: Shaurya, Jo, Jordyn, Rayla ─────────────────────
+/* ── The team: Shaurya, Kenise, Jordyn, Rayla ─────────────────────
    The same joints as Veronica, SVG groups rotated about the shoulder and
    the elbow, the hip and the knee, with a run in place of a glide.
    `.player-action` is each one's move: a shot, a jump, a spike, a strike.
@@ -791,7 +791,7 @@ html.lenis body {
   animation: p-shoot-trail 0.9s linear;
 }
 
-/* Jo: pom-poms at her sides, a pump every few seconds. */
+/* Kenise: pom-poms at her sides, a pump every few seconds. */
 .player-cheer .p-arm-front {
   transform: rotate(-16deg);
 }
@@ -842,7 +842,7 @@ html.lenis body {
   transform: rotate(-22deg);
 }
 /* The spike: the far arm back on the approach, both up together, then the
-   swing. The take-off and landing crouch the way Jo's do, feet flat. */
+   swing. The take-off and landing crouch the way Kenise's do, feet flat. */
 .player-volleyball.player-action .p-all {
   animation: p-jump-high 0.9s ease-out;
 }

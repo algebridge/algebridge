@@ -29,7 +29,7 @@ import { prefersReducedMotion } from "@/lib/display";
  * of ice. Move with the arrows or WASD (drag on a phone) to the target; a
  * head-math problem from the topic picked comes up; a right answer pays,
  * within the day's cap the games share, and the player does their move:
- * Shaurya's shot, Jo's jump, Jordyn's spike, Rayla's strike.
+ * Shaurya's shot, Kenise's jump, Jordyn's spike, Rayla's strike.
  *
  * With two players, each plays as the boy or girl they picked, in their
  * side's color: Player 1 on WASD (or the left half of a touch screen),
