@@ -282,23 +282,42 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           )}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
             <div className="min-w-0 space-y-6 lg:col-span-3">
-              {/* Problem first: the student tries one before any teaching, and the
-                  video and worked examples sit right under it for when they are stuck.
+              {/* Video first, then the problems, with worked examples under them for when they are stuck.
                   #watch is where the house's TV and projector open the lesson. */}
+              <section id="watch" className="scroll-mt-20">
+                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h2 className="section-title flex items-center gap-2">
+                    <StepMark n={1} done={videoStepSatisfied} />
+                    Watch
+                    {videoStepSatisfied && <span className="sr-only">, done</span>}
+                  </h2>
+                  {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
+                </div>
+                {video.youtubeId ? (
+                  <VideoPlayer
+                    video={video}
+                    backupVideo={backupVideo}
+                    // In practice mode the watch shows on this page and goes no further.
+                    onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
+                    <p className="mt-1">No lesson video is sourced for this skill yet. The worked examples below show every step.</p>
+                  </div>
+                )}
+              </section>
+
               <section id="practice" className="scroll-mt-20">
                 <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={1} done={isSkillComplete} />
+                    <StepMark n={2} done={isSkillComplete} />
                     Practice
                     {isSkillComplete && <span className="sr-only">, done</span>}
                   </h2>
-                  {!isSkillComplete && (
+                  {!isSkillComplete && workedExamplesFor(skill.id).length > 0 && (
                     <p className="text-sm text-slate-500">
-                      Try one first. Stuck? The <a href="#watch" className="font-semibold text-bridge-700 hover:underline">video</a>
-                      {workedExamplesFor(skill.id).length > 0 && (
-                        <> and <a href="#examples" className="font-semibold text-bridge-700 hover:underline">worked examples</a></>
-                      )}{" "}
-                      are right below.
+                      Stuck? The <a href="#examples" className="font-semibold text-bridge-700 hover:underline">worked examples</a> are right below.
                     </p>
                   )}
                 </div>
@@ -320,30 +339,6 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   }}
                   next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
                 />
-              </section>
-
-              <section id="watch" className="scroll-mt-20">
-                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={2} done={videoStepSatisfied} />
-                    Watch
-                    {videoStepSatisfied && <span className="sr-only">, done</span>}
-                  </h2>
-                  {!videoStepSatisfied && <p className="text-sm text-slate-500">For when a problem stumps you.</p>}
-                </div>
-                {video.youtubeId ? (
-                  <VideoPlayer
-                    video={video}
-                    backupVideo={backupVideo}
-                    // In practice mode the watch shows on this page and goes no further.
-                    onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
-                  />
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                    <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
-                    <p className="mt-1">No lesson video is sourced for this skill yet. The worked examples below show every step.</p>
-                  </div>
-                )}
               </section>
 
               {/* Taught before it is tested: every kind of problem in the practice,

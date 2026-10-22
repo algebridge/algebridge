@@ -14,7 +14,7 @@ const STEPS: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "flame",
     title: "Jump straight into a problem",
-    body: "Every skill starts with a problem. Each one you get right on the first try pays Bridgeys, and a run of them pays more. Stuck? A short video and worked examples are right below.",
+    body: "Every skill starts with a short video, then the problems. Each one you get right on the first try pays Bridgeys, and a run of them pays more. Stuck? Worked examples are right below.",
   },
   {
     icon: "check",
