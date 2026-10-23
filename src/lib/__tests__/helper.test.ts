@@ -960,8 +960,8 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     const prompt = P.archiePersonaPrompt({ firstName: "Maya", interests: [{ label: "Basketball", details: "" }, { label: "Minecraft", details: "" }] });
     ok("prompt: name and interests", prompt.includes("first name is Maya") && prompt.includes("Basketball and Minecraft"));
     ok("prompt: hard limits", /never give the answer/i.test(prompt) && /personal information/i.test(prompt) && /AI, not a person/.test(prompt) && /trusted adult/.test(prompt));
-    ok("prompt: chatty, 3 to 6 sentences", prompt.includes("3 to 6 short sentences") && !prompt.includes("1 to 4"));
-    ok("prompt: gives the why and answers their words", /Give the why/.test(prompt) && /Answer their actual words first/.test(prompt));
+    ok("prompt: human, length matches the message", prompt.includes("Length matches the message") && /Get to the point/.test(prompt) && !prompt.includes("1 to 4"));
+    ok("prompt: gives the why, no question every time", /Give the why/.test(prompt) && /Don't end every message with a question/.test(prompt));
     ok("prompt: honest about himself, with favorites to say", /never say you do/.test(prompt) && /play sports, watch games, listen to music/.test(prompt) && /the number 6/.test(prompt));
     ok("fact: 6 is 1 + 2 + 3 and 1 x 2 x 3", 1 + 2 + 3 === 6 && 1 * 2 * 3 === 6);
     ok("prompt: Formulas and booking stay short", P.ARCHIE_PERSONA_LITE.includes("1 to 4 short sentences"));
@@ -1151,7 +1151,7 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
       ok("route: small talk reaches the model", n === 1 && chat.source === "ai" && String(chat.message).includes("Maya"), JSON.stringify(chat));
       ok("route: the tutor prompt is the persona", sys.startsWith(P.ARCHIE_PERSONA) && /never like "just a tutor"/.test(sys), sys.slice(0, 120));
       ok("route: the prompt knows the name and interests", sys.includes("first name is Maya") && sys.includes("Basketball and Minecraft"), sys);
-      ok("route: small talk is a real chat", /If the message is small talk, chat back like a friend in 2 to 4 sentences/.test(sys) && /ask them something back/.test(sys) && /Give a math step only when asked/.test(sys));
+      ok("route: small talk is a real chat", /If the message is small talk, chat back like a friend in 1 to 3 sentences/.test(sys) && /Give a math step only when asked/.test(sys));
       ok("route: made-up examples stay off the student's numbers", /never any of these: 21, 7/.test(sys), sys.match(/make up a quick example[^\n]*/)?.[0] ?? "");
       ok("route: lost or frustrated slows down", /slow way down/.test(sys));
       ok("route: explanations stay true and grounded", /Keep every math statement exactly true/.test(sys) && /Base each why on the key idea and the worked solution/.test(sys));
@@ -1159,7 +1159,7 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
       await post({ mode: "tutor", context: { problemPrompt: "Find the slope of the line through (2, 3) and (6, 11).", explanation: "Change in y: 11 - 3 = 8. Change in x: 6 - 2 = 4. Slope = 8 / 4 = 2.", answer: "2" }, messages: [{ role: "user", content: "what is slope" }], ...student });
       ok("route: made-up examples stay off the answer the problem prints", /never any of these: 8, 4, 2\./.test(sys), sys.match(/make up a quick example[^\n]*/)?.[0] ?? "");
       ok("route: the prompt keeps the absolute rule and the solution private", /never state the final answer/.test(sys) && /never to be revealed/.test(sys));
-      ok("route: one reply-length rule, not two", sys.includes("3 to 6 short sentences") && !/1 to 4 short sentences|under 80 words/.test(sys));
+      ok("route: one reply-length rule, not two", sys.includes("Length matches the message") && /Name the exact next move/.test(sys) && /Never circle the point/.test(sys) && !/1 to 4 short sentences|under 80 words/.test(sys));
       ok("route: the tutor prompt is house style", !/[—–]/.test(sys) && !/\p{Extended_Pictographic}/u.test(sys) && !/\bmaths\b/.test(sys), sys);
 
       // the client cannot write into the prompt through these fields
