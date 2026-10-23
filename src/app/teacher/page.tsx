@@ -14,6 +14,7 @@ import {
   getClassRoster,
   getMyClasses,
   removeStudentFromClass,
+  resetStudentPassword,
   reorderAssignments,
   reorderClasses,
   updateClass,
@@ -25,6 +26,7 @@ import {
   assignmentTitle,
   dueLabel,
 } from "@/lib/assignments";
+import { makePassword } from "@/lib/student-accounts";
 import { Icon } from "@/components/Icon";
 import { showToast } from "@/lib/notify";
 import { useDialogFocus } from "@/components/useDialogFocus";
@@ -726,6 +728,7 @@ function RosterTab({
   const [sort, setSort] = useState<SortKey>("name");
   const [openId, setOpenId] = useState<string | null>(null);
   const openStudent = roster.find((s) => s.id === openId) ?? null;
+  const [reset, setReset] = useState<{ name: string; signIn: string; password: string; error: string | null } | null>(null);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -739,6 +742,14 @@ function RosterTab({
       setEmails("");
       onChanged();
     }
+  }
+
+  async function handleReset(student: RosterStudent) {
+    const name = student.displayName ?? student.email ?? "this student";
+    if (!confirm(`Give ${name} a new password? Their old one will stop working.`)) return;
+    const password = makePassword();
+    const error = await resetStudentPassword(student.id, password);
+    setReset({ name, signIn: signInName(student.email), password, error });
   }
 
   async function handleRemove(student: RosterStudent) {
@@ -864,6 +875,23 @@ function RosterTab({
           Grade is the share of assigned work finished: A from 90%, B from 80, C from 70, D from 60. Level is the
           game level earned by practicing. New students appear on their own, about every 15 seconds.
         </p>
+        {reset && (
+          <div className={`${reset.error ? "notice-error" : "notice-success"} mx-5 my-3`} role="status">
+            {reset.error ? (
+              <>Couldn&apos;t reset {reset.name}&apos;s password: {reset.error}</>
+            ) : (
+              <>
+                <strong>{reset.name}</strong> now signs in with{" "}
+                <strong>{reset.signIn}</strong> and the password{" "}
+                <code className="rounded bg-white px-1.5 py-0.5 font-mono text-sm">{reset.password}</code>.
+                Write it down for them now. It won&apos;t be shown again.
+              </>
+            )}
+            <button type="button" onClick={() => setReset(null)} className="ml-2 text-xs underline">
+              Done
+            </button>
+          </div>
+        )}
         {loading ? (
           <p role="status" className="px-5 py-6 text-sm text-slate-500">Loading roster…</p>
         ) : sorted.length === 0 ? (
@@ -951,7 +979,15 @@ function RosterTab({
                     <td className="whitespace-nowrap text-xs text-slate-500">
                       {formatRelative(student.lastActiveAt)}
                     </td>
-                    <td className="text-right">
+                    <td className="whitespace-nowrap text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleReset(student)}
+                        aria-label={`Give ${student.displayName ?? "this student"} a new password`}
+                        className="mr-3 py-1 text-xs text-slate-500 transition hover:text-bridge-700"
+                      >
+                        Reset password
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleRemove(student)}

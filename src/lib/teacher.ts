@@ -416,6 +416,20 @@ export async function addStudentsByEmail(
   return result;
 }
 
+/**
+ * Gives a student in one of the teacher's classes a new password, for when
+ * the student forgot theirs and a reset email can't reach them (district
+ * mail, username accounts). See supabase/schema-2026-10-22-teacher-password-reset.sql.
+ */
+export async function resetStudentPassword(studentId: string, password: string): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud login is not configured yet.";
+  const { error } = await supabase.rpc("teacher_reset_password", { p_student: studentId, p_password: password });
+  if (!error) return null;
+  if (isMissingSchema(error)) return "Password resets aren't switched on yet. Ask the AlgeBridge team to run the reset migration.";
+  return error.message;
+}
+
 export async function removeStudentFromClass(classId: string, studentId: string): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return "Cloud login is not configured yet.";

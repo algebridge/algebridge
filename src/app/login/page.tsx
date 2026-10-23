@@ -581,6 +581,14 @@ function LoginPageInner() {
                   <Icon name={showPassword ? "eye-off" : "eye"} size={18} />
                 </button>
               </div>
+              {mode === "signin" && (
+                <Link
+                  href="/login/reset"
+                  className="mt-1.5 inline-block text-sm font-medium text-bridge-700 underline underline-offset-2"
+                >
+                  Forgot password?
+                </Link>
+              )}
             </div>
             {mode === "signup" && (
               <label className="flex items-start gap-2.5 text-sm text-slate-600">
