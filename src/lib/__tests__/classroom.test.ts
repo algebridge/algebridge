@@ -80,8 +80,10 @@ check("usernames are first.last plus 4 digits, no accents", u === "maria.lopez55
 check("a username signs in at the student domain", A.signInEmail(" Maria.Lopez5500 ") === `maria.lopez5500@${A.USERNAME_DOMAIN}`);
 check("an email signs in as itself", A.signInEmail("A@B.org") === "a@b.org");
 const pw = A.makePassword();
-check("passwords are two words and a number", /^[a-z]+-[a-z]+-\d\d$/.test(pw) && pw.length >= 8, pw);
-check("the two words differ", A.makePassword(() => [3, 3, 5]).split("-")[0] !== A.makePassword(() => [3, 3, 5]).split("-")[1]);
+check("passwords are three words and two digits", /^[a-z]+-[a-z]+-[a-z]+-[2-9]{2}$/.test(pw) && pw.length >= 12, pw);
+check("the three words differ", new Set(A.makePassword(() => [3, 3, 3, 0, 0]).split("-").slice(0, 3)).size === 3);
+check("at least 200 words, none repeated", A.WORDS.length >= 200 && new Set(A.WORDS).size === A.WORDS.length);
+check("no word has a 0, 1, capital or other misreadable mark", A.WORDS.every((w) => /^[a-z]+$/.test(w)));
 
 // Student reports.
 const R = await import("../student-report.ts");

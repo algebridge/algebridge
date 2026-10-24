@@ -7,14 +7,14 @@
  * USERNAME_DOMAIN. Each account gets a password made here, shown to the
  * teacher once, on cards they print and hand out.
  *
- * The accounts are made the way a student makes their own: a sign-up on the
- * public key, in a separate client that never touches the teacher's own
- * session, then the new account joins the class with its code, so it is in
- * the class the moment it exists (and school-managed, like any member).
+ * The accounts are made by the make-student-accounts Edge Function, which
+ * checks the caller teaches the class, makes each account already confirmed,
+ * and adds it to the class, so it is in the class the moment it exists (and
+ * school-managed, like any member).
  */
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { checkFullName, formatName } from "@/lib/name";
+import { createClient } from "@/lib/supabase/client";
 
 /** Usernames sign in as <username>@USERNAME_DOMAIN. Nothing is ever mailed there. */
 export const USERNAME_DOMAIN = "students.algebridge.org";
@@ -69,21 +69,47 @@ export function makeUsername(name: string, rand: () => number = Math.random): st
   return `${first}.${last}`.slice(0, 40) + digits;
 }
 
-// No 0/O, 1/l/I: these get read off a printed card.
-const WORDS = [
+// Lowercase words only, and digits 2 to 9, so nothing on a printed card can
+// be misread (no 0/O, no 1/l/I). No two words are one letter apart.
+// 227 words, three of them, and two digits: about 750 million passwords.
+export const WORDS = [
   "maple", "river", "comet", "tiger", "panda", "cedar", "orbit", "piano", "lemon", "otter",
   "eagle", "mango", "cloud", "storm", "pearl", "raven", "sunny", "zebra", "bison", "koala",
-  "delta", "frost", "grape", "honey", "jelly", "karma", "lunar", "metro", "noble", "ocean",
+  "delta", "frost", "grape", "honey", "jelly", "lunar", "metro", "noble", "ocean", "acorn",
+  "anchor", "apple", "apron", "arrow", "aspen", "atlas", "badge", "bagel", "bamboo", "banjo",
+  "basil", "beacon", "berry", "blaze", "bloom", "blossom", "bongo", "branch", "brave", "breeze",
+  "brick", "bridge", "brook", "bubble", "bucket", "butter", "cactus", "camel", "candle",
+  "canoe", "canyon", "cherry", "chess", "chirp", "cider", "circus", "citrus", "clover",
+  "cobalt", "cocoa", "coral", "cotton", "cozy", "crayon", "cricket", "crown", "crystal",
+  "cupcake", "daisy", "dance", "desert", "dingo", "dolphin", "donut", "dragon", "dream", "drum",
+  "dune", "fable", "falcon", "feather", "fern", "fiddle", "field", "flame", "flute", "forest",
+  "fossil", "fox", "galaxy", "garden", "gecko", "giant", "ginger", "glacier", "globe", "gnome",
+  "goose", "gravy", "guitar", "hammock", "harbor", "hawk", "hazel", "heron", "hiker", "hippo",
+  "hollow", "jaguar", "jasmine", "jigsaw", "jungle", "kayak", "kettle", "kiwi", "ladder",
+  "lagoon", "lantern", "lava", "lilac", "llama", "lobster", "magnet", "marble", "meadow",
+  "melon", "meteor", "mint", "mitten", "monkey", "mosaic", "nectar", "nest", "noodle", "nugget",
+  "oasis", "olive", "onion", "opal", "owl", "paddle", "pancake", "parrot", "pasta", "peach",
+  "pebble", "pepper", "pickle", "pigeon", "pine", "planet", "plum", "pony", "popcorn", "poppy",
+  "pretzel", "puffin", "pumpkin", "puzzle", "quail", "quartz", "quill", "rabbit", "radish",
+  "rainbow", "ranger", "ribbon", "robin", "rocket", "salmon", "sandal", "satin", "scarf",
+  "shell", "sierra", "silver", "sketch", "sled", "snail", "spark", "sparrow", "spruce", "squid",
+  "star", "sugar", "summit", "swan", "taco", "teapot", "thistle", "thunder", "tiki", "toast",
+  "tomato", "topaz", "tornado", "tulip", "tundra", "turtle", "tuxedo", "velvet", "violet",
+  "volcano", "waffle", "walnut", "walrus", "willow", "window", "winter", "wizard", "wombat",
+  "yak", "yarn", "yeti", "yogurt", "yoyo", "zinnia",
 ];
 
-/** Two words and two digits, like "otter-maple-47": easy to type, 8+ characters. */
+/** Three words and two digits, like "otter-maple-comet-47": easy to type, hard to guess. */
 export function makePassword(randomInts: (n: number) => number[] = cryptoInts): string {
-  const [a, b, c] = randomInts(3);
-  const w1 = WORDS[a % WORDS.length];
-  let w2 = WORDS[b % WORDS.length];
-  if (w2 === w1) w2 = WORDS[(b + 1) % WORDS.length];
-  const n = String(20 + (c % 80));
-  return `${w1}-${w2}-${n}`;
+  const r = randomInts(5);
+  const picked: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    let k = (r[i] ?? 0) % WORDS.length;
+    while (picked.includes(WORDS[k])) k = (k + 1) % WORDS.length;
+    picked.push(WORDS[k]);
+  }
+  const digit = (x: number | undefined) => String(2 + ((x ?? 0) % 8));
+  return `${picked.join("-")}-${digit(r[3])}${digit(r[4])}`;
 }
 
 function cryptoInts(n: number): number[] {
@@ -102,21 +128,20 @@ export interface MadeAccount {
 
 /** Make the accounts one at a time (the auth server limits bursts), reporting each as it lands. */
 export async function createStudentAccounts(
-  joinCode: string,
+  classId: string,
   lines: StudentLine[],
   onEach: (made: MadeAccount, done: number) => void
 ): Promise<MadeAccount[]> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabase = createClient();
   const results: MadeAccount[] = [];
   for (const l of lines) {
     let made: MadeAccount;
     if (l.error) {
       made = { name: l.name, signIn: l.email ?? "", password: null, error: l.error };
-    } else if (!url || !key) {
+    } else if (!supabase) {
       made = { name: l.name, signIn: "", password: null, error: "Cloud login is not configured yet." };
     } else {
-      made = await createOne(url, key, joinCode, l);
+      made = await createOne(supabase, classId, l);
     }
     results.push(made);
     onEach(made, results.length);
@@ -124,32 +149,21 @@ export async function createStudentAccounts(
   return results;
 }
 
-async function createOne(url: string, key: string, joinCode: string, l: StudentLine): Promise<MadeAccount> {
-  // Its own client, kept in memory: the teacher stays signed in as themself.
-  const client = createSupabaseClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "algebridge-teacher-made" },
-  });
+async function createOne(supabase: NonNullable<ReturnType<typeof createClient>>, classId: string, l: StudentLine): Promise<MadeAccount> {
   const password = makePassword();
   const username = l.email ? null : makeUsername(l.name);
-  const email = l.email ?? signInEmail(username!);
-  const signIn = username ?? email;
+  const signIn = username ?? l.email!;
   try {
-    const { data, error } = await client.auth.signUp({ email, password, options: { data: { full_name: l.name } } });
-    if (error) {
-      const taken = /already|registered|exists/i.test(error.message);
-      return {
-        name: l.name,
-        signIn,
-        password: null,
-        error: taken ? "That email already has an account. Ask the student to join with the class code." : error.message,
-      };
-    }
-    if (!data.session) return { name: l.name, signIn, password: null, error: "The account was made but could not sign in to join the class." };
-    await client.from("profiles").update({ display_name: l.name }).eq("id", data.session.user.id);
-    const { error: joinError } = await client.rpc("join_class_by_code", { p_code: joinCode });
-    await client.auth.signOut({ scope: "local" });
-    if (joinError) return { name: l.name, signIn, password, error: `Made, but not added to the class: ${joinError.message}` };
-    return { name: l.name, signIn, password, error: null };
+    // The account is made on the server, already confirmed, so the teacher
+    // stays signed in as themself and public sign-ups can still require a
+    // confirmed email (supabase/functions/make-student-accounts).
+    const { data, error } = await supabase.functions.invoke("make-student-accounts", {
+      body: { classId, name: l.name, email: l.email, username, password },
+    });
+    if (error) return { name: l.name, signIn, password: null, error: "Something went wrong. Try again in a minute." };
+    const res = data as { error: string | null; id?: string };
+    if (!res.id) return { name: l.name, signIn, password: null, error: res.error ?? "The account could not be made." };
+    return { name: l.name, signIn, password, error: res.error };
   } catch (e) {
     return { name: l.name, signIn, password: null, error: e instanceof Error ? e.message : "Something went wrong." };
   }

@@ -82,7 +82,7 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
     setKept(false);
     setNote(null);
     setProgress({ done: 0, total: lines.length });
-    const results = await createStudentAccounts(classInfo.joinCode, lines, (one, done) => {
+    const results = await createStudentAccounts(classInfo.id, lines, (one, done) => {
       setMade((list) => [...list, one]);
       setProgress({ done, total: lines.length });
     });
