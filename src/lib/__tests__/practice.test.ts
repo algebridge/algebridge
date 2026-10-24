@@ -1555,7 +1555,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const B = await import("../bridgeys.ts");
   const R = await import("../rink.ts");
   const Pr = await import("../progress.ts");
-  ok("four team games, one per teammate", G.COURT_GAMES.length === 4 && new Set(G.COURT_GAMES.map((g) => g.id)).size === 4 && G.COURT_GAMES.map((g) => g.player).join() === "Shaurya,Kenise,Jordyn,Rayla");
+  ok("five team games, one per teammate", G.COURT_GAMES.length === 5 && new Set(G.COURT_GAMES.map((g) => g.id)).size === 5 && G.COURT_GAMES.map((g) => g.player).join() === "Shaurya,Kenise,Jordyn,Rayla,Liam");
   ok("each game is found by its id, and only real ids", G.COURT_GAMES.every((g) => G.getCourtGame(g.id) === g) && !G.getCourtGame("rink") && !G.getCourtGame("hockey"));
   ok("Kenise is the shortest, Jordyn the tallest", Math.min(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("cheer")!.height && Math.max(...G.COURT_GAMES.map((g) => g.height)) === G.getCourtGame("volleyball")!.height);
   ok("every player starts inside their court", G.COURT_GAMES.every((g) => G.inArea(g.area, g.start.x, g.start.y, 22)));
@@ -1596,6 +1596,8 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const volley = G.getCourtGame("volleyball")!.area;
   ok("the goal is up the field from where Rayla plays", soccer.kind === "rect" && G.GOAL.line < soccer.y0 && G.GOAL.x0 < 600 && G.GOAL.x1 > 600);
   ok("Jordyn plays her side of the net", volley.kind === "rect" && G.NET_Y < volley.y0);
+  const ball = G.getCourtGame("baseball")!.area;
+  ok("the outfield wall is beyond where Liam plays", ball.kind === "rect" && G.WALL.foot < ball.y0 && G.WALL.top < G.WALL.foot);
 
   // All five games pay from one daily pot.
   const p = Pr.getProgress();
@@ -1649,7 +1651,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("a right answer today waters the garden, and only today", Gd.gardenState(wet, "2026-09-24").watered && !Gd.gardenState(wet, "2026-09-25").watered && !Gd.gardenState(wet).watered);
 
   // The rink is a game card beside the four courts.
-  ok("five games, the rink first", G.GAME_CARDS.length === 5 && G.GAME_CARDS[0].id === "rink" && G.GAME_CARDS[0].player === "Veronica" && G.GAME_CARDS.slice(1).map((c) => c.id).join() === G.COURT_GAMES.map((c) => c.id).join());
+  ok("six games, the rink first", G.GAME_CARDS.length === 6 && G.GAME_CARDS[0].id === "rink" && G.GAME_CARDS[0].player === "Veronica" && G.GAME_CARDS.slice(1).map((c) => c.id).join() === G.COURT_GAMES.map((c) => c.id).join());
   ok("game ids are checked before a deep link is trusted", G.isGameId("rink") && G.isGameId("cheer") && !G.isGameId("hockey") && !G.isGameId(null) && !G.isGameId(""));
   ok("every card has a height its picture is drawn at", G.GAME_CARDS.every((c) => c.height >= 150 && c.height <= 190));
 }

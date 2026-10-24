@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useScratchpadSurface } from "@/components/Scratchpad";
-import { SoccerBall, TargetMark, Volleyball } from "@/components/games/CourtGame";
+import { Baseball, SoccerBall, TargetMark, Volleyball } from "@/components/games/CourtGame";
 import { GameHowTo, GameProblemDialog, type GameTurn, type GameVerdict } from "@/components/games/GameProblemDialog";
 import { MatchEnd, MatchScore, SideMarks } from "@/components/games/Match";
 import { Athlete } from "@/components/games/Players";
@@ -10,7 +10,7 @@ import { jointsOf, writePose, type Joints } from "@/components/games/rig";
 import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
 import { pctX, pctY, SCENE_H, SCENE_W } from "@/lib/dollhouse";
-import { clampToArea, getCourtGame, inArea, spotAwayFrom, type CourtGameId } from "@/lib/games";
+import { clampToArea, getCourtGame, inArea, spotAwayFrom, WALL, type CourtGameId } from "@/lib/games";
 import { approach, gaitPose, GAITS, strideLength } from "@/lib/gait";
 import { ATHLETE_HEIGHT, matchWinner, pickGameProblem, SIDE_COLORS, sideName, topicLabel, type GameSetup } from "@/lib/game-session";
 import { answerIsRight } from "@/lib/grading";
@@ -44,7 +44,8 @@ import { prefersReducedMotion } from "@/lib/display";
  * Two players, one court, the sport itself (rules in lib/match-rules.ts):
  * soccer with a goal at each end and a half each, dribbling, steals at the
  * halfway line and saves in goal; volleyball across the net, a side each;
- * wrestling face to face; cheer in front of the judges. A right answer is
+ * wrestling face to face; cheer in front of the judges; baseball as a home
+ * run derby, at-bats in turn. A right answer is
  * still what wins every play.
  *
  * Player 1 (blue) is on the left and moves with W A S D or the left half of
@@ -115,6 +116,8 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   const volley = gameId === "volleyball";
   const wrestle = gameId === "wrestling";
   const cheer = gameId === "cheer";
+  /** Baseball for two is a home run derby: at-bats in turn, a right answer is a homer and a point. */
+  const derby = gameId === "baseball";
 
   const stage = useRef<HTMLDivElement>(null);
   const bodies = useRef<(HTMLDivElement | null)[]>([]);
@@ -430,7 +433,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
             ask({ kind: "shoot-in", side: s });
           }
         }
-      } else if (cheer && play.current?.kind === "routine" && spotRef.current) {
+      } else if ((cheer || derby) && play.current?.kind === "routine" && spotRef.current) {
         const m = ms[play.current.side];
         const t = spotRef.current;
         if (Math.hypot(m.pos.x - t.x, (m.pos.y - t.y) * 1.6) < 52 * persp(t.y)) {
@@ -542,6 +545,16 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     if (right) playCorrect();
     else playWrong();
 
+    if (p.kind === "routine" && derby) {
+      if (right) {
+        const next: [number, number] = p.side === 0 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
+        setScore(next);
+        setVerdict({ right: true, paid: 0, note: `Home run! Point to ${names[p.side]}. ${next[0]} to ${next[1]}.` });
+      } else {
+        setVerdict({ right: false, paid: 0, given, note: `Swing and a miss. ${names[p.side === 0 ? 1 : 0]} steps up.` });
+      }
+      return;
+    }
     if (p.kind === "routine") {
       const seconds = (performance.now() - p.started) / 1000;
       const c = judgeCards({ right, seconds });
@@ -687,6 +700,16 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
       }
       return;
     }
+    if (p.kind === "routine" && derby) {
+      setSpot(null);
+      if (wasRight) {
+        act(side);
+        window.setTimeout(() => homer(movers.current[side]), 480);
+      } else say("Strike!", null, { x: 600, y: 540 });
+      const other: 0 | 1 = side === 0 ? 1 : 0;
+      after(wasRight ? 2100 : 900, () => nextRoutine({ order: [other, side], done: [] }));
+      return;
+    }
     if (p.kind === "routine") {
       const r = round;
       if (wasRight) act(side);
@@ -773,6 +796,23 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     el.animate([at(from, 30 * k, 1), at(apex, 26, 1, 0.5), at(land, 30 * persp(to.y), 1, 0.96), at(land, 30 * persp(to.y), 0)], { duration: 700, easing: "cubic-bezier(0.3, 0.55, 0.45, 1)", fill: "forwards" });
   }
 
+  /** Baseball: off the bat, high and long, out over the wall into the bleachers. */
+  function homer(m: Mover) {
+    const el = flyer.current;
+    const k = persp(m.pos.y);
+    const land = { x: 600 + (Math.random() - 0.5) * 640, y: WALL.top - 96 - Math.random() * 50 };
+    const cheer = () => say("Gone!", m.side, { x: land.x, y: land.y + 30 });
+    if (!el || still()) {
+      cheer();
+      return;
+    }
+    const from = { x: m.pos.x + 34 * k * m.facing, y: m.pos.y - 96 * k };
+    const apex = { x: (from.x + land.x) / 2, y: Math.min(from.y, land.y) - 190 };
+    const at = (q: { x: number; y: number }, w: number, opacity: number, offset?: number) => ({ left: pctX(q.x), top: pctY(q.y), width: pctX(w), opacity, ...(offset === undefined ? {} : { offset }) });
+    const run = el.animate([at(from, 26 * k, 1), at(apex, 18, 1, 0.45), at(land, 9, 1, 0.92), at(land, 8, 0)], { duration: 1250, easing: "cubic-bezier(0.2, 0.5, 0.6, 1)", fill: "forwards" });
+    run.onfinish = cheer;
+  }
+
   /** Volleyball: the ball drops to the floor and bounces where nobody got to it. */
   function drop(at: { x: number; y: number }) {
     const el = flyer.current;
@@ -806,7 +846,9 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
       ? `${names[0]} left of the net, ${names[1]} right. Get under the ball where it lands, answer, and spike it back over.`
       : wrestle
         ? `Shoot in on your opponent: the one who comes in answers. Right is a takedown; a miss gives the other a reversal.`
-        : `Take turns on the floor: hit the star and answer. Three judges score each routine; quick and right scores high.`;
+        : derby
+          ? `A home run derby: at-bats in turn. Run to the ball and answer. Right is a homer and a point; a miss hands the bat over.`
+          : `Take turns on the floor: hit the star and answer. Three judges score each routine; quick and right scores high.`;
   const marker = spot && (cheer ? (
     <div aria-hidden className="pointer-events-none absolute" style={{ left: pctX(spot.x), top: pctY(spot.y), width: pctX(150 * persp(spot.y)), transform: "translate(-50%, -69%)", zIndex: 250 + Math.round((spot.y / SCENE_H) * 100) }}>
       <TargetMark game="cheer" accent={performer === null ? game.accent : SIDE_COLORS[performer]} />
@@ -814,6 +856,10 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   ) : volley ? (
     <div aria-hidden className="pointer-events-none absolute" style={{ left: pctX(spot.x), top: pctY(spot.y), width: pctX(150 * persp(spot.y)), transform: "translate(-50%, -80%)", zIndex: 300 + Math.round((spot.y / SCENE_H) * 100) }}>
       <TargetMark game="volleyball" accent={rally.current ? SIDE_COLORS[rally.current.to] : game.accent} />
+    </div>
+  ) : derby ? (
+    <div aria-hidden className="pointer-events-none absolute" style={{ left: pctX(spot.x), top: pctY(spot.y), width: pctX(150 * persp(spot.y)), transform: "translate(-50%, -73%)", zIndex: 250 + Math.round((spot.y / SCENE_H) * 100) }}>
+      <TargetMark game="baseball" accent={performer === null ? game.accent : SIDE_COLORS[performer]} />
     </div>
   ) : null);
 
@@ -858,7 +904,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
           </>
         )}
         <div ref={flyer} aria-hidden className="pointer-events-none absolute" style={{ width: pctX(30), opacity: 0, left: "-10%", top: "-10%", transform: "translate(-50%, -50%)", zIndex: 460 }}>
-          {volley ? <Volleyball /> : null}
+          {volley ? <Volleyball /> : derby ? <Baseball /> : null}
         </div>
 
         {movers.current.map((m) => (
@@ -897,7 +943,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
         {intro && (
           <div className="pointer-events-none absolute inset-x-0 top-[38%] text-center" style={{ zIndex: 880 }}>
             <span className="court-pop inline-block rounded-full bg-slate-900/85 px-4 py-1.5 text-lg font-black text-white sm:text-2xl">
-              {soccer ? "Kick off!" : volley ? `${names[0]} serves` : wrestle ? "Wrestle!" : "Judges ready"}
+              {soccer ? "Kick off!" : volley ? `${names[0]} serves` : wrestle ? "Wrestle!" : derby ? "Play ball!" : "Judges ready"}
             </span>
           </div>
         )}

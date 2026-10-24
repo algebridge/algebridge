@@ -2,15 +2,15 @@
  * The team games: the same loop as skating with Veronica, one per teammate
  * and their sport. Move to the target, answer a head-math problem from the
  * unit you are on, and a right answer pays. Veronica's rink lives in the
- * backyard of the House; the four here have their own courts.
+ * backyard of the House; the five here have their own courts.
  *
- * All five share one daily cap (RINK_DAILY_CAP), counted in progress.rink,
+ * All six share one daily cap (RINK_DAILY_CAP), counted in progress.rink,
  * so the games stay a place to review rather than a second way to earn.
  */
 
 import { SCENE_H, SCENE_W } from "@/lib/dollhouse";
 
-export type CourtGameId = "wrestling" | "cheer" | "volleyball" | "soccer";
+export type CourtGameId = "wrestling" | "cheer" | "volleyball" | "soccer" | "baseball";
 export type GameId = "rink" | CourtGameId;
 
 /** Where the player can move: an ellipse or a box, in scene units (1200 × 800). */
@@ -58,6 +58,8 @@ const MOVES: Record<CourtGameId, { accel: number; maxSpeed: number; drag: number
   cheer: { accel: 2100, maxSpeed: 400, drag: 6.5 },
   volleyball: { accel: 2700, maxSpeed: 440, drag: 8 },
   soccer: { accel: 1500, maxSpeed: 560, drag: 3.8 },
+  // A ballplayer: quick out of the box, a long stride, and he carries his pace.
+  baseball: { accel: 1600, maxSpeed: 500, drag: 4.2 },
 };
 
 export const COURT_GAMES: CourtGame[] = [
@@ -124,6 +126,22 @@ export const COURT_GAMES: CourtGame[] = [
     note: "In your head, or draw it out. Head up, calculator away.",
     ...MOVES.soccer,
     accent: "#22c55e",
+  },
+  {
+    id: "baseball",
+    player: "Liam",
+    sport: "Baseball",
+    title: "Bat with Liam",
+    blurb: "Run to the ball, answer, and send it over the wall.",
+    area: { kind: "rect", x0: 140, x1: 1060, y0: 400, y1: 765 },
+    start: { x: 600, y: 720 },
+    height: 174,
+    target: "the ball",
+    cheers: ["Home run!", "Gone!", "Over the wall!", "Upper deck!"],
+    continueLabel: "Next pitch",
+    note: "In your head, or draw it out. Bat on your shoulder, calculator away.",
+    ...MOVES.baseball,
+    accent: "#dc2626",
   },
 ];
 
@@ -228,6 +246,9 @@ export const SCENE = { W: SCENE_W, H: SCENE_H };
 
 /** Rayla's goal, up the field: the mouth between the posts, crossbar to goal line. */
 export const GOAL = { x0: 470, x1: 730, top: 188, line: 292 } as const;
+
+/** Liam's outfield wall: its top and the warning track at its foot, where a home run clears it. */
+export const WALL = { top: 232, foot: 290, x0: 30, x1: 1170 } as const;
 
 /** Where Jordyn's net meets the floor; her side of the court is in front of it. */
 export const NET_Y = 540;

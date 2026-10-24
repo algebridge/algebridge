@@ -6,7 +6,7 @@ import type { CourtGameId } from "@/lib/games";
 
 /**
  * The team, drawn from their photos: Shaurya the wrestler, Kenise the cheerleader,
- * Jordyn the volleyball player, Rayla the striker. Each is one SVG built from
+ * Jordyn the volleyball player, Rayla the striker, Liam the batter. Each is one SVG built from
  * the shared figure (see figure.tsx), with the limbs in groups the court CSS
  * rotates: `.p-arm-*` and `.p-fore-*` (shoulder and elbow), `.p-leg-*`,
  * `.p-shin-*` and `.p-foot-*` (hip, knee and ankle), `.p-body`, `.p-skirt` (cloth that hangs over
@@ -712,6 +712,213 @@ export function Rayla({ pose = "idle", facing = 1, className }: Props) {
   );
 }
 
+/* ── Liam: baseball ─────────────────────────────────────────────── */
+
+const LI: Look = {
+  skin: "#f0c9ab",
+  skinShade: "#d6a383",
+  skinLight: "#fae0cb",
+  hair: "#dcb258",
+  hairLight: "#f3dc96",
+  iris: "#4b86c4",
+  lip: "#c97e6b",
+  lipLight: "#e39c8b",
+};
+const LI_KIT = {
+  white: "#f8fafc",
+  whiteShade: "#cfd8e3",
+  navy: "#1d3461",
+  navyShade: "#101f3c",
+  navyLight: "#2c4a84",
+  stripe: "#1d3461",
+  belt: "#111827",
+  cleat: "#111827",
+  bat: "#d8b485",
+  batShade: "#a67b4a",
+  batLight: "#efd7b4",
+  grip: "#1f2937",
+};
+const LI_W = 1.02;
+/** Darker blonde where the hair turns under, and at the roots. */
+const LI_UNDER = "#b8903c";
+
+/**
+ * A navy undersleeve down the arm: the upper arm's part in the arm group,
+ * the forearm's in the forearm group, so it bends at the elbow.
+ */
+function UnderSleeve({ x, w, back, part }: { x: number; w: number; back: boolean; part: "upper" | "fore" }) {
+  const p = (dx: number) => n(x + dx * w);
+  const fill = back ? LI_KIT.navyShade : LI_KIT.navy;
+  if (part === "upper") {
+    return <path d={`M${p(-3.6)} 50 C${p(-3.7)} 46 ${p(3.9)} 46 ${p(3.7)} 50 C${p(3.6)} 54 ${p(3.3)} 58 ${p(2.75)} 61.5 C${p(2.5)} 64.2 ${p(-2.6)} 64.2 ${p(-2.85)} 61.5 C${p(-3.3)} 58 ${p(-3.7)} 54 ${p(-3.6)} 50Z`} fill={fill} />;
+  }
+  return (
+    <g>
+      <path d={`M${p(-2.85)} 61.4 C${p(-2.85)} 59.2 ${p(2.75)} 59.2 ${p(2.75)} 61.4 C${p(3.15)} 66 ${p(2.6)} 74 ${p(2.1)} 81.4 L${p(-2.1)} 81.4 C${p(-2.5)} 75 ${p(-3.25)} 67 ${p(-2.85)} 61.4Z`} fill={fill} />
+      {!back && <path d={`M${p(2.6)} 64 C${p(2.6)} 70 ${p(2.3)} 76 ${p(2)} 80.6`} stroke={LI_KIT.navyLight} strokeWidth="0.6" fill="none" opacity="0.7" strokeLinecap="round" />}
+      <path d={`M${p(-2.2)} 80.6 L${p(2.2)} 80.6`} stroke={back ? "#0b1530" : LI_KIT.navyShade} strokeWidth="0.7" />
+    </g>
+  );
+}
+
+/**
+ * The bat, gripped in the front hand at the wrist (x, 83) and drawn along
+ * the hand's own x so it stands up from the fists; `.p-bat` turns it about
+ * the grip in the swing (globals.css).
+ */
+function Bat({ x }: { x: number }) {
+  const X = (dx: number) => n(x + dx);
+  return (
+    <g className="p-bat" style={{ transformOrigin: `${n(x)}px 86px` }}>
+      {/* Knob, taped handle, the taper into the barrel, the end. */}
+      <path d={`M${X(-4.2)} 84.4 L${X(-2.6)} 84.4 L${X(-2.6)} 87.6 L${X(-4.2)} 87.6 Q${X(-4.9)} 86 ${X(-4.2)} 84.4Z`} fill={LI_KIT.batShade} />
+      <path d={`M${X(-2.6)} 84.8 L${X(9)} 84.5 L${X(26)} 83 C${X(31)} 82.7 ${X(33.6)} 83.6 ${X(33.6)} 86 C${X(33.6)} 88.4 ${X(31)} 89.3 ${X(26)} 89 L${X(9)} 87.5 L${X(-2.6)} 87.2Z`} fill={LI_KIT.bat} />
+      <path d={`M${X(9)} 84.5 L${X(26)} 83 C${X(31)} 82.7 ${X(33.6)} 83.6 ${X(33.6)} 86 L${X(9)} 86Z`} fill={LI_KIT.batLight} opacity="0.55" />
+      <path d={`M${X(9)} 87.5 L${X(26)} 89 C${X(31)} 89.3 ${X(33.6)} 88.4 ${X(33.6)} 86 L${X(9)} 86Z`} fill={LI_KIT.batShade} opacity="0.45" />
+      <path d={`M${X(-2.6)} 84.8 L${X(7.4)} 84.6 L${X(7.4)} 87.4 L${X(-2.6)} 87.2Z`} fill={LI_KIT.grip} />
+      <path d={`M${X(-1)} 84.7 L${X(-0.2)} 87.3 M${X(1.6)} 84.7 L${X(2.4)} 87.3 M${X(4.2)} 84.6 L${X(5)} 87.4`} stroke="#4b5563" strokeWidth="0.35" opacity="0.8" />
+      <path d={`M${X(12)} 84.9 C${X(18)} 84.4 ${X(26)} 83.9 ${X(31.4)} 84.4`} stroke="#ffffff" strokeWidth="0.5" opacity="0.4" strokeLinecap="round" />
+    </g>
+  );
+}
+
+/**
+ * Liam: a white, blond boy in a pinstriped home uniform. Fair skin with a
+ * few freckles, blue eyes, blond hair showing under a navy cap, a white
+ * jersey with navy pinstripes and placket over navy undersleeves, white
+ * pants with a belt, navy socks, black cleats, and a bat in his hands.
+ */
+export function Liam({ pose = "idle", facing = 1, className }: Props) {
+  const id = useArtId();
+  const pants = { fill: `url(#${id}-pants)`, shade: LI_KIT.whiteShade, light: "#ffffff" };
+  const sock = { fill: `url(#${id}-sock)`, shade: LI_KIT.navyShade, from: 128 };
+  const cleat = (x: number, back: boolean) => (
+    <g>
+      <Sneaker x={x} upper={LI_KIT.cleat} shade="#000000" midsole="#e5e7eb" outsole="#6b7280" accent={LI_KIT.white} lace="#e5e7eb" back={back} />
+      <path d={`M${n(x - 4)} 154.4 l0 1 M${n(x + 1.6)} 154.4 l0 1 M${n(x + 7.4)} 154.4 l0 1 M${n(x + 11.6)} 154.4 l0 1`} stroke="#6b7280" strokeWidth="1.2" strokeLinecap="round" />
+    </g>
+  );
+  const sleeve = (x: number, back: boolean) => (
+    <g>
+      <UnderSleeve x={x} w={LI_W} back={back} part="upper" />
+      {capSleeve(x, LI_W, back ? LI_KIT.whiteShade : `url(#${id}-jersey)`, "#b7c2cf", 50, LI_KIT.navy)}
+    </g>
+  );
+  // Pinstripes down the jersey, kept inside it.
+  const stripes = [40.2, 43.8, 47.4, 51, 54.6, 58.2, 61.6];
+  const defs = (
+    <>
+      <SkinDefs id={id} look={LI} />
+      <defs>
+        <ClothGradient id={`${id}-jersey`} base={LI_KIT.white} light="#ffffff" shade={LI_KIT.whiteShade} />
+        <ClothGradient id={`${id}-jerseyBody`} base={LI_KIT.white} light="#ffffff" shade={LI_KIT.whiteShade} from={31} to={70} />
+        <ClothGradient id={`${id}-pants`} base="#f1f5f9" light="#ffffff" shade="#c3ccd8" />
+        <ClothGradient id={`${id}-sock`} base={LI_KIT.navy} light={LI_KIT.navyLight} shade={LI_KIT.navyShade} />
+        <ClothGradient id={`${id}-cap`} base={LI_KIT.navy} light={LI_KIT.navyLight} shade={LI_KIT.navyShade} />
+        <clipPath id={`${id}-jerseyclip`}>
+          <path d={torso(1.06)} />
+        </clipPath>
+        <clipPath id={`${id}-hemclip`}>
+          <path d={hem(1.06, 64, 80)} />
+        </clipPath>
+      </defs>
+    </>
+  );
+  return (
+    <Frame game="baseball" art={id} name="Liam" pose={pose} facing={facing} className={className} defs={defs}>
+      <Leg cls="p-leg p-leg-back" side="back" look={LI} id={id} w={LI_W} tights={pants} sock={sock} shoe={cleat(JOINT.backLegX, true)} thigh={<HemShadow id={id} x={JOINT.backLegX} y={80} />} />
+      <g className="p-body" style={BODY}>
+        {/* Hair at the back of the neck, under the cap. */}
+        <path d="M42.6 21.6 C41.4 24.6 41.6 27.4 42.6 29.4 L58.4 29.4 C59.4 27.4 59.6 24.6 58.6 21.6Z" fill={LI_UNDER} transform="translate(16.1 0.4) scale(0.69)" />
+        <Arm cls="p-arm p-arm-back" side="back" look={LI} id={id} w={LI_W} upper={sleeve(JOINT.backArmX, true)} fore={<UnderSleeve x={JOINT.backArmX} w={LI_W} back part="fore" />} />
+        <path d="M45 32.6 C47.4 31.2 53.8 31.2 56.2 32.6 C53.8 33.8 47.4 33.8 45 32.6Z" fill={LI_KIT.navyShade} />
+        <Neck id={id} look={LI} w={1.1} />
+        {/* The jersey: white with pinstripes, a navy collar, the placket and its buttons. */}
+        <path d={torso(1.06)} fill={`url(#${id}-jerseyBody)`} />
+        <g clipPath={`url(#${id}-jerseyclip)`}>
+          {stripes.map((x) => (
+            <path key={x} d={`M${x} 33 C${n(x - 0.3)} 50 ${n(x - 0.2)} 70 ${n(x + 0.2)} 87`} stroke={LI_KIT.stripe} strokeWidth="0.45" fill="none" opacity="0.75" />
+          ))}
+          <path d="M37.2 44 C38.2 50 38.8 56 39 62" stroke="#ffffff" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
+          <path d="M64 44 C63.2 52 62.6 60 62.8 64" stroke={LI_KIT.whiteShade} strokeWidth="1.6" opacity="0.5" />
+        </g>
+        <path d="M50.6 36 L50.6 86" stroke={LI_KIT.white} strokeWidth="2.6" />
+        <path d="M49.4 36 L49.4 86 M51.8 36 L51.8 86" stroke={LI_KIT.navy} strokeWidth="0.4" opacity="0.8" />
+        {[42, 50, 58, 66, 74, 82].map((y) => (
+          <circle key={y} cx="50.6" cy={y} r="0.6" fill={LI_KIT.navy} />
+        ))}
+        <path d="M44.6 33.2 C47 36.2 54.2 36.2 56.6 33.2" stroke={LI_KIT.navy} strokeWidth="1.5" fill="none" />
+        {/* Shade where the near arm meets the body. */}
+        <ellipse cx={n(JOINT.frontArmX - 3.4)} cy="46" rx="2.4" ry="6.5" fill={aoFill(id)} />
+        <Head
+          id={id}
+          look={LI}
+          jaw="oval"
+          shade={<path d="M39 22.2 C41 19.4 44.6 18.4 48.6 18.4 C52.4 18.4 57.6 18.8 61.6 22.2 L62 12 L38.6 12Z" fill={LI.skinShade} opacity="0.5" />}
+        >
+          <Face id={id} look={LI} spec={{ eye: "almond", eyeSize: 1.02, brow: "soft", nose: "narrow", lips: "medium", mouth: "smile" }} />
+          {/* Freckles across the nose and cheeks. */}
+          <g fill={LI.skinShade} opacity="0.55">
+            <circle cx="44.6" cy="28.6" r="0.36" />
+            <circle cx="46.2" cy="29.8" r="0.3" />
+            <circle cx="45.4" cy="30.9" r="0.32" />
+            <circle cx="48.8" cy="30.4" r="0.28" />
+            <circle cx="55.6" cy="28.8" r="0.34" />
+            <circle cx="57" cy="30.2" r="0.3" />
+            <circle cx="54.2" cy="30.6" r="0.28" />
+          </g>
+          {/* Blond hair under the cap: over the ears at the sides, a fringe pushed out under the brim. */}
+          <path d="M39.4 19.6 C38.8 22 39 24.6 39.8 27 C40.4 26.6 40.7 25.6 40.6 24.4 C40.5 22.6 40.9 21 41.8 19.8Z" fill={LI.hair} />
+          <path d="M61.6 19.6 C62.2 22 62 24.4 61.2 26.8 C60.6 26.4 60.4 25.4 60.4 24.2 C60.5 22.4 60.1 21 59.2 19.8Z" fill={LI.hair} />
+          <path d="M51.4 19 C54.4 18.2 57.6 18.4 60.4 19.8 C59.6 21.2 58.2 21.8 56.8 21.4 C57 20.6 56.4 20.2 55.6 20.2 C54.6 21.2 53.2 21.6 51.8 21.2 C52.2 20.4 52 19.6 51.4 19Z" fill={LI.hair} />
+          <path d="M52.6 19.6 C54.6 19.2 56.8 19.3 58.8 20" stroke={LI.hairLight} strokeWidth="0.45" fill="none" opacity="0.9" strokeLinecap="round" />
+          <path d="M40.2 21 C40 23 40.1 24.6 40.4 26.2 M60.8 21 C61 23 60.9 24.6 60.6 26" stroke={LI_UNDER} strokeWidth="0.4" fill="none" opacity="0.8" strokeLinecap="round" />
+          {/* The cap: a navy crown with its seams and button, the brim forward, a shadow under it on the brow. */}
+          <path d="M39.2 21.2 C38.4 12.4 43.6 7 50.6 7 C57.8 7 63 12.4 62.2 21.2 C58.6 19.4 54.6 18.6 50.6 18.6 C46.6 18.6 42.6 19.4 39.2 21.2Z" fill={`url(#${id}-cap)`} />
+          <path d="M50.6 7.2 C51.6 11 51.8 15 51.6 18.6 M45.2 8.6 C44.6 12 44.2 15.2 44 18.8 M56 8.6 C56.6 12 57 15.2 57.2 18.8" stroke={LI_KIT.navyShade} strokeWidth="0.45" fill="none" opacity="0.8" />
+          <path d="M43.4 9.6 C45.6 8 48 7.3 50.4 7.3" stroke={LI_KIT.navyLight} strokeWidth="1" fill="none" opacity="0.6" strokeLinecap="round" />
+          <circle cx="50.6" cy="7" r="0.9" fill={LI_KIT.navyLight} />
+          <path d="M39.2 21.2 C42.6 19.4 46.6 18.6 50.6 18.6 C54.6 18.6 58.6 19.4 62.2 21.2 C62.6 22 62.2 22.8 61.4 22.6 C57.8 21.4 54.2 20.8 50.6 20.8 C47 20.8 43.4 21.4 39.8 22.6 C39 22.8 38.8 22 39.2 21.2Z" fill={LI_KIT.navyShade} />
+          <path d="M56.4 19.6 C62.4 19.4 67.4 20.2 70.6 22.2 C71.4 22.8 71.2 23.8 70.2 23.8 C66 23.4 61.6 23 57.4 23.2 C56.2 22 56 20.8 56.4 19.6Z" fill={LI_KIT.navyShade} />
+          <path d="M57.2 19.8 C62.4 19.6 66.8 20.4 69.6 22 C66 21.8 62 21.8 58 22.2Z" fill={LI_KIT.navy} />
+          <path d="M57.6 23.4 C60.4 24.4 62.4 24.8 64.4 25" stroke="#000000" strokeWidth="1.2" fill="none" opacity="0.14" strokeLinecap="round" />
+        </Head>
+      </g>
+      <Leg cls="p-leg p-leg-front" side="front" look={LI} id={id} w={LI_W} tights={pants} sock={sock} shoe={cleat(JOINT.frontLegX, false)} thigh={<HemShadow id={id} x={JOINT.frontLegX} y={80} />} />
+      {/* The jersey tucked in: its last few units, the belt over the pants' waistband, in the cloth layer. */}
+      <g className="p-skirt" style={BODY}>
+        <path d={hem(1.06, 64, 76)} fill={`url(#${id}-jerseyBody)`} />
+        <g clipPath={`url(#${id}-hemclip)`}>
+          {stripes.map((x) => (
+            <path key={x} d={`M${n(x - 0.2)} 64 L${n(x + 0.2)} 80`} stroke={LI_KIT.stripe} strokeWidth="0.45" fill="none" opacity="0.75" />
+          ))}
+        </g>
+        <path d="M50.6 64 L50.6 76" stroke={LI_KIT.white} strokeWidth="2.6" />
+        <path d="M49.4 64 L49.4 76 M51.8 64 L51.8 76" stroke={LI_KIT.navy} strokeWidth="0.4" opacity="0.8" />
+        <circle cx="50.6" cy="74" r="0.6" fill={LI_KIT.navy} />
+        <path d="M37.2 76 L64 76 L64.3 80.2 L36.9 80.2Z" fill={LI_KIT.belt} />
+        <path d="M37.2 76.6 L64 76.6" stroke="#374151" strokeWidth="0.4" opacity="0.8" />
+        <rect x="49" y="75.6" width="3.4" height="5" rx="0.6" fill="#9ca3af" />
+        <rect x="49.8" y="76.4" width="1.8" height="3.4" rx="0.3" fill={LI_KIT.belt} />
+        <path d="M37.3 80.2 L64.2 80.2 C64.4 82.6 64.6 85 64.8 87.6 L36.6 87.6 C36.8 85 37.1 82.6 37.3 80.2Z" fill={`url(#${id}-pants)`} />
+        <path d="M37.6 80.6 L64 80.6" stroke="#cbd5e1" strokeWidth="0.5" opacity="0.8" />
+      </g>
+      <g className="p-body p-front" style={BODY}>
+        <Arm
+          cls="p-arm p-arm-front"
+          side="front"
+          look={LI}
+          id={id}
+          w={LI_W}
+          upper={sleeve(JOINT.frontArmX, false)}
+          fore={<UnderSleeve x={JOINT.frontArmX} w={LI_W} back={false} part="fore" />}
+          hand={<Bat x={JOINT.frontArmX} />}
+        />
+      </g>
+    </Frame>
+  );
+}
+
 /* ── Match athletes: a boy or a girl, in a side's color ─────────── */
 
 /**
@@ -820,7 +1027,8 @@ export function Athlete({
         <path d="M37.4 84.6 C45 85.8 56 85.8 63.8 84.6" stroke={kitShade} strokeWidth="0.45" fill="none" />
       </g>
       <g className="p-body p-front" style={BODY}>
-        <Arm cls="p-arm p-arm-front" side="front" look={ATHLETE} id={id} w={w} upper={sleeve(JOINT.frontArmX, false)} />
+        {/* On Liam's court the athletes bat too, so they carry a bat in the same stance. */}
+        <Arm cls="p-arm p-arm-front" side="front" look={ATHLETE} id={id} w={w} upper={sleeve(JOINT.frontArmX, false)} hand={game === "baseball" ? <Bat x={JOINT.frontArmX} /> : undefined} />
       </g>
     </Frame>
   );
@@ -831,6 +1039,7 @@ export const PLAYER_BY_GAME: Record<CourtGameId, (p: Props) => ReactNode> = {
   cheer: Kenise,
   volleyball: Jordyn,
   soccer: Rayla,
+  baseball: Liam,
 };
 
 export function Player({ game, ...props }: Props & { game: CourtGameId }) {

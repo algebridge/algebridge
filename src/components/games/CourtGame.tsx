@@ -13,7 +13,7 @@ import { CourtScene } from "@/components/games/Scenes";
 import { useSound } from "@/hooks/useSound";
 import { awardRinkBridgeys, recordGameRun } from "@/lib/bridgeys";
 import { pctX, pctY, SCENE_H, SCENE_W } from "@/lib/dollhouse";
-import { clampToArea, depthScale, getCourtGame, GOAL, inArea, spotAwayFrom, type CourtGameId } from "@/lib/games";
+import { clampToArea, depthScale, getCourtGame, GOAL, inArea, spotAwayFrom, WALL, type CourtGameId } from "@/lib/games";
 import { approach, gaitPose, GAITS, strideLength } from "@/lib/gait";
 import { DAILY_GOAL } from "@/lib/gamification";
 import { ATHLETE_HEIGHT, DEFAULT_SETUP, matchWinner, pickGameProblem, scoreAfter, SIDE_COLORS, sideName, spotFairFor, topicLabel, type GameSetup } from "@/lib/game-session";
@@ -29,7 +29,7 @@ import { prefersReducedMotion } from "@/lib/display";
  * of ice. Move with the arrows or WASD (drag on a phone) to the target; a
  * head-math problem from the topic picked comes up; a right answer pays,
  * within the day's cap the games share, and the player does their move:
- * Shaurya's shot, Kenise's jump, Jordyn's spike, Rayla's strike.
+ * Shaurya's shot, Kenise's jump, Jordyn's spike, Rayla's strike, Liam's swing.
  *
  * With two players, each plays as the boy or girl they picked, in their
  * side's color: Player 1 on WASD (or the left half of a touch screen),
@@ -45,9 +45,9 @@ const MARGIN = 22;
 const REACH = 52;
 const ACTION_MS = 950;
 /** When, into the move, the ball leaves: the hand at the top of the spike, the foot through the ball. */
-const CONTACT_MS: Partial<Record<CourtGameId, number>> = { volleyball: 430, soccer: 400 };
+const CONTACT_MS: Partial<Record<CourtGameId, number>> = { volleyball: 430, soccer: 400, baseball: 480 };
 /** Where each target's spot on the floor sits in its picture, from the top. */
-const ANCHOR: Record<CourtGameId, number> = { wrestling: 62 / 90, cheer: 62 / 90, volleyball: 120 / 150, soccer: 66 / 90 };
+const ANCHOR: Record<CourtGameId, number> = { wrestling: 62 / 90, cheer: 62 / 90, volleyball: 120 / 150, soccer: 66 / 90, baseball: 66 / 90 };
 
 /** Which keys move which side. Alone, a player has both sets. */
 const KEYS = {
@@ -367,23 +367,28 @@ function CourtSolo({
   }
 
   /**
-   * Volleyball and soccer: the ball leaves the scorer's hand, or foot, and
-   * goes over the net or into the goal. Positions are in their picture's
-   * units (100 by 160, feet at the bottom middle), scaled to the court.
+   * Volleyball, soccer and baseball: the ball leaves the scorer's hand, foot
+   * or bat, and goes over the net, into the goal, or out over the wall.
+   * Positions are in their picture's units (100 by 160, feet at the bottom
+   * middle), scaled to the court.
    */
   function launch(m: Mover) {
     const el = flyer.current;
-    if (!el || (gameId !== "volleyball" && gameId !== "soccer")) return;
+    if (!el || (gameId !== "volleyball" && gameId !== "soccer" && gameId !== "baseball")) return;
     const p = m.pos;
     const unit = (m.height * depthScale(game.area, p.y)) / 160;
     const from =
       gameId === "volleyball"
         ? { x: p.x + 34 * unit * m.facing, y: p.y - 173 * unit }
-        : { x: p.x + 24 * unit * m.facing, y: p.y - 14 * unit };
+        : gameId === "baseball"
+          ? { x: p.x + 34 * unit * m.facing, y: p.y - 96 * unit }
+          : { x: p.x + 24 * unit * m.facing, y: p.y - 14 * unit };
     const to =
       gameId === "volleyball"
         ? { x: 380 + Math.random() * 440, y: 432 }
-        : { x: 600 + (Math.random() - 0.5) * 170, y: GOAL.top + 44 + Math.random() * 30 };
+        : gameId === "baseball"
+          ? { x: 600 + (Math.random() - 0.5) * 640, y: WALL.top - 96 - Math.random() * 50 }
+          : { x: 600 + (Math.random() - 0.5) * 170, y: GOAL.top + 44 + Math.random() * 30 };
     const scored = () => {
       if (gameId !== "soccer") return;
       setNetHit(true);
@@ -393,7 +398,8 @@ function CourtSolo({
       scored();
       return;
     }
-    const apex = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - (gameId === "volleyball" ? 60 : 90) };
+    const lift = gameId === "volleyball" ? 60 : gameId === "baseball" ? 190 : 90;
+    const apex = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - lift };
     const at = (q: { x: number; y: number }, scale: number, opacity: number, offset?: number) => ({
       left: pctX(q.x),
       top: pctY(q.y),
@@ -401,9 +407,11 @@ function CourtSolo({
       opacity,
       ...(offset === undefined ? {} : { offset }),
     });
-    const run = el.animate([at(from, 1, 1), at(apex, 0.85, 1, 0.45), at(to, 0.62, 1, 0.92), at(to, 0.6, 0)], {
-      duration: gameId === "volleyball" ? 680 : 760,
-      easing: "cubic-bezier(0.3, 0.6, 0.5, 1)",
+    // A home run carries high and far, so the ball shrinks away into the stands.
+    const far = gameId === "baseball" ? 0.34 : 0.62;
+    const run = el.animate([at(from, 1, 1), at(apex, gameId === "baseball" ? 0.7 : 0.85, 1, 0.45), at(to, far, 1, 0.92), at(to, far - 0.02, 0)], {
+      duration: gameId === "volleyball" ? 680 : gameId === "baseball" ? 1250 : 760,
+      easing: gameId === "baseball" ? "cubic-bezier(0.2, 0.5, 0.6, 1)" : "cubic-bezier(0.3, 0.6, 0.5, 1)",
       fill: "forwards",
     });
     run.onfinish = scored;
@@ -532,9 +540,9 @@ function CourtSolo({
           ref={flyer}
           aria-hidden
           className="pointer-events-none absolute"
-          style={{ width: pctX(gameId === "volleyball" ? 46 : 36), zIndex: 450, opacity: 0, left: "-10%", top: "-10%" }}
+          style={{ width: pctX(gameId === "volleyball" ? 46 : gameId === "baseball" ? 26 : 36), zIndex: 450, opacity: 0, left: "-10%", top: "-10%" }}
         >
-          {gameId === "volleyball" ? <Volleyball /> : <SoccerBall />}
+          {gameId === "volleyball" ? <Volleyball /> : gameId === "baseball" ? <Baseball /> : <SoccerBall />}
         </div>
 
         {movers.current.map((m) => (
@@ -689,6 +697,19 @@ export function TargetMark({ game, accent }: { game: CourtGameId; accent: string
       </svg>
     );
   }
+  if (game === "baseball") {
+    return (
+      <svg viewBox="0 0 150 90" className="w-full">
+        <ellipse cx="75" cy="66" rx="50" ry="17" fill={accent} opacity="0.25" className="court-target" />
+        <g className="court-ball-float">
+          <g transform="translate(62 44) scale(0.75)">
+            <Baseball raw />
+          </g>
+        </g>
+        <g transform="translate(0 -4)">{badge}</g>
+      </svg>
+    );
+  }
   return (
     <svg viewBox="0 0 150 90" className="w-full">
       <ellipse cx="75" cy="66" rx="50" ry="17" fill={accent} opacity="0.25" className="court-target" />
@@ -698,6 +719,20 @@ export function TargetMark({ game, accent }: { game: CourtGameId; accent: string
       <g transform="translate(0 -4)">{badge}</g>
     </svg>
   );
+}
+
+/** A baseball: white leather, two red seams of stitches. `raw` draws it into an existing SVG. */
+export function Baseball({ raw = false }: { raw?: boolean }) {
+  const g = (
+    <g>
+      <circle cx="18" cy="18" r="17" fill="#f8fafc" />
+      <path d="M18 1 A17 17 0 0 1 18 35" fill="#e2e8f0" opacity="0.5" />
+      <path d="M9.5 3.4 C4.6 10 4.6 26 9.5 32.6 M26.5 3.4 C31.4 10 31.4 26 26.5 32.6" stroke="#dc2626" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d="M7.2 8.2 l2.6 -1.2 M6.2 12.6 l2.8 -0.8 M5.8 17.2 l2.8 -0.3 M5.8 21.8 l2.8 0.4 M6.3 26.2 l2.7 0.9 M28.8 8.2 l-2.6 -1.2 M29.8 12.6 l-2.8 -0.8 M30.2 17.2 l-2.8 -0.3 M30.2 21.8 l-2.8 0.4 M29.7 26.2 l-2.7 0.9" stroke="#dc2626" strokeWidth="0.9" strokeLinecap="round" />
+      <circle cx="18" cy="18" r="17" fill="none" stroke="#cbd5e1" strokeWidth="1.2" />
+    </g>
+  );
+  return raw ? g : <svg viewBox="0 0 36 36" className="w-full">{g}</svg>;
 }
 
 /** A volleyball: white, with blue and yellow panels. `raw` draws it into an existing SVG. */

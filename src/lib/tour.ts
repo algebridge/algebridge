@@ -68,7 +68,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     route: "/games",
     target: "games",
     title: "Play with the team",
-    body: "Five games: skating, wrestling, cheer, volleyball and soccer. Each one stops for a quick math question. Play solo for Bridgeys, or 1v1 with a friend on one computer.",
+    body: "Six games: skating, wrestling, cheer, volleyball, soccer and baseball. Each one stops for a quick math question. Play solo for Bridgeys, or 1v1 with a friend on one computer.",
     pose: "party",
   },
   {

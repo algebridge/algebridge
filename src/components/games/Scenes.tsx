@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GOAL, NET_Y, type CourtGameId } from "@/lib/games";
+import { GOAL, NET_Y, WALL, type CourtGameId } from "@/lib/games";
 import { RINK } from "@/lib/rink";
 import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Ribbon, SideStands, Vignette, WoodFloor, toward } from "./Arena";
 import { GOAL_MOUTH, goalLineX, lineX, persp, PITCH, BOX_DEPTH, KICKOFF, NET, netTop, VCOURT } from "@/lib/match-rules";
@@ -16,7 +16,7 @@ export interface MatchBoard {
 const short = (name: string) => name.toUpperCase().slice(0, 10);
 
 /**
- * The four courts and the rink, as arenas seen from a broadcast camera high
+ * The five courts and the rink, as arenas seen from a broadcast camera high
  * in the stands, on the same 1200 × 800 plane as the House. The shared pieces
  * (the bowl, boards, video board, lights, floors) are in ./Arena.tsx. The play
  * areas in src/lib/games.ts and the rink in src/lib/rink.ts sit on these
@@ -803,6 +803,232 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
   );
 }
 
+/* ── Liam: a ballpark on a sunny afternoon ───────────────────────── */
+
+/** Where the bases sit, from a camera high behind home plate: first and third on the foul lines, second up the middle. */
+const PLATE = { x: 600, y: 792 };
+const BASES = { first: { x: 834, y: 585 }, second: { x: 600, y: 462 }, third: { x: 366, y: 585 } };
+const MOUND = { x: 600, y: 616 };
+
+/** A base: a white bag seen from above and behind, with its near face in shade. */
+function Base({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <path d={`M${x - 11} ${y - 2} L${x + 11} ${y - 2} L${x + 13} ${y + 5} L${x - 13} ${y + 5}Z`} fill="#f8fafc" />
+      <path d={`M${x - 13} ${y + 5} L${x + 13} ${y + 5} L${x + 13} ${y + 8} L${x - 13} ${y + 8}Z`} fill="#cbd5e1" />
+    </g>
+  );
+}
+
+/**
+ * Liam's park, from a broadcast camera high behind home plate: the dirt
+ * diamond at the bottom, the grass running out to a padded green wall with
+ * its yellow line, and the bleachers beyond under a blue sky. A home run
+ * flies out over the wall (WALL in lib/games.ts). With `board`, the
+ * scoreboard carries a match's names and score.
+ */
+export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
+  const id = "bb";
+  const grassTop = WALL.foot;
+  const trackFoot = grassTop + 24;
+  // Mowing stripes across the outfield, wider toward the viewer, and lanes toward the vanishing point.
+  const bands: { y: number; h: number }[] = [];
+  let y = trackFoot;
+  for (let i = 0; y < H; i += 1) {
+    const h = 26 + i * 8;
+    bands.push({ y, h });
+    y += h;
+  }
+  const lanes = Array.from({ length: 14 }, (_, i) => -900 + i * 220);
+  const score = board ? `${short(board.names[0])} ${board.score[0]}   ${short(board.names[1])} ${board.score[1]}` : "HOME 0   AWAY 0";
+  return (
+    <Svg label="Ballpark on a sunny afternoon">
+      <defs>
+        <ArenaDefs id={id} glow="#fde68a" />
+        <CrowdTiles id={id} shirts={["#1d3461", "#1d3461", "#f8fafc", "#dc2626", "#f8fafc", "#1f2937", "#fbbf24", "#1d3461"]} seat="#2a4a7a" />
+        <linearGradient id="bb-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#5fb4f0" />
+          <stop offset="100%" stopColor="#cfe9fb" />
+        </linearGradient>
+        <linearGradient id="bb-wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1f6b3a" />
+          <stop offset="100%" stopColor="#154d2a" />
+        </linearGradient>
+        <radialGradient id="bb-sun" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.9" />
+          <stop offset="40%" stopColor="#fef3c7" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#fef3c7" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="bb-pool" cx="50%" cy="60%" r="65%">
+          <stop offset="0%" stopColor="#fefce8" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#fefce8" stopOpacity="0" />
+        </radialGradient>
+        <pattern id="bb-grass" patternUnits="userSpaceOnUse" width="18" height="12">
+          <path d="M2 10 L3 6 M7 11 L7.6 7 M12 10 L11.2 6.4 M15.5 11 L16.4 7.2 M4.6 4 L5 1 M10 5 L10.8 1.6 M14 4.4 L13.6 1" stroke="#14532d" strokeWidth="0.9" opacity="0.28" />
+        </pattern>
+        <pattern id="bb-dirt" patternUnits="userSpaceOnUse" width="22" height="14">
+          <circle cx="4" cy="3" r="0.9" fill="#8a5a2b" opacity="0.35" />
+          <circle cx="15" cy="9" r="0.7" fill="#8a5a2b" opacity="0.3" />
+          <circle cx="10" cy="12" r="0.6" fill="#e0b27a" opacity="0.35" />
+          <circle cx="19" cy="3" r="0.6" fill="#e0b27a" opacity="0.3" />
+        </pattern>
+        <clipPath id="bb-infield">
+          <path d={`M${BASES.third.x + 36} ${BASES.third.y} L${BASES.second.x} ${BASES.second.y + 30} L${BASES.first.x - 36} ${BASES.first.y} L${PLATE.x} ${PLATE.y - 44}Z`} />
+        </clipPath>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} fill="url(#bb-sky)" />
+      <circle cx="1010" cy="40" r="150" fill="url(#bb-sun)" />
+      {/* Clouds drifting over the park. */}
+      <g className="sc-drift" fill="#ffffff" opacity="0.85">
+        <ellipse cx="180" cy="62" rx="70" ry="16" />
+        <ellipse cx="220" cy="50" rx="46" ry="18" />
+        <ellipse cx="640" cy="40" rx="56" ry="13" />
+        <ellipse cx="672" cy="31" rx="34" ry="14" />
+      </g>
+      {/* The bleachers beyond the wall, the ribbon between the decks, flags along the roof. */}
+      <FarStand id={id} front={120} top={54} rows={6} s0={0.4} s1={0.3} aisles={[260, 940]} tunnels={[]} wall="#3b4b66" />
+      <Ribbon
+        id={id}
+        y={120}
+        h={14}
+        segments={[
+          { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
+          { text: "LET'S GO LIAM", bg: "#f8fafc", fg: "#1d3461" },
+          { text: "FREE ALGEBRA 1", bg: "#dc2626", fg: "#ffffff" },
+          { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
+          { text: "HOME RUN", bg: "#fbbf24", fg: "#1d3461" },
+          { text: "GO TEAM", bg: "#f8fafc", fg: "#1d3461" },
+        ]}
+      />
+      <FarStand id={id} front={WALL.top - 4} top={134} rows={7} s0={0.5} s1={0.4} aisles={[180, 450, 750, 1020]} tunnels={[320, 880]} wall="#3b4b66" />
+      {[90, 330, 600, 870, 1110].map((x, i) => (
+        <g key={x}>
+          <rect x={x - 1} y="26" width="2" height="30" fill="#e5e7eb" />
+          <g className="sc-sway" style={{ transformOrigin: `${x + 1}px 26px`, animationDelay: `${i * -0.7}s` }}>
+            <path d={`M${x + 1} 26 l20 6 l-20 6Z`} fill={i % 2 ? "#dc2626" : "#1d3461"} />
+          </g>
+        </g>
+      ))}
+      {/* The scoreboard over left-center field. */}
+      <rect x="150" y="30" width="330" height="92" rx="6" fill="#0b1220" />
+      <rect x="156" y="36" width="318" height="80" rx="3" fill={`url(#${id}-screen)`} />
+      <Fit x={315} y={56} w={240} size={12} fill="#fde68a" spacing={1.5}>
+        ALGEBRIDGE BALLPARK
+      </Fit>
+      <Fit x={315} y={88} w={290} size={22} fill="#ffffff" weight={900}>
+        {score}
+      </Fit>
+      <text x="315" y="108" textAnchor="middle" fontSize="10" fontWeight="800" fill="#86efac" fontFamily="ui-monospace, monospace" letterSpacing="1.5">
+        TOP 1ST · 0 OUT
+      </text>
+      {/* The outfield wall: padded green, the yellow home run line along its top, ads and distance markers. */}
+      <rect x="-20" y={WALL.top} width={W + 40} height={WALL.foot - WALL.top} fill="url(#bb-wall)" />
+      <rect x="-20" y={WALL.top} width={W + 40} height="4" fill="#facc15" />
+      {Array.from({ length: 25 }, (_, i) => (
+        <rect key={i} x={-20 + i * 50} y={WALL.top + 4} width="1.5" height={WALL.foot - WALL.top - 4} fill="#0f3d21" opacity="0.5" />
+      ))}
+      <CourtBoards
+        id={id}
+        y={WALL.top + 14}
+        h={22}
+        x0={110}
+        x1={1090}
+        reflect={false}
+        boards={[
+          { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
+          { text: "LET'S GO LIAM", bg: "#f8fafc", fg: "#1d3461" },
+          { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#1d3461" },
+          { text: "ALGEBRIDGE", bg: "#dc2626", fg: "#ffffff" },
+          { text: "OVER THE WALL", bg: "#0f172a", fg: "#fde68a" },
+        ]}
+      />
+      {[
+        { x: 70, t: "330" },
+        { x: 600, t: "400" },
+        { x: 1130, t: "330" },
+      ].map((m) => (
+        <text key={m.x} x={m.x} y={WALL.foot - 8} textAnchor="middle" fontSize="18" fontWeight="900" fill="#f8fafc" fontFamily={FONT} opacity="0.9">
+          {m.t}
+        </text>
+      ))}
+      {/* Foul poles at the ends of the wall. */}
+      {[WALL.x0, WALL.x1].map((x) => (
+        <g key={x}>
+          <rect x={x - 3} y="118" width="6" height={WALL.foot - 118} fill="#facc15" />
+          <rect x={x - 1} y="118" width="2" height={WALL.foot - 118} fill="#fef3c7" opacity="0.7" />
+        </g>
+      ))}
+      {/* The warning track, then the outfield grass: stripes across and along, the grass itself, the sun on it. */}
+      <rect x="-20" y={WALL.foot} width={W + 40} height={trackFoot - WALL.foot + 2} fill="#b6713c" />
+      <rect x="-20" y={WALL.foot} width={W + 40} height="3" fill="#000000" opacity="0.25" />
+      {bands.map((b, i) => (
+        <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#3c9d4a" : "#338f41"} />
+      ))}
+      {lanes.map((x, i) =>
+        i % 2 ? null : (
+          <path key={x} d={`M${toward(x, H, trackFoot)} ${trackFoot} L${toward(x + 220, H, trackFoot)} ${trackFoot} L${x + 220} ${H} L${x} ${H}Z`} fill="#ffffff" opacity="0.05" />
+        )
+      )}
+      <rect x="-20" y={trackFoot} width={W + 40} height={H - trackFoot + 20} fill="url(#bb-grass)" />
+      <rect x="-20" y={trackFoot} width={W + 40} height={H - trackFoot + 20} fill="url(#bb-pool)" />
+      {/* The infield skin: dirt from the plate out past the bases, round behind second. */}
+      <path d={`M${PLATE.x} ${PLATE.y + 30} L${BASES.first.x + 54} ${BASES.first.y - 30} Q600 330 ${BASES.third.x - 54} ${BASES.third.y - 30}Z`} fill="#c4853f" />
+      <path d={`M${PLATE.x} ${PLATE.y + 30} L${BASES.first.x + 54} ${BASES.first.y - 30} Q600 330 ${BASES.third.x - 54} ${BASES.third.y - 30}Z`} fill="url(#bb-dirt)" />
+      {/* The infield grass inside the base paths, with its own stripes. */}
+      <g clipPath="url(#bb-infield)">
+        {bands.map((b, i) => (
+          <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#3c9d4a" : "#338f41"} />
+        ))}
+        <rect x="-20" y={trackFoot} width={W + 40} height={H - trackFoot + 20} fill="url(#bb-grass)" />
+      </g>
+      {/* The mound and its rubber, the dirt circle at the plate, the batter's boxes, the plate. */}
+      <ellipse cx={MOUND.x} cy={MOUND.y} rx="40" ry="14" fill="#d59a55" />
+      <ellipse cx={MOUND.x} cy={MOUND.y - 2} rx="30" ry="9" fill="#dfa964" />
+      <rect x={MOUND.x - 9} y={MOUND.y - 5} width="18" height="3" rx="1" fill="#f8fafc" />
+      <ellipse cx={PLATE.x} cy={PLATE.y - 4} rx="130" ry="40" fill="#c4853f" />
+      <ellipse cx={PLATE.x} cy={PLATE.y - 4} rx="130" ry="40" fill="url(#bb-dirt)" />
+      <path d={`M${PLATE.x - 72} ${PLATE.y - 30} L${PLATE.x - 32} ${PLATE.y - 30} L${PLATE.x - 26} ${PLATE.y + 14} L${PLATE.x - 80} ${PLATE.y + 14}Z M${PLATE.x + 32} ${PLATE.y - 30} L${PLATE.x + 72} ${PLATE.y - 30} L${PLATE.x + 80} ${PLATE.y + 14} L${PLATE.x + 26} ${PLATE.y + 14}Z`} fill="none" stroke="#f8fafc" strokeWidth="3" opacity="0.9" />
+      <path d={`M${PLATE.x - 12} ${PLATE.y - 10} L${PLATE.x + 12} ${PLATE.y - 10} L${PLATE.x + 12} ${PLATE.y - 2} L${PLATE.x} ${PLATE.y + 6} L${PLATE.x - 12} ${PLATE.y - 2}Z`} fill="#f8fafc" />
+      {/* The foul lines, chalk from the plate out to the poles. */}
+      <path d={`M${PLATE.x - 8} ${PLATE.y} L${WALL.x0} ${WALL.foot} M${PLATE.x + 8} ${PLATE.y} L${WALL.x1} ${WALL.foot}`} stroke="#f8fafc" strokeWidth="3" opacity="0.92" />
+      <Base x={BASES.first.x} y={BASES.first.y} />
+      <Base x={BASES.second.x} y={BASES.second.y} />
+      <Base x={BASES.third.x} y={BASES.third.y} />
+      {/* Dugouts down each line, out of play: a roof, a rail, the bench with teammates. */}
+      {[0, 1].map((side) => {
+        const x = side ? 1066 : 2;
+        const shirt = side ? "#9ca3af" : "#1d3461";
+        return (
+          <g key={side}>
+            <ellipse cx={x + 66} cy="556" rx="74" ry="7" fill="#000000" opacity="0.3" />
+            <rect x={x} y="470" width="132" height="10" rx="2" fill="#1d3461" />
+            <rect x={x + 2} y="480" width="128" height="52" fill="#3a4a66" opacity="0.6" />
+            <rect x={x} y="478" width="4" height="74" fill="#1f2937" />
+            <rect x={x + 128} y="478" width="4" height="74" fill="#1f2937" />
+            <rect x={x + 6} y="528" width="120" height="8" rx="3" fill="#374151" />
+            {[0, 1, 2].map((i) => (
+              <Person key={i} x={x + 28 + i * 38} y={534} h={46} shirt={shirt} skin={SKINS[(i * 2 + side) % SKINS.length]} hair={HAIRS[(i + 3 + side * 2) % HAIRS.length]} />
+            ))}
+            <rect x={x + 2} y="540" width="128" height="4" fill="#111827" />
+            {[0, 1, 2, 3].map((i) => (
+              <rect key={i} x={x + 14 + i * 30} y="546" width="3" height="10" rx="1" fill="#d8b485" />
+            ))}
+          </g>
+        );
+      })}
+      {/* A bat rack and the ball bucket by the near dugout, an equipment bag by the other. */}
+      <ellipse cx="60" cy="590" rx="16" ry="6" fill="#f8fafc" />
+      <ellipse cx="60" cy="586" rx="16" ry="6" fill="#e5e7eb" />
+      {[50, 58, 66].map((cx) => (
+        <circle key={cx} cx={cx} cy={584} r="3.4" fill="#f8fafc" stroke="#dc2626" strokeWidth="0.6" />
+      ))}
+      <rect x="1104" y="582" width="40" height="14" rx="4" fill="#1d3461" />
+      <rect x="1110" y="578" width="14" height="6" rx="2" fill="#111827" />
+      <Vignette id={id} />
+    </Svg>
+  );
+}
+
 /** A court. `live` says a game is being played on it; motion also waits until it is on screen. */
 /**
  * A court. With `board`, it is a two-player match: the boards show the two
@@ -818,6 +1044,8 @@ export function CourtScene({ game, netHit, live = true, board, goalHit = null }:
         <CheerScene board={board} />
       ) : game === "volleyball" ? (
         board ? <VolleyMatchScene board={board} /> : <VolleyballScene board={board} />
+      ) : game === "baseball" ? (
+        <BaseballScene board={board} />
       ) : board ? (
         <SoccerMatchScene board={board} goalHit={goalHit} />
       ) : (

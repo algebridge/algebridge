@@ -47,6 +47,8 @@ const STAND = { thighF: 0, thighB: 0, shinF: 0, shinB: 0, armF: 0, armB: 0, fore
 export const GAITS: Record<CourtGameId, Gait> = {
   // Rayla: a footballer's run, long strides at pace, arms pumping.
   soccer: { strideSlow: 130, strideFast: 300, thigh: 30, knee: 80, arm: 34, foreSlow: -30, foreFast: -72, bob: 3.2, lean: 11, base: STAND },
+  // Liam: a ballplayer's run down the line, long strides, bat in hand.
+  baseball: { strideSlow: 126, strideFast: 286, thigh: 29, knee: 78, arm: 30, foreSlow: -28, foreFast: -68, bob: 3, lean: 10, base: STAND },
   // Jordyn: quick, explosive steps, a little shorter, from a soft-armed stance.
   volleyball: {
     strideSlow: 120,

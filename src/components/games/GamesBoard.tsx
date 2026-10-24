@@ -39,7 +39,7 @@ export interface GamesDemoStore {
 /**
  * The games: Veronica on her rink, and the team on their courts. Pick a
  * teammate, play here. Every game stops for head math from the unit you are
- * on, and all five pay from the same daily pot. The rink is also where the
+ * on, and all six pay from the same daily pot. The rink is also where the
  * pieces bought for it stand, and where they are moved around. /games
  * renders it on the student's save; /demo/games hands it a sandbox (`demo`).
  */
@@ -165,12 +165,12 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
         {!inDemo && <h1 className="page-title">Games</h1>}
         <p className="page-subtitle">
           Play with the team, alone or against a friend. Every game stops for a quick head-math question on the topic you pick, and every
-          right answer in a 1-player game pays Bridgeys, up to {RINK_DAILY_CAP} a day across all five games.
+          right answer in a 1-player game pays Bridgeys, up to {RINK_DAILY_CAP} a day across all six games.
         </p>
       </header>
 
       {/* The team: pick who to play with. */}
-      <nav aria-label="Pick a game" data-tour="games" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
+      <nav aria-label="Pick a game" data-tour="games" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-6 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
         {GAME_CARDS.map((g) => (
           <TeamTile key={g.id} card={g} active={g.id === picked} best={g.id === "rink" ? (progress?.rink?.best ?? 0) : (progress?.gameBest?.[g.id] ?? 0)} onPick={() => pick(g.id)} />
         ))}
@@ -248,7 +248,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
             <BridgeysLogo size={15} />
             <span>
               <span className="font-semibold tabular-nums text-slate-900">{remaining}</span> of {RINK_DAILY_CAP} left today, shared by all
-              five games
+              six games
             </span>
           </span>
           {best > 0 && (

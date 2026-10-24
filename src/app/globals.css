@@ -617,10 +617,10 @@ html.lenis body {
   to { rotate: y 720deg; }
 }
 
-/* ── The team: Shaurya, Kenise, Jordyn, Rayla ─────────────────────
+/* ── The team: Shaurya, Kenise, Jordyn, Rayla, Liam ───────────────
    The same joints as Veronica, SVG groups rotated about the shoulder and
    the elbow, the hip and the knee, with a run in place of a glide.
-   `.player-action` is each one's move: a shot, a jump, a spike, a strike.
+   `.player-action` is each one's move: a shot, a jump, a spike, a strike, a swing.
    Limbs hang straight at 0deg; negative turns them forward, the way each
    one faces, and a positive shin or a negative forearm bends the knee or
    the elbow the way a body bends. `.p-front` is the near arm, a second
@@ -903,6 +903,124 @@ html.lenis body {
 .player-soccer.player-action .p-body,
 .player-soccer.player-action .p-skirt {
   animation: p-kick-lean 0.9s ease-out;
+}
+
+/* Liam: at rest the bat stands up from his fists in front of his chest,
+   both hands on the grip (the far arm reaches round to meet the near one).
+   The swing: a small load back, the stride, the barrel through the ball
+   with the arms out straight, and a high finish over the front shoulder. */
+.player-baseball .p-arm-front {
+  transform: rotate(37deg);
+}
+.player-baseball .p-fore-front {
+  transform: rotate(-141deg);
+}
+.player-baseball .p-arm-back {
+  transform: rotate(-36deg);
+}
+.player-baseball .p-fore-back {
+  transform: rotate(-70deg);
+}
+.player-baseball .p-bat {
+  transition: transform 0.2s ease-out;
+}
+.player-baseball.player-moving .p-fore-front,
+.player-baseball.player-moving .p-fore-back {
+  transform: rotate(-62deg);
+}
+.player-baseball.player-action .p-arm-front {
+  animation: p-bat-arm-front 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-baseball.player-action .p-fore-front {
+  animation: p-bat-fore-front 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-baseball.player-action .p-arm-back {
+  animation: p-bat-arm-back 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-baseball.player-action .p-fore-back {
+  animation: p-bat-fore-back 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-baseball.player-action .p-bat {
+  animation: p-bat-swing 0.9s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.player-baseball.player-action .p-body,
+.player-baseball.player-action .p-skirt {
+  animation: p-bat-lean 0.9s ease-out;
+}
+.player-baseball.player-action .p-leg-front {
+  animation: p-bat-stride 0.9s ease-out;
+}
+.player-baseball.player-action .p-shin-front {
+  animation: p-bat-stride-knee 0.9s ease-out;
+}
+.player-baseball.player-action .p-leg-back {
+  animation: p-bat-pivot 0.9s ease-out;
+}
+.player-baseball.player-action .p-shin-back {
+  animation: p-bat-pivot-knee 0.9s ease-out;
+}
+@keyframes p-bat-arm-front {
+  0%, 100% { transform: rotate(37deg); }
+  26% { transform: rotate(44deg); }
+  46% { transform: rotate(-24deg); }
+  56% { transform: rotate(-80deg); }
+  72% { transform: rotate(-122deg); }
+}
+@keyframes p-bat-fore-front {
+  0%, 100% { transform: rotate(-141deg); }
+  26% { transform: rotate(-148deg); }
+  46% { transform: rotate(-88deg); }
+  56% { transform: rotate(-6deg); }
+  72% { transform: rotate(-38deg); }
+}
+@keyframes p-bat-arm-back {
+  0%, 100% { transform: rotate(-36deg); }
+  26% { transform: rotate(-28deg); }
+  46% { transform: rotate(-58deg); }
+  56% { transform: rotate(-84deg); }
+  72% { transform: rotate(-126deg); }
+}
+@keyframes p-bat-fore-back {
+  0%, 100% { transform: rotate(-70deg); }
+  26% { transform: rotate(-80deg); }
+  46% { transform: rotate(-40deg); }
+  56% { transform: rotate(-2deg); }
+  72% { transform: rotate(-30deg); }
+}
+@keyframes p-bat-swing {
+  0%, 100% { transform: rotate(0deg); }
+  26% { transform: rotate(-16deg); }
+  46% { transform: rotate(38deg); }
+  56% { transform: rotate(92deg); }
+  72% { transform: rotate(128deg); }
+}
+@keyframes p-bat-lean {
+  0%, 100% { transform: none; }
+  26% { transform: rotate(-6deg); }
+  56% { transform: rotate(7deg); }
+  72% { transform: rotate(3deg); }
+}
+@keyframes p-bat-stride {
+  0%, 100% { transform: rotate(0deg); }
+  26% { transform: rotate(-18deg); }
+  56% { transform: rotate(-12deg); }
+  76% { transform: rotate(-6deg); }
+}
+@keyframes p-bat-stride-knee {
+  0%, 100% { transform: rotate(0deg); }
+  26% { transform: rotate(18deg); }
+  56% { transform: rotate(4deg); }
+}
+@keyframes p-bat-pivot {
+  0%, 100% { transform: rotate(0deg); }
+  26% { transform: rotate(4deg); }
+  56% { transform: rotate(20deg); }
+  76% { transform: rotate(14deg); }
+}
+@keyframes p-bat-pivot-knee {
+  0%, 100% { transform: rotate(0deg); }
+  56% { transform: rotate(34deg); }
+  76% { transform: rotate(22deg); }
 }
 
 /* ── Life in the arenas ──────────────────────────────────────

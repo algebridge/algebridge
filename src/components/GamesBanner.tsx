@@ -29,12 +29,12 @@ export function GamesBanner() {
 
         <div className="relative flex flex-col gap-5 px-6 py-6 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-5">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-100">Five games, one team</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-100">Six games, one team</p>
             <h2 id="games-banner-title" className="mt-1.5 font-display text-[28px] font-normal leading-[1.05] tracking-[0.01em] sm:text-[34px]">
               Play with the team
             </h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-white/90">
-              Skate with Veronica, wrestle with Shaurya, cheer with Kenise, spike with Jordyn, or score with Rayla. Each game
+              Skate with Veronica, wrestle with Shaurya, cheer with Kenise, spike with Jordyn, score with Rayla, or bat with Liam. Each game
               stops for a quick head-math question from the unit you are on, and every right answer pays.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -55,14 +55,14 @@ export function GamesBanner() {
           </div>
 
           {/* The team, standing together, heights true to life. */}
-          <div className="figures-still relative mx-auto flex h-32 w-full max-w-[20rem] shrink-0 items-end justify-center sm:mx-0 sm:h-40 sm:w-80" aria-hidden>
+          <div className="figures-still relative mx-auto flex h-32 w-full max-w-[23rem] shrink-0 items-end justify-center sm:mx-0 sm:h-40 sm:w-[23rem]" aria-hidden>
             <div className="absolute inset-x-2 bottom-1 h-3 rounded-full bg-slate-950/25 blur-[2px]" />
             <TeamMember height={168}>
               <Veronica pose="idle" className="w-full" />
             </TeamMember>
             {COURT_GAMES.map((g, i) => (
               <TeamMember key={g.id} height={g.height}>
-                <Player game={g.id} pose="idle" facing={i >= 2 ? -1 : 1} className="w-full" />
+                <Player game={g.id} pose="idle" facing={i >= 3 ? -1 : 1} className="w-full" />
               </TeamMember>
             ))}
           </div>
