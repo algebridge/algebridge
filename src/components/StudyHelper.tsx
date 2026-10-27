@@ -88,7 +88,7 @@ import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
 import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble } from "@/components/helper/MessageBubble";
 import { prefersReducedMotion } from "@/lib/display";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 import { TypingDots } from "@/components/helper/TypingDots";
 import { SlipSteps } from "@/components/SlipSteps";
 import { answerInMessage, submitAnswerToCard } from "@/lib/answer-bridge";

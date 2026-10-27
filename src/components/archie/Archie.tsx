@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 import { prefersReducedMotion } from "@/lib/display";
 
 /**

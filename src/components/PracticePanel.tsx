@@ -59,7 +59,7 @@ import { JerseyAnswer, JerseyArt } from "@/components/games/Jersey";
 import { jerseyFor, jerseyNumberIn, playerNamedIn, sportOfTopic } from "@/lib/jerseys";
 import { prefersReducedMotion } from "@/lib/display";
 import { RunHud } from "@/components/RunHud";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 interface PracticePanelProps {
   skill: Skill;

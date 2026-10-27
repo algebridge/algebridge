@@ -12,7 +12,8 @@ import { UnitMark } from "@/components/UnitMark";
 import { certificateDateText, certificateList, type CertificateEntry } from "@/lib/certificates";
 import { unitHue } from "@/lib/hues";
 import { HALLOWEEN_AWARD_GOAL, seasonalCount } from "@/lib/gamification";
-import { HALLOWEEN_ENDS, seasonKey, useSeason } from "@/lib/season";
+import { HALLOWEEN_ENDS, seasonKey } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 export default function AchievementsPage() {
   const [mounted, setMounted] = useState(false);

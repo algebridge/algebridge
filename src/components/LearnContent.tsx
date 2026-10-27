@@ -27,7 +27,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { hueVars, unitHue } from "@/lib/hues";
 import { canTryCheck, CHECK_LENGTH, today } from "@/lib/path";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 import { bridgeysForSkill } from "@/lib/gamification";
 import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";

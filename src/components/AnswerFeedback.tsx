@@ -1,7 +1,8 @@
 "use client";
 
 import { Icon } from "@/components/Icon";
-import { useSeason, type Season } from "@/lib/season";
+import { type Season } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 // Short and steady, the way a good tutor sounds. The old lines ("Boom,
 // exactly right!", "You're on fire!") with a cartoon emoji read as a game.

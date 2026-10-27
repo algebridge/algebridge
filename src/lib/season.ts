@@ -13,8 +13,6 @@
  * `?season=auto`.
  */
 
-import { useSyncExternalStore } from "react";
-
 export type Season = "halloween" | null;
 
 /** Halloween season: all of October through November 2. */
@@ -59,42 +57,5 @@ export function seasonBootScript(): string {
   return `(function(){try{var k=${JSON.stringify(SEASON_OVERRIDE_KEY)};var q=new URLSearchParams(location.search).get("season");if(q==="off"||q==="halloween")localStorage.setItem(k,q);else if(q==="auto")localStorage.removeItem(k);var o=localStorage.getItem(k);var n=new Date();var cal=(n.getMonth()===9||(n.getMonth()===10&&n.getDate()<=2))?"halloween":"";var s=o==="off"?"":o==="halloween"?"halloween":cal;if(s)document.documentElement.setAttribute("data-season",s);else document.documentElement.removeAttribute("data-season");}catch(e){}})();`;
 }
 
-// --- The hook ----------------------------------------------------------------
-
-const listeners = new Set<() => void>();
-
-function subscribe(fn: () => void) {
-  listeners.add(fn);
-  window.addEventListener("storage", fn);
-  return () => {
-    listeners.delete(fn);
-    window.removeEventListener("storage", fn);
-  };
-}
-
-/** Set the season for this browser (null clears the override). */
-export function setSeasonOverride(value: "halloween" | "off" | null) {
-  try {
-    if (value) window.localStorage.setItem(SEASON_OVERRIDE_KEY, value);
-    else window.localStorage.removeItem(SEASON_OVERRIDE_KEY);
-  } catch {
-    // ignore
-  }
-  const s = currentSeason();
-  if (s) document.documentElement.setAttribute("data-season", s);
-  else document.documentElement.removeAttribute("data-season");
-  for (const fn of listeners) fn();
-}
-
-/**
- * The season, in a component. The server (and the first client render)
- * see none, so the HTML matches; the dressing comes in right after, and the
- * boot script above has already set the styles so nothing visibly changes.
- */
-export function useSeason(): Season {
-  return useSyncExternalStore(subscribe, () => currentSeason(), () => null);
-}
-
-export function isHalloween(season: Season): boolean {
-  return season === "halloween";
-}
+// The React hook lives in lib/use-season.ts: this file is imported by API
+// routes too, which must not pull in React's client hooks.

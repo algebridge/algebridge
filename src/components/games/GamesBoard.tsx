@@ -20,7 +20,7 @@ import type { UserProgress } from "@/types";
 import { prefersReducedMotion } from "@/lib/display";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 const LAST_GAME_KEY = "algebridge:last-game";
 

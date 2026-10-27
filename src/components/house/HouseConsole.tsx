@@ -32,7 +32,8 @@ import {
 } from "@/lib/bridgeys";
 import { showToast } from "@/lib/notify";
 import { TitlesPanel } from "@/components/house/TitlesPanel";
-import { HALLOWEEN_ENDS, useSeason } from "@/lib/season";
+import { HALLOWEEN_ENDS } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 import type { FurnitureItem, UserProgress } from "@/types";
 
 type Tab = "house" | "shop" | "titles";

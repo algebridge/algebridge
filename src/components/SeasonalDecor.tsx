@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 /**
  * The season's dressing over the page: a few leaves drifting down and the

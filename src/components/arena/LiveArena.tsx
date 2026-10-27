@@ -32,7 +32,7 @@ import { localTransport, realtimeTransport, type ArenaTransport } from "@/lib/ar
 import { useAuth } from "@/lib/auth";
 import { splitName } from "@/lib/name";
 import { fireConfetti } from "@/lib/notify";
-import { useSeason } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 import { useSound } from "@/hooks/useSound";
 
 /**

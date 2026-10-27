@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { HALLOWEEN_AWARD_GOAL } from "@/lib/gamification";
-import { HALLOWEEN_ENDS, useSeason } from "@/lib/season";
+import { HALLOWEEN_ENDS } from "@/lib/season";
+import { useSeason } from "@/lib/use-season";
 
 /**
  * What is on for the season, on the course page: the award, the titles and
