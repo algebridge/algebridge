@@ -11,6 +11,11 @@ import {
   setCalculatorOpen,
   setCalculatorRect,
   subscribeCalculatorAccess,
+  getCalculatorOpen,
+  getServerCalculatorOpen,
+  getCalculatorOpenRequests,
+  getServerCalculatorOpenRequests,
+  requestCalculatorOpen,
 } from "@/lib/calculator-access";
 import {
   DEFAULT_MODE,
@@ -187,6 +192,11 @@ export function Calculator() {
   const pathname = usePathname();
   const available = access !== false && !NO_MATH_PATHS.has(pathname ?? "");
   const shown = open && available;
+  // A card elsewhere (the game question) asked for the panel.
+  const openRequests = useSyncExternalStore(subscribeCalculatorAccess, getCalculatorOpenRequests, getServerCalculatorOpenRequests);
+  useEffect(() => {
+    if (openRequests > 0) setOpen(true);
+  }, [openRequests]);
 
   const size: Size = fitSize(expanded ? expandedSize(area, sizes[mode]) : sizes[mode], area);
   /** On a phone the panel is a sheet across the screen (inset-x-2), whatever size was saved. */
@@ -561,6 +571,7 @@ export function Calculator() {
           onKeyDown={onPanelKey}
           data-engine={desmos ? "desmos" : "algebridge"}
           data-expanded={expanded ? "true" : undefined}
+          data-calc-panel
           className={`fixed z-50 flex flex-col rounded-2xl border border-slate-200 bg-white ${PANEL_SHADOW} ${placement} ${
             shown ? "animate-fade-in" : "pointer-events-none invisible"
           }`}
@@ -689,5 +700,24 @@ export function Calculator() {
         </div>
       )}
     </>
+  );
+}
+
+
+/** A small "Calculator" button for a card to carry (the game question card): opens the floating calculator. */
+export function CalculatorButton({ className = "" }: { className?: string }) {
+  const open = useSyncExternalStore(subscribeCalculatorAccess, getCalculatorOpen, getServerCalculatorOpen);
+  return (
+    <button
+      type="button"
+      onClick={requestCalculatorOpen}
+      title={open ? "The calculator is open" : "Open the calculator"}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+        open ? "border-bridge-300 bg-bridge-50 text-bridge-700" : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+      } ${className}`}
+    >
+      <Icon name="keyboard" size={14} />
+      Calculator
+    </button>
   );
 }

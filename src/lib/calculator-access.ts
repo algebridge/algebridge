@@ -57,6 +57,19 @@ export function getServerCalculatorOpen(): boolean {
   return false;
 }
 
+/** Something outside the panel (a game card's button) asked for it to open. The panel watches the count. */
+let openRequests = 0;
+export function requestCalculatorOpen(): void {
+  openRequests += 1;
+  listeners.forEach((fn) => fn());
+}
+export function getCalculatorOpenRequests(): number {
+  return openRequests;
+}
+export function getServerCalculatorOpenRequests(): number {
+  return 0;
+}
+
 /**
  * Where the open calculator panel is on screen, so the study helper can rest
  * beside it wherever it was dragged, instead of beside the corner it starts in.

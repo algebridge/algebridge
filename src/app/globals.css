@@ -1784,3 +1784,12 @@ html[data-bare] main {
 .arena-boss-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ef4444, #7c2d12); transition: width .5s cubic-bezier(.3,1.4,.5,1); }
 @keyframes arena-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .arena-card, .arena-wrong, .arena-clock-low { animation: none; } }
+
+/* A game question is up (GameProblemDialog, z-600): the calculator button and
+   panel float above it, so a student can always reach them mid-game. */
+html[data-game-dialog] [data-calc-launch] {
+  z-index: 650;
+}
+html[data-game-dialog] [data-calc-panel] {
+  z-index: 660;
+}

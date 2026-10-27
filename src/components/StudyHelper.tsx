@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/Icon";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { createSessionRequest } from "@/lib/sessions";
 import { isRealName, splitName } from "@/lib/name";
@@ -299,7 +300,15 @@ interface Reaction {
 /** Archie, unless the student's teacher turned him off (src/lib/class-controls.ts). */
 export function StudyHelper() {
   const blocked = useClassBlocked();
-  return blocked.has("archie") ? null : <StudyHelperPanel />;
+  const pathname = usePathname();
+  // Archie sits out the sports games (/games): a buddy who can hint is not
+  // part of a race. The arena keeps him, like every other page.
+  const sportsPage = pathname === "/games";
+  useEffect(() => {
+    if (!sportsPage) return;
+    document.documentElement.removeAttribute("data-helper-dock");
+  }, [sportsPage]);
+  return blocked.has("archie") || sportsPage ? null : <StudyHelperPanel />;
 }
 
 function StudyHelperPanel() {

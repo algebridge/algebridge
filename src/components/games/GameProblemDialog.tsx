@@ -5,6 +5,7 @@ import { Icon } from "@/components/Icon";
 import { MathText, PromptText } from "@/components/PromptText";
 import { AnswerField } from "@/components/AnswerField";
 import { ScratchpadButton } from "@/components/Scratchpad";
+import { CalculatorButton } from "@/components/Calculator";
 import { JerseyAnswer } from "@/components/games/Jersey";
 import { jerseyNumberIn, type Sport } from "@/lib/jerseys";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
@@ -42,8 +43,9 @@ export interface GameTurn {
 
 /**
  * The problem a game stops for, over everything: the same card on the rink
- * and on every court. Head math, so the calculator stays away; the Draw
- * button on the card is there for working it out.
+ * and on every court. Head math, but the calculator and the Draw button are
+ * both on the card: while it is open, <html data-game-dialog> lifts the
+ * calculator above it (globals.css), so a student can always reach it.
  */
 export function GameProblemDialog({
   open,
@@ -72,6 +74,11 @@ export function GameProblemDialog({
   /** Soccer and volleyball: whole numbers from 0 to 99 show as that sport's jerseys (lib/jerseys.ts). */
   jerseys?: Sport;
 }) {
+  // While a game question is up, the calculator floats above it.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-game-dialog", "");
+    return () => document.documentElement.removeAttribute("data-game-dialog");
+  }, []);
   // Keyboard: the card takes the focus (the answer box, or the first choice), Tab stays in it, and the
   // focus goes back to the game when it closes.
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -127,7 +134,10 @@ export function GameProblemDialog({
           )}
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-slate-500">{note}</p>
-            <ScratchpadButton />
+            <span className="flex shrink-0 items-center gap-1.5">
+              <CalculatorButton />
+              <ScratchpadButton />
+            </span>
           </div>
           <PromptText text={stripVariantTag(problem.prompt)} />
           {!verdict ? (

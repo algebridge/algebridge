@@ -753,7 +753,7 @@ export function RinkGame({
           onCheck={check}
           onContinue={skateOn}
           continueLabel="Skate on"
-          note="In your head, or draw it out. The calculator stays off the ice."
+          note="In your head, draw it out, or grab the calculator."
           label="Rink problem"
           turn={dialogTurn}
         />
