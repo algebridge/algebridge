@@ -257,7 +257,7 @@ function BatIcon() {
 // Settings shared by hosting and playing here
 // ---------------------------------------------------------------------------
 
-function SettingsForm({ value, onChange }: { value: ArenaSettings; onChange: (v: ArenaSettings) => void }) {
+function SettingsForm({ value, onChange, players = false }: { value: ArenaSettings; onChange: (v: ArenaSettings) => void; /** Hosting over the network: say that players need no cap. */ players?: boolean }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block">
@@ -272,7 +272,7 @@ function SettingsForm({ value, onChange }: { value: ArenaSettings; onChange: (v:
         <span className="field-hint">Head math from units 1 to this one. Higher units come up more often.</span>
       </label>
       <div>
-        <span className="label">How many</span>
+        <span className="label">Questions per game</span>
         <div className="mt-1.5 flex gap-2">
           {QUESTION_COUNTS.map((n) => (
             <button
@@ -288,6 +288,11 @@ function SettingsForm({ value, onChange }: { value: ArenaSettings; onChange: (v:
         </div>
         <span className="field-hint">{SECONDS_PER_QUESTION} seconds each. Faster right answers score more.</span>
       </div>
+      {players && (
+        <p className="notice-info sm:col-span-2">
+          <span className="font-semibold">Players: no limit to set.</span> Anyone with the code joins from their phone, as many as show up (up to {MAX_PLAYERS} in a room). Start whenever the lobby looks full.
+        </p>
+      )}
     </div>
   );
 }
@@ -320,7 +325,7 @@ function HostSetup({ spooky }: { spooky: boolean }) {
   if (room) return <HostGame code={room.code} transport={room.transport} settings={settings} spooky={spooky} />;
   return (
     <div className="card space-y-5">
-      <SettingsForm value={settings} onChange={setSettings} />
+      <SettingsForm value={settings} onChange={setSettings} players />
       {error && <p className="notice-error">{error}</p>}
       <button type="button" onClick={() => void open()} className="btn-primary">
         Open the room
