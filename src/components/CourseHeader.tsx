@@ -46,7 +46,9 @@ export function CourseHeader({ course = "algebra-1" }: { course?: CourseId }) {
   // dashboard. Signed-in students swap to their own numbers once auth resolves.
   if (!user) {
     return (
-      <section className="relative overflow-hidden rounded-2xl bg-bridge-900 text-white">
+      <section className="season-hero relative overflow-hidden rounded-2xl bg-bridge-900 text-white">
+        {/* In season, a full moon over the night sky (season.css). */}
+        <span className="season-moon" aria-hidden="true" />
         <DotPattern
           width={20}
           height={20}

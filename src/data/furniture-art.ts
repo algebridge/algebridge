@@ -205,6 +205,88 @@ const SPINES = [C.red, C.blue, C.green, C.purple, C.orange, C.gold, C.teal, C.pi
 // --- The pieces -------------------------------------------------------------
 
 const ART: Record<string, () => string> = {
+  // ---- Halloween and fall (lib/season.ts) ---------------------------------
+  "jack-o-lantern": () =>
+    rect(47, 24, 6, 10, C.leaf, 2) +
+    ball(50, 60, 28, C.orange) +
+    oval(36, 60, 9, 26, shade(C.orange, 0.12)) +
+    oval(64, 60, 9, 26, shade(C.orange, 0.12)) +
+    oval(50, 60, 10, 28, tint(C.orange, 0.12)) +
+    (STATE.on
+      ? anim("glow", poly([[36, 50], [46, 50], [41, 41]], C.yellow) + poly([[54, 50], [64, 50], [59, 41]], C.yellow) + poly([[32, 64], [68, 64], [62, 76], [56, 70], [50, 78], [44, 70], [38, 76]], C.yellow), "50px 60px")
+      : poly([[36, 50], [46, 50], [41, 41]], C.ink) + poly([[54, 50], [64, 50], [59, 41]], C.ink) + poly([[32, 64], [68, 64], [62, 76], [56, 70], [50, 78], [44, 70], [38, 76]], C.ink)),
+  "candy-bowl": () =>
+    poly([[22, 60], [78, 60], [70, 86], [30, 86]], C.ink) +
+    poly([[66, 60], [78, 60], [70, 86], [62, 86]], shade(C.ink, 0.4)) +
+    repeat(9, (i) => ball(32 + (i % 5) * 9 + (i > 4 ? 4 : 0), 56 - Math.floor(i / 5) * 8, 4.5, [C.orange, C.purple, C.gold, C.green, C.rose][i % 5])) +
+    oval(50, 60, 28, 6, shade(C.ink, 0.2)),
+  cobweb: () =>
+    stroke("M50 8 L10 60 M50 8 L28 72 M50 8 L50 80 M50 8 L72 72 M50 8 L90 60", C.paper, 1.5) +
+    stroke("M30 36 Q50 30 70 36 M22 48 Q50 40 78 48 M15 58 Q50 52 85 58", C.paper, 1.3) +
+    stroke("M50 40 L50 62", C.chrome, 1) +
+    ball(50, 66, 5, C.ink) +
+    ball(50, 60, 3, C.ink) +
+    stroke("M45 64 L38 60 M45 68 L38 72 M55 64 L62 60 M55 68 L62 72", C.ink, 1.5),
+  "pumpkin-pile": () =>
+    ball(62, 66, 18, tint(C.orange, 0.55)) +
+    ball(34, 68, 22, C.orange) +
+    oval(28, 68, 7, 20, shade(C.orange, 0.12)) +
+    oval(40, 68, 7, 20, tint(C.orange, 0.12)) +
+    ball(66, 80, 10, C.leaf) +
+    rect(32, 42, 5, 8, C.leaf, 2) +
+    rect(60, 44, 4, 7, C.leaf, 2) +
+    oval(50, 90, 36, 4, shade(C.cream, 0.15)),
+  "hay-bale": () =>
+    block(14, 46, 72, 40, C.gold, { rx: 5, depth: 6, right: 4 }) +
+    repeat(14, (i) => rect(16 + (i * 13) % 66, 50 + (i * 7) % 28, 10, 1.6, i % 2 ? shade(C.gold, 0.2) : tint(C.gold, 0.35), 1)) +
+    rect(30, 46, 4, 40, shade(C.walnut, 0.1)) +
+    rect(62, 46, 4, 40, shade(C.walnut, 0.1)) +
+    block(50, 38, 30, 10, C.red, { rx: 3, depth: 3, right: 2 }),
+  "autumn-wreath": () =>
+    ring(50, 46, 26, 12, C.walnut) +
+    repeat(16, (i) => {
+      const a = (i / 16) * Math.PI * 2;
+      return ball(50 + Math.cos(a) * 26, 46 + Math.sin(a) * 26, 6, [C.orange, C.red, C.gold, C.walnut][i % 4]);
+    }) +
+    poly([[40, 72], [50, 78], [60, 72], [50, 84]], C.orange) +
+    ball(50, 78, 4, shade(C.orange, 0.2)),
+  "witch-broom": () =>
+    stroke("M62 10 L46 62", C.walnut, 6) +
+    poly([[40, 60], [54, 60], [66, 92], [26, 92]], C.gold) +
+    poly([[54, 60], [60, 62], [66, 92], [58, 92]], shade(C.gold)) +
+    repeat(8, (i) => line(30 + i * 4.5, 92, 32 + i * 4.3, 70, i % 2 ? shade(C.gold, 0.25) : tint(C.gold, 0.3), 1.4)) +
+    rect(39, 58, 18, 5, C.purple, 2),
+  "ghost-lamp": () =>
+    oval(50, 88, 16, 4, C.steel) +
+    path("M28 86 Q26 50 50 26 Q74 50 72 86 Q66 80 60 86 Q55 80 50 86 Q45 80 40 86 Q34 80 28 86Z", STATE.on ? C.paper : tint(C.steel, 0.6)) +
+    lit(anim("glow", oval(50, 56, 14, 18, tint(C.sky, 0.8)))) +
+    oval(43, 52, 3, 4.5, C.ink) +
+    oval(57, 52, 3, 4.5, C.ink) +
+    oval(50, 64, 3, 3.5, C.ink),
+  cauldron: () =>
+    legs(34, 62, 76, 12, C.ink, 5) +
+    lit(anim("flame", path("M40 88 Q38 76 50 72 Q62 76 60 88Z", C.orange) + path("M45 88 Q46 80 50 78 Q54 80 55 88Z", C.gold), "50px 88px")) +
+    path("M22 44 Q22 80 50 80 Q78 80 78 44Z", C.ink) +
+    path("M60 44 Q66 78 78 44Z", shade(C.ink, 0.45)) +
+    rect(20, 40, 60, 7, shade(C.ink, 0.3), 3) +
+    (STATE.on
+      ? anim("glow", oval(50, 43, 26, 5, C.green) + ball(42, 38, 3, tint(C.lime, 0.4)) + ball(56, 36, 2.5, tint(C.lime, 0.5)) + ball(50, 32, 2, tint(C.lime, 0.6)))
+      : oval(50, 43, 26, 5, shade(C.green, 0.4))) +
+    stroke("M58 42 L72 24", C.wood, 3),
+  scarecrow: () =>
+    rect(47, 20, 6, 70, C.walnut, 1) +
+    rect(14, 40, 72, 5, C.walnut, 2) +
+    block(34, 44, 32, 30, C.red, { rx: 5, depth: 4, right: 3 }) +
+    repeat(3, (i) => rect(34, 50 + i * 8, 32, 2, shade(C.red, 0.25))) +
+    block(36, 72, 28, 16, C.blue, { rx: 3, depth: 3, right: 2 }) +
+    rect(22, 46, 14, 7, C.gold, 3) +
+    rect(64, 46, 14, 7, C.gold, 3) +
+    ball(50, 32, 13, C.cream) +
+    poly([[30, 24], [70, 24], [58, 10], [42, 10]], C.gold) +
+    rect(28, 22, 44, 4, shade(C.gold)) +
+    ball(45, 31, 2, C.ink) +
+    ball(55, 31, 2, C.ink) +
+    stroke("M44 38 Q50 42 56 38", C.ink, 1.5),
   // ---- Common -------------------------------------------------------------
   rug: () =>
     oval(50, 74, 44, 16, C.wood) +
@@ -1066,6 +1148,8 @@ export const ART_IDS: string[] = Object.keys(ART);
  * the legs or the frame.
  */
 export const PRIMARY: Record<string, ColorKey> = {
+  "jack-o-lantern": "orange", "candy-bowl": "ink", cobweb: "ink", "pumpkin-pile": "orange", "hay-bale": "red",
+  "autumn-wreath": "orange", "witch-broom": "walnut", "ghost-lamp": "paper", cauldron: "green", scarecrow: "red",
   rug: "wood", plant: "orange", lamp: "gold", poster: "blue", chair: "gold", bookshelf: "walnut",
   beanbag: "purple", clock: "cream", "yoga-mat": "teal", "calculator-bot": "steel", "lava-lamp": "indigo",
   "homework-station": "wood", desk: "wood", bed: "blue", tv: "steel", whiteboard: "chrome", globe: "sky",
@@ -1102,6 +1186,7 @@ export const USABLE: ReadonlySet<string> = new Set([
   "prize-neon-line", "prize-zigzag", "prize-lasers", "rink-neon", "string-lights", "rink-arch", "chandelier",
   "fireplace", "lava-lamp", "jukebox", "holo-table", "ring-light", "pinball", "rink-scoreboard", "rink-speakers",
   "rink-disco", "disco-ball", "record-player", "fan", "dj-booth", "rink-dj", "time-machine",
+  "jack-o-lantern", "ghost-lamp", "cauldron",
 ]);
 
 export interface ArtOptions {

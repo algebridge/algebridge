@@ -58,6 +58,17 @@ export const USES: Record<UseKind, UseSpec> = {
 
 /** Each piece's job. Unit prizes open their own unit. */
 export const PIECE_USE: Record<string, UseKind> = {
+  // Halloween and fall (lib/season.ts)
+  "jack-o-lantern": "light",
+  "ghost-lamp": "light",
+  cauldron: "break",
+  "candy-bowl": "break",
+  "hay-bale": "break",
+  cobweb: "review",
+  scarecrow: "review",
+  "pumpkin-pile": "study",
+  "witch-broom": "draw",
+  "autumn-wreath": "certificates",
   // Study
   desk: "study",
   chair: "study",
@@ -265,6 +276,9 @@ export function pieceNote(itemId: string, live: LiveData, rest: { available: boo
     whiteboard: live.skillTitle ? `On the board: ${live.skillTitle}.` : "On the board: the skill you are on.",
     tv: live.skillTitle ? `Showing: ${live.skillTitle}.` : "Showing the skill you are on.",
     poster: live.keyIdea ? `The key idea of ${live.skillTitle ?? "your skill"}.` : "A classic formula, until you start a skill.",
+    cauldron: "Something is brewing: a fun fact, a joke or a quick quiz from Archie.",
+    cobweb: "Dusty skills gather here. Review brings back the ones that are due.",
+    scarecrow: "It watches for careless mistakes. Review keeps finished skills sharp.",
   };
   if (use === "water") {
     const pct = Math.round(live.growth * 100);

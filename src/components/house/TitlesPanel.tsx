@@ -4,12 +4,13 @@ import { useState } from "react";
 import { BridgeyPrice } from "@/components/house/BridgeyPrice";
 import { TitleBadge } from "@/components/TitleEmblem";
 import { TitlePlate } from "@/components/TitlePlate";
-import { DISPLAY_TITLES, getDisplayTitle } from "@/data/titles-catalog";
+import { getDisplayTitle, titlesForSeason } from "@/data/titles-catalog";
+import { HALLOWEEN_ENDS, useSeason } from "@/lib/season";
 import { useAuth } from "@/lib/auth";
 import { buyTitle, equipTitle, unequipTitle } from "@/lib/bridgeys";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { TIER_LABEL, tierOf, titlesByTier, type TitleTier } from "@/lib/titles";
-import type { UserProgress } from "@/types";
+import type { DisplayTitle, UserProgress } from "@/types";
 
 const TIER_CHIP: Record<TitleTier, string> = {
   common: "bg-slate-100 text-slate-700",
@@ -40,6 +41,11 @@ export function TitlesPanel({
   const [justWorn, setJustWorn] = useState<string | null>(null);
   const worn = progress.equippedTitleId ? getDisplayTitle(progress.equippedTitleId) ?? null : null;
   const owned = new Set(progress.ownedTitles);
+  const season = useSeason();
+  // Everything on sale now, plus any seasonal title the student already owns.
+  const inShop = titlesForSeason(season);
+  const all = [...inShop, ...progress.ownedTitles.map((id) => getDisplayTitle(id)).filter((t): t is NonNullable<typeof t> => !!t && !!t.season && !inShop.includes(t))];
+  const seasonalTitles = all.filter((t) => t.season);
   const where = school ? "on your profile and in your account menu" : "on your profile, in your account menu and on the leaderboard";
 
   function act(id: string, kind: "buy" | "wear") {
@@ -63,6 +69,65 @@ export function TitlesPanel({
     onUpdate();
   }
 
+  const renderTitle = (title: DisplayTitle) => {
+          const mine = owned.has(title.id);
+          const wearing = worn?.id === title.id;
+          const affordable = balance >= title.price;
+          const toGo = Math.max(0, title.price - (Number.isFinite(balance) ? balance : title.price));
+          return (
+            <article key={title.id} className={`card flex flex-col p-4 transition ${wearing ? "ring-2 ring-amber-400" : ""}`}>
+              <div className="flex items-start gap-3">
+                <TitleBadge title={title} size={56} />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-slate-900">{title.name}</h4>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{title.description}</p>
+                </div>
+              </div>
+
+              {/* How it looks on you. */}
+              <div className="mt-3 flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                <span className="shrink-0 text-xs font-semibold text-slate-700">{first}</span>
+                <TitlePlate title={title} size="xs" />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                {mine ? (
+                  <span className="text-xs font-medium text-slate-500">In your collection</span>
+                ) : (
+                  <BridgeyPrice amount={title.price} size="sm" muted={!affordable} />
+                )}
+                {wearing ? (
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Wearing</span>
+                ) : mine ? (
+                  <button type="button" onClick={() => act(title.id, "wear")} className="btn-secondary btn-sm">
+                    Wear
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!affordable}
+                    onClick={() => act(title.id, "buy")}
+                    className="btn-primary btn-sm"
+                    title={affordable ? `Buy and wear ${title.name}` : `${toGo.toLocaleString()} more Bridgeys needed`}
+                  >
+                    Buy and wear
+                  </button>
+                )}
+              </div>
+
+              {!mine && !affordable && (
+                <div className="mt-2">
+                  <div className="h-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-amber-300" style={{ width: `${Math.round((Math.max(0, balance) / title.price) * 100)}%` }} />
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500 tabular-nums">{toGo.toLocaleString()} more to go</p>
+                </div>
+              )}
+              <span className="sr-only">{TIER_LABEL[tierOf(title)]} title.</span>
+            </article>
+          );
+  };
+
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -72,10 +137,10 @@ export function TitlesPanel({
         </div>
         <div className="min-w-[10rem]">
           <p className="text-right text-sm text-slate-600 tabular-nums">
-            <span className="font-semibold text-slate-900">{progress.ownedTitles.length}</span> of {DISPLAY_TITLES.length} collected
+            <span className="font-semibold text-slate-900">{progress.ownedTitles.length}</span> of {all.length} collected
           </p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.round((progress.ownedTitles.length / DISPLAY_TITLES.length) * 100)}%` }} />
+            <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.round((progress.ownedTitles.length / all.length) * 100)}%` }} />
           </div>
         </div>
       </div>
@@ -100,7 +165,21 @@ export function TitlesPanel({
         )}
       </div>
 
-      {titlesByTier().map(({ tier, titles }) => {
+      {seasonalTitles.length > 0 && (
+        <div className="mt-8">
+          <div className="season-band px-5 py-4">
+            <span className="season-moon" aria-hidden="true" />
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-orange-200">Halloween titles</p>
+            <h3 className="mt-1 font-display text-2xl tracking-wide">Wear something spooky</h3>
+            <p className="mt-1 max-w-lg text-sm text-orange-50/90">
+              {season === "halloween" ? `In the shop until ${HALLOWEEN_ENDS}. Buy one and it is yours for good.` : "Yours from a past Halloween. They come back to the shop every October."}
+            </p>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{seasonalTitles.map(renderTitle)}</div>
+        </div>
+      )}
+
+      {titlesByTier(inShop.filter((t) => !t.season)).map(({ tier, titles }) => {
         const have = titles.filter((t) => owned.has(t.id)).length;
         return (
           <div key={tier.id} className="mt-8">
@@ -114,64 +193,7 @@ export function TitlesPanel({
               </p>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {titles.map((title) => {
-                const mine = owned.has(title.id);
-                const wearing = worn?.id === title.id;
-                const affordable = balance >= title.price;
-                const toGo = Math.max(0, title.price - (Number.isFinite(balance) ? balance : title.price));
-                return (
-                  <article key={title.id} className={`card flex flex-col p-4 transition ${wearing ? "ring-2 ring-amber-400" : ""}`}>
-                    <div className="flex items-start gap-3">
-                      <TitleBadge title={title} size={56} />
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-semibold text-slate-900">{title.name}</h4>
-                        <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{title.description}</p>
-                      </div>
-                    </div>
-
-                    {/* How it looks on you. */}
-                    <div className="mt-3 flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
-                      <span className="shrink-0 text-xs font-semibold text-slate-700">{first}</span>
-                      <TitlePlate title={title} size="xs" />
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                      {mine ? (
-                        <span className="text-xs font-medium text-slate-500">In your collection</span>
-                      ) : (
-                        <BridgeyPrice amount={title.price} size="sm" muted={!affordable} />
-                      )}
-                      {wearing ? (
-                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Wearing</span>
-                      ) : mine ? (
-                        <button type="button" onClick={() => act(title.id, "wear")} className="btn-secondary btn-sm">
-                          Wear
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={!affordable}
-                          onClick={() => act(title.id, "buy")}
-                          className="btn-primary btn-sm"
-                          title={affordable ? `Buy and wear ${title.name}` : `${toGo.toLocaleString()} more Bridgeys needed`}
-                        >
-                          Buy and wear
-                        </button>
-                      )}
-                    </div>
-
-                    {!mine && !affordable && (
-                      <div className="mt-2">
-                        <div className="h-1 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-amber-300" style={{ width: `${Math.round((Math.max(0, balance) / title.price) * 100)}%` }} />
-                        </div>
-                        <p className="mt-1 text-[11px] font-medium text-slate-500 tabular-nums">{toGo.toLocaleString()} more to go</p>
-                      </div>
-                    )}
-                    <span className="sr-only">{TIER_LABEL[tierOf(title)]} title.</span>
-                  </article>
-                );
-              })}
+              {titles.map(renderTitle)}
             </div>
           </div>
         );

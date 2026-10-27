@@ -27,6 +27,21 @@ import { listTopics, type InterestTopic } from "@/lib/interests";
 // language, new slang) still reaches the model, which answers with the one
 // word CRISIS; /api/helper and the panel turn that into the fixed help.
 import { CRISIS_MODEL_RULE } from "@/lib/helper";
+import type { Season } from "@/lib/season";
+import {
+  ALL_HALLOWEEN_LINES,
+  HALLOWEEN_BYE_LINES,
+  HALLOWEEN_FIRST_OPEN_LINES,
+  HALLOWEEN_FUN_FACTS,
+  HALLOWEEN_GREETINGS,
+  HALLOWEEN_IDLE_NUDGES,
+  HALLOWEEN_JOKES,
+  HALLOWEEN_PROMPT_NOTE,
+  HALLOWEEN_RIGHT_LINES,
+  HALLOWEEN_STREAK_LINES,
+  HALLOWEEN_WRONG_LINES,
+  withSeason,
+} from "@/lib/archie-season";
 
 // ---------------------------------------------------------------------------
 // The system prompt
@@ -79,12 +94,13 @@ export function cleanFirstName(name: string | null | undefined): string | null {
  */
 export function archiePersonaPrompt(
   student: { firstName?: string | null; interests?: InterestTopic[] } = {},
-  { lite = false }: { lite?: boolean } = {}
+  { lite = false, season = null }: { lite?: boolean; season?: Season } = {}
 ): string {
   const lines = [lite ? ARCHIE_PERSONA_LITE : ARCHIE_PERSONA];
   const name = cleanFirstName(student.firstName);
   if (name) lines.push(`The student's first name is ${name}.`);
   if (lite) return lines.join("\n");
+  if (season === "halloween") lines.push(HALLOWEEN_PROMPT_NOTE);
   const topics = (student.interests ?? []).filter((t) => t && typeof t.label === "string").slice(0, 6);
   if (topics.length)
     lines.push(
@@ -252,18 +268,23 @@ export interface GreetingInput {
   problem: boolean;
   recent?: readonly string[];
   random?: () => number;
+  /** The season the site is dressed for (lib/season.ts): in October he says hello in costume. */
+  season?: Season;
 }
 
 /** The first message in a conversation. */
 export function greetingFor(g: GreetingInput): string {
   const random = g.random ?? Math.random;
   const recent = g.recent ?? [];
+  const season = g.season ?? null;
   if (g.mode === "reminder") return FORMULAS_INTRO;
   if (g.spoken) {
     return g.problem ? pickFresh(NEW_PROBLEM_LINES, recent, random) : "Still here! Ask me anything about Algebra 1.";
   }
   const hello = fillName(
-    g.met ? pickFresh(GREETINGS[timeOfDay(g.hour)], recent, random) : pickFresh(FIRST_OPEN_LINES, recent, random),
+    g.met
+      ? pickFresh(withSeason(GREETINGS[timeOfDay(g.hour)], HALLOWEEN_GREETINGS, season), recent, random)
+      : pickFresh(withSeason(FIRST_OPEN_LINES, HALLOWEEN_FIRST_OPEN_LINES, season), recent, random),
     g.name
   );
   const intro = g.problem
@@ -329,11 +350,19 @@ export function practiceTemplate(
   outcome: "correct" | "wrong",
   streak: number,
   recent: readonly string[],
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  season: Season = null
 ): string {
-  return outcome === "correct" && STREAK_LINES[streak]
-    ? STREAK_LINES[streak]
-    : pickFresh(outcome === "correct" ? RIGHT_LINES : WRONG_LINES, recent, random);
+  if (outcome === "correct" && STREAK_LINES[streak]) {
+    // In season, every other milestone gets the costume version.
+    const spooky = season === "halloween" ? HALLOWEEN_STREAK_LINES[streak] : undefined;
+    return spooky && random() < 0.5 ? spooky : STREAK_LINES[streak];
+  }
+  return pickFresh(
+    outcome === "correct" ? withSeason(RIGHT_LINES, HALLOWEEN_RIGHT_LINES, season) : withSeason(WRONG_LINES, HALLOWEEN_WRONG_LINES, season),
+    recent,
+    random
+  );
 }
 
 /** The same, with the first name in. */
@@ -342,9 +371,24 @@ export function practiceLine(
   streak: number,
   name: string | null | undefined,
   recent: readonly string[],
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  season: Season = null
 ): string {
-  return fillName(practiceTemplate(outcome, streak, recent, random), name);
+  return fillName(practiceTemplate(outcome, streak, recent, random, season), name);
+}
+
+/** The pools that take seasonal lines, by season (lib/season.ts). */
+export function idleNudges(season: Season): readonly string[] {
+  return withSeason(IDLE_NUDGES, HALLOWEEN_IDLE_NUDGES, season);
+}
+export function byeLines(season: Season): readonly string[] {
+  return withSeason(BYE_LINES, HALLOWEEN_BYE_LINES, season);
+}
+export function jokes(season: Season): readonly string[] {
+  return withSeason(MATH_JOKES, HALLOWEEN_JOKES, season);
+}
+export function funFacts(season: Season): readonly string[] {
+  return withSeason(MATH_FUN_FACTS, HALLOWEEN_FUN_FACTS, season);
 }
 
 /**
@@ -686,4 +730,5 @@ export const ALL_PERSONA_LINES: readonly string[] = [
   ...QUIZ_REVEAL,
   ...EASY_QUIZ.flatMap((i) => [i.q, i.why]),
   HONEST_ABOUT_HIMSELF,
+  ...ALL_HALLOWEEN_LINES,
 ];

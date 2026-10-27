@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useSeason } from "@/lib/season";
 import { prefersReducedMotion } from "@/lib/display";
 
 /**
@@ -19,6 +20,9 @@ import { prefersReducedMotion } from "@/lib/display";
  */
 
 export type ArchiePose = "idle" | "wave" | "thinking" | "party" | "encourage" | "happy";
+
+/** What he wears: the season decides ("auto", lib/season.ts), or a caller asks for a hat or none. */
+export type ArchieCostume = "auto" | "none" | "witch";
 
 /** A small drawn mark that floats up beside him in the happy pose. */
 export type ArchieMark = "heart" | "star";
@@ -127,6 +131,41 @@ function Confetti() {
       <Dot x={60} y={5} r={2} fill={C.amber} delay={220} />
     </g>
   );
+}
+
+const HAT = { felt: "#3b1d5e", dark: "#24113d", band: "#e8741d", buckle: "#fbbf24" };
+
+/**
+ * A witch hat for Halloween season: a wide brim across the dome, a tall cone
+ * that bends over to the right, an orange band with a buckle. Same outline as
+ * the body, so it reads as part of him, not a sticker.
+ */
+function WitchHat() {
+  return (
+    <g className="archie-hat">
+      {/* Cone, bent at the top. */}
+      <path
+        d="M40 25 C44 14 48 6 56 -1 C66 -8 78 -8 84 -2 C78 -4 70 -2 66 5 C72 8 78 16 80 25 Z"
+        fill={HAT.felt}
+        stroke={C.line}
+        strokeWidth={LW}
+        strokeLinejoin="round"
+      />
+      {/* Band and buckle. */}
+      <path d="M41 21.5 C50 25.5 70 25.5 79 21.5 L80.5 25.5 C70 29 50 29 39.5 25.5 Z" fill={HAT.band} stroke={C.line} strokeWidth={1.6} strokeLinejoin="round" />
+      <rect x={56} y={21.8} width={8} height={6.4} rx={1.2} fill={HAT.buckle} stroke={C.line} strokeWidth={1.4} />
+      {/* Brim, over the top of the dome. */}
+      <path d="M22 27 C34 20 86 20 98 27 C88 32 32 32 22 27 Z" fill={HAT.dark} stroke={C.line} strokeWidth={LW} strokeLinejoin="round" />
+      <path d="M30 26.5 C44 23.5 76 23.5 90 26.5" fill="none" stroke={HAT.felt} strokeWidth={2.4} strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** The costume the season calls for, unless the caller said otherwise. */
+function useCostume(costume: ArchieCostume): "none" | "witch" {
+  const season = useSeason();
+  if (costume !== "auto") return costume;
+  return season === "halloween" ? "witch" : "none";
 }
 
 /** A heart or a star that pops up beside him and floats away (helper.css). */
@@ -279,6 +318,7 @@ export function Archie({
   burst = 0,
   mark = null,
   className = "",
+  costume = "auto",
 }: {
   pose?: ArchiePose;
   size?: number;
@@ -290,11 +330,14 @@ export function Archie({
   /** In the happy pose, a heart or a star floats up beside him. */
   mark?: ArchieMark | null;
   className?: string;
+  costume?: ArchieCostume;
 }) {
   const closed = useBlink(blink && pose !== "party" && pose !== "happy");
+  const wearing = useCostume(costume);
   return (
     <svg
       viewBox="0 0 120 120"
+      overflow="visible"
       width={size}
       height={size}
       className={`archie archie-pose-${pose} ${bob ? "archie-bob" : ""} ${className}`}
@@ -329,6 +372,7 @@ export function Archie({
           <Eyes pose={pose} look={look} closed={closed} />
           <Mouth pose={pose} />
           {pose === "thinking" && <Limb d="M96 78 Q96 90 82 84 Q77 82 76 79" hand={[73, 73]} />}
+          {wearing === "witch" && <WitchHat />}
         </g>
       </g>
     </svg>
@@ -347,14 +391,17 @@ export function ArchieFace({
   look = null,
   blink = false,
   className = "",
+  costume = "auto",
 }: {
   size?: number;
   mood?: FaceMood;
   look?: Look | null;
   blink?: boolean;
   className?: string;
+  costume?: ArchieCostume;
 }) {
   const closed = useBlink(blink && mood !== "happy");
+  const wearing = useCostume(costume);
   const rest = mood === "thinking" ? { x: 1.2, y: -1.8 } : { x: 0.6, y: 0.9 };
   const at = look ? { x: Math.max(-1, Math.min(1, look.x)) * 1.6, y: Math.max(-1, Math.min(1, look.y)) * 2 } : rest;
   return (
@@ -363,10 +410,17 @@ export function ArchieFace({
       width={size}
       height={size}
       className={`archie-face ${className}`}
+      overflow="visible"
       aria-hidden="true"
       focusable="false"
     >
       <circle cx={24} cy={24} r={24} fill={C.body} />
+      {/* The dome here is 24 wide where the full figure's is 38: the same hat, scaled, brim at the top of the circle. */}
+      {wearing === "witch" && (
+        <g transform="translate(-13.9 -9.5) scale(0.632)">
+          <WitchHat />
+        </g>
+      )}
       <path d="M8.5 19 C9.6 13.5 13 9.4 17.6 7.6" fill="none" stroke={C.shine} strokeWidth={3} strokeLinecap="round" />
       {size >= 26 &&
         [9.5, 38.5].map((x) => <ellipse key={x} cx={x} cy={29} rx={3} ry={1.9} fill={C.cheek} />)}

@@ -8,7 +8,13 @@
  * cannot say "close", because Archie does not know how close it was.
  */
 
+import type { Season } from "@/lib/season";
+
 export type PracticeOutcome = "correct" | "wrong";
+
+/** In Halloween season (lib/season.ts), mixed into the pools below. Same rules: one line, no claim about the answer. */
+export const HALLOWEEN_CORRECT_LINES = ["Scary good.", "That's a treat.", "Spell cast. Nicely done.", "Boo-tiful work."] as const;
+export const HALLOWEEN_WRONG_LINES = ["Not yet. No tricks. Try again.", "That one's hiding. Look again.", "Spooky, not scary. One more go."] as const;
 
 export const CORRECT_LINES = [
   "Nice one. Want to try the next?",
@@ -48,10 +54,13 @@ export function reactionLine(
   outcome: PracticeOutcome,
   streak: number,
   recent: readonly string[],
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  season: Season = null
 ): string {
   if (outcome === "correct" && STREAK_LINES[streak]) return STREAK_LINES[streak];
-  return pickLine(outcome === "correct" ? CORRECT_LINES : WRONG_LINES, recent, random);
+  const spooky = season === "halloween";
+  const pool = outcome === "correct" ? (spooky ? [...CORRECT_LINES, ...HALLOWEEN_CORRECT_LINES] : CORRECT_LINES) : spooky ? [...WRONG_LINES, ...HALLOWEEN_WRONG_LINES] : WRONG_LINES;
+  return pickLine(pool, recent, random);
 }
 
 /** The first thing Archie says, by first name when he knows it. */
@@ -73,4 +82,6 @@ export const ALL_LINES: readonly string[] = [
   ...Object.values(STREAK_LINES),
   ...HEART_QUIPS,
   ...STAR_QUIPS,
+  ...HALLOWEEN_CORRECT_LINES,
+  ...HALLOWEEN_WRONG_LINES,
 ];

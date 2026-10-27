@@ -45,7 +45,7 @@ export function SideNav() {
   const blocked = useClassBlocked();
 
   return (
-    <aside aria-label="Site menu" className="fixed inset-y-0 left-0 z-30 hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+    <aside aria-label="Site menu" className="season-sidenav fixed inset-y-0 left-0 z-30 hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 pl-5 pr-3">
         <CourseSwitch size="lg" />
       </div>

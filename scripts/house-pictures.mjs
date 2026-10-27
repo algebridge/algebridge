@@ -16,7 +16,7 @@ const port = 9300 + Math.floor(Math.random() * 90);
 const proc = spawn(chrome, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(path.join(tmpdir(), "pics-"))}`, "--no-first-run", "--enable-gpu", "--use-angle=metal", "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let v;
-for (let i = 0; i < 60 && !v; i++) {
+for (let i = 0; i < 400 && !v; i++) {
   try {
     v = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   } catch {

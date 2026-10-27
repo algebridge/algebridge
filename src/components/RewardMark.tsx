@@ -18,6 +18,7 @@ const BADGE_ICONS: Record<string, IconName> = {
   "video-buff": "play",
   "level-5": "leaderboard",
   "course-complete": "trophy",
+  "pumpkin-patch-2026": "pumpkin",
 };
 
 /** A badge's mark: its icon in a tile, muted until it is earned. */
@@ -27,7 +28,11 @@ export function BadgeMark({ id, earned, size = 44 }: { id: string; earned: boole
       aria-hidden
       style={{ width: size, height: size }}
       className={`flex shrink-0 items-center justify-center rounded-xl ${
-        earned ? "bg-bridge-50 text-bridge-700 ring-1 ring-inset ring-bridge-100" : "bg-slate-100 text-slate-400"
+        earned
+          ? id.startsWith("pumpkin-patch")
+            ? "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
+            : "bg-bridge-50 text-bridge-700 ring-1 ring-inset ring-bridge-100"
+          : "bg-slate-100 text-slate-400"
       }`}
     >
       <Icon name={BADGE_ICONS[id] ?? "trophy"} size={Math.round(size * 0.5)} />

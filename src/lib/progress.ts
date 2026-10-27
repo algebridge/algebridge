@@ -1,4 +1,5 @@
 import type { GeneratedProblem, MasteryLevel, UserProgress, SkillProgress, Unit } from "@/types";
+import { seasonKey } from "@/lib/season";
 import { units, COURSES, type CourseId } from "@/data/curriculum";
 import {
   BADGES,
@@ -412,7 +413,11 @@ export function recordProblemAttempt(
     videoWatched: existing.videoWatched,
   };
 
-  if (correct) progress.totalProblemsSolved += 1;
+  if (correct) {
+    progress.totalProblemsSolved += 1;
+    const season = seasonKey();
+    if (season) progress.seasonal = { ...(progress.seasonal ?? {}), [season]: (progress.seasonal?.[season] ?? 0) + 1 };
+  }
   applyStreakForActivity(progress);
   const dailyBonus = correct ? tallyDaily(progress) : 0;
   const answerBridgeys = correct && opts?.firstTry ? payAnswer(progress, opts.run ?? 1) : 0;

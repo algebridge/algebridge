@@ -39,6 +39,7 @@ import { buildLocalChatReply, stripMarkdownEmphasis } from "@/lib/tutor";
 import { clientKey, helperGroqModels, makeRateLimiter, sessionKey } from "@/lib/ai-provider";
 import { archiePersonaPrompt, claimsAHumanLife, cleanFirstName, honestAboutHimself } from "@/lib/archie-persona";
 import { sanitizeTopics, type InterestTopic } from "@/lib/interests";
+import { seasonFor, type Season } from "@/lib/season";
 
 /**
  * The helper endpoint.
@@ -80,12 +81,15 @@ interface HelperRequest {
   firstName?: unknown;
   /** The interests they picked: labels, or {label, specifics}. Cleaned like any topic, at most 6. */
   interests?: unknown;
+  /** The season the student's device shows (lib/season.ts): the costume note goes in the prompt. Only a known value counts. */
+  season?: unknown;
 }
 
 /** What the prompt may know about the student: a first name and up to six interests. */
 interface StudentForPrompt {
   firstName?: string | null;
   interests?: InterestTopic[];
+  season?: Season;
 }
 
 type Source = "ai" | "local" | "gate";
@@ -171,7 +175,9 @@ function cleanStudent(body: HelperRequest): StudentForPrompt {
       return null;
     })
     .filter((t): t is { label: string; details: string; specifics?: string } => t !== null);
-  return { firstName, interests: sanitizeTopics(topics).slice(0, 6) };
+  // The calendar decides; the client may only ask for the season it shows (a preview out of season).
+  const season: Season = body.season === "halloween" ? "halloween" : body.season === null ? null : seasonFor();
+  return { firstName, interests: sanitizeTopics(topics).slice(0, 6), season };
 }
 
 /** The house format, after the persona: what the panel can show. */
@@ -202,7 +208,7 @@ Do not teach math here and do not answer any math question.`;
   // A made-up example stays off the answer too, even when the problem prints
   // that number for another reason: "a slope of 2" on a slope-2 problem.
   const exampleAvoid = [...new Set([...avoid, ...answerForms(ctx.answer)])];
-  return `${archiePersonaPrompt(student)}
+  return `${archiePersonaPrompt(student, { season: student.season ?? null })}
 ${FORMAT}
 Skill: ${ctx.skillTitle ?? "Algebra 1"}
 Key idea: ${ctx.keyIdea ?? "n/a"}

@@ -68,7 +68,9 @@ export type IconName =
   | "printer"
   | "download"
   | "versus"
-  | "text-size";
+  | "text-size"
+  | "pumpkin"
+  | "ghost";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -234,6 +236,22 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // A jack-o'-lantern: a ribbed pumpkin with a stem and a grin.
+  pumpkin: (
+    <>
+      <path d="M12 7.5c-1.4-1.2-3.2-1.5-4.8-.8C4.6 7.8 3 10.4 3 13.3 3 17.3 6 20.5 9 20.5c1.2 0 2.2-.4 3-1 .8.6 1.8 1 3 1 3 0 6-3.2 6-7.2 0-2.9-1.6-5.5-4.2-6.6-1.6-.7-3.4-.4-4.8.8Z" />
+      <path d="M12 7.5c-.3-1.6.2-3 1.6-4" />
+      <path d="M9 13.2v-.01M15 13.2v-.01" />
+      <path d="M8.5 16.2c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" />
+    </>
+  ),
+  // A small ghost.
+  ghost: (
+    <>
+      <path d="M6 20.5V11a6 6 0 0 1 12 0v9.5l-2.4-1.8-2.4 1.8-1.2-1.2-1.2 1.2-2.4-1.8Z" />
+      <path d="M9.8 11.2v-.01M14.2 11.2v-.01" />
+    </>
+  ),
   flame: <path d="M12 3c.4 2.9 3.6 4.6 3.6 8.3a3.6 3.6 0 0 1-7.2 0c0-1.3.5-2.2 1.1-3C7.6 9.7 6 11.8 6 14.6A6 6 0 0 0 12 21a6 6 0 0 0 6-6.3C18 9.2 13.4 7 12 3Z" />,
   coin: (
     <>

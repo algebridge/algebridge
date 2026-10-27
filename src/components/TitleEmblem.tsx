@@ -11,6 +11,56 @@ import type { DisplayTitle } from "@/types";
  * differently on every phone and read as a placeholder).
  */
 const EMBLEMS: Record<string, React.ReactNode> = {
+  // ---- Halloween season ----
+  // A candy in a twist wrapper.
+  "candy-counter": (
+    <>
+      <ellipse cx="12" cy="12" rx="5" ry="4" />
+      <path d="M7 12 L3 9 V15Z M17 12 L21 9 V15Z" />
+      <path d="M10 10.5 L10.5 13.5 M13.5 10.5 L14 13.5" />
+    </>
+  ),
+  // A jack-o'-lantern.
+  "pumpkin-patch-pro": (
+    <>
+      <path d="M12 8c-1.4-1.1-3.1-1.4-4.7-.7C4.7 8.4 3.2 10.9 3.2 13.6c0 3.8 2.9 6.9 5.8 6.9 1.1 0 2.1-.4 3-1 .9.6 1.9 1 3 1 2.9 0 5.8-3.1 5.8-6.9 0-2.7-1.5-5.2-4.1-6.3-1.6-.7-3.3-.4-4.7.7Z" />
+      <path d="M12 8c-.3-1.5.2-2.9 1.5-3.8" />
+      <path d="M8.3 12.4 L10.4 13.6 L8.3 14.4Z M15.7 12.4 L13.6 13.6 L15.7 14.4Z" />
+      <path d="M8.6 16.6h6.8l-1.1 1.4h-1.4l-.9-1.4-.9 1.4H9.7Z" />
+    </>
+  ),
+  // A tombstone on a grid.
+  "graveyard-grapher": (
+    <>
+      <path d="M3 20.5h18" />
+      <path d="M7.5 20.5V9a4.5 4.5 0 0 1 9 0v11.5" />
+      <path d="M10 12h4M12 10v6" />
+      <path d="M3.5 16.5h3M17.5 16.5h3M3.5 12.5h2.5M18 12.5h2.5" />
+    </>
+  ),
+  // A ghost.
+  "phantom-factorer": (
+    <>
+      <path d="M6 20.5V11a6 6 0 0 1 12 0v9.5l-2.4-1.8-2.4 1.8-1.2-1.2-1.2 1.2-2.4-1.8Z" />
+      <path d="M9.8 11.2v-.01M14.2 11.2v-.01" />
+      <path d="M10.5 14.5h3" />
+    </>
+  ),
+  // A witch hat.
+  "witch-of-x": (
+    <>
+      <path d="M3 18.5c3-1.5 15-1.5 18 0-3 1.5-15 1.5-18 0Z" />
+      <path d="M7 17.5 C8.5 12 10.5 7.5 15.5 3.5 C14 7 15.5 11 17 17.5" />
+      <path d="M7.4 15.5c3 .8 6.6.8 9.4 0" />
+    </>
+  ),
+  // A bat.
+  "count-quadratic": (
+    <>
+      <path d="M12 10.5c-1-1.8-2.6-2.5-4.3-2.2C6.8 6.8 5 6.5 3.5 7.6 2 8.6 1.5 10.8 2 13c1.3-1 2.9-.9 3.8.4.8-1 2-1 2.9 0 .6-1.1 1.8-1.3 2.8-.6L12 15.5l.5-2.7c1-.7 2.2-.5 2.8.6.9-1 2.1-1 2.9 0 .9-1.3 2.5-1.4 3.8-.4.5-2.2 0-4.4-1.5-5.4-1.5-1.1-3.3-.8-4.2.7-1.7-.3-3.3.4-4.3 2.2Z" />
+      <path d="M10.6 9.2v-.01M13.4 9.2v-.01" />
+    </>
+  ),
   // A shuriken.
   "algebra-ninja": (
     <>

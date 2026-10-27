@@ -691,7 +691,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     return max("common") < min("rare") && max("rare") < min("legendary");
   })());
   const titleIds = DISPLAY_TITLES.map((t) => t.id);
-  ok(`title ids are unique (${titleIds.length} titles)`, new Set(titleIds).size === titleIds.length && titleIds.length === 38);
+  ok(`title ids are unique (${titleIds.length} titles)`, new Set(titleIds).size === titleIds.length && titleIds.length === 44);
   // Pay grows with the unit.
   ok("unit 1 skills pay 10", G.bridgeysForSkill(units[0].skills[0].id) === 10);
   ok("unit 13 skills pay 34", G.bridgeysForSkill(units[12].skills[0].id) === 34);

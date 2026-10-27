@@ -47,7 +47,20 @@ export const DISPLAY_TITLES: DisplayTitle[] = [
   { id: "gridmaster", name: "Gridmaster", price: 330, description: "The coordinate plane is your home turf." },
   { id: "first-try-phenom", name: "First-Try Phenom", price: 380, description: "Five right, first try, every time." },
   { id: "keeper-of-the-bridge", name: "Keeper of the Bridge", price: 900, description: "You hold every unit's key." },
+
+  // Halloween season (lib/season.ts): in the shop October 1 to November 2. Bought ones stay for good.
+  { id: "candy-counter", name: "Candy Counter", price: 95, description: "Every piece sorted, tallied and totaled.", season: "halloween" },
+  { id: "pumpkin-patch-pro", name: "Pumpkin Patch Pro", price: 130, description: "You pick the right one every time.", season: "halloween" },
+  { id: "graveyard-grapher", name: "Graveyard Grapher", price: 210, description: "Plotting points by moonlight.", season: "halloween" },
+  { id: "phantom-factorer", name: "Phantom Factorer", price: 320, description: "Trinomials vanish when you walk in.", season: "halloween" },
+  { id: "witch-of-x", name: "Witch of x", price: 460, description: "One spell and the unknown gives itself up.", season: "halloween" },
+  { id: "count-quadratic", name: "Count Quadratic", price: 720, description: "Rises at night. Opens upward. Never misses a root.", season: "halloween" },
 ];
+
+/** The titles on sale in a season, and the ones that are always there. */
+export function titlesForSeason(season: "halloween" | null): DisplayTitle[] {
+  return DISPLAY_TITLES.filter((t) => !t.season || t.season === season);
+}
 
 export function getDisplayTitle(id: string): DisplayTitle | undefined {
   return DISPLAY_TITLES.find((t) => t.id === id);

@@ -17,6 +17,7 @@ import { getRinkSlot, RINK_DAILY_CAP, rinkPayFor, rinkRemainingToday } from "@/l
 import { getUnitPrize, UNIT_PRIZES } from "@/data/house-catalog";
 import { units } from "@/data/curriculum";
 import { getSwatch, USABLE } from "@/data/furniture-art";
+import { currentSeason } from "@/lib/season";
 import { BRIDGEY_REWARDS, bridgeysForSkill } from "@/lib/gamification";
 import { getProgress, PROGRESS_UPDATED_EVENT, saveProgress, tallyDaily, touchActivity } from "@/lib/progress";
 import { pieceUse } from "@/lib/house-functions";
@@ -216,6 +217,7 @@ export function buyFurniture(itemId: string, color?: string | null): PurchaseRes
   const item = getFurnitureItem(itemId);
   if (!item) return { ok: false, message: "That furniture item doesn't exist." };
   if (item.earnedBy) return { ok: false, message: `${item.name} is a prize for finishing a unit, so it is earned rather than bought.` };
+  if (item.season && currentSeason() !== item.season) return { ok: false, message: `${item.name} comes back to the shop next October.` };
 
   const progress = store.get();
   ensureBridgeyFields(progress);

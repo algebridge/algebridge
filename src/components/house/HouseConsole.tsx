@@ -16,6 +16,7 @@ import { RoomShot } from "@/components/house/RoomShot";
 import {
   HOUSE_STYLES,
   getFurnitureItem,
+  SEASONAL_ITEMS,
   SHOP_ITEMS,
   UNIT_PRIZES,
 } from "@/data/house-catalog";
@@ -31,6 +32,7 @@ import {
 } from "@/lib/bridgeys";
 import { showToast } from "@/lib/notify";
 import { TitlesPanel } from "@/components/house/TitlesPanel";
+import { HALLOWEEN_ENDS, useSeason } from "@/lib/season";
 import type { FurnitureItem, UserProgress } from "@/types";
 
 type Tab = "house" | "shop" | "titles";
@@ -42,6 +44,8 @@ type Rarity = FurnitureItem["rarity"];
  * card, which looked like a focus state and was invisible next to a card that
  * genuinely had focus.
  */
+const SEASON_TIER = { label: "Halloween", dot: "bg-orange-500" };
+
 const RARITY_TIERS: { id: Rarity; label: string; dot: string; note: string }[] = [
   { id: "common", label: "Common", dot: "bg-slate-400", note: "Everyday pieces to fill the room." },
   { id: "rare", label: "Rare", dot: "bg-bridge-500", note: "Costlier, and worth more prestige." },
@@ -113,6 +117,9 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
   }
 
   const balance = unlimited ? Infinity : progress.bridgeys ?? 0;
+  /** In season every seasonal piece is on the shelf; out of season only the ones already owned. */
+  const season = useSeason();
+  const seasonalShelf = SEASONAL_ITEMS.filter((i) => season === i.season || progress.ownedFurniture.includes(i.id));
 
   // Derived once per render so the House tab summary and the shop share the
   // same numbers rather than each counting for themselves.
@@ -135,6 +142,86 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
       titles: progress.ownedTitles.length,
     };
   }, [progress]);
+
+  /** One piece in the shop: its picture on a band in its own colour, then the details and the price. */
+  const renderPiece = (item: FurnitureItem, tier: { label: string; dot: string }) => {
+              const owned = progress.ownedFurniture.includes(item.id);
+              const affordable = balance >= item.price;
+              const color = colorOf(item.id, owned);
+              const hex = color ? swatchHex(color) : primaryHex(item.id);
+              return (
+                <article
+                  key={item.id}
+                  className="card shop-card flex flex-col overflow-hidden p-0"
+                >
+                  {/* Same anatomy as a house-style card: art on a
+                      band tinted in the piece's own colour, then
+                      the details. */}
+                  <div
+                    className={`flex h-28 items-center justify-center border-b border-slate-100 ${
+                      !owned && !affordable ? "opacity-45" : ""
+                    }`}
+                    style={{ background: `linear-gradient(180deg, #f8fafc, ${hex}1a)` }}
+                  >
+                    <PieceShot itemId={item.id} color={color} alt={item.name} className="h-full w-full" />
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-3.5">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      {item.name}
+                    </h3>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                      <span className={`h-1.5 w-1.5 rounded-full ${tier.dot}`} />
+                      {tier.label}
+                      <span aria-hidden>·</span>
+                      <span className="tabular-nums">{item.prestige} prestige</span>
+                      {USABLE.has(item.id) && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>Has a switch</span>
+                        </>
+                      )}
+                    </p>
+                    {item.blurb && <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.blurb}</p>}
+                    <div className="mt-2">
+                      <ColorDots itemId={item.id} value={color} onPick={(s) => pickColor(item.id, owned, s)} size={14} />
+                    </div>
+
+                    <div className="mt-3 flex flex-1 items-end justify-between gap-2">
+                      <div>
+                        <BridgeyPrice
+                          amount={item.price}
+                          size="sm"
+                          muted={!owned && !affordable}
+                        />
+                        {!owned && !affordable && (
+                          <p className="mt-1 text-[11px] font-medium text-slate-400 tabular-nums">
+                            {(item.price - balance).toLocaleString()} more to go
+                          </p>
+                        )}
+                      </div>
+                      {owned ? (
+                        <span className="badge-success">Owned</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!affordable}
+                          onClick={() => handlePurchase(() => buyFurniture(item.id, preview[item.id]))}
+                          className="btn-primary btn-sm"
+                          title={
+                            affordable
+                              ? undefined
+                              : `${(item.price - balance).toLocaleString()} more Bridgeys needed`
+                          }
+                        >
+                          Buy
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+  };
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "house", label: "My house" },
@@ -405,6 +492,24 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
               </p>
             </div>
 
+            {seasonalShelf.length > 0 && (
+              <div className="mt-4">
+                <div className="season-band px-5 py-4">
+                  <span className="season-moon" aria-hidden="true" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-orange-200">Halloween shop</p>
+                  <h3 className="mt-1 font-display text-2xl tracking-wide">Decorate for the season</h3>
+                  <p className="mt-1 max-w-lg text-sm text-orange-50/90">
+                    {season === "halloween"
+                      ? `Pumpkins, a cauldron, a ghost lamp and more, until ${HALLOWEEN_ENDS}. Anything you buy is yours for good.`
+                      : "Yours from a past Halloween. The shelf comes back every October."}
+                  </p>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {seasonalShelf.map((item) => renderPiece(item, SEASON_TIER))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-4 space-y-6">
               {RARITY_TIERS.map((tier) => {
                 const items = SHOP_ITEMS.filter((i) => i.rarity === tier.id);
@@ -422,84 +527,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                     </div>
 
                     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {items.map((item) => {
-                        const owned = progress.ownedFurniture.includes(item.id);
-                        const affordable = balance >= item.price;
-                        const color = colorOf(item.id, owned);
-                        const hex = color ? swatchHex(color) : primaryHex(item.id);
-                        return (
-                          <article
-                            key={item.id}
-                            className="card shop-card flex flex-col overflow-hidden p-0"
-                          >
-                            {/* Same anatomy as a house-style card: art on a
-                                band tinted in the piece's own colour, then
-                                the details. */}
-                            <div
-                              className={`flex h-28 items-center justify-center border-b border-slate-100 ${
-                                !owned && !affordable ? "opacity-45" : ""
-                              }`}
-                              style={{ background: `linear-gradient(180deg, #f8fafc, ${hex}1a)` }}
-                            >
-                              <PieceShot itemId={item.id} color={color} alt={item.name} className="h-full w-full" />
-                            </div>
-
-                            <div className="flex flex-1 flex-col p-3.5">
-                              <h3 className="text-sm font-semibold text-slate-900">
-                                {item.name}
-                              </h3>
-                              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
-                                <span className={`h-1.5 w-1.5 rounded-full ${tier.dot}`} />
-                                {tier.label}
-                                <span aria-hidden>·</span>
-                                <span className="tabular-nums">{item.prestige} prestige</span>
-                                {USABLE.has(item.id) && (
-                                  <>
-                                    <span aria-hidden>·</span>
-                                    <span>Has a switch</span>
-                                  </>
-                                )}
-                              </p>
-                              {item.blurb && <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.blurb}</p>}
-                              <div className="mt-2">
-                                <ColorDots itemId={item.id} value={color} onPick={(s) => pickColor(item.id, owned, s)} size={14} />
-                              </div>
-
-                              <div className="mt-3 flex flex-1 items-end justify-between gap-2">
-                                <div>
-                                  <BridgeyPrice
-                                    amount={item.price}
-                                    size="sm"
-                                    muted={!owned && !affordable}
-                                  />
-                                  {!owned && !affordable && (
-                                    <p className="mt-1 text-[11px] font-medium text-slate-400 tabular-nums">
-                                      {(item.price - balance).toLocaleString()} more to go
-                                    </p>
-                                  )}
-                                </div>
-                                {owned ? (
-                                  <span className="badge-success">Owned</span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={!affordable}
-                                    onClick={() => handlePurchase(() => buyFurniture(item.id, preview[item.id]))}
-                                    className="btn-primary btn-sm"
-                                    title={
-                                      affordable
-                                        ? undefined
-                                        : `${(item.price - balance).toLocaleString()} more Bridgeys needed`
-                                    }
-                                  >
-                                    Buy
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </article>
-                        );
-                      })}
+                      {items.map((item) => renderPiece(item, tier))}
                     </div>
                   </div>
                 );

@@ -30,10 +30,10 @@ export function tierOf(title: DisplayTitle | number): TitleTier {
 }
 
 /** Every title, grouped by tier, cheapest first within each. */
-export function titlesByTier(): { tier: (typeof TIERS)[number]; titles: DisplayTitle[] }[] {
+export function titlesByTier(from: DisplayTitle[] = DISPLAY_TITLES): { tier: (typeof TIERS)[number]; titles: DisplayTitle[] }[] {
   return TIERS.map((tier) => ({
     tier,
-    titles: DISPLAY_TITLES.filter((t) => tierOf(t) === tier.id).sort((a, b) => a.price - b.price || a.name.localeCompare(b.name)),
+    titles: from.filter((t) => tierOf(t) === tier.id).sort((a, b) => a.price - b.price || a.name.localeCompare(b.name)),
   }));
 }
 

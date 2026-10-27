@@ -51,7 +51,7 @@ import { HEART_QUIPS, reactionLine, STAR_QUIPS } from "@/components/archie/lines
 import {
   AFFECTION_LINES,
   AHA_LINES,
-  BYE_LINES,
+  byeLines,
   chatRequestKind,
   checkQuizReply,
   CONFUSED_LINES,
@@ -64,9 +64,9 @@ import {
   GOT_IT_LINES,
   greetingFor,
   HELLO_REPLIES,
-  IDLE_NUDGES,
-  MATH_FUN_FACTS,
-  MATH_JOKES,
+  idleNudges,
+  funFacts,
+  jokes,
   MOTIVATE_LINES,
   pickFresh,
   practiceTemplate,
@@ -88,6 +88,7 @@ import { SCHOOL_ESCALATION_REPLY } from "@/lib/school-mode";
 import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble } from "@/components/helper/MessageBubble";
 import { prefersReducedMotion } from "@/lib/display";
+import { useSeason } from "@/lib/season";
 import { TypingDots } from "@/components/helper/TypingDots";
 import { SlipSteps } from "@/components/SlipSteps";
 import { answerInMessage, submitAnswerToCard } from "@/lib/answer-bridge";
@@ -305,6 +306,10 @@ function StudyHelperPanel() {
   const { user, profile, loading: authLoading } = useAuth();
   /** School mode: no booking, and an ask for a person points to the teacher. */
   const school = useSchoolMode();
+  /** Halloween season: a hat on him and a seasonal line now and then (lib/season.ts). */
+  const season = useSeason();
+  const seasonRef = useRef(season);
+  seasonRef.current = season;
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   /** Opened from memory on page load: no slide in, no focus grab. */
@@ -567,13 +572,13 @@ function StudyHelperPanel() {
       // Mid-sentence, he reacts without a word.
       if (now.typing) return showReaction(pose, null, ms);
       if (now.mode !== "tutor") {
-        const line = reactionLine(result, streak.current, recentLines.current);
+        const line = reactionLine(result, streak.current, recentLines.current, Math.random, seasonRef.current);
         recentLines.current = [line, ...recentLines.current].slice(0, 3);
         return showReaction(pose, line, ms);
       }
       // In Tutor mode he says it in the conversation, where it stays, and the
       // next practice line takes its place instead of stacking up.
-      const line = fillName(say(practiceTemplate(result, streak.current, recentSaid.current)), now.firstName);
+      const line = fillName(say(practiceTemplate(result, streak.current, recentSaid.current, Math.random, seasonRef.current)), now.firstName);
       const message = makeMessage({
         role: "assistant",
         kind: "buddy",
@@ -618,6 +623,7 @@ function StudyHelperPanel() {
         mode: mode === "reminder" ? "reminder" : "tutor",
         problem: !!problem,
         recent: recentSaid.current,
+        season,
       })
     );
     if (mode === "tutor") greeted.current = true;
@@ -630,7 +636,7 @@ function StudyHelperPanel() {
       animate: !prefersReducedMotion(),
     });
     update(key, (t) => (t.messages.length ? t : { ...t, messages: [hello] }));
-  }, [shown, mode, threadKey, nameReady, firstName, spoken, problem, say, update]);
+  }, [shown, mode, threadKey, nameReady, firstName, spoken, problem, say, update, season]);
 
   // A quiet student on a problem gets one soft nudge beside his name.
   // Not while the work pad is open: the nudges point at the chips, which it hides.
@@ -639,7 +645,7 @@ function StudyHelperPanel() {
     if (!shown || mode !== "tutor" || !problem || hasUser || busy || padShown) return;
     const id = window.setTimeout(() => {
       if (live.current.typing || live.current.busy || live.current.revealing) return;
-      showReaction("wave", say(pickFresh(IDLE_NUDGES, recentSaid.current)), 4200);
+      showReaction("wave", say(pickFresh(idleNudges(seasonRef.current), recentSaid.current)), 4200);
     }, NUDGE_MS);
     return () => window.clearTimeout(id);
   }, [shown, mode, problem, hasUser, busy, padShown, threadKey, showReaction, say]);
@@ -869,8 +875,9 @@ function StudyHelperPanel() {
   function funFact(): string {
     const forbidden = forbiddenNow();
     const clean = (l: string) => !leaksAnswer(l, forbidden);
-    if (!MATH_FUN_FACTS.some(clean)) return "I'll save my fun facts for after this problem. Want a hint instead?";
-    const fact = say(pickFresh(MATH_FUN_FACTS, recentSaid.current, Math.random, clean));
+    const facts = funFacts(season);
+    if (!facts.some(clean)) return "I'll save my fun facts for after this problem. Want a hint instead?";
+    const fact = say(pickFresh(facts, recentSaid.current, Math.random, clean));
     return `${fact} ${say(pickFresh(FACT_OUTROS, recentSaid.current))}`;
   }
 
@@ -892,8 +899,9 @@ function StudyHelperPanel() {
   function mathJoke(): string {
     const forbidden = forbiddenNow();
     const clean = (l: string) => !leaksAnswer(l, forbidden);
-    if (!MATH_JOKES.some(clean)) return "I'll save my jokes for after this problem. Want a hint instead?";
-    return say(pickFresh(MATH_JOKES, recentSaid.current, Math.random, clean));
+    const pool = jokes(season);
+    if (!pool.some(clean)) return "I'll save my jokes for after this problem. Want a hint instead?";
+    return say(pickFresh(pool, recentSaid.current, Math.random, clean));
   }
 
   /** The small-talk chips: the student's words go in, and Archie answers himself. */
@@ -1003,6 +1011,7 @@ function StudyHelperPanel() {
           context: getHelperContext() ?? {},
           messages: toWire(history),
           ...studentForPrompt(firstName),
+          season: seasonRef.current,
         }),
       });
       if (!res.ok) throw new Error(`helper ${res.status}`);
@@ -1214,7 +1223,7 @@ function StudyHelperPanel() {
             : talk === "hello"
               ? HELLO_REPLIES
               : talk === "bye"
-                ? BYE_LINES
+                ? byeLines(season)
                 : talk === "affection"
                   ? AFFECTION_LINES
                   : talk === "good-mood" && lastSaid?.asksMood

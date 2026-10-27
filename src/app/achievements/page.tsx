@@ -11,6 +11,8 @@ import { StoredTitlePlate } from "@/components/TitlePlate";
 import { UnitMark } from "@/components/UnitMark";
 import { certificateDateText, certificateList, type CertificateEntry } from "@/lib/certificates";
 import { unitHue } from "@/lib/hues";
+import { HALLOWEEN_AWARD_GOAL, seasonalCount } from "@/lib/gamification";
+import { HALLOWEEN_ENDS, seasonKey, useSeason } from "@/lib/season";
 
 export default function AchievementsPage() {
   const [mounted, setMounted] = useState(false);
@@ -20,6 +22,8 @@ export default function AchievementsPage() {
   const [equippedTitle, setEquippedTitle] = useState<string | null>(null);
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
   const [certificates, setCertificates] = useState<CertificateEntry[]>([]);
+  const [seasonRight, setSeasonRight] = useState(0);
+  const season = useSeason();
 
   useEffect(() => {
     function refresh() {
@@ -30,6 +34,7 @@ export default function AchievementsPage() {
       setEquippedTitle(progress.equippedTitleId ?? null);
       setEarnedBadges(progress.badges);
       setCertificates(certificateList(progress));
+      setSeasonRight(seasonalCount(progress, seasonKey()));
       setMounted(true);
     }
     refresh();
@@ -38,6 +43,8 @@ export default function AchievementsPage() {
   }, []);
 
   const level = getLevelInfo(xp);
+  // A seasonal award shows in its season, and afterwards only to those who earned it.
+  const badges = BADGES.filter((b) => !b.season || b.season === season || earnedBadges.includes(b.id));
 
   return (
     <div className="space-y-8">
@@ -116,25 +123,34 @@ export default function AchievementsPage() {
 
       <section>
         <h2 className="section-title">
-          Badges {mounted && <span className="text-sm font-normal text-slate-500">({earnedBadges.length} of {BADGES.length} unlocked)</span>}
+          Badges {mounted && <span className="text-sm font-normal text-slate-500">({earnedBadges.length} of {badges.length} unlocked)</span>}
         </h2>
         {/* Two columns: ten badges make five even rows, and each description fits on a line or two. */}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {BADGES.map((badge) => {
+          {badges.map((badge) => {
             const earned = earnedBadges.includes(badge.id);
+            const seasonal = !!badge.season;
             return (
               <div
                 key={badge.id}
                 className={`group flex items-center gap-3 rounded-2xl border p-4 transition duration-200 ease-out ${
                   earned
-                    ? "border-bridge-200 bg-white shadow-panel hover:-translate-y-0.5 hover:shadow-raised"
-                    : "border-dashed border-slate-300 bg-white/70"
+                    ? `${seasonal ? "border-orange-200" : "border-bridge-200"} bg-white shadow-panel hover:-translate-y-0.5 hover:shadow-raised`
+                    : `border-dashed ${seasonal ? "border-orange-300 bg-orange-50/40" : "border-slate-300 bg-white/70"}`
                 }`}
               >
                 <BadgeMark id={badge.id} earned={earned} />
                 <div className="min-w-0">
-                  <p className={`font-semibold ${earned ? "text-slate-900" : "text-slate-600"}`}>{badge.title}</p>
+                  <p className={`flex flex-wrap items-center gap-2 font-semibold ${earned ? "text-slate-900" : "text-slate-600"}`}>
+                    {badge.title}
+                    {seasonal && <span className="season-chip">Halloween</span>}
+                  </p>
                   <p className="text-xs text-slate-500">{badge.description}</p>
+                  {seasonal && !earned && mounted && (
+                    <p className="mt-1 text-xs font-medium text-orange-800 tabular-nums">
+                      {Math.min(seasonRight, HALLOWEEN_AWARD_GOAL)} of {HALLOWEEN_AWARD_GOAL} so far. Until {HALLOWEEN_ENDS}.
+                    </p>
+                  )}
                 </div>
                 {earned ? (
                   <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" role="img" aria-label="Unlocked">

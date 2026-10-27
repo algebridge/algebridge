@@ -9,6 +9,7 @@ import { GamesBanner } from "@/components/GamesBanner";
 import { HowEachSkillWorks } from "@/components/HowEachSkillWorks";
 import { QuoteCard } from "@/components/QuoteCard";
 import { HOME_QUOTES } from "@/data/quotes";
+import { SeasonBanner } from "@/components/SeasonBanner";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 const ALGEBRA_2 = COURSES.find((c) => c.id === "algebra-2")!;
@@ -18,6 +19,9 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <CourseHeader />
+
+      {/* In October: the award, the titles and the shelf, one tap each (lib/season.ts). */}
+      <SeasonBanner />
 
       {/* A student's class assignments, first. Nothing shows for a visitor. */}
       <CourseGate quiet>

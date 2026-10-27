@@ -3,6 +3,7 @@ import { Anton, Inter } from "next/font/google";
 import "./globals.css";
 import "./helper.css";
 import "./polish.css";
+import "./season.css";
 import "./display.css";
 import Link from "next/link";
 import { Header } from "@/components/Header";
@@ -24,6 +25,8 @@ import { bareRouteBootScript } from "@/lib/bare-route";
 import { displayBootScript } from "@/lib/display";
 import { IncomingCall } from "@/components/IncomingCall";
 import { ScratchpadProvider } from "@/components/Scratchpad";
+import { SeasonalDecor } from "@/components/SeasonalDecor";
+import { seasonBootScript } from "@/lib/season";
 
 // Bold condensed display font, matches the AlgeBridge wordmark.
 const anton = Anton({
@@ -92,7 +95,7 @@ export default function RootLayout({
               width={22}
               height={22}
               cr={1}
-              className="fixed inset-0 -z-10 h-full w-full fill-slate-400/45"
+              className="season-dots fixed inset-0 -z-10 h-full w-full fill-slate-400/45"
             />
 
             <div className="flex min-h-screen flex-col lg:pl-60">
@@ -107,7 +110,7 @@ export default function RootLayout({
               {/* pb-32 on phones: the calculator and Archie buttons stack in the
                   bottom right corner (about 120px tall), so the last line can
                   scroll up clear of them. */}
-              <footer className="border-t border-slate-200 bg-white px-4 pb-32 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
+              <footer className="season-footer border-t border-slate-200 bg-white px-4 pb-32 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
                 <p>Free forever. Videos, practice, and real tutors. Algebra&nbsp;1, grades 7-10.</p>
                 {/* py-1 makes each link a 24 px tall target (WCAG 2.5.8) where the links wrap on a phone. */}
                 <nav aria-label="Footer" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs [&>a]:py-1">
@@ -128,6 +131,7 @@ export default function RootLayout({
               </footer>
               </div>
             </div>
+            <SeasonalDecor />
             <Calculator />
             <StudyHelper />
             <ClassControlsLoader />

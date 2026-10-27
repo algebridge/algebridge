@@ -11,6 +11,7 @@ import { STUDIO_ITEMS } from "./items/studio";
 import { GRAND_ITEMS } from "./items/grand";
 import { PRIZE_ITEMS } from "./items/prizes";
 import { EXTRA_ITEMS } from "./items/extra";
+import { HALLOWEEN_ITEMS } from "./items/halloween";
 import { ORNAMENT_MODELS } from "./garden";
 import type { ItemModel } from "./types";
 
@@ -21,6 +22,7 @@ export const MODELS: Record<string, ItemModel> = {
   ...GRAND_ITEMS,
   ...PRIZE_ITEMS,
   ...EXTRA_ITEMS,
+  ...HALLOWEEN_ITEMS,
   ...CORE_ITEMS,
 };
 

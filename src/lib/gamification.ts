@@ -135,6 +135,17 @@ export interface Badge {
   title: string;
   description: string;
   emoji: string;
+  /** A seasonal award: only shown in its season until earned, and earned only then. */
+  season?: "halloween";
+}
+
+/** The Halloween award: 31 right answers in the season, one for every day of October. */
+export const HALLOWEEN_AWARD_ID = "pumpkin-patch-2026";
+export const HALLOWEEN_AWARD_GOAL = 31;
+
+/** Right answers given in a season so far. */
+export function seasonalCount(p: UserProgress, key: string | null): number {
+  return key ? (p.seasonal?.[key] ?? 0) : 0;
 }
 
 function isSkillComplete(level: MasteryLevel | undefined): boolean {
@@ -244,6 +255,14 @@ export const BADGES: BadgeDefinition[] = [
     description: "Reach Level 5",
     emoji: "🚀",
     check: (p) => getLevelInfo(p.xp).level >= 5,
+  },
+  {
+    id: HALLOWEEN_AWARD_ID,
+    title: "Pumpkin Patch",
+    description: `Get ${HALLOWEEN_AWARD_GOAL} problems right during Halloween season, October 1 to November 2`,
+    emoji: "",
+    season: "halloween",
+    check: (p) => seasonalCount(p, "halloween-2026") >= HALLOWEEN_AWARD_GOAL,
   },
   {
     id: "course-complete",

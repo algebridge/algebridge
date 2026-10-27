@@ -135,6 +135,8 @@ export interface UserProgress {
   ownedTitles: string[];
   /** Title shown on profile and leaderboard. */
   equippedTitleId?: string;
+  /** Right answers given during a season, by season key ("halloween-2026"): the seasonal award reads it (lib/season.ts). */
+  seasonal?: Record<string, number>;
   /** Skill and unit IDs that already paid out Bridgey rewards (prevents double-claim). */
   bridgeyRewardsClaimed?: { complete: string[]; units?: string[] };
   /** Shown on the leaderboard (as "First L."). On unless the student hides themselves. */
@@ -267,6 +269,8 @@ export interface FurnitureItem {
   earnedBy?: string;
   /** One line under the name in the shop. */
   blurb?: string;
+  /** In the shop only during this season (lib/season.ts); owned ones stay. */
+  season?: "halloween";
   /** @deprecated Legacy slot id, only used when migrating old saves. */
   slot: FurnitureSlot;
   /** Prestige value used for "best item in house" on the leaderboard. */
@@ -294,6 +298,8 @@ export interface DisplayTitle {
   /** Bridgeys; also sets the tier (src/lib/titles.ts). */
   price: number;
   description: string;
+  /** On sale only in this season (lib/season.ts); owned ones stay. */
+  season?: "halloween";
 }
 
 export interface LeaderboardEntry {

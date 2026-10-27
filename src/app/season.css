@@ -1,0 +1,288 @@
+/*
+ * Halloween and fall: the site in October (src/lib/season.ts).
+ *
+ * Everything here hangs off html[data-season="halloween"], set before paint
+ * by the boot script, so none of it costs anything out of season. The brand
+ * blue stays: the season shows in the ground (warm parchment, pumpkin dots),
+ * a dusk-colored strip on the header, the night-sky hero, the leaves that
+ * drift down the page, and Archie's hat. Text stays slate on white, so
+ * every contrast number from the accessibility pass still holds.
+ */
+
+html[data-season="halloween"] {
+  --season-bg: #f6efe4;
+  --season-dot: #b86a2a;
+  --season-line: #ead9c3;
+  --season-pumpkin: #e8741d;
+  --season-ember: #c2410c;
+  --season-plum: #3b1d5e;
+  --season-night: #1a1030;
+  --season-moon: #fff3c4;
+  --season-leaf-1: #d9742b;
+  --season-leaf-2: #b63a1e;
+  --season-leaf-3: #e2a82f;
+  --season-leaf-4: #7a3b14;
+}
+
+html[data-season="halloween"] body {
+  background-color: var(--season-bg);
+}
+
+/* The dot field goes pumpkin, quietly. */
+html[data-season="halloween"] .season-dots {
+  fill: rgb(184 106 42 / 0.28);
+}
+
+/* Quiet surfaces take a warm edge. */
+html[data-season="halloween"] .card,
+html[data-season="halloween"] .card-link,
+html[data-season="halloween"] .panel,
+html[data-season="halloween"] .skill-card {
+  border-color: var(--season-line);
+}
+
+html[data-season="halloween"] .panel-head {
+  background-color: #fbf6ee;
+  border-color: var(--season-line);
+}
+
+html[data-season="halloween"] ::selection {
+  background: #fcd9b6;
+  color: #3b1d5e;
+}
+
+/* A dusk strip along the top of the header: pumpkin into plum. */
+html[data-season="halloween"] header.season-header {
+  border-bottom-color: var(--season-line);
+}
+html[data-season="halloween"] header.season-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--season-pumpkin), var(--season-ember) 45%, var(--season-plum));
+  pointer-events: none;
+}
+
+html[data-season="halloween"] aside.season-sidenav {
+  border-right-color: var(--season-line);
+}
+
+html[data-season="halloween"] footer.season-footer {
+  border-top-color: var(--season-line);
+  background: #fbf6ee;
+}
+
+/* The signed-out hero: a night sky with a full moon and the bridge on the horizon. */
+html[data-season="halloween"] .season-hero {
+  background: radial-gradient(circle at 84% 22%, rgb(255 243 196 / 0.22), transparent 24%),
+    linear-gradient(180deg, #120a24 0%, #2a1548 55%, #4a1e3a 100%);
+}
+html[data-season="halloween"] .season-hero .season-moon {
+  display: block;
+}
+.season-moon {
+  display: none;
+  position: absolute;
+  top: 22px;
+  right: 15%;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 36%, #fffbe8, #f6e6a8 60%, #e7cf86);
+  box-shadow: 0 0 0 10px rgb(255 243 196 / 0.08), 0 0 48px 14px rgb(255 243 196 / 0.22);
+  pointer-events: none;
+}
+.season-moon::before,
+.season-moon::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(190 170 110 / 0.35);
+}
+.season-moon::before {
+  width: 16px;
+  height: 16px;
+  left: 24px;
+  top: 30px;
+}
+.season-moon::after {
+  width: 10px;
+  height: 10px;
+  left: 54px;
+  top: 52px;
+}
+
+/* ---- Falling leaves and the odd bat (SeasonalDecor.tsx) ------------------ */
+
+.season-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 35; /* over the page, under the header's menus (z-40) and Archie */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.season-leaf {
+  position: absolute;
+  top: -40px;
+  left: var(--x);
+  width: var(--s);
+  height: var(--s);
+  opacity: 0.82;
+  animation: season-fall var(--t) linear var(--d) infinite;
+  will-change: transform;
+}
+.season-leaf > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: season-tumble calc(var(--t) / 3) ease-in-out var(--d) infinite alternate;
+  filter: drop-shadow(0 2px 1px rgb(60 20 0 / 0.18));
+}
+
+@keyframes season-fall {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(28px, 27vh, 0);
+  }
+  50% {
+    transform: translate3d(-18px, 54vh, 0);
+  }
+  75% {
+    transform: translate3d(24px, 81vh, 0);
+  }
+  100% {
+    transform: translate3d(-10px, 112vh, 0);
+  }
+}
+@keyframes season-tumble {
+  from {
+    transform: rotate(-70deg) scaleX(1);
+  }
+  to {
+    transform: rotate(70deg) scaleX(-1);
+  }
+}
+
+/* A bat crosses the top of the page now and then, small and far off. */
+.season-bat {
+  position: absolute;
+  top: var(--y);
+  left: -60px;
+  width: 34px;
+  height: 20px;
+  color: #1a1030;
+  opacity: 0.75;
+  animation: season-fly var(--t) linear var(--d) infinite;
+  will-change: transform;
+}
+.season-bat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: season-flap 0.42s ease-in-out infinite alternate;
+  transform-origin: 50% 50%;
+}
+@keyframes season-fly {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    transform: translate3d(12vw, -18px, 0);
+  }
+  24% {
+    transform: translate3d(24vw, 10px, 0);
+  }
+  36% {
+    transform: translate3d(36vw, -14px, 0);
+  }
+  48% {
+    transform: translate3d(48vw, 8px, 0);
+  }
+  60% {
+    transform: translate3d(60vw, -20px, 0);
+  }
+  72% {
+    transform: translate3d(72vw, 6px, 0);
+  }
+  84% {
+    transform: translate3d(84vw, -12px, 0);
+  }
+  /* Rests off screen the other 10% of the loop. */
+  90%,
+  100% {
+    transform: translate3d(110vw, 0, 0);
+  }
+}
+@keyframes season-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .season-sky {
+    display: none;
+  }
+}
+
+/* The small "Halloween" chips on seasonal titles, pieces and the award. */
+.season-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff7ed;
+  background: linear-gradient(90deg, var(--season-pumpkin, #e8741d), var(--season-plum, #3b1d5e));
+}
+
+/* The seasonal section of the shop: a dusk band behind its heading. */
+.season-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #1a1030 0%, #3b1d5e 60%, #6b2a3c 100%);
+  color: #fdf2e9;
+}
+.season-band .season-moon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  top: 14px;
+  right: 22px;
+}
+
+/* ---- Archie's hat (components/archie/Archie.tsx) ------------------------- */
+.archie-hat {
+  transform-origin: 60px 22px;
+}
+.archie-pose-party .archie-hat,
+.archie-pose-happy .archie-hat {
+  animation: archie-hat-tip 760ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes archie-hat-tip {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+  35% {
+    transform: rotate(-9deg) translateY(-5px);
+  }
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .archie-hat {
+    animation: none !important;
+  }
+}

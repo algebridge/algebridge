@@ -89,7 +89,7 @@ export function Header() {
   return (
     // Solid white: a translucent bar let the page (a lesson title, the game
     // tiles) show through it on scroll.
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <header className="season-header sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
         {/* Logo and course menu, the sidebar carries them on desktop. */}
         <CourseSwitch className="lg:hidden" />

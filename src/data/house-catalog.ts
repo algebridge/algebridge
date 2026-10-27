@@ -211,6 +211,18 @@ export const FURNITURE_ITEMS: FurnitureItem[] = [
   { id: "dino-skeleton", name: "Dino Skeleton", price: 1300, slot: "back-center", prestige: 160, rarity: "legendary", displayWidth: 112 },
   { id: "holo-table", name: "Hologram Table", price: 1500, slot: "mid-center", prestige: 172, rarity: "legendary", displayWidth: 100 },
 
+  // ---- Halloween and fall (lib/season.ts): in the shop October 1 to November 2, kept for good ----
+  { id: "cobweb", name: "Corner Cobweb", price: 25, slot: "back-left", prestige: 9, rarity: "common", displayWidth: 50, season: "halloween", blurb: "Comes with the spider. The spider is friendly." },
+  { id: "candy-bowl", name: "Candy Bowl", price: 30, slot: "mid-right", prestige: 11, rarity: "common", displayWidth: 46, season: "halloween", blurb: "Take one. Okay, take two." },
+  { id: "hay-bale", name: "Hay Bale Seat", price: 35, slot: "mid-left", prestige: 12, rarity: "common", displayWidth: 80, season: "halloween" },
+  { id: "autumn-wreath", name: "Autumn Wreath", price: 38, slot: "back-center", prestige: 13, rarity: "common", displayWidth: 54, season: "halloween" },
+  { id: "jack-o-lantern", name: "Jack-o'-Lantern", price: 40, slot: "mid-right", prestige: 14, rarity: "common", displayWidth: 46, season: "halloween", blurb: "Carved with triangles. Each one adds to 180 degrees." },
+  { id: "pumpkin-pile", name: "Pumpkin Pile", price: 45, slot: "mid-left", prestige: 15, rarity: "common", displayWidth: 72, season: "halloween" },
+  { id: "witch-broom", name: "Witch's Broom", price: 55, slot: "back-right", prestige: 18, rarity: "common", displayWidth: 44, season: "halloween", blurb: "For sweeping up stray negative signs." },
+  { id: "ghost-lamp", name: "Ghost Lamp", price: 60, slot: "back-right", prestige: 20, rarity: "common", displayWidth: 44, season: "halloween", blurb: "Boo. Also, a reading light." },
+  { id: "scarecrow", name: "Study Scarecrow", price: 150, slot: "back-left", prestige: 40, rarity: "rare", displayWidth: 84, season: "halloween", blurb: "Keeps the crows and the careless mistakes away." },
+  { id: "cauldron", name: "Bubbling Cauldron", price: 180, slot: "mid-center", prestige: 44, rarity: "rare", displayWidth: 72, season: "halloween", blurb: "Something is brewing. Probably a quadratic." },
+
   // ---- Unit prizes: one per unit, earned by finishing it -----------------
   { id: "prize-ruler", name: "Golden Ruler", price: 0, earnedBy: "working-with-units", slot: "back-left", prestige: 60, rarity: "legendary", displayWidth: 72, blurb: "Every unit measured, starting with this one." },
   { id: "prize-scale", name: "Brass Balance", price: 0, earnedBy: "solving-equations", slot: "mid-right", prestige: 70, rarity: "legendary", displayWidth: 68, blurb: "Both sides, always equal." },
@@ -238,6 +250,7 @@ export const WALL_MOUNTED = new Set([
   "poster", "clock", "whiteboard", "wall-shelf", "string-lights", "pinboard", "hoop", "neon-sign", "vinyl-wall",
   "bike", "projector", "window-plant", "chandelier", "disco-ball",
   "prize-graph", "prize-neon-line", "prize-zigzag", "prize-vine",
+  "cobweb", "autumn-wreath",
 ]);
 for (const item of FURNITURE_ITEMS) if (WALL_MOUNTED.has(item.id)) item.mount = "wall";
 
@@ -246,8 +259,11 @@ export function canHang(itemId: string): boolean {
   return WALL_MOUNTED.has(itemId);
 }
 
-/** The furniture a student can buy. Unit prizes are earned instead. */
-export const SHOP_ITEMS: FurnitureItem[] = FURNITURE_ITEMS.filter((i) => !i.earnedBy);
+/** The furniture a student can buy all year. Unit prizes are earned instead; seasonal pieces have their own shelf. */
+export const SHOP_ITEMS: FurnitureItem[] = FURNITURE_ITEMS.filter((i) => !i.earnedBy && !i.season);
+
+/** The pieces on sale only in a season (lib/season.ts), cheapest first. */
+export const SEASONAL_ITEMS: FurnitureItem[] = FURNITURE_ITEMS.filter((i) => !!i.season).sort((a, b) => a.price - b.price);
 
 /** The prize for finishing a unit, in course order. */
 export const UNIT_PRIZES: FurnitureItem[] = FURNITURE_ITEMS.filter((i) => !!i.earnedBy);
