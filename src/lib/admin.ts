@@ -458,3 +458,271 @@ export async function fetchAdminInterests(limit = 500): Promise<AdminInterestsRe
     : [];
   return { status: "ok", data: { students: num(d.students), picks, notes } };
 }
+
+// --- Learning insights ---------------------------------------------------------
+
+export interface InsightDay {
+  day: string;
+  active: number;
+  solved: number;
+  archie: number;
+  games: number;
+  mood: number | null;
+  seconds: number;
+}
+
+export interface InsightUnit {
+  course: string;
+  unit: string;
+  seconds: number;
+  visits: number;
+  browsers: number;
+  solved: number;
+  firstTryRate: number | null;
+  medianProblemSeconds: number | null;
+}
+
+export interface InsightSkill extends InsightUnit {
+  skill: string;
+  medianVisitSeconds: number | null;
+  skips: number;
+}
+
+export interface AdminInsights {
+  today: string;
+  from: string;
+  firstDay: string | null;
+  totals: {
+    activeDays: number;
+    events: number;
+    solved: number;
+    attempts: number;
+    firstTryRate: number | null;
+    skillSeconds: number;
+  };
+  days: InsightDay[];
+  units: InsightUnit[];
+  skills: InsightSkill[];
+  hardest: {
+    skill: string;
+    unit: string;
+    solved: number;
+    firstTryRate: number | null;
+    medianProblemSeconds: number | null;
+  }[];
+  problem: {
+    medianSeconds: number | null;
+    p25Seconds: number | null;
+    p75Seconds: number | null;
+    skips: number;
+    reveals: number;
+    byType: {
+      type: string;
+      solved: number;
+      medianSeconds: number | null;
+      firstTryRate: number | null;
+    }[];
+  };
+  skillVisit: {
+    medianSeconds: number | null;
+    meanSeconds: number | null;
+    visits: number;
+  };
+  archie: {
+    messages: number;
+    opens: number;
+    talkingDays: number;
+    activeDays: number;
+    medianPerTalkingDay: number | null;
+    medianChars: number | null;
+    byMode: { mode: string; n: number }[];
+    topSkills: { skill: string; n: number }[];
+  };
+  games: {
+    starts: number;
+    ends: number;
+    playingDays: number;
+    activeDays: number;
+    matches: number;
+    medianSeconds: number | null;
+    totalSeconds: number;
+    answered: number;
+    byGame: { game: string; starts: number; seconds: number }[];
+  };
+  mood: {
+    answered: number;
+    dismissed: number;
+    mean: number | null;
+    counts: { mood: number; n: number }[];
+    byContext: { context: string; n: number; mean: number | null }[];
+    byHour: { hour: number; n: number; mean: number | null }[];
+  };
+  roles: { role: string; activeDays: number }[];
+}
+
+export type AdminInsightsResult =
+  | { status: "ok"; data: AdminInsights }
+  /** admin_insights() is not in the database: supabase/schema-2026-10-27-insights.sql has not run. */
+  | { status: "missing" }
+  | { status: "error"; message: string };
+
+function maybe(v: unknown): number | null {
+  return v == null ? null : num(v);
+}
+
+/** What students do on the platform over the last `days` days, through admin_insights() (admins only). */
+export async function fetchAdminInsights(
+  days = 30,
+): Promise<AdminInsightsResult> {
+  const supabase = createClient();
+  if (!supabase)
+    return {
+      status: "error",
+      message: "Cloud accounts are not configured on this deployment.",
+    };
+  const { data, error } = await supabase.rpc("admin_insights", {
+    p_days: days,
+  });
+  if (error) {
+    if (MISSING_FUNCTION.test(`${error.code ?? ""} ${error.message ?? ""}`))
+      return { status: "missing" };
+    return {
+      status: "error",
+      message: error.message || "The insights could not be read.",
+    };
+  }
+  return { status: "ok", data: parseAdminInsights(data) };
+}
+
+/** The admin_insights() JSON as the panel reads it. */
+export function parseAdminInsights(data: unknown): AdminInsights {
+  const d = (data ?? {}) as Record<string, unknown>;
+  const obj = (v: unknown) =>
+    v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+  const list = (v: unknown) =>
+    Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+  const unitOf = (r: Record<string, unknown>): InsightUnit => ({
+    course: String(r.course ?? ""),
+    unit: String(r.unit ?? ""),
+    seconds: num(r.seconds),
+    visits: num(r.visits),
+    browsers: num(r.browsers),
+    solved: num(r.solved),
+    firstTryRate: maybe(r.first_try_rate),
+    medianProblemSeconds: maybe(r.median_problem_seconds),
+  });
+  const totals = obj(d.totals);
+  const problem = obj(d.problem);
+  const skillVisit = obj(d.skill_visit);
+  const archie = obj(d.archie);
+  const games = obj(d.games);
+  const mood = obj(d.mood);
+  return {
+    today: String(d.today ?? ""),
+    from: String(d.from ?? ""),
+    firstDay: d.first_day == null ? null : String(d.first_day),
+    totals: {
+      activeDays: num(totals.active_days),
+      events: num(totals.events),
+      solved: num(totals.problems_solved),
+      attempts: num(totals.attempts),
+      firstTryRate: maybe(totals.first_try_rate),
+      skillSeconds: num(totals.skill_seconds),
+    },
+    days: list(d.days).map((r) => ({
+      day: String(r.day),
+      active: num(r.active),
+      solved: num(r.solved),
+      archie: num(r.archie),
+      games: num(r.games),
+      mood: maybe(r.mood),
+      seconds: num(r.seconds),
+    })),
+    units: list(d.units).map(unitOf),
+    skills: list(d.skills).map((r) => ({
+      ...unitOf(r),
+      skill: String(r.skill ?? ""),
+      medianVisitSeconds: maybe(r.median_visit_seconds),
+      skips: num(r.skips),
+    })),
+    hardest: list(d.hardest).map((r) => ({
+      skill: String(r.skill ?? ""),
+      unit: String(r.unit ?? ""),
+      solved: num(r.solved),
+      firstTryRate: maybe(r.first_try_rate),
+      medianProblemSeconds: maybe(r.median_problem_seconds),
+    })),
+    problem: {
+      medianSeconds: maybe(problem.median_seconds),
+      p25Seconds: maybe(problem.p25_seconds),
+      p75Seconds: maybe(problem.p75_seconds),
+      skips: num(problem.skips),
+      reveals: num(problem.reveals),
+      byType: list(problem.by_type).map((r) => ({
+        type: String(r.type ?? ""),
+        solved: num(r.solved),
+        medianSeconds: maybe(r.median_seconds),
+        firstTryRate: maybe(r.first_try_rate),
+      })),
+    },
+    skillVisit: {
+      medianSeconds: maybe(skillVisit.median_seconds),
+      meanSeconds: maybe(skillVisit.mean_seconds),
+      visits: num(skillVisit.visits),
+    },
+    archie: {
+      messages: num(archie.messages),
+      opens: num(archie.opens),
+      talkingDays: num(archie.talking_days),
+      activeDays: num(archie.active_days),
+      medianPerTalkingDay: maybe(archie.median_per_talking_day),
+      medianChars: maybe(archie.median_chars),
+      byMode: list(archie.by_mode).map((r) => ({
+        mode: String(r.mode ?? ""),
+        n: num(r.n),
+      })),
+      topSkills: list(archie.top_skills).map((r) => ({
+        skill: String(r.skill ?? ""),
+        n: num(r.n),
+      })),
+    },
+    games: {
+      starts: num(games.starts),
+      ends: num(games.ends),
+      playingDays: num(games.playing_days),
+      activeDays: num(games.active_days),
+      matches: num(games.matches),
+      medianSeconds: maybe(games.median_seconds),
+      totalSeconds: num(games.total_seconds),
+      answered: num(games.answered),
+      byGame: list(games.by_game).map((r) => ({
+        game: String(r.game ?? ""),
+        starts: num(r.starts),
+        seconds: num(r.seconds),
+      })),
+    },
+    mood: {
+      answered: num(mood.answered),
+      dismissed: num(mood.dismissed),
+      mean: maybe(mood.mean),
+      counts: list(mood.counts).map((r) => ({
+        mood: num(r.mood),
+        n: num(r.n),
+      })),
+      byContext: list(mood.by_context).map((r) => ({
+        context: String(r.context ?? ""),
+        n: num(r.n),
+        mean: maybe(r.mean),
+      })),
+      byHour: list(mood.by_hour).map((r) => ({
+        hour: num(r.hour),
+        n: num(r.n),
+        mean: maybe(r.mean),
+      })),
+    },
+    roles: list(d.roles).map((r) => ({
+      role: String(r.role ?? ""),
+      activeDays: num(r.active_days),
+    })),
+  };
+}

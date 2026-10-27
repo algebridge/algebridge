@@ -75,7 +75,7 @@ function sourceLabel(c: TrafficCount): string {
   return c.label;
 }
 
-function Bars({ rows, label }: { rows: { key: string; text: string; n: number; title?: string }[]; label: string }) {
+export function Bars({ rows, label }: { rows: { key: string; text: string; n: number; title?: string }[]; label: string }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   if (rows.length === 0) return <p style={{ fontSize: 13, color: "var(--muted)" }}>Nothing counted yet.</p>;
   return (

@@ -111,6 +111,7 @@ const floodCapByIp = makeRateLimiter(1200, WINDOW_MS);
 /** What the client may send, field by field. Longer text is cut, other types dropped. */
 const CONTEXT_LIMITS: Record<keyof HelperContext, number> = {
   skillTitle: 160,
+  skillId: 60,
   keyIdea: 600,
   problemPrompt: 1500,
   hint: 600,

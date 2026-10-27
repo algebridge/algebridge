@@ -90,6 +90,7 @@ import { guardFreeText } from "@/lib/safety";
 import { AssistantBubble, UserBubble } from "@/components/helper/MessageBubble";
 import { prefersReducedMotion } from "@/lib/display";
 import { useSeason } from "@/lib/use-season";
+import { trackInsight } from "@/lib/insights-client";
 import { TypingDots } from "@/components/helper/TypingDots";
 import { SlipSteps } from "@/components/SlipSteps";
 import { answerInMessage, submitAnswerToCard } from "@/lib/answer-bridge";
@@ -320,6 +321,10 @@ function StudyHelperPanel() {
   const seasonRef = useRef(season);
   seasonRef.current = season;
   const [open, setOpen] = useState(false);
+  // Insights: each time the panel opens. Nothing about what is said.
+  useEffect(() => {
+    if (open) trackInsight({ name: "archie_open" });
+  }, [open]);
   const [leaving, setLeaving] = useState(false);
   /** Opened from memory on page load: no slide in, no focus grab. */
   const [quiet, setQuiet] = useState(false);
@@ -1007,6 +1012,15 @@ function StudyHelperPanel() {
   async function ask(key: string, modeAt: HelperMode, history: ChatMessage[], action?: HelperAction) {
     setPending(key);
     const gen = sessionGen.current;
+    // Insights: one message to Archie, in which mode, about which skill, and
+    // how long it was. The words themselves never leave the chat.
+    const lastUser = [...history].reverse().find((m) => m.role === "user");
+    trackInsight({
+      name: "archie_message",
+      label: action ? "action" : modeAt,
+      skill: getHelperContext()?.skillId ?? null,
+      value: Math.min(lastUser?.content.length ?? 0, 5000),
+    });
     try {
       const res = await fetch("/api/helper", {
         method: "POST",

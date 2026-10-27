@@ -10,6 +10,7 @@ import { WorkedExamples } from "@/components/WorkedExamples";
 import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
 import { FAST_RUN, FAST_SECONDS, PracticePanel } from "@/components/PracticePanel";
+import { useSkillTime } from "@/lib/insights-client";
 import { CourseGate } from "@/components/CourseGate";
 import { Icon } from "@/components/Icon";
 import { LockedSkill } from "@/components/LockedSkill";
@@ -59,6 +60,8 @@ interface LearnContentProps {
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
   const spooky = useSeason() === "halloween";
   const { stats, mounted } = useProgress();
+  // Insights: seconds on this skill's page while the student is at it.
+  useSkillTime(skill.id);
   // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
   const auth = useAuth();
   const teacher = auth.profile?.role === "teacher";

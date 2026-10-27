@@ -21,6 +21,7 @@ import { prefersReducedMotion } from "@/lib/display";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { useSeason } from "@/lib/use-season";
+import { trackInsight } from "@/lib/insights-client";
 
 const LAST_GAME_KEY = "algebridge:last-game";
 
@@ -56,6 +57,21 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
   const [placing, setPlacing] = useState<string | null>(null);
   /** What the questions are about, and one player or two. Remembered on this device, outside the demo. */
   const [setup, setSetup] = useState<GameSetup>(DEFAULT_SETUP);
+  // Insights: which game, solo or a match, and how long it ran. On play the
+  // start is sent; on leaving, the seconds since.
+  const playStart = useRef<number | null>(null);
+  useEffect(() => {
+    if (playing) {
+      playStart.current = Date.now();
+      trackInsight({ name: "game_start", label: picked, n: setup.players });
+      return;
+    }
+    if (playStart.current === null) return;
+    const seconds = Math.round((Date.now() - playStart.current) / 1000);
+    playStart.current = null;
+    trackInsight({ name: "game_end", label: picked, value: seconds, n: setup.players });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
   const stage = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

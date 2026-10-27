@@ -10,6 +10,7 @@ import { InterestsPanel } from "./InterestsPanel";
 import {
   fetchAdminFeedback,
   fetchAdminInterests,
+  fetchAdminInsights,
   fetchAdminOverview,
   fetchAdminReports,
   fetchAdminReviews,
@@ -21,6 +22,7 @@ import {
   type AdminFeedbackItem,
   type AdminFeedbackResult,
   type AdminInterestsResult,
+  type AdminInsightsResult,
   type AdminOverview,
   type AdminReport,
   type AdminReportsResult,
@@ -31,10 +33,11 @@ import {
 import { StarsDisplay } from "@/components/StarRating";
 import { FeedbackItem, FeedbackPanel } from "./FeedbackPanel";
 import { TrafficPanel, lastDays } from "./TrafficPanel";
+import { InsightsPanel } from "./InsightsPanel";
 import { adminDeleteUser, adminSetRole } from "@/lib/social";
 import type { UserRole } from "@/types";
 
-type Tab = "overview" | "traffic" | "people" | "feedback" | "reports" | "interests";
+type Tab = "overview" | "traffic" | "insights" | "people" | "feedback" | "reports" | "interests";
 type RoleFilter = "all" | "student" | "tutor" | "teacher" | "nontutor";
 type SeenFilter = "all" | "1d" | "7d" | "30d" | "dormant";
 
@@ -85,6 +88,7 @@ export default function AdminPage() {
   const [traffic, setTraffic] = useState<AdminTrafficResult | null>(null);
   const [feedback, setFeedback] = useState<AdminFeedbackResult | null>(null);
   const [interests, setInterests] = useState<AdminInterestsResult | null>(null);
+  const [insights, setInsights] = useState<AdminInsightsResult | null>(null);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [msg, setMsg] = useState("");
@@ -101,7 +105,7 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setLoadingData(true);
-    const [o, r, rv, rp, tr, fb, it] = await Promise.all([
+    const [o, r, rv, rp, tr, fb, it, ins] = await Promise.all([
       fetchAdminOverview(),
       fetchAdminUserRows(),
       fetchAdminReviews(),
@@ -109,6 +113,7 @@ export default function AdminPage() {
       fetchAdminTraffic(30),
       fetchAdminFeedback(300),
       fetchAdminInterests(500),
+      fetchAdminInsights(30),
     ]);
     setOverview(o);
     setRows(r);
@@ -117,6 +122,7 @@ export default function AdminPage() {
     setTraffic(tr);
     setFeedback(fb);
     setInterests(it);
+    setInsights(ins);
     setSelected(new Set());
     setLoadingData(false);
   }, []);
@@ -294,6 +300,9 @@ export default function AdminPage() {
         <button type="button" className={tab === "traffic" ? "is-active" : ""} onClick={() => setTab("traffic")}>
           Traffic
         </button>
+        <button type="button" className={tab === "insights" ? "is-active" : ""} onClick={() => setTab("insights")}>
+          Insights
+        </button>
         <button type="button" className={tab === "people" ? "is-active" : ""} onClick={() => setTab("people")}>
           People{rows.length ? ` (${rows.length})` : ""}
         </button>
@@ -312,6 +321,8 @@ export default function AdminPage() {
       {msg && <div className="sbc-notice is-ok">{msg}</div>}
 
       {tab === "traffic" && <TrafficPanel data={traffic} loading={loadingData} />}
+
+      {tab === "insights" && <InsightsPanel data={insights} loading={loadingData} />}
 
       {tab === "feedback" && <FeedbackPanel data={feedback} loading={loadingData} />}
 

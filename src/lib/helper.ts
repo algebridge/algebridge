@@ -36,6 +36,8 @@ export function isHelperAction(value: unknown): value is HelperAction {
 export interface HelperContext {
   /** The skill being practised, when the helper is opened from a problem. */
   skillTitle?: string;
+  /** Its id, for the insights count of which skills Archie is asked about. Never shown. */
+  skillId?: string;
   keyIdea?: string;
   problemPrompt?: string;
   hint?: string;

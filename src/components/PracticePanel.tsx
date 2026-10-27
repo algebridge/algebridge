@@ -19,6 +19,7 @@ import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
 import { allUnits, units } from "@/data/curriculum";
+import { noteAnswered, placeOfSkill, trackInsight } from "@/lib/insights-client";
 import { DailyGoalRing } from "@/components/DailyGoalRing";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { getFurnitureItem } from "@/data/house-catalog";
@@ -560,6 +561,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     if (!problem || pending) return;
     setHelperContext({
       skillTitle: skill.title,
+      skillId: skill.id,
       keyIdea: skill.keyIdea,
       problemPrompt: displayPrompt,
       hint: problem.hint,
@@ -662,6 +664,19 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     setFeedback(correct ? "correct" : "wrong");
     setFeedbackSeed((s) => s + 1);
     setAttempts((a) => a + 1);
+    // Insights: how long this try took from the moment the problem could be
+    // read, right or wrong, first try or not. The problem's words stay here.
+    trackInsight({
+      name: "problem_attempt",
+      skill: skill.id,
+      ...placeOfSkill(skill.id),
+      label: problem.type,
+      value: Math.round((Date.now() - shownAtRef.current) / 1000),
+      ok: correct,
+      first: firstTry,
+      n: attempts + 1,
+    });
+    if (correct) noteAnswered();
 
     if (correct) {
       setShowExplanation(true);
@@ -806,6 +821,18 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   function nextProblem() {
     leavingFrom.current = document.activeElement;
     setNudge(null);
+    // Insights: moving on without the right answer, after looking at the
+    // worked answer or not, and how long the problem had been on screen.
+    if (problem && feedback !== "correct") {
+      trackInsight({
+        name: "problem_skip",
+        skill: skill.id,
+        ...placeOfSkill(skill.id),
+        label: revealed ? "revealed" : "skipped",
+        value: Math.round((Date.now() - shownAtRef.current) / 1000),
+        n: attempts,
+      });
+    }
     if (problemIndex + 1 >= allProblems.length) {
       startSession();
       return;
