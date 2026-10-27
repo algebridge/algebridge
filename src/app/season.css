@@ -394,3 +394,255 @@ html[data-season="halloween"] .season-practice::before {
 html[data-season="halloween"] .season-lesson .page-title {
   text-shadow: 0 0 18px rgb(232 116 29 / 0.18);
 }
+
+/* ---- The arena entrance (LiveArena.tsx, ArenaEntrance) ----------------- */
+.arena-entrance {
+  position: relative;
+}
+.arena-entrance .arena-moon {
+  display: block;
+  top: 26px;
+  right: 7%;
+  width: 84px;
+  height: 84px;
+}
+.arena-stage:not(.arena-spooky) .arena-moon {
+  display: none;
+}
+.arena-entrance-bats {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.arena-spooky .arena-bat {
+  position: absolute;
+  top: var(--y);
+  left: -50px;
+  width: 34px;
+  height: 20px;
+  color: rgb(10 5 20 / 0.85);
+  animation: season-fly 24s linear var(--d) infinite;
+}
+.arena-bat svg {
+  animation: season-flap 0.42s ease-in-out infinite alternate;
+  transform-origin: 50% 50%;
+}
+.arena-stage:not(.arena-spooky) .arena-bat {
+  display: none;
+}
+.arena-door {
+  border-radius: 1rem;
+  padding: 1.1rem;
+  background: rgb(255 255 255 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  color: #f8fafc;
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+.arena-door:hover {
+  transform: translateY(-2px);
+  background: rgb(255 255 255 / 0.13);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22), 0 14px 30px -14px rgb(0 0 0 / 0.6);
+}
+.arena-door:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-bat,
+  .arena-bat svg {
+    animation: none;
+  }
+}
+
+/* ---- The burst on a right answer (AnswerFeedback.tsx, SeasonBurst) ------ */
+.season-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.season-spook {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform: translate(-50%, -50%);
+  animation: season-spook 1.5s cubic-bezier(0.2, 0.7, 0.3, 1) var(--d) both;
+  filter: drop-shadow(0 2px 2px rgb(20 10 40 / 0.35));
+}
+.season-spook-bat {
+  color: #1a1030;
+}
+.season-spook-ghost {
+  color: #f8fafc;
+}
+.season-spook-pumpkin {
+  color: #e8741d;
+}
+.season-spook-bat svg {
+  animation: season-flap 0.3s ease-in-out infinite alternate;
+  transform-origin: 50% 50%;
+}
+@keyframes season-spook {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(-6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.9) rotate(14deg);
+  }
+}
+/* The whole practice panel glows pumpkin while the spooks fly. */
+html[data-season="halloween"] .season-practice:has(.season-burst) {
+  animation: season-glow 1.6s ease-out both;
+  border-radius: 1rem;
+}
+@keyframes season-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgb(232 116 29 / 0);
+  }
+  18% {
+    box-shadow: 0 0 0 6px rgb(232 116 29 / 0.35), 0 0 60px 12px rgb(232 116 29 / 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(232 116 29 / 0);
+  }
+}
+/* And the page itself blinks orange at the edges, once, like a jack-o'-lantern flaring. */
+.season-flare {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 34;
+  box-shadow: inset 0 0 140px 30px rgb(232 116 29 / 0.6);
+  animation: season-flare 1.4s ease-out both;
+}
+@keyframes season-flare {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- Walking into a lesson (LearnContent.tsx) ---------------------------- */
+.season-entrance {
+  position: absolute;
+  inset: -16px -8px -16px -8px;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 1rem;
+}
+.season-fog {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgb(210 200 225 / 0.75) 30%, rgb(236 230 245 / 0.9) 50%, rgb(210 200 225 / 0.75) 70%, transparent 100%);
+  transform: translateX(-100%);
+  animation: season-fog 2.2s ease-in-out 0.1s both;
+  filter: blur(6px);
+}
+@keyframes season-fog {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0.9;
+  }
+  60% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+.season-lesson-bat {
+  position: absolute;
+  right: 6px;
+  top: var(--y);
+  color: #1a1030;
+  opacity: 0;
+  animation: season-bat-leave 2.4s ease-in var(--d) both;
+}
+.season-lesson-bat svg {
+  animation: season-flap 0.32s ease-in-out infinite alternate;
+  transform-origin: 50% 50%;
+}
+@keyframes season-bat-leave {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-20px, -6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-110vw, -40px) scale(0.7);
+  }
+}
+/* The title flickers once like a candle as the fog clears. */
+html[data-season="halloween"] .season-lesson .page-title {
+  animation: season-flicker 1.8s ease-in-out 0.4s both;
+}
+@keyframes season-flicker {
+  0%,
+  100% {
+    text-shadow: 0 0 18px rgb(232 116 29 / 0.18);
+  }
+  20% {
+    text-shadow: 0 0 26px rgb(232 116 29 / 0.7), 0 0 4px rgb(232 116 29 / 0.6);
+  }
+  35% {
+    text-shadow: 0 0 10px rgb(232 116 29 / 0.25);
+  }
+  50% {
+    text-shadow: 0 0 30px rgb(232 116 29 / 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .season-burst,
+  .season-entrance {
+    display: none;
+  }
+  .season-flare,
+  html[data-season="halloween"] .season-practice:has(.season-burst),
+  html[data-season="halloween"] .season-lesson .page-title {
+    animation: none;
+  }
+}
+
+.arena-title {
+  font-size: clamp(2.2rem, 9cqw, 4.5rem);
+}
+.arena-entrance {
+  container-type: inline-size;
+}
+.arena-entrance .arena-moon {
+  top: 18px;
+  right: 18px;
+  width: 64px;
+  height: 64px;
+}
+
+.arena-doors {
+  display: grid;
+  gap: 0.75rem;
+}
+@container (min-width: 640px) {
+  .arena-doors {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

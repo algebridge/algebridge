@@ -85,43 +85,26 @@ export function LiveArena() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            {spooky ? "Spooky Showdown" : "Live Arena"}
-            {spooky && <span className="season-chip">Halloween</span>}
-          </h1>
-          <p className="page-subtitle">
-            A quiz show over the course. One screen hosts, everyone else joins from a phone with a code, and the fastest right answers win. Or share one keyboard
-            with a friend next to you.
-          </p>
-        </div>
-        {mode !== "menu" && (
+      {mode === "menu" ? (
+        <ArenaEntrance spooky={spooky} onPick={setMode} />
+      ) : (
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2">
+              {spooky ? "Spooky Showdown" : "Live Arena"}
+              {spooky && <span className="season-chip">Halloween</span>}
+            </h1>
+            <p className="page-subtitle">
+              {mode === "host" && "Pick what the questions cover, open the room, and put this screen where everyone can see it."}
+              {mode === "join" && "Type the code from the host's screen and your name, and you are in."}
+              {mode === "local" && "Everyone sits at this computer. The question shows here, and each player has their own four keys."}
+            </p>
+          </div>
           <button type="button" onClick={() => setMode("menu")} className="btn-secondary btn-sm">
             <Icon name="arrow-left" size={14} />
             Back
           </button>
-        )}
-      </header>
-
-      {mode === "menu" && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <MenuCard
-            icon="leaderboard"
-            title="Host a game"
-            blurb="This screen shows the questions and the standings. Friends join from their phones with a six-letter code."
-            action="Host"
-            onPick={() => setMode("host")}
-          />
-          <MenuCard icon="phone" title="Join with a code" blurb="Someone else is hosting. Type the code from their screen and you are in." action="Join" onPick={() => setMode("join")} />
-          <MenuCard
-            icon="students"
-            title="Play on this computer"
-            blurb={`Two to ${LOCAL_MAX_PLAYERS} players, one keyboard. Each of you gets four keys and the same twenty seconds.`}
-            action="Play here"
-            onPick={() => setMode("local")}
-          />
-        </div>
+        </header>
       )}
       {mode === "host" && <HostSetup spooky={spooky} />}
       {mode === "join" && <JoinScreen defaultName={myName} startCode={startCode} />}
@@ -130,16 +113,143 @@ export function LiveArena() {
   );
 }
 
-function MenuCard({ icon, title, blurb, action, onPick }: { icon: "leaderboard" | "phone" | "students"; title: string; blurb: string; action: string; onPick: () => void }) {
+/**
+ * The way in: a stage, not a form. The three doors (host, join, play here)
+ * sit on the dark stage with the moon and the bats, and under them the
+ * same-keyboard mode is spelled out step by step, since "play on this
+ * computer" is the one people have to picture.
+ */
+function ArenaEntrance({ spooky, onPick }: { spooky: boolean; onPick: (m: Mode) => void }) {
   return (
-    <button type="button" onClick={onPick} className="card-link flex flex-col items-start text-left">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bridge-50 text-bridge-700 ring-1 ring-inset ring-bridge-100">
+    <div className="space-y-5">
+      <section className={`arena-stage arena-entrance ${spooky ? "arena-spooky" : ""}`}>
+        <span className="season-moon arena-moon" aria-hidden="true" />
+        <div className="arena-entrance-bats" aria-hidden="true">
+          <span className="arena-bat" style={{ "--d": "0s", "--y": "18%" } as React.CSSProperties}>
+            <BatIcon />
+          </span>
+          <span className="arena-bat" style={{ "--d": "-7s", "--y": "34%" } as React.CSSProperties}>
+            <BatIcon />
+          </span>
+          <span className="arena-bat" style={{ "--d": "-13s", "--y": "10%" } as React.CSSProperties}>
+            <BatIcon />
+          </span>
+        </div>
+        <div className="relative px-6 pb-7 pt-8 sm:px-10 sm:pt-10 md:pr-32">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/90">{spooky ? "Halloween season" : "Play together"}</p>
+          <h1 className="arena-title mt-2 max-w-full break-words font-display leading-[0.95] tracking-wide">{spooky ? "Spooky Showdown" : "Live Arena"}</h1>
+          <p className="mt-3 max-w-xl text-base text-white/85 sm:text-lg">
+            A quiz show over Algebra 1. One screen asks, everyone answers at once, and the fastest right answer wins the round.
+            {spooky ? " Tonight the ghosts are keeping score." : ""}
+          </p>
+          <div className="arena-doors mt-7">
+            <Door
+              icon="leaderboard"
+              title="Host a game"
+              blurb={`For a class or a party. This screen shows the questions and the scores; up to ${MAX_PLAYERS} people join from their phones with a six-letter code.`}
+              action="Open a room"
+              onPick={() => onPick("host")}
+            />
+            <Door icon="phone" title="Join a game" blurb="Someone is hosting. Type the code on their screen, pick a name, and your phone becomes your buzzer." action="Enter a code" onPick={() => onPick("join")} />
+            <Door
+              icon="students"
+              title="Play on this computer"
+              blurb={`No phones needed. Two to ${LOCAL_MAX_PLAYERS} of you share this keyboard; each player gets four keys for the four colors.`}
+              action="Play here"
+              onPick={() => onPick("local")}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2 className="section-title">How playing on one computer works</h2>
+        <ol className="mt-3 grid gap-3 text-sm text-slate-700 md:grid-cols-4">
+          <li className="rounded-xl bg-slate-50 p-3">
+            <span className="font-display text-2xl text-slate-900">1</span>
+            <p className="mt-1">Type everyone's name. Up to {LOCAL_MAX_PLAYERS} players, side by side at the keyboard.</p>
+          </li>
+          <li className="rounded-xl bg-slate-50 p-3">
+            <span className="font-display text-2xl text-slate-900">2</span>
+            <p className="mt-1">Each player gets four keys, one per color, left to right. Player 1 is 1 2 3 4, Player 2 is 7 8 9 0, then A S D F and H J K L.</p>
+          </li>
+          <li className="rounded-xl bg-slate-50 p-3">
+            <span className="font-display text-2xl text-slate-900">3</span>
+            <p className="mt-1">A question shows with four colored answers. Press the key for your pick, or tap your pad on screen. First press counts.</p>
+          </li>
+          <li className="rounded-xl bg-slate-50 p-3">
+            <span className="font-display text-2xl text-slate-900">4</span>
+            <p className="mt-1">Twenty seconds a question. Right and fast scores most. Standings after each one, a podium at the end.</p>
+          </li>
+        </ol>
+        <KeyMap />
+      </section>
+    </div>
+  );
+}
+
+function Door({ icon, title, blurb, action, onPick }: { icon: "leaderboard" | "phone" | "students"; title: string; blurb: string; action: string; onPick: () => void }) {
+  return (
+    <button type="button" onClick={onPick} className="arena-door group flex flex-col items-start text-left">
+      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/12 text-amber-200 ring-1 ring-inset ring-white/15">
         <Icon name={icon} size={22} />
       </span>
-      <span className="mt-3 text-base font-semibold text-slate-900">{title}</span>
-      <span className="mt-1 text-sm leading-relaxed text-slate-600">{blurb}</span>
-      <span className="btn-primary btn-sm mt-4">{action}</span>
+      <span className="mt-3 font-display text-2xl tracking-wide">{title}</span>
+      <span className="mt-1 text-sm leading-relaxed text-white/80">{blurb}</span>
+      <span className="btn-primary btn-sm mt-4 transition group-hover:translate-x-0.5">
+        {action}
+        <Icon name="arrow-right" size={14} />
+      </span>
     </button>
+  );
+}
+
+/** The keyboard, with each seat's four keys lit in the four answer colors. */
+function KeyMap() {
+  const rows = [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+    ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+  ];
+  const seatOf = (key: string): { seat: number; i: number } | null => {
+    const k = key.toLowerCase();
+    for (let seat = 0; seat < LOCAL_KEYS.length; seat += 1) {
+      const i = LOCAL_KEYS[seat].indexOf(k);
+      if (i >= 0) return { seat, i };
+    }
+    return null;
+  };
+  return (
+    <div className="mt-4">
+      <div className="inline-flex flex-col gap-1 rounded-xl bg-slate-800 p-2">
+        {rows.map((row, r) => (
+          <div key={r} className="flex gap-1" style={{ paddingLeft: r * 10 }}>
+            {row.map((key) => {
+              const hit = seatOf(key);
+              return (
+                <span key={key} className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${hit ? `${CHOICE_STYLE[hit.i].bg} text-white` : "bg-slate-700 text-slate-400"}`} title={hit ? `Player ${hit.seat + 1}` : undefined}>
+                  {key}
+                </span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        {LOCAL_KEY_LABELS.map((l, i) => `Player ${i + 1}: ${l}`).join(" · ")}
+      </p>
+    </div>
+  );
+}
+
+function BatIcon() {
+  return (
+    <svg viewBox="0 0 34 20" width="34" height="20" aria-hidden="true">
+      <path
+        d="M17 9 C15.5 6 13 5 10.5 5.5 C9 3.5 6 3 4 4.5 C1.5 5.5 0.5 8.5 1 11.5 C3 10 5.2 10.2 6.5 12 C7.6 10.6 9.2 10.6 10.5 12 C11.4 10.2 13 9.8 14.5 10.8 L15.6 13 L17 15.5 L18.4 13 L19.5 10.8 C21 9.8 22.6 10.2 23.5 12 C24.8 10.6 26.4 10.6 27.5 12 C28.8 10.2 31 10 33 11.5 C33.5 8.5 32.5 5.5 30 4.5 C28 3 25 3.5 23.5 5.5 C21 5 18.5 6 17 9 Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -685,7 +795,10 @@ function LocalSetup({ defaultName, spooky }: { defaultName: string; spooky: bool
             </button>
           )}
         </div>
-        <p className="field-hint">Each player answers with their own four keys, left to right for the four colors, or by tapping their pad.</p>
+        <p className="field-hint">
+          Everyone sits at this computer. The question shows on this screen with four colored answers; each player presses one of their own four keys (left to right
+          matches the colors) or taps their pad under the question. The first press counts.
+        </p>
       </div>
       <SettingsForm value={settings} onChange={setSettings} />
       <button type="button" onClick={begin} className="btn-primary">

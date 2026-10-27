@@ -34,6 +34,10 @@ import {
   HALLOWEEN_FIRST_OPEN_LINES,
   HALLOWEEN_FUN_FACTS,
   HALLOWEEN_GREETINGS,
+  HALLOWEEN_HELLO_REPLIES,
+  HALLOWEEN_MOTIVATE_LINES,
+  HALLOWEEN_NEW_PROBLEM_LINES,
+  HALLOWEEN_THANKS_REPLIES,
   HALLOWEEN_IDLE_NUDGES,
   HALLOWEEN_JOKES,
   HALLOWEEN_PROMPT_NOTE,
@@ -279,7 +283,7 @@ export function greetingFor(g: GreetingInput): string {
   const season = g.season ?? null;
   if (g.mode === "reminder") return FORMULAS_INTRO;
   if (g.spoken) {
-    return g.problem ? pickFresh(NEW_PROBLEM_LINES, recent, random) : "Still here! Ask me anything about Algebra 1.";
+    return g.problem ? pickFresh(withSeason(NEW_PROBLEM_LINES, HALLOWEEN_NEW_PROBLEM_LINES, season), recent, random) : "Still here! Ask me anything about Algebra 1.";
   }
   const hello = fillName(
     g.met
@@ -389,6 +393,15 @@ export function jokes(season: Season): readonly string[] {
 }
 export function funFacts(season: Season): readonly string[] {
   return withSeason(MATH_FUN_FACTS, HALLOWEEN_FUN_FACTS, season);
+}
+export function thanksReplies(season: Season): readonly string[] {
+  return withSeason(THANKS_REPLIES, HALLOWEEN_THANKS_REPLIES, season);
+}
+export function helloReplies(season: Season): readonly string[] {
+  return withSeason(HELLO_REPLIES, HALLOWEEN_HELLO_REPLIES, season);
+}
+export function motivateLines(season: Season): readonly string[] {
+  return withSeason(MOTIVATE_LINES, HALLOWEEN_MOTIVATE_LINES, season);
 }
 
 /**

@@ -30,7 +30,7 @@ export const QUESTION_COUNTS = [5, 10, 15] as const;
 export const SECONDS_PER_QUESTION = 20;
 /** Full marks for an instant right answer; half for one on the buzzer. */
 export const MAX_POINTS = 1000;
-export const MAX_PLAYERS = 40;
+export const MAX_PLAYERS = 50;
 export const LOCAL_MAX_PLAYERS = 4;
 export const NAME_MAX = 16;
 
@@ -111,7 +111,29 @@ export function weightedUnit(cap: number, rng: Rng = Math.random): number {
   return 1;
 }
 
-/** `count` head-math questions from units 1 to `unitCap`, no prompt twice. */
+/**
+ * A quiz-show question has to read in a glance: one short line of plain
+ * math, never a story. So on top of head math (small numbers, times-table
+ * factors) a prompt must be short, one sentence, mostly symbols and the few
+ * verbs a quick question uses, with none of the furniture of a word problem.
+ */
+const QUICK_START = /^(solve|simplify|evaluate|find|what is|what's|compute|calculate|factor|expand|which|is|how many|convert|write|rewrite|combine|add|subtract|multiply|divide|round|the slope|the y-intercept|the x-intercept|slope|f\(|g\(|h\(|[-+(]?\d|[a-z]\b|\(|√|-?\d)/i;
+const STORY_WORDS = /\b(store|shop|bought|buys|buy|sells|sold|costs?|price|dollars?|each|per|tickets?|miles?|hours?|minutes?|weeks?|days?|years?|friends?|team|game|school|class|she|he|they|his|her|their|you|your|total|how much|how long|how far|if a|a car|a train|a bus|recipe|cups?|bottles?|students?|people|boxes?|bags?)\b/i;
+
+export function isQuickQuestion(prompt: string): boolean {
+  const p = prompt.trim();
+  if (p.length < 4 || p.length > 64) return false;
+  if (!/\d/.test(p)) return false;
+  // One sentence or question, at most ten words.
+  const sentences = p.split(/[.?!]\s+/).filter(Boolean);
+  if (sentences.length > 1) return false;
+  if (p.split(/\s+/).length > 10) return false;
+  if (STORY_WORDS.test(p)) return false;
+  if (/[$%]/.test(p)) return false;
+  return QUICK_START.test(p);
+}
+
+/** `count` quick questions from units 1 to `unitCap`, no prompt twice. */
 export function pickQuestions(settings: ArenaSettings, rng: Rng = Math.random): ArenaQuestion[] {
   const out: ArenaQuestion[] = [];
   const seen = new Set<string>();
@@ -122,7 +144,7 @@ export function pickQuestions(settings: ArenaSettings, rng: Rng = Math.random): 
     const unit = units[weightedUnit(settings.unitCap, rng) - 1];
     if (!unit) continue;
     const skill = unit.skills[Math.floor(rng() * unit.skills.length)];
-    const pool = getFreshProblemsForSkill(skill.id, skill.problems).filter((p) => isHeadMath(p));
+    const pool = getFreshProblemsForSkill(skill.id, skill.problems).filter((p) => isHeadMath(p) && isQuickQuestion(stripVariantTag(p.prompt)));
     if (!pool.length) continue;
     const p = pool[Math.floor(rng() * pool.length)];
     const prompt = stripVariantTag(p.prompt);

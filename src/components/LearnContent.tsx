@@ -181,6 +181,22 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
           unit's color and mark say where in the course this is. */}
       <header className={`relative flex items-start gap-4 ${spooky ? "season-lesson" : ""}`}>
         {spooky && <span className="season-cobweb" aria-hidden="true" />}
+        {/* Walking in: fog rolls across the header once and two bats leave the web (season.css). Keyed by skill, so every lesson gets its entrance. */}
+        {spooky && (
+          <span key={skill.id} className="season-entrance" aria-hidden="true">
+            <span className="season-fog" />
+            <span className="season-lesson-bat" style={{ "--d": "0.2s", "--y": "22%" } as React.CSSProperties}>
+              <svg viewBox="0 0 34 20" width="30" height="18">
+                <path d="M17 9 C15.5 6 13 5 10.5 5.5 C9 3.5 6 3 4 4.5 C1.5 5.5 0.5 8.5 1 11.5 C3 10 5.2 10.2 6.5 12 C7.6 10.6 9.2 10.6 10.5 12 C11.4 10.2 13 9.8 14.5 10.8 L15.6 13 L17 15.5 L18.4 13 L19.5 10.8 C21 9.8 22.6 10.2 23.5 12 C24.8 10.6 26.4 10.6 27.5 12 C28.8 10.2 31 10 33 11.5 C33.5 8.5 32.5 5.5 30 4.5 C28 3 25 3.5 23.5 5.5 C21 5 18.5 6 17 9 Z" fill="currentColor" />
+              </svg>
+            </span>
+            <span className="season-lesson-bat" style={{ "--d": "0.6s", "--y": "48%" } as React.CSSProperties}>
+              <svg viewBox="0 0 34 20" width="22" height="13">
+                <path d="M17 9 C15.5 6 13 5 10.5 5.5 C9 3.5 6 3 4 4.5 C1.5 5.5 0.5 8.5 1 11.5 C3 10 5.2 10.2 6.5 12 C7.6 10.6 9.2 10.6 10.5 12 C11.4 10.2 13 9.8 14.5 10.8 L15.6 13 L17 15.5 L18.4 13 L19.5 10.8 C21 9.8 22.6 10.2 23.5 12 C24.8 10.6 26.4 10.6 27.5 12 C28.8 10.2 31 10 33 11.5 C33.5 8.5 32.5 5.5 30 4.5 C28 3 25 3.5 23.5 5.5 C21 5 18.5 6 17 9 Z" fill="currentColor" />
+              </svg>
+            </span>
+          </span>
+        )}
         <Link
           href={`/unit/${unitId}`}
           title={`Unit ${unit.number}: ${unit.title}`}

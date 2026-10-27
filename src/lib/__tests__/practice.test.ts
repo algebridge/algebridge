@@ -2424,6 +2424,12 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const msg = A.resultMessage(players, scored, q, 10);
   ok("arena: the result counts the picks and ranks with ties shared", msg.type === "result" && msg.counts.reduce((a, b) => a + b, 0) === 2 && msg.standings[0].id === "a" && msg.standings[1].rank === 2 && msg.standings[2].rank === 2);
   ok("arena: seats at one keyboard never share a key", new Set(A.LOCAL_KEYS.flat()).size === A.LOCAL_KEYS.flat().length);
+  // Quiz-show questions read in a glance: short, plain, never a story.
+  ok("arena: a plain equation is quick", A.isQuickQuestion("Solve for x: 2x + 3 = 11") && A.isQuickQuestion("Factor x² − 8x + 16") && A.isQuickQuestion("Find the slope between (1, 2) and (4, 8)."));
+  ok("arena: a word problem is not", !A.isQuickQuestion("A store sells 3 shirts for $24. How much is one shirt?") && !A.isQuickQuestion("Maya runs 4 miles each day for 5 days. How far does she run?"));
+  ok("arena: two sentences are not quick", !A.isQuickQuestion("Convert 29 inches to feet. Round to the hundredths place."));
+  ok("arena: every picked question is quick", A.pickQuestions({ unitCap: 15, count: 15 }).every((q) => A.isQuickQuestion(q.prompt) && q.prompt.length <= 64));
+  ok("arena: at most fifty in a room", A.MAX_PLAYERS === 50);
 }
 
 

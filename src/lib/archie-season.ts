@@ -18,6 +18,10 @@ export const HALLOWEEN_GREETINGS = [
   "Hey {name}! Welcome to the haunted house of algebra. The ghosts are all variables.",
   "Trick or treat, {name}! I only do treats, and today's treat is math.",
   "Hey {name}! Like the hat? It's for witch-level focus.",
+  "Welcome back, {name}. The cauldron's bubbling and the problems are fresh.",
+  "Hey {name}! Something wicked this way comes. It's a system of equations.",
+  "The bats are out, {name}, and so are we. What are we solving tonight?",
+  "Greetings, {name}. The witch hat says hi too. Shall we brew up some math?",
 ] as const;
 
 /** The very first hello on this device, in season. */
@@ -32,6 +36,10 @@ export const HALLOWEEN_RIGHT_LINES = [
   "Right on, {name}. You cast that spell perfectly.",
   "Boom! You carved that one up like a pumpkin.",
   "Correct! The witch hat tips to you.",
+  "That's right! The skeletons just rattled with joy.",
+  "Correct, {name}! Spooky how good you're getting at this.",
+  "Yes! One more for the candy bowl.",
+  "Right! The cauldron bubbled when you got that one.",
 ] as const;
 
 /** A miss, in season. Never a claim about the answer: no "close" or "almost". */
@@ -40,6 +48,8 @@ export const HALLOWEEN_WRONG_LINES = [
   "Spooky, but not scary. Take another look, or tap a hint.",
   "Not this time. Even witches redo a spell now and then.",
   "That one slipped away into the fog. Want to check it together?",
+  "Not quite, {name}. The answer's still lurking. One more try?",
+  "No treat yet. Check each step, the trick is usually in one of them.",
 ] as const;
 
 export const HALLOWEEN_STREAK_LINES: Readonly<Record<number, string>> = {
@@ -49,7 +59,31 @@ export const HALLOWEEN_STREAK_LINES: Readonly<Record<number, string>> = {
 };
 
 /** Beside his name when a student is quiet on a problem. Never a question. */
-export const HALLOWEEN_IDLE_NUDGES = ["Stuck? My hat has a hint in it.", "No tricks here. A hint is one tap away."] as const;
+export const HALLOWEEN_IDLE_NUDGES = ["Stuck? My hat has a hint in it.", "No tricks here. A hint is one tap away.", "The ghosts are patient. Take your time.", "Boo. Just checking in. Chips below."] as const;
+
+export const HALLOWEEN_THANKS_REPLIES = [
+  "Anytime, {name}! Happy haunting, I mean, happy solving.",
+  "You're welcome! The hat and I are always here.",
+  "Of course! Now that's what I call a treat. Got another one?",
+] as const;
+
+export const HALLOWEEN_HELLO_REPLIES = [
+  "Boo! Hey {name}. How's your day going?",
+  "Hey hey! The haunted house of algebra is open. What's up, {name}?",
+  "Hi {name}! I've got my hat on and a cauldron of problems ready. How are you?",
+] as const;
+
+export const HALLOWEEN_MOTIVATE_LINES = [
+  "Every problem you try is one more ghost that stops being scary. Keep going, {name}.",
+  "Witches don't get a spell right the first time either. They just keep stirring. So do you.",
+  "The scariest problem is the one you skip. The one you try always gets smaller.",
+] as const;
+
+export const HALLOWEEN_NEW_PROBLEM_LINES = [
+  "A fresh one crawled out of the cauldron. Take a look.",
+  "New problem, same haunted house. Where do you want to start?",
+  "Ooh, this one looks spooky. Want a hint, or want to brave it first?",
+] as const;
 
 export const HALLOWEEN_BYE_LINES = [
   "Bye for now, {name}! Watch out for ghosts. And for negative signs.",
@@ -82,7 +116,7 @@ export const HALLOWEEN_FUN_FACTS = [
 
 /** The note the model gets in season, on top of the persona. */
 export const HALLOWEEN_PROMPT_NOTE =
-  "It is Halloween season and you are wearing a witch hat. Once in a while, when it fits, a light Halloween or fall pun is welcome (ghosts, pumpkins, bats, spells). Keep it rare, one line at most, never scary, and never let it get in the way of the math.";
+  "It is Halloween season and you are wearing a witch hat, which you love. Every few replies, when it fits, slip in a light Halloween or fall touch: a pun, a ghost, a pumpkin, a spell, the cauldron, trick or treat. One short line at most, playful never scary, and the math always comes first.";
 
 /** Every seasonal line, for the style tests. */
 export const ALL_HALLOWEEN_LINES: readonly string[] = [
@@ -95,12 +129,17 @@ export const ALL_HALLOWEEN_LINES: readonly string[] = [
   ...HALLOWEEN_BYE_LINES,
   ...HALLOWEEN_JOKES,
   ...HALLOWEEN_FUN_FACTS,
+  ...HALLOWEEN_THANKS_REPLIES,
+  ...HALLOWEEN_HELLO_REPLIES,
+  ...HALLOWEEN_MOTIVATE_LINES,
+  ...HALLOWEEN_NEW_PROBLEM_LINES,
 ];
 
 /**
- * The usual pool with the season's lines mixed in. In season about a third
- * of what he says on his own is seasonal; the rest is still plain Archie.
+ * The usual pool with the season's lines mixed in, each seasonal line
+ * counted twice: in season about half of what he says on his own is in
+ * costume, and the rest is still plain Archie.
  */
 export function withSeason<T extends string>(base: readonly T[], seasonal: readonly string[], season: Season): readonly string[] {
-  return season === "halloween" ? [...base, ...seasonal] : base;
+  return season === "halloween" ? [...base, ...seasonal, ...seasonal] : base;
 }

@@ -63,11 +63,11 @@ import {
   GOOD_MOOD_REPLIES,
   GOT_IT_LINES,
   greetingFor,
-  HELLO_REPLIES,
+  helloReplies,
   idleNudges,
   funFacts,
   jokes,
-  MOTIVATE_LINES,
+  motivateLines,
   pickFresh,
   practiceTemplate,
   QUIZ_INTROS,
@@ -76,7 +76,7 @@ import {
   QUIZ_TRY_AGAIN,
   quizLine,
   smallTalkKind,
-  THANKS_REPLIES,
+  thanksReplies,
   type AgainKind,
 } from "@/lib/archie-persona";
 import { autoReactionFor, responseToReaction, toggleReaction, type ReactionId } from "@/lib/archie-reactions";
@@ -918,7 +918,7 @@ function StudyHelperPanel() {
     } else if (kind === "fact") {
       replyLocally(key, { kind: "buddy", content: funFact(), followUps: ["fact"] });
     } else if (kind === "motivate") {
-      replyLocally(key, { kind: "buddy", content: fillName(say(pickFresh(MOTIVATE_LINES, recentSaid.current)), name) });
+      replyLocally(key, { kind: "buddy", content: fillName(say(pickFresh(motivateLines(season), recentSaid.current)), name) });
     } else if (kind === "joke") {
       replyLocally(key, { kind: "buddy", content: mathJoke(), followUps: ["joke"] });
     } else {
@@ -1215,13 +1215,13 @@ function StudyHelperPanel() {
     const talk = action ? null : smallTalkKind(text);
     const pool =
       talk === "thanks"
-        ? THANKS_REPLIES
+        ? thanksReplies(season)
         : talk === "aha"
           ? AHA_LINES
           : talk === "got-it"
             ? GOT_IT_LINES
             : talk === "hello"
-              ? HELLO_REPLIES
+              ? helloReplies(season)
               : talk === "bye"
                 ? byeLines(season)
                 : talk === "affection"
