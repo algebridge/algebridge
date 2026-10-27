@@ -27,6 +27,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { useCourseAccess } from "@/hooks/useCourseAccess";
 import { hueVars, unitHue } from "@/lib/hues";
 import { canTryCheck, CHECK_LENGTH, today } from "@/lib/path";
+import { useSeason } from "@/lib/season";
 import { bridgeysForSkill } from "@/lib/gamification";
 import { getUnitPrize } from "@/data/house-catalog";
 import { showToast } from "@/lib/notify";
@@ -56,6 +57,7 @@ interface LearnContentProps {
 }
 
 export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps) {
+  const spooky = useSeason() === "halloween";
   const { stats, mounted } = useProgress();
   // Bridgeys are the student's game; a teacher previewing a lesson is not playing it.
   const auth = useAuth();
@@ -177,7 +179,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
       {/* Title and description stay open so a shared lesson link still
           says what it leads to. The lesson itself needs an account. The
           unit's color and mark say where in the course this is. */}
-      <header className="flex items-start gap-4">
+      <header className={`relative flex items-start gap-4 ${spooky ? "season-lesson" : ""}`}>
+        {spooky && <span className="season-cobweb" aria-hidden="true" />}
         <Link
           href={`/unit/${unitId}`}
           title={`Unit ${unit.number}: ${unit.title}`}
@@ -313,6 +316,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
                   <h2 className="section-title flex items-center gap-2">
                     <StepMark n={2} done={isSkillComplete} />
                     Practice
+                    {spooky && <span className="season-chip">Spooky practice</span>}
                     {isSkillComplete && <span className="sr-only">, done</span>}
                   </h2>
                   {!isSkillComplete && workedExamplesFor(skill.id).length > 0 && (

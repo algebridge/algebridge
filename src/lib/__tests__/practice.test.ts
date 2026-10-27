@@ -2394,6 +2394,39 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("houses: the street's check names every style", ids.every((id) => street.includes(`'${id}'`)));
   ok("houses: prices rise through the shop", STYLES.every((h, i) => i === 0 || h.price > STYLES[i - 1].price));
 }
+// --- the live arena (src/lib/arena-live.ts) --------------------------------------
+{
+  const A = await import("../arena-live.ts");
+  const seq = (vals: number[]) => {
+    let i = 0;
+    return () => vals[i++ % vals.length];
+  };
+  ok("arena: full marks at once, half on the buzzer, none when wrong", A.pointsFor(true, 0) === 1000 && A.pointsFor(true, 20000) === 500 && A.pointsFor(false, 0) === 0 && A.pointsFor(true, 10000) === 750);
+  const code = A.makeCode(seq([0.1, 0.5, 0.9, 0.2, 0.3, 0.7]));
+  ok("arena: a code is six safe letters", A.isCode(code) && !/[ILO01]/.test(code), code);
+  ok("arena: a typed code is tidied", A.cleanCode(" ab-cd ef ") === "ABCDEF" && A.cleanCode("ilo") === "");
+  ok("arena: names are tidy and unique", A.cleanName("  Sam!! <b>  ") === "Sam b" && A.uniqueName("Sam", ["Sam", "Sam 2"]) === "Sam 3");
+  const num = A.choicesFor({ id: "p", type: "numeric", prompt: "2 + 2", hint: "", answer: 4, explanation: "" } as never, seq([0.3, 0.6, 0.1, 0.8, 0.5]));
+  ok("arena: a numeric answer gets four distinct choices with the answer among them", !!num && num.choices.length === 4 && new Set(num.choices).size === 4 && num.choices[num.answer] === "4", JSON.stringify(num));
+  const mc = A.choicesFor({ id: "p", type: "multiple-choice", prompt: "", hint: "", answer: "x > 2", choices: ["x > 2", "x < 2", "x > -2", "x < -2"], explanation: "" } as never, seq([0.2, 0.9, 0.4, 0.6]));
+  ok("arena: a multiple-choice problem keeps its own choices", !!mc && mc.choices.length === 4 && mc.choices[mc.answer] === "x > 2");
+  const qs = A.pickQuestions({ unitCap: 3, count: 10 });
+  ok("arena: ten questions from units 1 to 3, no prompt twice", qs.length === 10 && qs.every((q) => q.unitNumber >= 1 && q.unitNumber <= 3 && q.choices.length === 4 && q.choices[q.answer] !== undefined) && new Set(qs.map((q) => q.prompt)).size === 10, String(qs.length));
+  ok("arena: the top unit comes up most", (() => { const r = seq([0.99, 0.5, 0.01]); return A.weightedUnit(3, r) === 1 && A.weightedUnit(3, r) === 2 && A.weightedUnit(3, r) === 3; })());
+  const q = qs[0];
+  const players = [
+    { id: "a", name: "Ana", score: 0, streak: 2, pick: q.answer, ms: 0 },
+    { id: "b", name: "Ben", score: 0, streak: 1, pick: (q.answer + 1) % 4, ms: 100 },
+    { id: "c", name: "Cy", score: 0, streak: 0 },
+  ];
+  const scored = A.scoreQuestion(players, q);
+  ok("arena: scoring pays the right answer by speed, resets a miss's streak, and clears the picks", scored[0].score === 1000 && scored[0].streak === 3 && scored[1].score === 0 && scored[1].streak === 0 && scored[2].last?.correct === false && scored.every((p) => p.pick === undefined));
+  const msg = A.resultMessage(players, scored, q, 10);
+  ok("arena: the result counts the picks and ranks with ties shared", msg.type === "result" && msg.counts.reduce((a, b) => a + b, 0) === 2 && msg.standings[0].id === "a" && msg.standings[1].rank === 2 && msg.standings[2].rank === 2);
+  ok("arena: seats at one keyboard never share a key", new Set(A.LOCAL_KEYS.flat()).size === A.LOCAL_KEYS.flat().length);
+}
+
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
+

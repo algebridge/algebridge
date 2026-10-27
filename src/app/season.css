@@ -286,3 +286,111 @@ html[data-season="halloween"] .season-hero .season-moon {
     animation: none !important;
   }
 }
+
+/* ---- The Live Arena (components/arena/LiveArena.tsx) ------------------- */
+.arena-stage {
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #0f1b3d 0%, #1e3a8a 100%);
+  color: #f8fafc;
+  box-shadow: 0 4px 12px -2px rgb(15 23 42 / 0.2);
+  overflow: hidden;
+}
+.arena-stage.arena-spooky {
+  background: radial-gradient(circle at 85% 12%, rgb(255 243 196 / 0.16), transparent 22%), linear-gradient(180deg, #120a24 0%, #2a1548 60%, #4a1e3a 100%);
+}
+.arena-stage.arena-right {
+  background: linear-gradient(180deg, #065f46, #047857);
+}
+.arena-stage.arena-wrong {
+  background: linear-gradient(180deg, #7c2d12, #9a3412);
+}
+.arena-timer {
+  transition-property: width;
+  transition-timing-function: linear;
+}
+.arena-stage .btn-primary {
+  background: #f59e0b;
+  color: #1a1030;
+}
+.arena-stage .btn-primary:hover {
+  background: #fbbf24;
+}
+.arena-stage .btn-secondary {
+  background: rgb(255 255 255 / 0.1);
+  color: #f8fafc;
+  border-color: rgb(255 255 255 / 0.2);
+}
+.arena-stage .btn-secondary:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+
+/* ---- Inside a lesson (LearnContent.tsx, PracticePanel.tsx, AnswerFeedback.tsx) ---- */
+
+/* A cobweb strung across the top right corner of the lesson header. */
+.season-cobweb {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 92px;
+  height: 92px;
+  pointer-events: none;
+  opacity: 0.55;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%236b5a7a' stroke-width='1.2'><path d='M100 0 L0 100 M100 0 L30 100 M100 0 L0 70 M100 0 L60 100 M100 0 L0 40'/><path d='M85 15 Q80 28 65 35 Q50 42 15 85' /><path d='M90 30 Q84 48 68 56 Q52 64 30 90'/><path d='M96 48 Q90 62 76 72 Q62 82 48 96'/></svg>");
+}
+
+/* Cobwebs in the practice panel's corners, and a bat perched on the top edge. */
+html[data-season="halloween"] .season-practice {
+  position: relative;
+}
+html[data-season="halloween"] .season-practice::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 54px;
+  height: 54px;
+  pointer-events: none;
+  opacity: 0.4;
+  transform: scaleX(-1);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%236b5a7a' stroke-width='1.4'><path d='M100 0 L0 100 M100 0 L30 100 M100 0 L0 70 M100 0 L60 100 M100 0 L0 40'/><path d='M85 15 Q80 28 65 35 Q50 42 15 85' /><path d='M90 30 Q84 48 68 56 Q52 64 30 90'/><path d='M96 48 Q90 62 76 72 Q62 82 48 96'/></svg>");
+}
+
+/* The verdict's ghost: rises out of the check mark and fades. */
+.season-ghost-up {
+  position: absolute;
+  left: 2px;
+  top: -2px;
+  color: #f8fafc;
+  filter: drop-shadow(0 1px 1px rgb(30 20 50 / 0.5));
+  animation: season-ghost-up 1.6s ease-out both;
+  pointer-events: none;
+}
+@keyframes season-ghost-up {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) translateX(6px) scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .season-ghost-up {
+    animation: none;
+    display: none;
+  }
+}
+
+/* The daily goal and the step marks warm up with the season. */
+html[data-season="halloween"] .season-lesson .page-title {
+  text-shadow: 0 0 18px rgb(232 116 29 / 0.18);
+}

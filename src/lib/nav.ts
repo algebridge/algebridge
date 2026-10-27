@@ -46,6 +46,7 @@ export function buildNav({
   const learn: NavItem[] = [
     { href: course === "algebra-2" ? "/algebra-2" : "/", label: "Course", icon: "course" },
     { href: "/games", label: "Games", icon: "play" },
+    { href: "/arena", label: "Live Arena", icon: "versus" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
   ];
 

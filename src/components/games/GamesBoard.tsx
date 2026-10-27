@@ -18,6 +18,9 @@ import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
 import { prefersReducedMotion } from "@/lib/display";
+import Link from "next/link";
+import { Icon } from "@/components/Icon";
+import { useSeason } from "@/lib/season";
 
 const LAST_GAME_KEY = "algebridge:last-game";
 
@@ -170,6 +173,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       </header>
 
       {/* The team: pick who to play with. */}
+      <ArenaCard />
       <nav aria-label="Pick a game" data-tour="games" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-6 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
         {GAME_CARDS.map((g) => (
           <TeamTile key={g.id} card={g} active={g.id === picked} best={g.id === "rink" ? (progress?.rink?.best ?? 0) : (progress?.gameBest?.[g.id] ?? 0)} onPick={() => pick(g.id)} />
@@ -430,5 +434,26 @@ function RinkPreview({
         )}
       </StageChrome>
     </>
+  );
+}
+
+
+/** The Live Arena, one tap from the games: host for a class, join with a code, or share a keyboard. */
+function ArenaCard() {
+  const spooky = useSeason() === "halloween";
+  return (
+    <Link href="/arena" className={`arena-stage ${spooky ? "arena-spooky" : ""} mb-4 flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition hover:brightness-110`}>
+      <span className="min-w-0">
+        <span className="flex items-center gap-2 font-display text-2xl tracking-wide">
+          {spooky ? "Spooky Showdown" : "Live Arena"}
+          <span className="rounded-full bg-amber-400 px-2 py-0.5 font-body text-[11px] font-bold text-slate-900">New</span>
+        </span>
+        <span className="mt-0.5 block text-sm opacity-85">A quiz show for the whole class or two friends at one keyboard. Fastest right answer wins.</span>
+      </span>
+      <span className="btn-primary btn-sm">
+        Play
+        <Icon name="arrow-right" size={14} />
+      </span>
+    </Link>
   );
 }

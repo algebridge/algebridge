@@ -1,4 +1,7 @@
+"use client";
+
 import { Icon } from "@/components/Icon";
+import { useSeason, type Season } from "@/lib/season";
 
 // Short and steady, the way a good tutor sounds. The old lines ("Boom,
 // exactly right!", "You're on fire!") with a cartoon emoji read as a game.
@@ -13,9 +16,15 @@ const RETRY = [
   "Look back at the key idea, then try again.",
 ];
 
+// October (lib/season.ts): a few of the verdicts come in costume. Same rules:
+// steady, and a miss is never told it was close.
+const RIGHT_HALLOWEEN = ["Scary good. Nicely worked!", "Correct. That one's a treat.", "Right answer. Boo-tiful work!", "Correct. The ghosts are impressed."];
+const RETRY_HALLOWEEN = ["No tricks here. Try it once more.", "That one's hiding. Check your steps and try again.", "Spooky, not scary. Give it another go."];
+
 /** The verdict's words, also read out by the practice panel's status line. */
-export function feedbackLine(state: "correct" | "wrong", seed: number): string {
-  const lines = state === "correct" ? RIGHT : RETRY;
+export function feedbackLine(state: "correct" | "wrong", seed: number, season: Season = null): string {
+  const base = state === "correct" ? RIGHT : RETRY;
+  const lines = season === "halloween" ? [...base, ...(state === "correct" ? RIGHT_HALLOWEEN : RETRY_HALLOWEEN)] : base;
   return lines[Math.abs(seed) % lines.length];
 }
 
@@ -24,7 +33,9 @@ export function feedbackLine(state: "correct" | "wrong", seed: number): string {
  * note (the mistake note under a wrong answer) that already has one.
  */
 export function AnswerFeedback({ state, seed, flush = false }: { state: "correct" | "wrong"; seed: number; flush?: boolean }) {
-  const message = feedbackLine(state, seed);
+  const season = useSeason();
+  const spooky = season === "halloween";
+  const message = feedbackLine(state, seed, season);
   const box = flush
     ? "bg-transparent"
     : state === "correct"
@@ -38,9 +49,19 @@ export function AnswerFeedback({ state, seed, flush = false }: { state: "correct
       }`}
     >
       {state === "correct" ? (
-        <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-          <Icon name="check" size={14} />
-        </span>
+        spooky ? (
+          // A little ghost rises out of the verdict and fades (season.css).
+          <span className="relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <Icon name="check" size={14} />
+            <span className="season-ghost-up" aria-hidden="true">
+              <Icon name="ghost" size={18} />
+            </span>
+          </span>
+        ) : (
+          <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <Icon name="check" size={14} />
+          </span>
+        )
       ) : (
         <Icon name="review" size={18} className="shrink-0 text-amber-600" />
       )}

@@ -59,6 +59,7 @@ import { JerseyAnswer, JerseyArt } from "@/components/games/Jersey";
 import { jerseyFor, jerseyNumberIn, playerNamedIn, sportOfTopic } from "@/lib/jerseys";
 import { prefersReducedMotion } from "@/lib/display";
 import { RunHud } from "@/components/RunHud";
+import { useSeason } from "@/lib/season";
 
 interface PracticePanelProps {
   skill: Skill;
@@ -276,6 +277,8 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [mounted, setMounted] = useState(false);
 
   const { playCorrect, playWrong, playLevelUp, playCombo, playBreak } = useSound();
+  /** October: the verdicts come in costume now and then, and the panel gets its cobwebs (lib/season.ts). */
+  const season = useSeason();
   const { speak, stop: stopSpeech, speaking, supported: speechSupported } = useSpeech();
   const { topics, key: topicsKey, loaded: topicsLoaded } = useInterestTopics();
 
@@ -1042,7 +1045,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   );
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${season === "halloween" ? "season-practice" : ""}`}>
       {courseParty && <CourseCelebration progress={getProgress()} name={certificateName.trim()} onClose={() => setCourseParty(false)} />}
       {celebration && (
         <div
@@ -1467,7 +1470,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         <p role="status" className="sr-only">
           {[
             !pending && !feedback && !revealed ? `Problem ${(problemIndex % allProblems.length) + 1}. ${displayPrompt}` : "",
-            feedback && !revealed ? feedbackLine(feedback, feedbackSeed) : "",
+            feedback && !revealed ? feedbackLine(feedback, feedbackSeed, season) : "",
             celebration ? `${celebration.unitNumber ? `Unit ${celebration.unitNumber}` : "Skill"} complete. ${skill.title} is done.` : "",
           ]
             .filter(Boolean)
