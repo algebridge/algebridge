@@ -6,8 +6,10 @@ import "../console.css";
 import { useAuth } from "@/lib/auth";
 import { consoleFontClass } from "@/lib/console-fonts";
 import { fullDate, shortAgo } from "@/lib/console-format";
+import { InterestsPanel } from "./InterestsPanel";
 import {
   fetchAdminFeedback,
+  fetchAdminInterests,
   fetchAdminOverview,
   fetchAdminReports,
   fetchAdminReviews,
@@ -18,6 +20,7 @@ import {
   setUnlimitedBridgeysFor,
   type AdminFeedbackItem,
   type AdminFeedbackResult,
+  type AdminInterestsResult,
   type AdminOverview,
   type AdminReport,
   type AdminReportsResult,
@@ -31,7 +34,7 @@ import { TrafficPanel, lastDays } from "./TrafficPanel";
 import { adminDeleteUser, adminSetRole } from "@/lib/social";
 import type { UserRole } from "@/types";
 
-type Tab = "overview" | "traffic" | "people" | "feedback" | "reports";
+type Tab = "overview" | "traffic" | "people" | "feedback" | "reports" | "interests";
 type RoleFilter = "all" | "student" | "tutor" | "teacher" | "nontutor";
 type SeenFilter = "all" | "1d" | "7d" | "30d" | "dormant";
 
@@ -81,6 +84,7 @@ export default function AdminPage() {
   const [reports, setReports] = useState<AdminReportsResult | null>(null);
   const [traffic, setTraffic] = useState<AdminTrafficResult | null>(null);
   const [feedback, setFeedback] = useState<AdminFeedbackResult | null>(null);
+  const [interests, setInterests] = useState<AdminInterestsResult | null>(null);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [msg, setMsg] = useState("");
@@ -97,13 +101,14 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setLoadingData(true);
-    const [o, r, rv, rp, tr, fb] = await Promise.all([
+    const [o, r, rv, rp, tr, fb, it] = await Promise.all([
       fetchAdminOverview(),
       fetchAdminUserRows(),
       fetchAdminReviews(),
       fetchAdminReports(),
       fetchAdminTraffic(30),
       fetchAdminFeedback(300),
+      fetchAdminInterests(500),
     ]);
     setOverview(o);
     setRows(r);
@@ -111,6 +116,7 @@ export default function AdminPage() {
     setReports(rp);
     setTraffic(tr);
     setFeedback(fb);
+    setInterests(it);
     setSelected(new Set());
     setLoadingData(false);
   }, []);
@@ -297,6 +303,9 @@ export default function AdminPage() {
         <button type="button" className={tab === "reports" ? "is-active" : ""} onClick={() => setTab("reports")}>
           Reports{reportCount ? ` (${reportCount})` : ""}
         </button>
+        <button type="button" className={tab === "interests" ? "is-active" : ""} onClick={() => setTab("interests")}>
+          Interests{interests?.status === "ok" ? ` (${interests.data.students})` : ""}
+        </button>
       </div>
 
       {err && <div className="sbc-notice">{err}</div>}
@@ -305,6 +314,8 @@ export default function AdminPage() {
       {tab === "traffic" && <TrafficPanel data={traffic} loading={loadingData} />}
 
       {tab === "feedback" && <FeedbackPanel data={feedback} loading={loadingData} />}
+
+      {tab === "interests" && <InterestsPanel data={interests} loading={loadingData} />}
 
       {tab === "reports" && <ReportsPanel data={reports} loading={loadingData} fallback={reportFallback} />}
 

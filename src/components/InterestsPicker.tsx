@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   cleanSpecifics,
   describeTopic,
+  INTEREST_GROUPS,
   INTEREST_OPTIONS,
+  optionsInGroup,
   NOTE_MAX,
   sanitizeTopics,
   SPECIFICS_MAX,
@@ -235,25 +237,33 @@ export function InterestsPicker({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Interests">
-        {INTEREST_OPTIONS.map((o) => {
-          const on = picks.includes(o.id);
-          return (
-            <button
-              key={o.id}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(o.id)}
-              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                on
-                  ? "border-bridge-600 bg-bridge-600 text-white shadow-sm"
-                  : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
+      {/* Grouped, so forty chips read as five short rows instead of one wall. */}
+      <div className="space-y-3">
+        {INTEREST_GROUPS.map((group) => (
+          <div key={group}>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{group}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={group}>
+              {optionsInGroup(group).map((o) => {
+                const on = picks.includes(o.id);
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggle(o.id)}
+                    className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                      on
+                        ? "border-bridge-600 bg-bridge-600 text-white shadow-sm"
+                        : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {picks.length > 0 && (

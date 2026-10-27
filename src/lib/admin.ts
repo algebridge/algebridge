@@ -409,3 +409,52 @@ export async function fetchAdminFeedback(limit = 300): Promise<AdminFeedbackResu
     },
   };
 }
+
+
+// ---- What students are into ----------------------------------------------
+
+export interface AdminInterestNote {
+  note: string | null;
+  /** Per tapped chip id, what they named. */
+  specifics: Record<string, string>;
+  picks: string[];
+  updatedAt: string | null;
+}
+
+export interface AdminInterests {
+  /** Students with an interests profile saved. */
+  students: number;
+  /** Tapped chips, by chip id. */
+  picks: Record<string, number>;
+  /** Everyone who wrote something, newest first. No ids or names. */
+  notes: AdminInterestNote[];
+}
+
+export type AdminInterestsResult =
+  | { status: "ok"; data: AdminInterests }
+  /** admin_interests() is not in the database: supabase/schema-2026-10-26-interests.sql has not run. */
+  | { status: "missing" }
+  | { status: "error"; message: string };
+
+/** The chips tallied and the words students wrote, through admin_interests() (admins only). */
+export async function fetchAdminInterests(limit = 500): Promise<AdminInterestsResult> {
+  const supabase = createClient();
+  if (!supabase) return { status: "error", message: "Cloud accounts are not configured on this deployment." };
+  const { data, error } = await supabase.rpc("admin_interests", { p_limit: limit });
+  if (error) {
+    if (MISSING_FUNCTION.test(`${error.code ?? ""} ${error.message ?? ""}`)) return { status: "missing" };
+    return { status: "error", message: error.message || "The interests could not be read." };
+  }
+  const d = (data ?? {}) as Record<string, unknown>;
+  const picks: Record<string, number> = {};
+  if (d.picks && typeof d.picks === "object") for (const [k, v] of Object.entries(d.picks as Record<string, unknown>)) picks[k] = num(v);
+  const notes: AdminInterestNote[] = Array.isArray(d.notes)
+    ? (d.notes as Record<string, unknown>[]).map((n) => ({
+        note: typeof n.note === "string" && n.note.trim() ? n.note.trim() : null,
+        specifics: n.specifics && typeof n.specifics === "object" ? Object.fromEntries(Object.entries(n.specifics as Record<string, unknown>).filter(([, v]) => typeof v === "string" && v.trim()).map(([k, v]) => [k, String(v).trim()])) : {},
+        picks: Array.isArray(n.picks) ? (n.picks as unknown[]).filter((x): x is string => typeof x === "string") : [],
+        updatedAt: typeof n.updated_at === "string" ? n.updated_at : null,
+      }))
+    : [];
+  return { status: "ok", data: { students: num(d.students), picks, notes } };
+}
