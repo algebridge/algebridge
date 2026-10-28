@@ -20,6 +20,8 @@ import { CrisisCard } from "@/components/helper/CrisisCard";
 
 /** Enough to rotate through, few enough that each one comes up. */
 const MAX_PICKS = 4;
+/** Suggestions shown before "Show all", so a long list stays readable. */
+const SHOWN_SUGGESTIONS = 12;
 
 const splitSpecifics = (line: string) => line.split(",").map((s) => s.trim()).filter(Boolean);
 const hasSpecific = (line: string, name: string) =>
@@ -63,6 +65,7 @@ export function InterestsPicker({
   /** Per tapped chip: the teams, players, characters, games they name. */
   const [specifics, setSpecifics] = useState<Record<string, string>>(initial?.skipped ? {} : initial?.specifics ?? {});
   const [saving, setSaving] = useState(false);
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<InterestTopic[] | null>(null);
   /** The words sounded like the student is in danger: they were not sent or kept. */
@@ -273,13 +276,17 @@ export function InterestsPicker({
             const o = INTEREST_OPTIONS.find((x) => x.id === id);
             if (!o) return null;
             const value = specifics[id] ?? "";
+            const all = showAll[id] || o.suggestions.length <= SHOWN_SUGGESTIONS;
+            const visible = all
+              ? o.suggestions
+              : o.suggestions.filter((n, i) => i < SHOWN_SUGGESTIONS || hasSpecific(value, n));
             return (
               <div key={id}>
                 <label htmlFor={`specifics-${id}`} className="label">
                   {o.label}: {o.ask}
                 </label>
                 <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`${o.label} suggestions`}>
-                  {o.suggestions.map((name) => {
+                  {visible.map((name) => {
                     const on = hasSpecific(value, name);
                     return (
                       <button
@@ -300,6 +307,16 @@ export function InterestsPicker({
                       </button>
                     );
                   })}
+                  {o.suggestions.length > SHOWN_SUGGESTIONS && (
+                    <button
+                      type="button"
+                      aria-expanded={all}
+                      onClick={() => setShowAll((prev) => ({ ...prev, [id]: !all }))}
+                      className="rounded-full px-2.5 py-1 text-xs font-semibold text-bridge-700 underline-offset-2 hover:underline"
+                    >
+                      {all ? "Show fewer" : `Show all ${o.suggestions.length}`}
+                    </button>
+                  )}
                 </div>
                 <input
                   id={`specifics-${id}`}
