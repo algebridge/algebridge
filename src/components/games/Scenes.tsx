@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { GOAL, NET_Y, WALL, type CourtGameId } from "@/lib/games";
 import { RINK } from "@/lib/rink";
-import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Ribbon, SideStands, Vignette, WoodFloor, toward } from "./Arena";
+import { ArenaDefs, CourtBoards, CrowdTiles, FarStand, FloorShine, Glare, Jumbotron, LightRig, Mascot, Person, PressRow, RafterBanners, Ribbon, SideStands, TvCamera, Vignette, WoodFloor, toward } from "./Arena";
+import { Bats, Cat, Cobweb, Fog, Ghost, Moon, Pumpkin, SPOOKY, SPOOKY_SHIRTS, StringLights, spookyBoards } from "./Spooky";
+import { useSeason } from "@/lib/use-season";
 import { GOAL_MOUTH, goalLineX, lineX, persp, PITCH, BOX_DEPTH, KICKOFF, NET, netTop, VCOURT } from "@/lib/match-rules";
 
 /** A match's names and score, for the arena's own boards. `now` is who is on the floor (cheer). */
@@ -14,6 +16,9 @@ export interface MatchBoard {
 }
 
 const short = (name: string) => name.toUpperCase().slice(0, 10);
+
+/** Boards and ribbons in season turn half their panels to the season's words and colors. */
+const dress = (boards: { text: string; bg: string; fg: string }[], spooky: boolean) => (spooky ? spookyBoards(boards) : boards);
 
 /**
  * The five courts and the rink, as arenas seen from a broadcast camera high
@@ -82,46 +87,9 @@ function Fit({ x, y, w, size, fill, children, weight = 800, spacing }: { x: numb
   );
 }
 
-/**
- * A small person standing or sitting: a coach, an official, a substitute.
- * Drawn to a real person's proportions (the head about a seventh of the
- * height), lit from the upper left with the far side in shade; `stripes`
- * dresses a referee.
- */
-function Person({ x, y, h, shirt, skin = "#b07a55", hair = "#1c1210", stripes = false }: { x: number; y: number; h: number; shirt: string; skin?: string; hair?: string; stripes?: boolean }) {
-  const u = h / 100;
-  // Across from the middle, and up from the feet, in hundredths of the height.
-  const X = (v: number) => r2(x + v * u);
-  const Y = (v: number) => r2(y - v * u);
-  const hr = r2(7.4 * u);
-  return (
-    <g>
-      <ellipse cx={X(1)} cy={r2(y + 0.6 * u)} rx={r2(14 * u)} ry={r2(2.4 * u)} fill="#0f172a" opacity="0.16" />
-      {/* Trousers, then shoes. */}
-      <path d={`M${X(-10)} ${Y(50)} L${X(-0.6)} ${Y(50)} L${X(-1.4)} ${Y(4)} L${X(-8.6)} ${Y(4)}Z M${X(0.6)} ${Y(50)} L${X(10)} ${Y(50)} L${X(8.8)} ${Y(4)} L${X(1.6)} ${Y(4)}Z`} fill="#1f2937" />
-      <path d={`M${X(-9.4)} ${Y(5)} L${X(-1)} ${Y(5)} L${X(0.4)} ${Y(0)} L${X(-9.8)} ${Y(0)}Z M${X(1.2)} ${Y(5)} L${X(9.4)} ${Y(5)} L${X(11.4)} ${Y(0)} L${X(1)} ${Y(0)}Z`} fill="#0b0f17" />
-      {/* Arms at the sides: the forearms and hands below the sleeves. */}
-      <path d={`M${X(-16.6)} ${Y(66)} L${X(-12.4)} ${Y(66)} L${X(-12.6)} ${Y(42)} L${X(-16)} ${Y(42)}Z M${X(12.4)} ${Y(66)} L${X(16.6)} ${Y(66)} L${X(16)} ${Y(42)} L${X(12.6)} ${Y(42)}Z`} fill={skin} />
-      {/* The shirt: sloped shoulders, short sleeves, the hem at the hips. */}
-      <path
-        d={`M${X(-4.6)} ${Y(82)} C${X(-9)} ${Y(81)} ${X(-14)} ${Y(80)} ${X(-15.6)} ${Y(77)} L${X(-17.4)} ${Y(64)} L${X(-12)} ${Y(63)} L${X(-11.2)} ${Y(46)} L${X(11.2)} ${Y(46)} L${X(12)} ${Y(63)} L${X(17.4)} ${Y(64)} L${X(15.6)} ${Y(77)} C${X(14)} ${Y(80)} ${X(9)} ${Y(81)} ${X(4.6)} ${Y(82)}Z`}
-        fill={shirt}
-      />
-      {stripes && <path d={`M${X(-8)} ${Y(80.6)} L${X(-5)} ${Y(81.4)} L${X(-5)} ${Y(46)} L${X(-8)} ${Y(46)}Z M${X(-1.5)} ${Y(82)} L${X(1.5)} ${Y(82)} L${X(1.5)} ${Y(46)} L${X(-1.5)} ${Y(46)}Z M${X(5)} ${Y(81.4)} L${X(8)} ${Y(80.6)} L${X(8)} ${Y(46)} L${X(5)} ${Y(46)}Z`} fill="#111827" />}
-      {/* The far side of the body in shade. */}
-      <path d={`M${X(4.6)} ${Y(82)} C${X(9)} ${Y(81)} ${X(14)} ${Y(80)} ${X(15.6)} ${Y(77)} L${X(17.4)} ${Y(64)} L${X(12)} ${Y(63)} L${X(11.2)} ${Y(46)} L${X(10)} ${Y(4)} L${X(4)} ${Y(4)} L${X(4)} ${Y(50)} L${X(3)} ${Y(82)}Z`} fill="#000000" opacity="0.16" />
-      {/* Neck and head, the far cheek in shade, then the hair. */}
-      <path d={`M${X(-3)} ${Y(86)} L${X(3)} ${Y(86)} L${X(3.4)} ${Y(80.6)} L${X(-3.4)} ${Y(80.6)}Z`} fill={skin} />
-      <circle cx={x} cy={Y(91)} r={hr} fill={skin} />
-      <path d={`M${X(1.4)} ${Y(98.3)} A${hr} ${hr} 0 0 1 ${X(1.4)} ${Y(83.7)} A${r2(5 * u)} ${hr} 0 0 0 ${X(1.4)} ${Y(98.3)}Z`} fill="#000000" opacity="0.18" />
-      <path d={`M${X(-7.6)} ${Y(90)} Q${X(-8)} ${Y(99.4)} ${X(0)} ${Y(99.2)} Q${X(8)} ${Y(99.4)} ${X(7.6)} ${Y(90)} Q${X(5.6)} ${Y(95)} ${X(0)} ${Y(95.2)} Q${X(-5.6)} ${Y(95)} ${X(-7.6)} ${Y(90)}Z`} fill={hair} />
-    </g>
-  );
-}
-
 /* ── Shaurya: a school gym and a wrestling mat ───────────────────── */
 
-export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
+export function WrestlingScene({ board, spooky = false }: { board?: MatchBoard; spooky?: boolean } = {}) {
   const id = "wr";
   // The mat and the platform it sits on, laid toward the vanishing point.
   const matFar = 405;
@@ -131,10 +99,10 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
     <Svg label="Wrestling arena">
       <defs>
         <ArenaDefs id={id} glow="#60a5fa" />
-        <CrowdTiles id={id} shirts={["#1d4ed8", "#1d4ed8", "#facc15", "#f8fafc", "#b91c1c", "#1f2937", "#1e3a8a", "#f97316"]} seat="#1e2a4a" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#1d4ed8", "#1d4ed8", "#facc15", "#f8fafc", "#b91c1c", "#1f2937", "#1e3a8a", "#f97316"]} seat={spooky ? "#241a3a" : "#1e2a4a"} spooky={spooky} />
         <radialGradient id="wr-spot" cx="50%" cy="56%" r="58%">
-          <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.42" />
-          <stop offset="55%" stopColor="#fffbeb" stopOpacity="0.1" />
+          <stop offset="0%" stopColor={spooky ? "#ffd9a8" : "#fffbeb"} stopOpacity="0.42" />
+          <stop offset="55%" stopColor={spooky ? "#c4b5fd" : "#fffbeb"} stopOpacity="0.1" />
           <stop offset="100%" stopColor="#fffbeb" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="wr-mat" x1="0" y1="0" x2="0" y2="1">
@@ -151,19 +119,21 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
       <Ribbon
         id={id}
         y={58}
-        segments={[
+        segments={dress([
           { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
           { text: "WRESTLING", bg: "#111827", fg: "#ffffff" },
           { text: "PIN IT", bg: "#b91c1c", fg: "#ffffff" },
           { text: "ALGEBRA 1", bg: "#111827", fg: "#93c5fd" },
           { text: "TAKEDOWN", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={300} top={76} rows={15} s0={0.6} s1={0.38} />
       <SideStands id={id} front={326} edge={60} colors={["#1d4ed8", "#facc15", "#f8fafc", "#b91c1c"]} />
       <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
-      <Jumbotron id={id} ring="#1d4ed8">
+      <RafterBanners xs={[150, 200, 1000, 1050]} colors={["#1d4ed8", "#b91c1c"]} titles={["STATE", "REGION", "DISTRICT", "STATE"]} />
+      {spooky && <Bats seed={3} band={[70, 200]} />}
+      <Jumbotron id={id} ring={spooky ? SPOOKY.pumpkin : "#1d4ed8"}>
         <text x="178" y="16" textAnchor="middle" fontSize="10" fontWeight="800" fill="#93c5fd" fontFamily={FONT} letterSpacing="2">
           PERIOD 1 · 2:00
         </text>
@@ -190,19 +160,22 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
         h={24}
         x0={-20}
         x1={W + 20}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#1e3a8a", fg: "#facc15" },
           { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
           { text: "WRESTLE ON", bg: "#b91c1c", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#facc15", fg: "#1e3a8a" },
           { text: "STAY ON THE MAT", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#93c5fd" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <StringLights x0={-10} x1={W + 10} y={326} sag={6} count={30} />}
+      {spooky && <Fog id={id} y={330} h={70} opacity={0.22} />}
       {/* The officials' table at the far side of the platform: a lit front, a clock, two officials. */}
       {/* Seated: drawn first, so the table's front hides their legs. */}
-      <Person x={522} y={372} h={52} shirt="#f8fafc" skin="#e0ac86" hair="#6b4426" />
-      <Person x={678} y={372} h={52} shirt="#1f2937" skin="#6f432a" />
+      <Person x={522} y={376} h={52} shirt="#f8fafc" skin="#e0ac86" hair="#6b4426" sit hat={spooky ? "witch" : undefined} />
+      <Person x={600} y={376} h={52} shirt="#1e3a8a" skin="#f1c7a5" hair="#c9a24a" sit longHair />
+      <Person x={678} y={376} h={52} shirt="#1f2937" skin="#6f432a" sit />
       <rect x="478" y="346" width="244" height="38" rx="3" fill="#0b0f19" />
       <rect x="478" y="346" width="244" height="4" rx="2" fill="#374151" />
       <rect x="482" y="356" width="236" height="24" fill="#1e3a8a" />
@@ -210,6 +183,10 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
       <Fit x={600} y={373} w={150} size={13} fill="#facc15">
         ALGEBRIDGE
       </Fit>
+      {spooky && <Pumpkin x={470} y={384} s={16} face={0} />}
+      {spooky && <Pumpkin x={732} y={384} s={14} face={1} />}
+      {!spooky && <rect x="560" y="342" width="6" height="8" rx="1.5" fill="#f8fafc" />}
+      {!spooky && <rect x="636" y="342" width="6" height="8" rx="1.5" fill="#f8fafc" />}
       <rect x="586" y="330" width="28" height="16" rx="2" fill="#111827" />
       <text x="600" y="342" textAnchor="middle" fontSize="10" fontWeight="800" fill="#f87171" fontFamily="ui-monospace, monospace">
         2:00
@@ -229,9 +206,12 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
                 <rect x={x + i * 30 + 19} y="418" width="3" height="10" fill="#374151" />
               </g>
             ))}
+            <Person x={x + 12} y={416} h={46} shirt={team} skin={SKINS[side * 2]} hair={HAIRS[side + 1]} sit />
+            <Person x={x + 42} y={416} h={46} shirt="#f8fafc" skin={SKINS[side * 2 + 3]} hair={HAIRS[side * 3]} sit hat={spooky ? "witch" : undefined} />
             <ellipse cx={x + 76} cy="392" rx="9" ry="6" fill={team} />
             <rect x={x + 10} y="384" width="7" height="12" rx="3" fill="#f8fafc" />
             <rect x={x + 40} y="384" width="7" height="12" rx="3" fill="#f8fafc" />
+            {spooky && <Pumpkin x={x + 80} y={430} s={18} face={side} />}
           </g>
         );
       })}
@@ -265,6 +245,16 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
       <rect x="-20" y="380" width={W + 40} height={H - 380 + 20} fill="url(#wr-spot)" />
       {/* The referee, at the edge of the circle. */}
       <Person x={1010} y={486} h={64} shirt="#f8fafc" skin="#f1c7a5" hair="#4a2c17" stripes />
+      {/* Courtside: TV cameras in the near corners, photographers along the near edge, a coach up on his feet by the mat. */}
+      <TvCamera x={120} y={786} h={62} skin="#f1c7a5" hair="#6b4426" />
+      <TvCamera x={1080} y={786} h={62} flip skin="#8d5a3b" />
+      <PressRow xs={[250, 300, 900, 950]} y={796} h={42} faces={spooky} />
+      <Person x={58} y={700} h={66} shirt="#1d4ed8" skin="#6f432a" hair="#111111" armsUp />
+      <Person x={1142} y={700} h={66} shirt="#b91c1c" skin="#e0ac86" hair="#c9a24a" armsUp />
+      {spooky && <Cat x={190} y={742} s={22} />}
+      {spooky && <Ghost x={1040} y={640} s={26} flip />}
+      {spooky && <Cobweb x={410} y={0} r={60} />}
+      {spooky && <Cobweb x={790} y={0} r={60} flip />}
       <Vignette id={id} />
     </Svg>
   );
@@ -278,7 +268,7 @@ export function WrestlingScene({ board }: { board?: MatchBoard } = {}) {
  * announcer and the trophies, and a banner over the lot. Kenise throws her
  * passes for the judges, not a crowd on a sideline.
  */
-export function CheerScene({ board }: { board?: MatchBoard }) {
+export function CheerScene({ board, spooky = false }: { board?: MatchBoard; spooky?: boolean }) {
   const id = "ch";
   // The spring floor: its far edge where the old mat began, its sides toward the vanishing point.
   const far = 478;
@@ -294,7 +284,7 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
     <Svg label="Cheer competition arena">
       <defs>
         <ArenaDefs id={id} glow="#f472b6" />
-        <CrowdTiles id={id} shirts={["#1d4ed8", "#facc15", "#f8fafc", "#dc2626", "#7c3aed", "#f97316", "#ec4899", "#0ea5e9"]} seat="#1f2547" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#1d4ed8", "#facc15", "#f8fafc", "#dc2626", "#7c3aed", "#f97316", "#ec4899", "#0ea5e9"]} seat={spooky ? "#241a3a" : "#1f2547"} spooky={spooky} />
         <linearGradient id="ch-carpet" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#2563eb" />
           <stop offset="100%" stopColor="#1e40af" />
@@ -313,18 +303,20 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
       <Ribbon
         id={id}
         y={58}
-        segments={[
+        segments={dress([
           { text: "CHEER CHAMPIONSHIP", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#111827", fg: "#facc15" },
           { text: "GO ALLSTARS", bg: "#db2777", fg: "#ffffff" },
           { text: "CHEER CHAMPIONSHIP", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "ALGEBRA 1", bg: "#111827", fg: "#f9a8d4" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={300} top={76} rows={15} s0={0.6} s1={0.38} />
       <SideStands id={id} front={326} edge={60} colors={["#1d4ed8", "#facc15", "#ec4899", "#f8fafc"]} />
       <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
-      <Jumbotron id={id} ring="#db2777">
+      <RafterBanners xs={[150, 200, 1000, 1050]} colors={["#db2777", "#1d4ed8"]} titles={["NATIONALS", "SUMMIT", "WORLDS", "STATE"]} />
+      {spooky && <Bats seed={5} band={[70, 200]} />}
+      <Jumbotron id={id} ring={spooky ? SPOOKY.pumpkin : "#db2777"}>
         <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
           NOW ON THE FLOOR
         </text>
@@ -346,15 +338,16 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
         h={24}
         x0={-20}
         x1={W + 20}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#1d4ed8", fg: "#facc15" },
           { text: "CHEER CHAMPIONSHIP", bg: "#0f172a", fg: "#ffffff" },
           { text: "STICK IT", bg: "#db2777", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#facc15", fg: "#1d4ed8" },
           { text: "GO ALLSTARS", bg: "#7c3aed", fg: "#ffffff" },
           { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#f9a8d4" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <StringLights x0={-10} x1={W + 10} y={326} sag={6} count={30} />}
       {/* The announcer's table with speakers, the judges, the trophies. */}
       {[200, 400].map((x) => (
         <g key={x}>
@@ -368,10 +361,10 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
       <rect x="230" y="392" width="150" height="5" fill="#374151" />
       <rect x="254" y="372" width="40" height="24" rx="3" fill="#374151" />
       <rect x="258" y="376" width="32" height="16" fill="#93c5fd" />
-      <Person x={330} y={392} h={46} shirt="#0f766e" skin="#e0ac86" hair="#111111" />
+      <Person x={330} y={400} h={46} shirt="#0f766e" skin="#e0ac86" hair="#111111" sit />
       {[500, 600, 700].map((x, i) => (
         <g key={x}>
-          <Person x={x} y={382} h={54} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} />
+          <Person x={x} y={392} h={54} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} sit longHair={i === 2} hat={spooky && i === 0 ? "witch" : undefined} />
           <rect x={x - 14} y="368" width="28" height="14" rx="2" fill="#f8fafc" />
           <rect x={x - 12} y="370" width="24" height="10" fill="#bfdbfe" opacity="0.6" />
         </g>
@@ -382,6 +375,9 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
       <Fit x={600} y={426} w={110} size={20} fill="#ffffff">
         JUDGES
       </Fit>
+      {spooky && <Pumpkin x={450} y={452} s={18} face={0} />}
+      {spooky && <Pumpkin x={752} y={452} s={16} face={2} />}
+      {spooky && <Pumpkin x={990} y={452} s={20} face={1} />}
       <rect x="820" y="400" width="160" height="48" rx="5" fill="#f8fafc" />
       <rect x="820" y="400" width="160" height="6" fill="#cbd5e1" />
       <rect x="820" y="430" width="160" height="18" rx="3" fill="#e2e8f0" />
@@ -416,6 +412,23 @@ export function CheerScene({ board }: { board?: MatchBoard }) {
           ALGEBRIDGE ALLSTARS
         </Fit>
       </g>
+      {/* Off the floor: the next team waiting in the corner, a camera on the other, parents with a sign. */}
+      {[48, 90, 132].map((x, i) => (
+        <Person key={x} x={x} y={700 + (i % 2) * 6} h={54} shirt={i === 1 ? "#dc2626" : "#1d4ed8"} skin={SKINS[(i * 2 + 1) % SKINS.length]} hair={HAIRS[(i + 2) % HAIRS.length]} shorts pants={i === 1 ? "#1d4ed8" : "#dc2626"} longHair={i !== 1} />
+      ))}
+      <TvCamera x={1090} y={760} h={60} flip skin="#b07a55" hair="#1c1210" />
+      <Mascot x={70} y={796} h={58} body="#1d4ed8" head={spooky ? SPOOKY.pumpkin : "#facc15"} />
+      <g>
+        <rect x={1046} y={620} width="110" height="40" rx="3" fill="#fef3c7" />
+        <Fit x={1101} y={646} w={90} size={15} fill="#db2777">
+          {spooky ? "BOO-YAH!" : "GO KENISE"}
+        </Fit>
+        <Person x={1070} y={700} h={50} shirt="#db2777" skin="#8d5a3b" hair="#1c1210" armsUp longHair />
+        <Person x={1130} y={700} h={54} shirt="#f8fafc" skin="#f1c7a5" hair="#c9a24a" armsUp />
+      </g>
+      {spooky && <Cat x={1150} y={786} s={22} flip />}
+      {spooky && <Cobweb x={410} y={0} r={60} />}
+      {spooky && <Cobweb x={790} y={0} r={60} flip />}
       {/* Spotlights from the rigs, sweeping slowly across the floor. */}
       {[180, 420, 780, 1020].map((x, i) => (
         <g key={x} className="sc-sweep" style={{ transformOrigin: `${x}px 10px`, animationDelay: `${i * -2.3}s` }}>
@@ -436,7 +449,7 @@ function courtX(y: number, side: "l" | "r") {
   return side === "l" ? COURT.farL + (COURT.nearL - COURT.farL) * t : COURT.farR + (COURT.nearR - COURT.farR) * t;
 }
 
-export function VolleyballScene({ board }: { board?: MatchBoard }) {
+export function VolleyballScene({ board, spooky = false }: { board?: MatchBoard; spooky?: boolean }) {
   const id = "vb";
   const line = (y: number) => <rect key={y} x={courtX(y, "l")} y={y - 2} width={courtX(y, "r") - courtX(y, "l")} height="4" fill="#ffffff" />;
   const courtPath = `M${COURT.farL} ${COURT.farY} L${COURT.farR} ${COURT.farY} L${COURT.nearR} ${COURT.nearY} L${COURT.nearL} ${COURT.nearY}Z`;
@@ -446,7 +459,7 @@ export function VolleyballScene({ board }: { board?: MatchBoard }) {
     <Svg label="Volleyball arena">
       <defs>
         <ArenaDefs id={id} glow="#a78bfa" />
-        <CrowdTiles id={id} shirts={["#7c3aed", "#7c3aed", "#7c3aed", "#facc15", "#f8fafc", "#5b21b6", "#0d9488", "#1f2937", "#ef4444"]} seat="#3b1f6e" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#7c3aed", "#7c3aed", "#7c3aed", "#facc15", "#f8fafc", "#5b21b6", "#0d9488", "#1f2937", "#ef4444"]} seat="#3b1f6e" spooky={spooky} />
         <linearGradient id="vb-paint" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#fb923c" />
           <stop offset="100%" stopColor="#ea580c" />
@@ -462,19 +475,21 @@ export function VolleyballScene({ board }: { board?: MatchBoard }) {
       <Ribbon
         id={id}
         y={52}
-        segments={[
+        segments={dress([
           { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
           { text: "SET 3", bg: "#111827", fg: "#ffffff" },
           { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
           { text: "ALGEBRA 1", bg: "#111827", fg: "#a78bfa" },
           { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
           { text: "DIG DEEP", bg: "#7c3aed", fg: "#ffffff" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={288} top={70} rows={15} s0={0.62} s1={0.4} />
       <SideStands id={id} front={318} edge={150} colors={["#7c3aed", "#facc15", "#f8fafc", "#5b21b6"]} />
       <LightRig id={id} y={12} xs={[90, 260, 940, 1110]} />
-      <Jumbotron id={id} ring="#7c3aed">
+      <RafterBanners xs={[150, 200, 1000, 1050]} colors={["#7c3aed", "#facc15"]} titles={["STATE", "REGION", "CONF", "STATE"]} />
+      {spooky && <Bats seed={7} band={[70, 200]} />}
+      <Jumbotron id={id} ring={spooky ? SPOOKY.pumpkin : "#7c3aed"}>
         <text x="178" y="16" textAnchor="middle" fontSize="10" fontWeight="800" fill="#c4b5fd" fontFamily={FONT} letterSpacing="2">
           {board ? "RALLY POINT · LIVE" : "SET 3 · MATCH POINT"}
         </text>
@@ -524,15 +539,16 @@ export function VolleyballScene({ board }: { board?: MatchBoard }) {
         h={26}
         x0={-20}
         x1={W + 20}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
           { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
           { text: "SPIKE IT", bg: "#7c3aed", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#facc15", fg: "#4c1d95" },
           { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
           { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#a78bfa" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <StringLights x0={-10} x1={W + 10} y={316} sag={6} count={30} />}
       {/* Light from the rigs, caught in the gloss. */}
       {[260, 600, 940].map((x) => (
         <FloorShine key={x} x={x} y={392} w={230} h={34} opacity={0.12} />
@@ -549,8 +565,10 @@ export function VolleyballScene({ board }: { board?: MatchBoard }) {
             <rect x={x + 6} y="624" width="5" height="16" fill="#111827" />
             <rect x={x + 113} y="624" width="5" height="16" fill="#111827" />
             {[0, 1, 2].map((i) => (
-              <Person key={i} x={x + 24 + i * 38} y={612} h={52} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} />
+              <Person key={i} x={x + 24 + i * 38} y={620} h={52} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} sit shorts pants="#1f2937" longHair={(i + side) % 2 === 0} />
             ))}
+            <Person x={x + (side ? 136 : -12)} y={632} h={60} shirt="#0f172a" skin={SKINS[(side + 4) % SKINS.length]} hair={HAIRS[(side + 3) % HAIRS.length]} hat={spooky ? "witch" : "cap"} />
+            {spooky && <Pumpkin x={x + (side ? -16 : 140)} y={640} s={18} face={side + 1} />}
             {[0, 1, 2].map((i) => (
               <g key={i}>
                 <rect x={x + 14 + i * 34} y="640" width="7" height="15" rx="3" fill="#f8fafc" />
@@ -572,6 +590,15 @@ export function VolleyballScene({ board }: { board?: MatchBoard }) {
       ))}
       <rect x="1078" y="566" width="6" height="10" fill="#111827" />
       <rect x="1152" y="566" width="6" height="10" fill="#111827" />
+      {/* Courtside in the near corners: a TV camera, photographers, the mascot. */}
+      <TvCamera x={96} y={790} h={60} skin="#f1c7a5" hair="#6b4426" />
+      <PressRow xs={[1090, 1140]} y={792} h={42} faces={spooky} />
+      <Mascot x={1120} y={704} h={56} body="#7c3aed" head={spooky ? SPOOKY.pumpkin : "#facc15"} />
+      {spooky && <Cat x={60} y={700} s={22} />}
+      {spooky && <Cobweb x={202} y={398} r={44} />}
+      {spooky && <Cobweb x={998} y={398} r={44} flip />}
+      {spooky && <Cobweb x={410} y={0} r={60} />}
+      {spooky && <Cobweb x={790} y={0} r={60} flip />}
       {/* The net: posts with their pads, antennae, mesh, tapes, and the referee on the stand. In a match it is drawn on its own layer over the far player (VolleyNet). */}
       {!board && <VolleyNetParts />}
       {/* The net's shadow on the court. */}
@@ -634,7 +661,7 @@ export function VolleyNet({ zIndex }: { zIndex: number }) {
 
 /* ── Rayla: a soccer pitch and a goal ────────────────────────────── */
 
-export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
+export function SoccerScene({ netHit = false, spooky = false }: { netHit?: boolean; spooky?: boolean }) {
   const id = "sc";
   const pitchTop = 190;
   // Mowing stripes across the pitch, wider toward the viewer.
@@ -651,7 +678,7 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
     <Svg label="Soccer stadium at night">
       <defs>
         <ArenaDefs id={id} glow="#4ade80" />
-        <CrowdTiles id={id} shirts={["#16a34a", "#16a34a", "#f8fafc", "#facc15", "#15803d", "#1f2937", "#f8fafc", "#dc2626"]} seat="#14301f" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#16a34a", "#16a34a", "#f8fafc", "#facc15", "#15803d", "#1f2937", "#f8fafc", "#dc2626"]} seat={spooky ? "#1f1a30" : "#14301f"} spooky={spooky} />
         <linearGradient id="sc-night" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#020617" />
           <stop offset="100%" stopColor="#0b1635" />
@@ -677,14 +704,14 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
         id={id}
         y={94}
         h={14}
-        segments={[
+        segments={dress([
           { text: "CITY UNITED", bg: "#15803d", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#111827", fg: "#facc15" },
           { text: "GO CITY", bg: "#f8fafc", fg: "#15803d" },
           { text: "CITY UNITED", bg: "#15803d", fg: "#ffffff" },
           { text: "ALGEBRA 1", bg: "#111827", fg: "#86efac" },
           { text: "GO CITY", bg: "#f8fafc", fg: "#15803d" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={168} top={108} rows={8} s0={0.48} s1={0.38} aisles={[200, 500, 700, 1000]} tunnels={[360, 840]} wall="#0d1424" />
       {/* The big screen in the corner of the stand. */}
@@ -707,16 +734,17 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
         x0={-20}
         x1={W + 20}
         reflect={false}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
           { text: "GO CITY", bg: "#0f172a", fg: "#86efac" },
           { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#14532d" },
           { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
           { text: "TOP CORNER", bg: "#0f172a", fg: "#ffffff" },
           { text: "CITY UNITED", bg: "#f8fafc", fg: "#15803d" },
-        ]}
+        ], spooky)}
       />
       <rect x="-20" y="190" width={W + 40} height="10" fill={`url(#${id}-boardglow)`} opacity="0.5" />
+      {spooky && <Bats seed={9} band={[50, 160]} />}
       {/* The pitch: stripes across and along, the grass itself, the floodlit pool. */}
       {bands.map((b, i) => (
         <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#2f8f3c" : "#287f34"} />
@@ -743,15 +771,21 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
           </g>
         </g>
       ))}
-      {/* Photographers behind the end line, either side of the goal. */}
-      {[300, 380, 820, 900].map((x, i) => (
+      {/* Photographers behind the end line, either side of the goal, and ball kids on their stools in the near corners. */}
+      <PressRow xs={[300, 350, 850, 900]} y={288} h={40} faces={spooky} />
+      {[[58, 758], [1142, 758]].map(([x, y], i) => (
         <g key={x}>
-          <ellipse cx={x} cy="284" rx="18" ry="4" fill="#000000" opacity="0.35" />
-          <Person x={x} y={282} h={40} shirt={i % 2 ? "#1f2937" : "#f97316"} skin={SKINS[(i * 2 + 1) % SKINS.length]} hair={HAIRS[i % HAIRS.length]} />
-          <rect x={x - 3} y="250" width="16" height="7" rx="1.5" fill="#111827" />
-          <rect x={x + 11} y="251.5" width="10" height="4" rx="1" fill="#374151" />
+          <rect x={x - 9} y={y - 10} width="18" height="10" rx="2" fill="#1f2937" />
+          <Person x={x} y={y} h={38} shirt={spooky ? "#f0781e" : "#facc15"} skin={SKINS[(i * 3 + 2) % SKINS.length]} hair={HAIRS[(i + 4) % HAIRS.length]} sit shorts pants="#111827" />
+          <circle cx={x + (i ? -18 : 18)} cy={y - 3} r="6" fill="#f8fafc" stroke="#111827" strokeWidth="0.8" />
         </g>
       ))}
+      <TvCamera x={1100} y={792} h={58} flip skin="#f1c7a5" hair="#4a2c17" />
+      <Person x={70} y={790} h={60} shirt="#facc15" skin="#b07a55" hair="#1c1210" stripes={false} />
+      <rect x="58" y="724" width="24" height="14" rx="2" fill="#0f172a" />
+      <text x="70" y="735" textAnchor="middle" fontSize="10" fontWeight="800" fill="#4ade80" fontFamily="ui-monospace, monospace">
+        +3
+      </text>
       {/* Dugouts on both sides: glass shelters, padded seats, the substitutes, a ball bag and cones. */}
       {[0, 1].map((side) => {
         const x = side ? 1010 : 30;
@@ -766,11 +800,14 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
             <rect x={x + 155} y="322" width="5" height="62" fill="#1f2937" />
             <rect x={x + 8} y="360" width="144" height="12" rx="4" fill={side ? "#a16207" : "#166534"} />
             {[0, 1, 2].map((i) => (
-              <Person key={i} x={x + 36 + i * 44} y={366} h={50} shirt={shirt} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 2 + side) % HAIRS.length]} />
+              <Person key={i} x={x + 36 + i * 44} y={372} h={50} shirt={shirt} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 2 + side) % HAIRS.length]} sit shorts pants={side ? "#1d3461" : "#f8fafc"} longHair={(i + side) % 3 === 0} />
             ))}
             {[0, 1, 2].map((i) => (
               <rect key={i} x={x + 20 + i * 44} y="376" width="6" height="12" rx="2" fill="#f8fafc" />
             ))}
+            <Person x={x + (side ? 174 : -14)} y={390} h={58} shirt="#0f172a" skin={SKINS[(side + 5) % SKINS.length]} hair={HAIRS[(side + 2) % HAIRS.length]} hat={spooky ? "witch" : "cap"} />
+            {spooky && <Pumpkin x={x + 10} y={318} s={16} face={side} />}
+            {spooky && <Pumpkin x={x + 150} y={318} s={14} face={side + 1} />}
           </g>
         );
       })}
@@ -791,6 +828,8 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
           <rect key={i} x={GOAL.x0 + 6} y={GOAL.top + 18 + i * 13} width={GOAL.x1 - GOAL.x0 - 12} height="1.2" fill="#f8fafc" opacity="0.6" />
         ))}
       </g>
+      {spooky && <Cobweb x={GOAL.x0 + 8} y={GOAL.top + 8} r={40} />}
+      {spooky && <Cobweb x={GOAL.x1 - 8} y={GOAL.top + 8} r={40} flip />}
       <ellipse cx="600" cy={GOAL.line + 6} rx="150" ry="8" fill="#000000" opacity="0.25" />
       <rect x={GOAL.x0} y={GOAL.top} width="9" height={GOAL.line - GOAL.top + 2} fill="#ffffff" />
       <rect x={GOAL.x0 + 6} y={GOAL.top} width="3" height={GOAL.line - GOAL.top + 2} fill="#cbd5e1" />
@@ -798,6 +837,7 @@ export function SoccerScene({ netHit = false }: { netHit?: boolean }) {
       <rect x={GOAL.x1 - 3} y={GOAL.top} width="3" height={GOAL.line - GOAL.top + 2} fill="#cbd5e1" />
       <rect x={GOAL.x0} y={GOAL.top} width={GOAL.x1 - GOAL.x0} height="9" fill="#ffffff" />
       <rect x={GOAL.x0} y={GOAL.top + 6} width={GOAL.x1 - GOAL.x0} height="3" fill="#cbd5e1" />
+      {spooky && <Fog id={id} y={292} h={90} opacity={0.26} />}
       <Vignette id={id} />
     </Svg>
   );
@@ -827,7 +867,7 @@ function Base({ x, y }: { x: number; y: number }) {
  * flies out over the wall (WALL in lib/games.ts). With `board`, the
  * scoreboard carries a match's names and score.
  */
-export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
+export function BaseballScene({ board, spooky = false }: { board?: MatchBoard; spooky?: boolean } = {}) {
   const id = "bb";
   const grassTop = WALL.foot;
   const trackFoot = grassTop + 24;
@@ -845,10 +885,10 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
     <Svg label="Ballpark on a sunny afternoon">
       <defs>
         <ArenaDefs id={id} glow="#fde68a" />
-        <CrowdTiles id={id} shirts={["#1d3461", "#1d3461", "#f8fafc", "#dc2626", "#f8fafc", "#1f2937", "#fbbf24", "#1d3461"]} seat="#2a4a7a" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#1d3461", "#1d3461", "#f8fafc", "#dc2626", "#f8fafc", "#1f2937", "#fbbf24", "#1d3461"]} seat={spooky ? "#2a2446" : "#2a4a7a"} spooky={spooky} />
         <linearGradient id="bb-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#5fb4f0" />
-          <stop offset="100%" stopColor="#cfe9fb" />
+          <stop offset="0%" stopColor={spooky ? "#1a1038" : "#5fb4f0"} />
+          <stop offset="100%" stopColor={spooky ? "#d9742b" : "#cfe9fb"} />
         </linearGradient>
         <linearGradient id="bb-wall" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#1f6b3a" />
@@ -877,9 +917,10 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
         </clipPath>
       </defs>
       <rect x="0" y="0" width={W} height={H} fill="url(#bb-sky)" />
-      <circle cx="1010" cy="40" r="150" fill="url(#bb-sun)" />
+      {spooky ? <Moon id={id} x={1010} y={52} r={44} /> : <circle cx="1010" cy="40" r="150" fill="url(#bb-sun)" />}
+      {spooky && <Bats seed={11} band={[20, 110]} color="#0b0612" />}
       {/* Clouds drifting over the park. */}
-      <g className="sc-drift" fill="#ffffff" opacity="0.85">
+      <g className="sc-drift" fill={spooky ? "#6d4a7a" : "#ffffff"} opacity={spooky ? 0.6 : 0.85}>
         <ellipse cx="180" cy="62" rx="70" ry="16" />
         <ellipse cx="220" cy="50" rx="46" ry="18" />
         <ellipse cx="640" cy="40" rx="56" ry="13" />
@@ -891,14 +932,14 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
         id={id}
         y={120}
         h={14}
-        segments={[
+        segments={dress([
           { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
           { text: "LET'S GO LIAM", bg: "#f8fafc", fg: "#1d3461" },
           { text: "FREE ALGEBRA 1", bg: "#dc2626", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
           { text: "HOME RUN", bg: "#fbbf24", fg: "#1d3461" },
           { text: "GO TEAM", bg: "#f8fafc", fg: "#1d3461" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={WALL.top - 4} top={134} rows={7} s0={0.5} s1={0.4} aisles={[180, 450, 750, 1020]} tunnels={[320, 880]} wall="#3b4b66" />
       {[90, 330, 600, 870, 1110].map((x, i) => (
@@ -934,14 +975,15 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
         x0={110}
         x1={1090}
         reflect={false}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#1d3461", fg: "#ffffff" },
           { text: "LET'S GO LIAM", bg: "#f8fafc", fg: "#1d3461" },
           { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#1d3461" },
           { text: "ALGEBRIDGE", bg: "#dc2626", fg: "#ffffff" },
           { text: "OVER THE WALL", bg: "#0f172a", fg: "#fde68a" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <StringLights x0={110} x1={1090} y={WALL.top + 2} sag={5} count={26} />}
       {[
         { x: 70, t: "330" },
         { x: 600, t: "400" },
@@ -1007,8 +1049,11 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
             <rect x={x + 128} y="478" width="4" height="74" fill="#1f2937" />
             <rect x={x + 6} y="528" width="120" height="8" rx="3" fill="#374151" />
             {[0, 1, 2].map((i) => (
-              <Person key={i} x={x + 28 + i * 38} y={534} h={46} shirt={shirt} skin={SKINS[(i * 2 + side) % SKINS.length]} hair={HAIRS[(i + 3 + side * 2) % HAIRS.length]} />
+              <Person key={i} x={x + 28 + i * 38} y={540} h={46} shirt={shirt} skin={SKINS[(i * 2 + side) % SKINS.length]} hair={HAIRS[(i + 3 + side * 2) % HAIRS.length]} sit pants="#f8fafc" hat="cap" />
             ))}
+            <Person x={x + (side ? 146 : -14)} y={556} h={56} shirt={shirt} skin={SKINS[(side + 3) % SKINS.length]} hair={HAIRS[(side * 2 + 1) % HAIRS.length]} pants="#f8fafc" hat={spooky ? "witch" : "cap"} />
+            {spooky && <Pumpkin x={x + 14} y={470} s={16} face={side} />}
+            {spooky && <Pumpkin x={x + 118} y={470} s={14} face={side + 2} />}
             <rect x={x + 2} y="540" width="128" height="4" fill="#111827" />
             {[0, 1, 2, 3].map((i) => (
               <rect key={i} x={x + 14 + i * 30} y="546" width="3" height="10" rx="1" fill="#d8b485" />
@@ -1024,6 +1069,20 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
       ))}
       <rect x="1104" y="582" width="40" height="14" rx="4" fill="#1d3461" />
       <rect x="1110" y="578" width="14" height="6" rx="2" fill="#111827" />
+      {/* On-deck circles down each line, with the next batter swinging, and a camera well in the near corner. */}
+      {[[96, 690], [1104, 690]].map(([x, y], i) => (
+        <g key={x}>
+          <ellipse cx={x} cy={y} rx="34" ry="12" fill="#c4853f" />
+          <ellipse cx={x} cy={y} rx="34" ry="12" fill="url(#bb-dirt)" />
+          <ellipse cx={x} cy={y} rx="28" ry="9" fill="none" stroke="#f8fafc" strokeWidth="2" opacity="0.8" />
+          <Person x={x} y={y + 2} h={54} shirt={i ? "#9ca3af" : "#1d3461"} skin={SKINS[(i + 1) % SKINS.length]} hair={HAIRS[(i + 2) % HAIRS.length]} pants="#f8fafc" hat="cap" armsUp />
+          <rect x={x + (i ? -34 : 22)} y={y - 46} width="4" height="34" rx="2" fill="#d8b485" transform={`rotate(${i ? 24 : -24} ${x + (i ? -32 : 24)} ${y - 12})`} />
+        </g>
+      ))}
+      <TvCamera x={80} y={792} h={56} skin="#e0ac86" hair="#6b4426" />
+      <PressRow xs={[1090, 1140]} y={794} h={42} faces={spooky} />
+      {spooky && <Cat x={1040} y={720} s={20} flip />}
+      {spooky && <Fog id={id} y={WALL.foot} h={70} opacity={0.24} />}
       <Vignette id={id} />
     </Svg>
   );
@@ -1036,20 +1095,21 @@ export function BaseballScene({ board }: { board?: MatchBoard } = {}) {
  * each end (`goalHit` shakes the net a shot went into).
  */
 export function CourtScene({ game, netHit, live = true, board, goalHit = null }: { game: CourtGameId; netHit?: boolean; live?: boolean; board?: MatchBoard; goalHit?: "left" | "right" | null }) {
+  const spooky = useSeason() === "halloween";
   return (
     <SceneMotion live={live}>
       {game === "wrestling" ? (
-        <WrestlingScene board={board} />
+        <WrestlingScene board={board} spooky={spooky} />
       ) : game === "cheer" ? (
-        <CheerScene board={board} />
+        <CheerScene board={board} spooky={spooky} />
       ) : game === "volleyball" ? (
-        board ? <VolleyMatchScene board={board} /> : <VolleyballScene board={board} />
+        board ? <VolleyMatchScene board={board} spooky={spooky} /> : <VolleyballScene board={board} spooky={spooky} />
       ) : game === "baseball" ? (
-        <BaseballScene board={board} />
+        <BaseballScene board={board} spooky={spooky} />
       ) : board ? (
-        <SoccerMatchScene board={board} goalHit={goalHit} />
+        <SoccerMatchScene board={board} goalHit={goalHit} spooky={spooky} />
       ) : (
-        <SoccerScene netHit={netHit} />
+        <SoccerScene netHit={netHit} spooky={spooky} />
       )}
     </SceneMotion>
   );
@@ -1062,7 +1122,7 @@ export function CourtScene({ game, netHit, live = true, board, goalHit = null }:
  * geometry is lib/match-rules.ts (PITCH, GOAL_MOUTH, BOX_DEPTH), the same the
  * players and the ball move on.
  */
-function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "left" | "right" | null }) {
+function SoccerMatchScene({ board, goalHit, spooky = false }: { board: MatchBoard; goalHit: "left" | "right" | null; spooky?: boolean }) {
   const id = "scm";
   const P = PITCH;
   const pitchTop = 196;
@@ -1135,7 +1195,7 @@ function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "lef
     <Svg label="Soccer stadium at night, seen from the touchline">
       <defs>
         <ArenaDefs id={id} glow="#4ade80" />
-        <CrowdTiles id={id} shirts={["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#1f2937", "#f8fafc", "#facc15"]} seat="#14301f" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#1f2937", "#f8fafc", "#facc15"]} seat={spooky ? "#1f1a30" : "#14301f"} spooky={spooky} />
         <linearGradient id="scm-night" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#020617" />
           <stop offset="100%" stopColor="#0b1635" />
@@ -1191,15 +1251,16 @@ function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "lef
         x0={-20}
         x1={W + 20}
         reflect={false}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
           { text: "FREE ALGEBRA 1", bg: "#facc15", fg: "#14532d" },
           { text: "MATCH DAY", bg: "#0f172a", fg: "#86efac" },
           { text: "ALGEBRIDGE", bg: "#15803d", fg: "#ffffff" },
           { text: "TOP CORNER", bg: "#0f172a", fg: "#ffffff" },
           { text: "GO BRIDGES", bg: "#f8fafc", fg: "#15803d" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <Bats seed={13} band={[50, 160]} />}
       {/* The pitch. */}
       {bands.map((b, i) => (
         <rect key={i} x="-20" y={b.y} width={W + 40} height={b.h} fill={i % 2 ? "#2f8f3c" : "#287f34"} />
@@ -1217,10 +1278,12 @@ function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "lef
           <rect x={bx - 86} y="356" width="172" height="42" fill="#bae6fd" opacity="0.2" />
           <rect x={bx - 80} y="390" width="160" height="10" rx="3" fill={side ? "#9a3412" : "#1e3a8a"} />
           {[0, 1, 2].map((i) => (
-            <Person key={i} x={bx - 50 + i * 50} y={396} h={46} shirt={side ? "#ea580c" : "#2563eb"} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 1 + side) % HAIRS.length]} />
+            <Person key={i} x={bx - 50 + i * 50} y={402} h={46} shirt={side ? "#ea580c" : "#2563eb"} skin={SKINS[(i + side * 3) % SKINS.length]} hair={HAIRS[(i + 1 + side) % HAIRS.length]} sit shorts pants="#f8fafc" />
           ))}
+          {spooky && <Pumpkin x={bx + 96} y={402} s={16} face={side} />}
         </g>
       ))}
+      <PressRow xs={[120, 1080]} y={392} h={38} faces={spooky} />
       {/* The lines: touchlines, goal lines, halfway line, centre circle and spot, the boxes. */}
       <g stroke="#f8fafc" strokeWidth="4" fill="none" strokeLinejoin="round">
         <path d={line([[L(P.l, P.y0), P.y0], [L(P.r, P.y0), P.y0], [L(P.r, P.y1), P.y1], [L(P.l, P.y1), P.y1]]) + "Z"} />
@@ -1248,6 +1311,7 @@ function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "lef
       ))}
       {goal("left")}
       {goal("right")}
+      {spooky && <Fog id={id} y={196} h={80} opacity={0.24} />}
       <Vignette id={id} />
     </Svg>
   );
@@ -1259,7 +1323,7 @@ function SoccerMatchScene({ board, goalHit }: { board: MatchBoard; goalHit: "lef
  * sits a step off the net, so the net shows as a panel. Geometry from
  * lib/match-rules.ts (VCOURT, NET, HALF), the same the players move on.
  */
-function VolleyMatchScene({ board }: { board: MatchBoard }) {
+function VolleyMatchScene({ board, spooky = false }: { board: MatchBoard; spooky?: boolean }) {
   const id = "vbm";
   const C = VCOURT;
   const L = (xFront: number, yy: number) => r2(lineX(xFront, yy));
@@ -1290,7 +1354,7 @@ function VolleyMatchScene({ board }: { board: MatchBoard }) {
     <Svg label="Volleyball arena, seen from the sideline">
       <defs>
         <ArenaDefs id={id} glow="#a78bfa" />
-        <CrowdTiles id={id} shirts={["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#7c3aed", "#facc15", "#1f2937"]} seat="#3b1f6e" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#2563eb", "#2563eb", "#f8fafc", "#ea580c", "#ea580c", "#7c3aed", "#facc15", "#1f2937"]} seat="#3b1f6e" spooky={spooky} />
         <linearGradient id="vbm-paint" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#fb923c" />
           <stop offset="100%" stopColor="#ea580c" />
@@ -1337,15 +1401,16 @@ function VolleyMatchScene({ board }: { board: MatchBoard }) {
         h={24}
         x0={-20}
         x1={W + 20}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#4c1d95", fg: "#facc15" },
           { text: "FREE ALGEBRA 1", bg: "#0f172a", fg: "#ffffff" },
           { text: "SPIKE IT", bg: "#7c3aed", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#facc15", fg: "#4c1d95" },
           { text: "GO BRIDGES", bg: "#7c3aed", fg: "#ffffff" },
           { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#a78bfa" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <Bats seed={15} band={[70, 200]} />}
       <WoodFloor id={id} top={324} />
       <path d={zone} fill="url(#vbm-zone)" opacity="0.93" />
       {[300, 900].map((x) => (
@@ -1361,8 +1426,9 @@ function VolleyMatchScene({ board }: { board: MatchBoard }) {
             <rect x={bx - 70} y="418" width="140" height="10" rx="4" fill="#1f2937" />
             <rect x={bx - 70} y="418" width="140" height="3" rx="1.5" fill="#4b5563" />
             {[0, 1, 2].map((i) => (
-              <Person key={i} x={bx - 44 + i * 44} y={418} h={44} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} />
+              <Person key={i} x={bx - 44 + i * 44} y={424} h={44} shirt={shirt} skin={SKINS[(i + side * 2) % SKINS.length]} hair={HAIRS[(i + side) % HAIRS.length]} sit shorts pants="#1f2937" />
             ))}
+            {spooky && <Pumpkin x={bx + 86} y={428} s={16} face={side} />}
           </g>
         );
       })}
@@ -1433,14 +1499,15 @@ function VolleyMatchScene({ board }: { board: MatchBoard }) {
  */
 /** `skating` is who the video board names: Veronica, or the two players of a match. */
 export function RinkScene({ live = true, skating = "VERONICA", judges = false }: { live?: boolean; skating?: string; judges?: boolean }) {
+  const spooky = useSeason() === "halloween";
   return (
     <SceneMotion live={live}>
-      <RinkPicture skating={skating} judges={judges} />
+      <RinkPicture skating={skating} judges={judges} spooky={spooky} />
     </SceneMotion>
   );
 }
 
-function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) {
+function RinkPicture({ skating, judges, spooky }: { skating: string; judges: boolean; spooky: boolean }) {
   const id = "rk";
   const R = RINK;
   // The ice and the boards around it: the far boards' inner face shows above the ice,
@@ -1461,11 +1528,11 @@ function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) 
       <title>Ice arena</title>
       <defs>
         <ArenaDefs id={id} glow="#f472b6" />
-        <CrowdTiles id={id} shirts={["#db2777", "#db2777", "#f8fafc", "#1d4ed8", "#7c3aed", "#facc15", "#0ea5e9", "#1f2937"]} seat="#2a1f3d" />
+        <CrowdTiles id={id} shirts={spooky ? SPOOKY_SHIRTS : ["#db2777", "#db2777", "#f8fafc", "#1d4ed8", "#7c3aed", "#facc15", "#0ea5e9", "#1f2937"]} seat="#2a1f3d" spooky={spooky} />
         <radialGradient id="rk-ice" cx="50%" cy="45%" r="60%">
           <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="60%" stopColor="#eef6ff" />
-          <stop offset="100%" stopColor="#cfe2f5" />
+          <stop offset="60%" stopColor={spooky ? "#f3eeff" : "#eef6ff"} />
+          <stop offset="100%" stopColor={spooky ? "#d8ccf0" : "#cfe2f5"} />
         </radialGradient>
         <linearGradient id="rk-streak" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
@@ -1487,19 +1554,21 @@ function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) 
       <Ribbon
         id={id}
         y={56}
-        segments={[
+        segments={dress([
           { text: "FREE SKATE", bg: "#db2777", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#111827", fg: "#f9a8d4" },
           { text: "ON THE ICE", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "FREE SKATE", bg: "#db2777", fg: "#ffffff" },
           { text: "ALGEBRA 1", bg: "#111827", fg: "#93c5fd" },
           { text: "ALGEBRIDGE", bg: "#1d4ed8", fg: "#ffffff" },
-        ]}
+        ], spooky)}
       />
       <FarStand id={id} front={350} top={74} rows={17} s0={0.62} s1={0.38} />
       <SideStands id={id} front={372} edge={40} colors={["#db2777", "#f8fafc", "#1d4ed8", "#facc15"]} />
       <LightRig id={id} y={12} xs={[100, 270, 930, 1100]} />
-      <Jumbotron id={id} ring="#db2777">
+      <RafterBanners xs={[150, 200, 1000, 1050]} colors={["#db2777", "#1d4ed8"]} titles={["SECTIONAL", "REGIONAL", "NATIONAL", "SECTIONAL"]} />
+      {spooky && <Bats seed={17} band={[70, 200]} />}
+      <Jumbotron id={id} ring={spooky ? SPOOKY.pumpkin : "#db2777"}>
         <text x="178" y="30" textAnchor="middle" fontSize="13" fontWeight="800" fill="#f9a8d4" fontFamily={FONT} letterSpacing="3">
           NOW SKATING
         </text>
@@ -1517,15 +1586,16 @@ function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) 
         x0={-20}
         x1={W + 20}
         reflect={false}
-        boards={[
+        boards={dress([
           { text: "ALGEBRIDGE", bg: "#db2777", fg: "#ffffff" },
           { text: "FREE SKATE", bg: "#0f172a", fg: "#f9a8d4" },
           { text: "ALGEBRA 1", bg: "#1d4ed8", fg: "#ffffff" },
           { text: "ALGEBRIDGE", bg: "#f8fafc", fg: "#db2777" },
           { text: "SKATE ON", bg: "#7c3aed", fg: "#ffffff" },
           { text: "UNIT BY UNIT", bg: "#0f172a", fg: "#93c5fd" },
-        ]}
+        ], spooky)}
       />
+      {spooky && <StringLights x0={-10} x1={W + 10} y={374} sag={6} count={30} />}
       <rect x="-20" y="372" width={W + 40} height={H - 372 + 20} fill="#11151f" />
       <rect x="-20" y="372" width={W + 40} height="14" fill="#000000" opacity="0.35" />
       {/* Kiss and cry: where a skater waits for the marks, off to the side. */}
@@ -1535,18 +1605,29 @@ function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) 
       </Fit>
       <rect x="1018" y="418" width="134" height="12" rx="3" fill="#7c2d6f" />
       <rect x="1030" y="436" width="110" height="10" rx="3" fill="#db2777" />
-      {[1040, 1130].map((x) => (
-        <g key={x}>
-          <circle cx={x} cy="430" r="7" fill="#f472b6" />
-          <circle cx={x + 6} cy="426" r="5" fill="#fbcfe8" />
-          <rect x={x - 1} y="436" width="2" height="8" fill="#15803d" />
-        </g>
-      ))}
+      {[1040, 1130].map((x) =>
+        spooky ? (
+          <Pumpkin key={x} x={x} y={446} s={16} face={x % 3} />
+        ) : (
+          <g key={x}>
+            <circle cx={x} cy="430" r="7" fill="#f472b6" />
+            <circle cx={x + 6} cy="426" r="5" fill="#fbcfe8" />
+            <rect x={x - 1} y="436" width="2" height="8" fill="#15803d" />
+          </g>
+        ),
+      )}
+      {/* A coach at the boards with a tissue box, a camera in each near corner, and the stewards. */}
+      <Person x={1085} y={470} h={50} shirt="#db2777" skin="#e0ac86" hair="#6b4426" longHair hat={spooky ? "witch" : undefined} />
+      <TvCamera x={70} y={792} h={56} skin="#f1c7a5" hair="#4a2c17" />
+      <TvCamera x={1130} y={792} h={56} flip skin="#8d5a3b" hair="#111111" />
+      <Person x={180} y={470} h={50} shirt="#facc15" skin="#b07a55" hair="#1c1210" />
+      <Person x={1010} y={796} h={48} shirt="#facc15" skin="#6f432a" hair="#111111" />
+      {spooky && <Cat x={1040} y={498} s={20} flip />}
       {/* A match is judged: three judges at a table across from the kiss and cry (RINK_JUDGES). */}
       {judges && (
         <g>
           {[70, 115, 160].map((x, i) => (
-            <Person key={x} x={x} y={398} h={46} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} />
+            <Person key={x} x={x} y={406} h={46} shirt={["#7c3aed", "#0f766e", "#b91c1c"][i]} skin={["#f1c7a5", "#6f432a", "#e0ac86"][i]} hair={["#4a2c17", "#111111", "#c9a24a"][i]} sit longHair={i === 2} />
           ))}
           <rect x="40" y="394" width="150" height="50" rx="4" fill="#0b0f19" />
           <rect x="46" y="404" width="138" height="34" rx="3" fill="#1e40af" />
@@ -1604,6 +1685,8 @@ function RinkPicture({ skating, judges }: { skating: string; judges: boolean }) 
         </g>
       </g>
       <ellipse cx={R.cx} cy={R.cy} rx={R.rx} ry={R.ry} fill="none" stroke="#e2e8f0" strokeWidth="2" />
+      {spooky && <Cobweb x={410} y={0} r={60} />}
+      {spooky && <Cobweb x={790} y={0} r={60} flip />}
       <Vignette id={id} />
     </svg>
   );

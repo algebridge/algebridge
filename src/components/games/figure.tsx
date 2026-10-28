@@ -163,9 +163,18 @@ export function ClothGradient({ id, base, light, shade, from, to }: { id: string
   );
 }
 
-/** A soft round shadow on the ground under the feet. */
+/**
+ * The figure's shadow: a soft pool under the feet, and the longer, fainter
+ * one the rig lights throw to the lower right, so the figure stands on the
+ * floor rather than floating over it.
+ */
 export function GroundShadow({ id }: { id: string }) {
-  return <ellipse cx="50" cy="154.4" rx="27" ry="4.6" fill={`url(#${id}-ground)`} />;
+  return (
+    <g>
+      <ellipse cx="64" cy="155.2" rx="30" ry="3.6" fill={`url(#${id}-ground)`} opacity="0.55" transform="rotate(-9 64 155.2)" />
+      <ellipse cx="50" cy="154.4" rx="27" ry="4.6" fill={`url(#${id}-ground)`} />
+    </g>
+  );
 }
 
 /* ── Head and face ─────────────────────────────────────────────── */

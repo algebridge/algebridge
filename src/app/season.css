@@ -646,3 +646,10 @@ html[data-season="halloween"] .season-lesson .page-title {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* The games in season: Kenise's pom-poms go orange and black. */
+html[data-season="halloween"] .player-cheer .pom-core { fill: #f0781e; }
+html[data-season="halloween"] .player-cheer .pom-0 { stroke: #f0781e; }
+html[data-season="halloween"] .player-cheer .pom-1 { stroke: #ffa052; }
+html[data-season="halloween"] .player-cheer .pom-2 { stroke: #b4500f; }
+html[data-season="halloween"] .player-cheer .pom-3 { stroke: #2e1065; }

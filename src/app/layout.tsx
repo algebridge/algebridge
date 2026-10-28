@@ -70,6 +70,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: bareRouteBootScript() }} />
         {/* Text size and motion chosen on this device, applied before the first paint (lib/display.ts). */}
         <script dangerouslySetInnerHTML={{ __html: displayBootScript() }} />
+        {/* The season (and a ?season= override) on <html> before the first paint (lib/season.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: seasonBootScript() }} />
       </head>
       <body className="min-h-screen bg-slate-50 font-body">
         {/* First in the Tab order: past the menus, straight to the page. */}

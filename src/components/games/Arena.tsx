@@ -26,10 +26,10 @@ export const VP = { x: 600, y: -110 } as const;
 const FONT = "ui-sans-serif, system-ui";
 
 /** Rounds to hundredths, so computed coordinates print the same on the server and in the browser. */
-const r2 = (v: number) => Math.round(v * 100) / 100;
+export const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** A small integer hash, so "random" choices are the same on the server and in the browser. */
-function hash(n: number): number {
+export function hash(n: number): number {
   let x = (n ^ 0x9e3779b9) >>> 0;
   x = Math.imul(x ^ (x >>> 16), 0x85ebca6b) >>> 0;
   x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35) >>> 0;
@@ -55,7 +55,7 @@ const SEATS = 12;
  * crowd wears (repeat a color to make it more common), `seat` the seat backs.
  * Patterns use user space, so a row scales and shifts them by its transform.
  */
-export function CrowdTiles({ id, shirts, seat }: { id: string; shirts: string[]; seat: string }) {
+export function CrowdTiles({ id, shirts, seat, spooky = false }: { id: string; shirts: string[]; seat: string; spooky?: boolean }) {
   return (
     <>
       {[0, 1, 2].map((t) => (
@@ -71,6 +71,8 @@ export function CrowdTiles({ id, shirts, seat }: { id: string; shirts: string[];
             const hx = cx + lean * 0.8;
             const longHair = (h >> 18) % 4 === 0;
             const cap = (h >> 20) % 9 === 0;
+            // In season some of the crowd come in costume: a witch's hat, a pumpkin over the head, cat ears, a sheet.
+            const costume = spooky ? (h >> 24) % 7 : 7;
             return (
               <g key={k}>
                 {/* The seat back behind them. */}
@@ -83,9 +85,41 @@ export function CrowdTiles({ id, shirts, seat }: { id: string; shirts: string[];
                 {up && (h >> 22) % 2 === 0 && <rect x={cx + 4.6} y="-0.6" width="4.8" height="6.4" rx="1.6" fill="#facc15" />}
                 {/* Neck, head lit from the upper left, hair. */}
                 <rect x={hx - 1.6} y="15.4" width="3.2" height="5.4" fill={skin} />
-                <circle cx={hx} cy="12.6" r="4.7" fill={skin} />
-                <path d={`M${hx + 0.9} 7.95 A4.7 4.7 0 0 1 ${hx + 0.9} 17.25 A3.3 4.7 0 0 0 ${hx + 0.9} 7.95Z`} fill="#000000" opacity="0.2" />
-                {cap ? (
+                {costume === 3 ? (
+                  <g>
+                    {/* A sheet ghost: the sheet over the head and shoulders, two dark eyes. */}
+                    <path d={`M${hx - 7} 24 L${hx - 7} 12 Q${hx - 7} 6 ${hx} 6 Q${hx + 7} 6 ${hx + 7} 12 L${hx + 7} 24Z`} fill="#f1e9d2" />
+                    <circle cx={hx - 2} cy="12" r="1.1" fill="#1e1b4b" />
+                    <circle cx={hx + 2} cy="12" r="1.1" fill="#1e1b4b" />
+                  </g>
+                ) : costume === 2 ? (
+                  <g>
+                    {/* A pumpkin head. */}
+                    <circle cx={hx} cy="12.6" r="5.4" fill="#f0781e" />
+                    <path d={`M${hx + 1.2} 7.3 A5.4 5.4 0 0 1 ${hx + 1.2} 17.9 A3.4 5.4 0 0 0 ${hx + 1.2} 7.3Z`} fill="#000000" opacity="0.22" />
+                    <rect x={hx - 0.8} y="6" width="1.6" height="2.4" fill="#4d7c0f" />
+                    <path d={`M${hx - 3.2} 11 l2 0 l-1 1.8Z M${hx + 1.2} 11 l2 0 l-1 1.8Z M${hx - 2.6} 14.4 Q${hx} 16.4 ${hx + 2.6} 14.4 L${hx + 1.6} 15.6 L${hx - 1.6} 15.6Z`} fill="#ffd166" />
+                  </g>
+                ) : (
+                  <circle cx={hx} cy="12.6" r="4.7" fill={skin} />
+                )}
+                {costume !== 3 && costume !== 2 && <path d={`M${hx + 0.9} 7.95 A4.7 4.7 0 0 1 ${hx + 0.9} 17.25 A3.3 4.7 0 0 0 ${hx + 0.9} 7.95Z`} fill="#000000" opacity="0.2" />}
+                {costume === 3 || costume === 2 ? null : costume === 1 ? (
+                  <g>
+                    {/* A witch's hat: the brim and the bent cone. */}
+                    <path d={`M${hx - 4.9} 12 Q${hx - 5.1} 6.9 ${hx} 7 Q${hx + 5.1} 6.9 ${hx + 4.9} 12 Q${hx + 3.4} 9.2 ${hx} 9.3 Q${hx - 3.4} 9.2 ${hx - 4.9} 12Z`} fill={hair} />
+                    <path d={`M${hx - 8} 9.2 L${hx + 8} 9.2 L${hx + 7} 7.6 L${hx - 7} 7.6Z`} fill="#0b0612" />
+                    <path d={`M${hx - 4.6} 8 L${hx + 4.6} 8 L${hx + 2} 0.6 Q${hx + 1} -3 ${hx - 2.5} -2.4 Q${hx} -0.6 ${hx - 0.8} 1Z`} fill="#0b0612" />
+                    <path d={`M${hx - 4.2} 7.4 L${hx + 4.2} 7.4 L${hx + 3.6} 5.4 L${hx - 3.6} 5.4Z`} fill="#7c3aed" />
+                  </g>
+                ) : costume === 0 ? (
+                  <g>
+                    {/* Cat ears on a headband. */}
+                    <path d={`M${hx - 4.9} 12 Q${hx - 5.1} 6.9 ${hx} 7 Q${hx + 5.1} 6.9 ${hx + 4.9} 12 Q${hx + 3.4} 9.2 ${hx} 9.3 Q${hx - 3.4} 9.2 ${hx - 4.9} 12Z`} fill={hair} />
+                    <path d={`M${hx - 4.6} 9 L${hx - 4.4} 3.6 L${hx - 1} 7.6Z M${hx + 4.6} 9 L${hx + 4.4} 3.6 L${hx + 1} 7.6Z`} fill="#0b0612" />
+                    <path d={`M${hx - 3.8} 8.2 L${hx - 3.7} 5.4 L${hx - 2} 7.4Z M${hx + 3.8} 8.2 L${hx + 3.7} 5.4 L${hx + 2} 7.4Z`} fill="#f472b6" />
+                  </g>
+                ) : cap ? (
                   <path d={`M${hx - 5} 11 Q${hx - 4.8} 6.2 ${hx} 6.4 Q${hx + 4.8} 6.2 ${hx + 5} 11 L${hx + 7.4} 11.4 L${hx + 7.2} 12.4 L${hx - 5} 12Z`} fill={shirts[(h >> 7) % shirts.length]} />
                 ) : longHair ? (
                   <path d={`M${hx - 5} 12.6 Q${hx - 5.4} 6.8 ${hx} 7 Q${hx + 5.4} 6.8 ${hx + 5} 12.6 L${hx + 5.4} 18.6 L${hx + 3.6} 18.2 Q${hx + 3.8} 9.6 ${hx} 9.6 Q${hx - 3.8} 9.6 ${hx - 3.6} 18.2 L${hx - 5.4} 18.6Z`} fill={hair} />
@@ -491,4 +525,241 @@ export function Vignette({ id }: { id: string }) {
 /** A soft, wide reflection of something bright in the floor's gloss. */
 export function FloorShine({ x, y, w, h, color = "#ffffff", opacity = 0.18 }: { x: number; y: number; w: number; h: number; color?: string; opacity?: number }) {
   return <ellipse cx={x} cy={y} rx={w / 2} ry={h / 2} fill={color} opacity={opacity} />;
+}
+
+/* ── People around the floor ─────────────────────────────────────────── */
+
+/**
+ * A small person: a coach, an official, a substitute, a photographer. Drawn
+ * to a real person's proportions (the head about a seventh of the height),
+ * lit from the upper left with the far side in shade, standing with the
+ * weight on one leg and the arms hanging with a bend at the elbow, or
+ * sitting (`sit`: the legs fold under a bench). `stripes` dresses a referee,
+ * `shorts` shows the legs, `camera` puts a long lens at the eye, `hat` adds a
+ * cap or, in season, a witch's hat.
+ */
+export function Person({
+  x,
+  y,
+  h,
+  shirt,
+  skin = "#b07a55",
+  hair = "#1c1210",
+  stripes = false,
+  pants = "#1f2937",
+  shorts = false,
+  sit = false,
+  camera = false,
+  hat,
+  longHair = false,
+  armsUp = false,
+}: {
+  x: number;
+  y: number;
+  h: number;
+  shirt: string;
+  skin?: string;
+  hair?: string;
+  stripes?: boolean;
+  pants?: string;
+  shorts?: boolean;
+  sit?: boolean;
+  camera?: boolean;
+  hat?: "cap" | "witch";
+  longHair?: boolean;
+  armsUp?: boolean;
+}) {
+  const u = h / 100;
+  const X = (v: number) => r2(x + v * u);
+  const Y = (v: number) => r2(y - v * u);
+  const hr = r2(7.2 * u);
+  const shade = "#000000";
+  // Seated: the body sits 44 units lower, the thighs come toward the camera.
+  const top = sit ? 44 : 0;
+  const by = (v: number) => Y(v - top);
+  return (
+    <g>
+      {!sit && <ellipse cx={X(1)} cy={r2(y + 0.6 * u)} rx={r2(13 * u)} ry={r2(2.3 * u)} fill="#0f172a" opacity="0.16" />}
+      {sit ? (
+        <g>
+          {/* The thighs toward the camera and the shins down to the feet. */}
+          <path d={`M${X(-9)} ${Y(44)} L${X(-1)} ${Y(44)} L${X(-1.5)} ${Y(30)} L${X(-11)} ${Y(30)}Z M${X(1)} ${Y(44)} L${X(9)} ${Y(44)} L${X(11)} ${Y(30)} L${X(1.5)} ${Y(30)}Z`} fill={shorts ? skin : pants} />
+          <path d={`M${X(-10)} ${Y(30)} L${X(-2)} ${Y(30)} L${X(-2.4)} ${Y(4)} L${X(-9)} ${Y(4)}Z M${X(2)} ${Y(30)} L${X(10)} ${Y(30)} L${X(9.6)} ${Y(4)} L${X(2.4)} ${Y(4)}Z`} fill={shorts ? skin : mixHex(pants, "#000000", 0.25)} />
+          {shorts && <path d={`M${X(-10)} ${Y(30)} L${X(-2)} ${Y(30)} L${X(-2.2)} ${Y(22)} L${X(-9.6)} ${Y(22)}Z M${X(2)} ${Y(30)} L${X(10)} ${Y(30)} L${X(9.8)} ${Y(22)} L${X(2.2)} ${Y(22)}Z`} fill={pants} />}
+        </g>
+      ) : (
+        <g>
+          {/* The legs: the weight on the near leg, the far one a little bent and back. */}
+          <path d={`M${X(-10)} ${Y(50)} L${X(-0.8)} ${Y(50)} L${X(-1.6)} ${Y(4)} L${X(-8.4)} ${Y(4)}Z`} fill={shorts ? skin : pants} />
+          <path d={`M${X(0.6)} ${Y(50)} L${X(10)} ${Y(50)} L${X(10.6)} ${Y(28)} L${X(9.2)} ${Y(4)} L${X(3)} ${Y(4)} L${X(2.2)} ${Y(28)}Z`} fill={shorts ? mixHex(skin, "#000000", 0.18) : mixHex(pants, "#000000", 0.22)} />
+          {shorts && <path d={`M${X(-10.4)} ${Y(50)} L${X(10.4)} ${Y(50)} L${X(10.6)} ${Y(32)} L${X(-10.4)} ${Y(32)}Z`} fill={pants} />}
+        </g>
+      )}
+      {/* Shoes. */}
+      <path d={`M${X(-9.2)} ${Y(5)} L${X(-1.4)} ${Y(5)} L${X(0.2)} ${Y(0)} L${X(-9.8)} ${Y(0)}Z M${X(1.4)} ${Y(5)} L${X(9.4)} ${Y(5)} L${X(11.6)} ${Y(0)} L${X(1.2)} ${Y(0)}Z`} fill="#0b0f17" />
+      {/* The far arm, behind the body. */}
+      {!armsUp && <path d={`M${X(11.6)} ${by(64)} L${X(16.6)} ${by(63)} L${X(17.8)} ${by(50)} L${X(15.6)} ${by(42)} L${X(12.2)} ${by(43)} L${X(13.4)} ${by(50)}Z`} fill={mixHex(skin, "#000000", 0.2)} />}
+      {/* The shirt: sloped shoulders, short sleeves, the hem at the hips. */}
+      <path
+        d={`M${X(-4.6)} ${by(82)} C${X(-9)} ${by(81)} ${X(-14)} ${by(80)} ${X(-15.6)} ${by(77)} L${X(-17)} ${by(66)} L${X(-12)} ${by(65)} L${X(-11)} ${by(46)} L${X(11)} ${by(46)} L${X(12)} ${by(65)} L${X(17)} ${by(66)} L${X(15.6)} ${by(77)} C${X(14)} ${by(80)} ${X(9)} ${by(81)} ${X(4.6)} ${by(82)}Z`}
+        fill={shirt}
+      />
+      {stripes && <path d={`M${X(-8)} ${by(80.6)} L${X(-5)} ${by(81.4)} L${X(-5)} ${by(46)} L${X(-8)} ${by(46)}Z M${X(-1.5)} ${by(82)} L${X(1.5)} ${by(82)} L${X(1.5)} ${by(46)} L${X(-1.5)} ${by(46)}Z M${X(5)} ${by(81.4)} L${X(8)} ${by(80.6)} L${X(8)} ${by(46)} L${X(5)} ${by(46)}Z`} fill="#111827" />}
+      {/* The far side of the body in shade, and the fold under the chest. */}
+      <path d={`M${X(4.6)} ${by(82)} C${X(9)} ${by(81)} ${X(14)} ${by(80)} ${X(15.6)} ${by(77)} L${X(17)} ${by(66)} L${X(12)} ${by(65)} L${X(11)} ${by(46)} L${X(4)} ${by(46)} L${X(3)} ${by(82)}Z`} fill={shade} opacity="0.16" />
+      <path d={`M${X(-8)} ${by(60)} Q${X(0)} ${by(58)} ${X(8)} ${by(60)}`} stroke={shade} strokeWidth={r2(0.6 * u)} fill="none" opacity="0.1" />
+      {/* The near arm: the upper arm along the side, the forearm turned in a little at the elbow, the hand. */}
+      {armsUp ? (
+        <g>
+          <path d={`M${X(-16)} ${by(66)} L${X(-11.5)} ${by(66)} L${X(-14)} ${by(92)} L${X(-18.5)} ${by(90)}Z M${X(11.5)} ${by(66)} L${X(16)} ${by(66)} L${X(18.5)} ${by(90)} L${X(14)} ${by(92)}Z`} fill={skin} />
+          <circle cx={X(-16.4)} cy={by(93)} r={r2(2.6 * u)} fill={skin} />
+          <circle cx={X(16.4)} cy={by(93)} r={r2(2.6 * u)} fill={skin} />
+        </g>
+      ) : camera ? (
+        <g>
+          <path d={`M${X(-16.4)} ${by(66)} L${X(-12.2)} ${by(66)} L${X(-9)} ${by(76)} L${X(-4)} ${by(80)} L${X(-6)} ${by(84)} L${X(-12)} ${by(80)}Z`} fill={skin} />
+          <rect x={X(-5)} y={by(90)} width={r2(14 * u)} height={r2(7 * u)} rx={r2(1.4 * u)} fill="#111827" />
+          <rect x={X(8)} y={by(88.5)} width={r2(12 * u)} height={r2(4 * u)} rx={r2(1 * u)} fill="#374151" />
+          <rect x={X(16)} y={by(89.5)} width={r2(5 * u)} height={r2(6 * u)} rx={r2(1 * u)} fill="#1f2937" />
+        </g>
+      ) : (
+        <g>
+          <path d={`M${X(-17)} ${by(66)} L${X(-12.2)} ${by(66)} L${X(-12.6)} ${by(52)} L${X(-10.4)} ${by(40)} L${X(-14.4)} ${by(39)} L${X(-16.8)} ${by(52)}Z`} fill={skin} />
+          <circle cx={X(-12.3)} cy={by(37.6)} r={r2(2.5 * u)} fill={skin} />
+          <path d={`M${X(-12.2)} ${by(66)} L${X(-12.6)} ${by(52)}`} stroke={shade} strokeWidth={r2(0.5 * u)} opacity="0.12" />
+        </g>
+      )}
+      {/* The sleeve's shade on the near arm. */}
+      <ellipse cx={X(-14.4)} cy={by(66)} rx={r2(2.8 * u)} ry={r2(1.2 * u)} fill={shade} opacity="0.14" />
+      {/* Neck and head, the far cheek in shade, then the hair. */}
+      <path d={`M${X(-2.8)} ${by(87)} L${X(2.8)} ${by(87)} L${X(3.2)} ${by(80.6)} L${X(-3.2)} ${by(80.6)}Z`} fill={mixHex(skin, "#000000", 0.14)} />
+      <circle cx={x} cy={by(92)} r={hr} fill={skin} />
+      <path d={`M${X(1.4)} ${by(99.2)} A${hr} ${hr} 0 0 1 ${X(1.4)} ${by(84.8)} A${r2(4.6 * u)} ${hr} 0 0 0 ${X(1.4)} ${by(99.2)}Z`} fill={shade} opacity="0.16" />
+      {/* Eyes and a mouth, the little that reads at this size. */}
+      <path d={`M${X(-3)} ${by(92.4)} l1.6 0 M${X(1.2)} ${by(92.4)} l1.6 0`} stroke="#2a1712" strokeWidth={r2(0.9 * u)} strokeLinecap="round" />
+      <path d={`M${X(-1.6)} ${by(88.8)} q1.6 1.1 3.2 0`} stroke="#5b2d24" strokeWidth={r2(0.6 * u)} fill="none" strokeLinecap="round" />
+      {longHair ? (
+        <path d={`M${X(-7.6)} ${by(91)} L${X(-8.4)} ${by(78)} L${X(-5.4)} ${by(78.6)} Q${X(-5.6)} ${by(88)} ${X(0)} ${by(89.6)} Q${X(5.6)} ${by(88)} ${X(5.4)} ${by(78.6)} L${X(8.4)} ${by(78)} L${X(7.6)} ${by(91)} Q${X(8)} ${by(100.4)} ${X(0)} ${by(100.2)} Q${X(-8)} ${by(100.4)} ${X(-7.6)} ${by(91)}Z`} fill={hair} />
+      ) : (
+        <path d={`M${X(-7.4)} ${by(91)} Q${X(-7.8)} ${by(100.4)} ${X(0)} ${by(100.2)} Q${X(7.8)} ${by(100.4)} ${X(7.4)} ${by(91)} Q${X(5.4)} ${by(96)} ${X(0)} ${by(96.2)} Q${X(-5.4)} ${by(96)} ${X(-7.4)} ${by(91)}Z`} fill={hair} />
+      )}
+      {hat === "cap" && (
+        <g>
+          <path d={`M${X(-7.8)} ${by(93)} Q${X(-7.6)} ${by(101.6)} ${X(0)} ${by(101.4)} Q${X(7.6)} ${by(101.6)} ${X(7.8)} ${by(93)}Z`} fill={shirt} />
+          <path d={`M${X(-7.8)} ${by(93)} L${X(-14)} ${by(92)} L${X(-13.6)} ${by(90.2)} L${X(-7.6)} ${by(91.2)} L${X(7.8)} ${by(91.2)} L${X(7.8)} ${by(93)}Z`} fill={mixHex(shirt, "#000000", 0.25)} />
+        </g>
+      )}
+      {hat === "witch" && (
+        <g>
+          <path d={`M${X(-13)} ${by(94.4)} L${X(13)} ${by(94.4)} L${X(11.6)} ${by(97.4)} L${X(-11.6)} ${by(97.4)}Z`} fill="#0b0612" />
+          <path d={`M${X(-7.6)} ${by(96.6)} L${X(7.6)} ${by(96.6)} L${X(3.6)} ${by(112)} Q${X(2)} ${by(120)} ${X(-4)} ${by(117)} Q${X(1)} ${by(114)} ${X(-1.2)} ${by(108)}Z`} fill="#0b0612" />
+          <path d={`M${X(-7)} ${by(97.6)} L${X(7)} ${by(97.6)} L${X(6)} ${by(101)} L${X(-6)} ${by(101)}Z`} fill="#7c3aed" />
+        </g>
+      )}
+    </g>
+  );
+}
+
+/** Mixes two #rrggbb colors, `t` of the way from a to b. */
+export function mixHex(a: string, b: string, t: number): string {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (s: number) => {
+    const x = (pa >> s) & 255;
+    const y = (pb >> s) & 255;
+    return Math.round(x + (y - x) * t);
+  };
+  return `#${((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1)}`;
+}
+
+/** Championship banners hanging from the roof: a row of pennants with years and titles. */
+export function RafterBanners({ xs, y = 34, h = 54, colors, titles }: { xs: number[]; y?: number; h?: number; colors: string[]; titles: string[] }) {
+  return (
+    <g>
+      {xs.map((x, i) => {
+        const c = colors[i % colors.length];
+        return (
+          <g key={x}>
+            <rect x={x - 0.8} y={y - 30} width="1.6" height="30" fill="#374151" />
+            <path d={`M${x - 17} ${y} L${x + 17} ${y} L${x + 17} ${y + h - 10} L${x} ${y + h} L${x - 17} ${y + h - 10}Z`} fill={c} />
+            <path d={`M${x} ${y} L${x + 17} ${y} L${x + 17} ${y + h - 10} L${x} ${y + h}Z`} fill="#000000" opacity="0.2" />
+            <rect x={x - 17} y={y} width="34" height="3" fill="#ffffff" opacity="0.35" />
+            <text x={x} y={y + 18} textAnchor="middle" fontSize="9" fontWeight="800" fill="#ffffff" fontFamily={FONT} textLength="26" lengthAdjust="spacingAndGlyphs">
+              {titles[i % titles.length]}
+            </text>
+            <text x={x} y={y + 32} textAnchor="middle" fontSize="11" fontWeight="900" fill="#ffffff" fontFamily={FONT}>
+              {2019 + i}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/**
+ * A row of photographers kneeling along the floor's edge with their long
+ * lenses, and a camera operator on a pedestal, the way the end of a court is
+ * lined on a match night.
+ */
+export function PressRow({ xs, y, h = 40, faces = false }: { xs: number[]; y: number; h?: number; faces?: boolean }) {
+  return (
+    <g>
+      {xs.map((x, i) => {
+        const hh = hash(i * 53 + 11);
+        return (
+          <g key={x}>
+            <Person x={x} y={y} h={h} shirt={["#1f2937", "#f97316", "#0f172a", "#374151"][i % 4]} skin={SKINS[(hh >> 3) % SKINS.length]} hair={HAIRS[(hh >> 6) % HAIRS.length]} sit camera longHair={(hh >> 9) % 3 === 0} hat={faces && (hh >> 11) % 2 === 0 ? "witch" : undefined} />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** A TV camera on a tripod with its operator standing behind it. */
+export function TvCamera({ x, y, h = 56, flip = false, skin = "#e0ac86", hair = "#4a2c17" }: { x: number; y: number; h?: number; flip?: boolean; skin?: string; hair?: string }) {
+  const u = h / 100;
+  const f = flip ? -1 : 1;
+  const X = (v: number) => r2(x + v * f * u);
+  const Y = (v: number) => r2(y - v * u);
+  return (
+    <g>
+      <Person x={r2(x - 18 * f * u)} y={y} h={h} shirt="#111827" skin={skin} hair={hair} />
+      {/* The tripod and the camera body with its lens hood and viewfinder. */}
+      <path d={`M${X(0)} ${Y(60)} L${X(-12)} ${Y(0)} M${X(0)} ${Y(60)} L${X(12)} ${Y(0)} M${X(0)} ${Y(60)} L${X(3)} ${Y(0)}`} stroke="#374151" strokeWidth={r2(2 * u)} strokeLinecap="round" />
+      <rect x={X(-10)} y={Y(76)} width={r2(26 * u)} height={r2(16 * u)} rx={r2(2 * u)} fill="#0f172a" />
+      <rect x={X(16)} y={Y(74)} width={r2(10 * u)} height={r2(12 * u)} rx={r2(1.5 * u)} fill="#1f2937" />
+      <circle cx={X(26)} cy={Y(68)} r={r2(5.5 * u)} fill="#111827" />
+      <circle cx={X(26)} cy={Y(68)} r={r2(3 * u)} fill="#1d4ed8" opacity="0.8" />
+      <rect x={X(-6)} y={Y(84)} width={r2(10 * u)} height={r2(7 * u)} rx={r2(1 * u)} fill="#1f2937" />
+      <rect x={X(-5)} y={Y(83)} width={r2(8 * u)} height={r2(5 * u)} fill="#93c5fd" opacity="0.7" />
+      <circle cx={X(2)} cy={Y(78)} r={r2(1.2 * u)} fill="#ef4444" />
+    </g>
+  );
+}
+
+/** A mascot in a big round costume head, waving from the floor's edge. */
+export function Mascot({ x, y, h = 60, body = "#1d4ed8", head = "#facc15" }: { x: number; y: number; h?: number; body?: string; head?: string }) {
+  const u = h / 100;
+  const X = (v: number) => r2(x + v * u);
+  const Y = (v: number) => r2(y - v * u);
+  return (
+    <g>
+      <ellipse cx={X(1)} cy={r2(y + 0.6 * u)} rx={r2(16 * u)} ry={r2(2.6 * u)} fill="#0f172a" opacity="0.16" />
+      <path d={`M${X(-11)} ${Y(42)} L${X(-2)} ${Y(42)} L${X(-3)} ${Y(4)} L${X(-11)} ${Y(4)}Z M${X(2)} ${Y(42)} L${X(11)} ${Y(42)} L${X(11)} ${Y(4)} L${X(3)} ${Y(4)}Z`} fill={body} />
+      <path d={`M${X(-12)} ${Y(5)} L${X(-2)} ${Y(5)} L${X(0)} ${Y(0)} L${X(-13)} ${Y(0)}Z M${X(2)} ${Y(5)} L${X(12)} ${Y(5)} L${X(14)} ${Y(0)} L${X(2)} ${Y(0)}Z`} fill={head} />
+      <ellipse cx={X(0)} cy={Y(56)} rx={r2(16 * u)} ry={r2(18 * u)} fill={body} />
+      <path d={`M${X(-16)} ${Y(66)} L${X(-24)} ${Y(92)} L${X(-18)} ${Y(94)} L${X(-9)} ${Y(70)}Z M${X(16)} ${Y(66)} L${X(26)} ${Y(50)} L${X(22)} ${Y(46)} L${X(10)} ${Y(62)}Z`} fill={body} />
+      <circle cx={X(-21)} cy={Y(94)} r={r2(4.5 * u)} fill={head} />
+      <circle cx={X(25)} cy={Y(48)} r={r2(4.5 * u)} fill={head} />
+      <circle cx={X(0)} cy={Y(86)} r={r2(17 * u)} fill={head} />
+      <path d={`M${X(2)} ${Y(103)} A${r2(17 * u)} ${r2(17 * u)} 0 0 1 ${X(2)} ${Y(69)} A${r2(10 * u)} ${r2(17 * u)} 0 0 0 ${X(2)} ${Y(103)}Z`} fill="#000000" opacity="0.14" />
+      <circle cx={X(-6)} cy={Y(89)} r={r2(4 * u)} fill="#ffffff" />
+      <circle cx={X(6)} cy={Y(89)} r={r2(4 * u)} fill="#ffffff" />
+      <circle cx={X(-5)} cy={Y(88.6)} r={r2(2 * u)} fill="#0f172a" />
+      <circle cx={X(7)} cy={Y(88.6)} r={r2(2 * u)} fill="#0f172a" />
+      <path d={`M${X(-8)} ${Y(80)} Q${X(0)} ${Y(72)} ${X(8)} ${Y(80)}`} stroke="#0f172a" strokeWidth={r2(2 * u)} fill="none" strokeLinecap="round" />
+    </g>
+  );
 }

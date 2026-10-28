@@ -832,6 +832,40 @@ html.lenis body {
 }
 
 /* Jordyn: arms easy at her sides, elbows soft. */
+/* At rest a player stands the way an athlete waits: the weight on the near
+   leg, the far foot a little back and turned out, the knees soft, a small
+   lean in from the hips, the arms hanging a touch away from the body. The
+   gait writes its own transforms while they run, and the moves' keyframes
+   take over from these. */
+.player-volleyball.player-idle:not(.player-moving) .p-leg-front,
+.player-soccer.player-idle:not(.player-moving) .p-leg-front {
+  transform: rotate(-5deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-shin-front,
+.player-soccer.player-idle:not(.player-moving) .p-shin-front {
+  transform: rotate(4deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-leg-back,
+.player-soccer.player-idle:not(.player-moving) .p-leg-back {
+  transform: rotate(7deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-shin-back,
+.player-soccer.player-idle:not(.player-moving) .p-shin-back {
+  transform: rotate(-5deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-foot-back,
+.player-soccer.player-idle:not(.player-moving) .p-foot-back {
+  transform: rotate(-2deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-arm-back {
+  transform: rotate(14deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-fore-back {
+  transform: rotate(-34deg);
+}
+.player-volleyball.player-idle:not(.player-moving) .p-fore-front {
+  transform: rotate(-30deg);
+}
 .player-volleyball .p-arm-front {
   transform: rotate(-10deg);
 }

@@ -311,9 +311,9 @@ function PomPom({ x, y, back }: { x: number; y: number; back: boolean }) {
   const tones = [KEN_KIT.pom, KEN_KIT.pomLight, KEN_KIT.pomDeep, KEN_KIT.white];
   return (
     <g opacity={back ? 0.92 : 1} transform={`translate(${n(x)} ${n(y)}) scale(1.3)`}>
-      <circle r="4.5" fill={KEN_KIT.pom} />
+      <circle r="4.5" fill={KEN_KIT.pom} className="pom-core" />
       {POM.map(([dx, dy, w, tone], i) => (
-        <path key={i} d={`M${n(dx * 0.25)} ${n(dy * 0.25)} L${dx} ${dy}`} stroke={tones[tone]} strokeWidth={w} strokeLinecap="round" />
+        <path key={i} d={`M${n(dx * 0.25)} ${n(dy * 0.25)} L${dx} ${dy}`} stroke={tones[tone]} strokeWidth={w} strokeLinecap="round" className={`pom-${tone}`} />
       ))}
     </g>
   );
