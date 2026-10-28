@@ -55,7 +55,7 @@ export function ToastHost() {
       {toasts.slice(-MAX_VISIBLE).map((toast) => (
         <div
           key={toast.id}
-          className="animate-toast-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-lg sm:w-96"
+          className="animate-toast-in pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl border border-slate-200 bg-surface p-3.5 shadow-lg sm:w-96"
         >
           {/* Always a line icon: an emoji in a toast's payload is left out,
               since it draws differently on every device. */}

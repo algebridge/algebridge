@@ -42,7 +42,7 @@ export function GameSetupBar({
     .filter((g) => g.skills.length);
   const seg = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
-      active ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"
+      active ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"
     }`;
 
   return (
@@ -54,7 +54,7 @@ export function GameSetupBar({
           <select
             value={topicValue(setup.topic)}
             onChange={(e) => onChange({ topic: topicFrom(e.target.value) })}
-            className="mt-1 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-[15px] focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
+            className="mt-1 h-11 w-full rounded-xl border border-slate-300 bg-surface px-3 text-[15px] focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200"
           >
             <option value="unit">{here ? `The unit you are on: Unit ${here.unitNumber}${unitTitle ? `, ${unitTitle}` : ""}` : "The unit you are on"}</option>
             <option value="jumbo">Jumbo: every topic in the course, mixed</option>

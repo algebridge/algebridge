@@ -1115,13 +1115,13 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               {next ? (
                 <Link
                   href={next.href}
-                  className="inline-flex min-h-11 items-center rounded-xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-surface px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px"
                 >
                   Next: {next.title}
                   <Icon name="arrow-right" size={15} className="ml-1.5 shrink-0" />
                 </Link>
               ) : (
-                <Link href="/" className="inline-flex min-h-11 items-center rounded-xl bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px">
+                <Link href="/" className="inline-flex min-h-11 items-center rounded-xl bg-surface px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px">
                   Back to the course
                 </Link>
               )}
@@ -1144,7 +1144,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-panel">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-surface px-4 py-3 shadow-panel">
         {practiceOnly ? (
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2">
@@ -1203,7 +1203,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           {mounted && !practiceOnly && (
             <span
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
-                daily.met ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-white text-slate-700 ring-slate-200"
+                daily.met ? "bg-emerald-50 text-emerald-800 ring-emerald-100" : "bg-surface text-slate-700 ring-slate-200"
               }`}
               title={`Daily goal: ${daily.goal} right answers, +${BRIDGEY_REWARDS.dailyGoal} Bridgeys`}
             >
@@ -1244,7 +1244,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
           places; a plain problem keeps the page's neutral card. */}
       <div
         style={hueVars(scene?.topic ? topicHue(scene.topic) : HUES.blue)}
-        className={`relative overflow-hidden rounded-2xl border bg-white p-4 shadow-panel sm:p-6 ${scene?.topic ? "hue-line" : "border-slate-200"}`}
+        className={`relative overflow-hidden rounded-2xl border bg-surface p-4 shadow-panel sm:p-6 ${scene?.topic ? "hue-line" : "border-slate-200"}`}
       >
         {scene?.topic && <span aria-hidden className="hue-bar absolute inset-x-0 top-0 h-1.5" />}
         {xpPopup && (
@@ -1462,7 +1462,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   type="button"
                   disabled={over || position === 0}
                   onClick={() => moveStep(position, -1)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-surface hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" up`}
                 >
                   <Icon name="chevron-up" size={18} />
@@ -1474,7 +1474,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
                   type="button"
                   disabled={over || position === stepOrder.length - 1}
                   onClick={() => moveStep(position, 1)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-white hover:text-slate-700 disabled:opacity-30"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-surface hover:text-slate-700 disabled:opacity-30"
                   aria-label={`Move "${getProblemSteps(problem)![stepIdx]}" down`}
                 >
                   <Icon name="chevron-down" size={18} />

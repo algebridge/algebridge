@@ -49,7 +49,7 @@ export function TeacherOffPanel({ feature }: { feature: ClassFeature }) {
   return (
     <section
       aria-labelledby="teacher-off-title"
-      className="mx-auto mt-6 max-w-lg rounded-2xl border border-slate-200 bg-white px-6 py-8 text-center shadow-panel"
+      className="mx-auto mt-6 max-w-lg rounded-2xl border border-slate-200 bg-surface px-6 py-8 text-center shadow-panel"
     >
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600 ring-1 ring-inset ring-bridge-100" aria-hidden>
         <Icon name="school" size={24} />
@@ -85,7 +85,7 @@ export function SchoolModePanel({ feature }: { feature: SchoolFeature }) {
   return (
     <section
       aria-labelledby="school-off-title"
-      className="mx-auto mt-6 max-w-lg rounded-2xl border border-slate-200 bg-white px-6 py-8 text-center shadow-panel"
+      className="mx-auto mt-6 max-w-lg rounded-2xl border border-slate-200 bg-surface px-6 py-8 text-center shadow-panel"
     >
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600 ring-1 ring-inset ring-bridge-100" aria-hidden>
         <Icon name="school" size={24} />

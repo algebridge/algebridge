@@ -88,7 +88,7 @@ export function MoodCheck() {
 
   if (thanks) {
     return (
-      <div role="status" className="fixed right-3 top-[4.25rem] z-[190] rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:right-4">
+      <div role="status" className="fixed right-3 top-[4.25rem] z-[190] rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white shadow-lg sm:right-4">
         Thanks for telling us.
       </div>
     );
@@ -99,7 +99,7 @@ export function MoodCheck() {
     <section
       role="dialog"
       aria-labelledby={headingId}
-      className="fixed left-3 right-3 top-[4.25rem] z-[190] rounded-2xl bg-white p-4 shadow-raised ring-1 ring-slate-900/10 sm:left-auto sm:right-4 sm:w-[21rem]"
+      className="fixed left-3 right-3 top-[4.25rem] z-[190] rounded-2xl bg-surface p-4 shadow-raised ring-1 ring-slate-900/10 sm:left-auto sm:right-4 sm:w-[21rem]"
     >
       <div className="flex items-start justify-between gap-3">
         <h2 id={headingId} className="text-[15px] font-bold leading-snug text-slate-900">

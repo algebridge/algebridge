@@ -53,7 +53,7 @@ export function StandardsChip({
               className={`standards-chip inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-medium leading-5 ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
                 s.level === "HS"
                   ? "bg-bridge-50 text-bridge-800 ring-bridge-100 hover:bg-bridge-100 hover:ring-bridge-200"
-                  : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300"
+                  : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300"
               }`}
             >
               {s.code}

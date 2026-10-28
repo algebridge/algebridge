@@ -277,7 +277,7 @@ export default function FeedbackPage() {
                   <label
                     key={k.id}
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3.5 py-3 transition ${
-                      kind === k.id ? "border-bridge-400 bg-bridge-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      kind === k.id ? "border-bridge-400 bg-bridge-50" : "border-slate-200 bg-surface hover:border-slate-300"
                     } ${k.id === "review" ? "sm:col-span-2 sm:items-center" : ""}`}
                   >
                     <input

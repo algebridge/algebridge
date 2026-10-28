@@ -37,7 +37,7 @@ export function SlipSteps({ explanation, at, compact = false }: { explanation: s
             <li
               key={i}
               className={`flex items-start gap-2 rounded-lg px-2 py-1 ${
-                slip ? "bg-rose-50 ring-2 ring-rose-400" : "bg-white/60"
+                slip ? "bg-rose-50 ring-2 ring-rose-400" : "bg-surface/60"
               }`}
             >
               <span

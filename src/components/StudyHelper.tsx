@@ -1460,7 +1460,7 @@ function StudyHelperPanel() {
               aria-pressed={mode === m.id}
               onClick={() => switchMode(m.id)}
               className={`rounded-lg px-2 py-1.5 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 active:scale-[0.97] ${
-                mode === m.id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"
+                mode === m.id ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {m.label}
@@ -1498,7 +1498,7 @@ function StudyHelperPanel() {
               const el = e.currentTarget;
               pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
             }}
-            className="relative min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-t border-slate-100 bg-white px-3 pb-4 pt-3.5 text-sm leading-relaxed"
+            className="relative min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-t border-slate-100 bg-surface px-3 pb-4 pt-3.5 text-sm leading-relaxed"
           >
             {messages.map((m) =>
               m.role === "user" ? (
@@ -1567,7 +1567,7 @@ function StudyHelperPanel() {
               </div>
             </div>
           ) : (
-            <div className="shrink-0 border-t border-slate-100 bg-white pt-2">
+            <div className="shrink-0 border-t border-slate-100 bg-surface pt-2">
               {bookingStep > 0 && (
                 <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Booking, step {bookingStep} of 3
@@ -1595,7 +1595,7 @@ function StudyHelperPanel() {
                   aria-label="Message Archie"
                   maxLength={500}
                   autoComplete="off"
-                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-100"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-surface px-3 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-100"
                 />
                 <button
                   type="submit"
@@ -1661,7 +1661,7 @@ function StudyHelperPanel() {
           data-leaving={leaving ? "" : undefined}
           data-quiet={quiet ? "" : undefined}
           data-snap={snapping ? "" : undefined}
-          className={`${docked ? "helper-dock" : "helper-sheet"} flex flex-col overflow-hidden bg-white focus:outline-none`}
+          className={`${docked ? "helper-dock" : "helper-sheet"} flex flex-col overflow-hidden bg-surface focus:outline-none`}
           style={docked ? { width } : sheetDy ? { transform: `translateY(${sheetDy}px)` } : undefined}
         >
           {docked && (

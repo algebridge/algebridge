@@ -39,7 +39,7 @@ export function DesmosCalculator({
 
 function Loading({ mode }: { mode: DesmosMode }) {
   return (
-    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
+    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface">
       <span
         aria-hidden
         className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-200 border-t-bridge-600 motion-reduce:animate-none"
@@ -53,7 +53,7 @@ function Loading({ mode }: { mode: DesmosMode }) {
 
 function LoadFailed({ onRetry, onUseKeypad }: { onRetry: () => void; onUseKeypad?: () => void }) {
   return (
-    <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white px-6 text-center">
+    <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface px-6 text-center">
       <p className="text-sm font-semibold text-slate-800">The calculator did not load</p>
       <p className="text-sm leading-relaxed text-slate-500">
         It comes from Desmos, so it needs the internet. Check your connection, then try again.

@@ -219,7 +219,7 @@ const NAV: KeyDef[] = [
 ];
 
 const TONE: Record<Tone, string> = {
-  num: "bg-white text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.22)] hover:bg-[#f7f8fa]",
+  num: "bg-surface text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.22)] hover:bg-[#f7f8fa]",
   op: "bg-[#f3f4f6] text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-[#e9ebee]",
   fn: "bg-[#e3e6ea] text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.18)] hover:bg-[#d9dde2]",
   nav: "bg-[#ccd1d8] text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-[#c2c8d0]",
@@ -242,7 +242,7 @@ function AngleSegments({ degrees }: { degrees: boolean }) {
       {(["rad", "deg"] as const).map((m) => {
         const on = (m === "deg") === degrees;
         return (
-          <span key={m} className={`flex flex-1 items-center justify-center px-1.5 ${on ? "bg-slate-700 text-white" : "text-slate-600"}`}>
+          <span key={m} className={`flex flex-1 items-center justify-center px-1.5 ${on ? "bg-ink-700 text-white" : "text-slate-600"}`}>
             {m}
           </span>
         );
@@ -331,7 +331,7 @@ export function Keypad({
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => setTab(t)}
             className={`rounded-md px-2.5 py-[3px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${
-              tab === t ? "bg-white text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.15)]" : "text-slate-500 hover:text-slate-800"
+              tab === t ? "bg-surface text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.15)]" : "text-slate-500 hover:text-slate-800"
             }`}
           >
             {t}

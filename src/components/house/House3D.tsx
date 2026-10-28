@@ -587,7 +587,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                 setGardenPick(null);
                 setWalking(id === "front");
               }}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${view === id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${view === id ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
             >
               {label}
             </button>
@@ -630,13 +630,13 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           className="absolute inset-0 h-full w-full touch-none select-none"
         />
         {drawn && preparing && (
-          <p className="pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" aria-live="polite">
+          <p className="pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-surface/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" aria-live="polite">
             Getting it ready…
           </p>
         )}
         {!drawn && !failed && (
           <p
-            className={porchPicture ? "pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" : "absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500"}
+            className={porchPicture ? "pointer-events-none absolute inset-x-0 top-14 mx-auto w-max rounded-full bg-surface/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm" : "absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500"}
             aria-live="polite"
           >
             Opening the house…
@@ -647,7 +647,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
             This browser cannot draw the house in 3D. Your pieces and what they do are listed below.
           </p>
         )}
-        <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-white/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
+        <p className="pointer-events-none absolute left-3 top-3 max-w-[70%] rounded-md bg-surface/95 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm">
           {walking ? (
             <>
               <span className="sm:hidden">Drag the stick to walk. Walk up to your door to go in.</span>
@@ -667,7 +667,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               : "An empty room. Put pieces in from the tray below."}
         </p>
         {askFigure && (
-          <div role="group" aria-labelledby="figure-ask-title" className="absolute inset-x-3 top-[4.75rem] mx-auto w-auto max-w-xs rounded-xl bg-white/95 p-3 shadow-lg ring-1 ring-slate-200 backdrop-blur sm:top-16">
+          <div role="group" aria-labelledby="figure-ask-title" className="absolute inset-x-3 top-[4.75rem] mx-auto w-auto max-w-xs rounded-xl bg-surface/95 p-3 shadow-lg ring-1 ring-slate-200 backdrop-blur sm:top-16">
             <p id="figure-ask-title" className="text-sm font-semibold text-slate-900">
               Who stands on your porch?
             </p>
@@ -686,10 +686,10 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           </div>
         )}
         <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
-          <button type="button" onClick={() => engine.current?.zoom(1.15)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-slate-900" aria-label="Zoom in">
+          <button type="button" onClick={() => engine.current?.zoom(1.15)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface/95 text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-slate-900" aria-label="Zoom in">
             <Icon name="plus" size={16} />
           </button>
-          <button type="button" onClick={() => engine.current?.zoom(1 / 1.15)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-slate-900" aria-label="Zoom out">
+          <button type="button" onClick={() => engine.current?.zoom(1 / 1.15)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface/95 text-slate-700 shadow-sm ring-1 ring-slate-200 hover:text-slate-900" aria-label="Zoom out">
             <span aria-hidden className="text-lg font-semibold leading-none">-</span>
           </button>
         </div>
@@ -701,11 +701,11 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
               <Icon name="walk" size={15} />
               Walk
             </button>
-            <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+            <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm bg-surface/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-surface">
               <Icon name="person" size={15} />
               My character
             </button>
-            <button type="button" onClick={() => setVisitingCity(true)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+            <button type="button" onClick={() => setVisitingCity(true)} className="btn-sm bg-surface/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-surface">
               <Icon name="globe" size={15} />
               Cities
             </button>
@@ -715,15 +715,15 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
           <>
             <WalkStick onChange={(x, y) => engine.current?.setWalkInput(x, y)} />
             <div className="absolute right-3 top-3 flex gap-1.5">
-              <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm hidden bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white sm:inline-flex">
+              <button type="button" onClick={() => setEditingCharacter(true)} className="btn-sm hidden bg-surface/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-surface sm:inline-flex">
                 <Icon name="person" size={15} />
                 My character
               </button>
-              <button type="button" onClick={() => setVisitingCity(true)} aria-label="Cities" className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+              <button type="button" onClick={() => setVisitingCity(true)} aria-label="Cities" className="btn-sm bg-surface/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-surface">
                 <Icon name="globe" size={15} />
                 <span className="hidden sm:inline">Cities</span>
               </button>
-              <button type="button" onClick={() => setWalking(false)} className="btn-sm bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-white">
+              <button type="button" onClick={() => setWalking(false)} className="btn-sm bg-surface/95 text-slate-800 shadow-sm ring-1 ring-slate-200 hover:bg-surface">
                 <Icon name="eye" size={15} />
                 Overview
               </button>
@@ -850,7 +850,7 @@ export function House3D({ progress, onUpdate, onShop, embedded = false }: Props)
                   key={`${id}-${i}`}
                   type="button"
                   onClick={() => placeFromTray(id)}
-                  className="flex w-24 shrink-0 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-white p-2 transition hover:border-bridge-300 hover:shadow-panel"
+                  className="flex w-24 shrink-0 flex-col items-center gap-1 rounded-xl border border-slate-200 bg-surface p-2 transition hover:border-bridge-300 hover:shadow-panel"
                 >
                   <PieceShot itemId={id} color={colors[id] ?? null} alt="" ornament={view === "garden"} className="h-14 w-full" />
                   <span className="w-full truncate text-center text-[11px] font-medium text-slate-700">{name}</span>
@@ -937,7 +937,7 @@ function WalkStick({ onChange }: { onChange: (x: number, y: number) => void }) {
       onPointerCancel={end}
       className="absolute bottom-3 left-3 h-28 w-28 touch-none select-none rounded-full bg-white/40 shadow-sm ring-1 ring-white/70 backdrop-blur-[2px]"
     >
-      <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/95 shadow ring-1 ring-slate-200" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
+      <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-surface/95 shadow ring-1 ring-slate-200" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
     </div>
   );
 }
@@ -989,7 +989,7 @@ function PieceCard({
       role="group"
       aria-label={`${item.name}: what it does`}
       onPointerDown={(e) => e.stopPropagation()}
-      className="animate-pop-in absolute inset-x-3 bottom-3 z-10 mx-auto max-w-md rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg sm:inset-x-auto sm:left-3"
+      className="animate-pop-in absolute inset-x-3 bottom-3 z-10 mx-auto max-w-md rounded-2xl border border-slate-200 bg-surface/95 p-3 shadow-lg sm:inset-x-auto sm:left-3"
     >
       <div className="flex items-start gap-3">
         <PieceShot itemId={itemId} color={color} on={on} live={live} alt="" className="h-14 w-16 shrink-0" />
@@ -1033,7 +1033,7 @@ function PieceCard({
   );
 }
 
-const CARD = "animate-pop-in absolute inset-x-3 bottom-3 z-10 mx-auto max-w-md rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg sm:inset-x-auto sm:left-3";
+const CARD = "animate-pop-in absolute inset-x-3 bottom-3 z-10 mx-auto max-w-md rounded-2xl border border-slate-200 bg-surface/95 p-3 shadow-lg sm:inset-x-auto sm:left-3";
 
 /** Turns the piece a step round. Pressing R does the same; the title says so. */
 function TurnButton({ onTurn }: { onTurn: () => void }) {

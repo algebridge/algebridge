@@ -44,7 +44,7 @@ html[data-text="largest"] {
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition duration-150 ease-out hover:scale-[1.03] hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition duration-150 ease-out hover:scale-[1.03] hover:border-slate-400 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-ghost {
@@ -52,7 +52,7 @@ html[data-text="largest"] {
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-surface px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400;
   }
 
   .btn-sm {
@@ -62,16 +62,16 @@ html[data-text="largest"] {
   /* ---- Surfaces ----------------------------------------------- */
   /* Static container. Use .card-link when the whole card is clickable. */
   .card {
-    @apply rounded-xl border border-slate-200 bg-white p-5 shadow-panel;
+    @apply rounded-xl border border-slate-200 bg-surface p-5 shadow-panel;
   }
 
   .card-link {
-    @apply rounded-xl border border-slate-200 bg-white p-5 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:shadow-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2;
+    @apply rounded-xl border border-slate-200 bg-surface p-5 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:shadow-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 focus-visible:ring-offset-2;
   }
 
   /* A panel with its own header strip — the standard block on this platform. */
   .panel {
-    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-panel;
+    @apply overflow-hidden rounded-xl border border-slate-200 bg-surface shadow-panel;
   }
 
   .panel-head {
@@ -87,7 +87,7 @@ html[data-text="largest"] {
   }
 
   .skill-card {
-    @apply flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:bg-bridge-50/40 hover:shadow-panel;
+    @apply flex items-center gap-4 rounded-lg border border-slate-200 bg-surface p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:border-bridge-300 hover:bg-bridge-50/40 hover:shadow-panel;
   }
 
   /* ---- Page structure ----------------------------------------- */
@@ -113,7 +113,7 @@ html[data-text="largest"] {
   }
 
   .field {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500;
+    @apply w-full rounded-lg border border-slate-300 bg-surface px-3 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-bridge-500 focus:outline-none focus:ring-2 focus:ring-bridge-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500;
   }
 
   .field-hint {

@@ -14,7 +14,7 @@ export function Chip({ chip, disabled, compact = false }: { chip: ChipSpec; disa
       type="button"
       onClick={chip.onPick}
       disabled={disabled}
-      className={`helper-chip inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white font-medium text-slate-700 shadow-sm hover:border-bridge-300 hover:bg-bridge-50 hover:text-bridge-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`helper-chip inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-surface font-medium text-slate-700 shadow-sm hover:border-bridge-300 hover:bg-bridge-50 hover:text-bridge-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 disabled:cursor-not-allowed disabled:opacity-50 ${
         compact ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-[13px]"
       }`}
     >

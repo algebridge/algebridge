@@ -56,7 +56,7 @@ export function GamesBanner() {
 
           {/* The team, standing together, heights true to life. */}
           <div className="figures-still relative mx-auto flex h-32 w-full max-w-[23rem] shrink-0 items-end justify-center sm:mx-0 sm:h-40 sm:w-[23rem]" aria-hidden>
-            <div className="absolute inset-x-2 bottom-1 h-3 rounded-full bg-slate-950/25 blur-[2px]" />
+            <div className="absolute inset-x-2 bottom-1 h-3 rounded-full bg-ink-950/25 blur-[2px]" />
             <TeamMember height={168}>
               <Veronica pose="idle" className="w-full" />
             </TeamMember>

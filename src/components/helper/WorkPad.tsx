@@ -254,7 +254,7 @@ export function WorkPad({
                   autoCapitalize="off"
                   spellCheck={false}
                   maxLength={120}
-                  className={`min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-[14px] font-medium tabular-nums tracking-wide text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                  className={`min-w-0 flex-1 rounded-lg border bg-surface px-2.5 py-1.5 text-[14px] font-medium tabular-nums tracking-wide text-slate-900 placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
                     mark.kind === "changed"
                       ? "border-amber-300 focus:border-amber-400 focus:ring-amber-100"
                       : passed

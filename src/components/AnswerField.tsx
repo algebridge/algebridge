@@ -120,7 +120,7 @@ const KEYS_PREF = "ab-math-keys";
 function keyClass(kind: Key["kind"]): string {
   const tone =
     kind === "num"
-      ? "border-slate-200 bg-white text-slate-900"
+      ? "border-slate-200 bg-surface text-slate-900"
       : kind === "go"
         ? "border-bridge-600 bg-bridge-600 text-white hover:bg-bridge-700"
         : kind === "edit"
@@ -167,7 +167,7 @@ function FullKeys({ onKey, onClose }: { onKey: (a: KeyAction) => void; onClose: 
           type="button"
           onPointerDown={(e) => e.preventDefault()}
           onClick={onClose}
-          className="-my-1 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+          className="-my-1 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-surface hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
         >
           Close
         </button>
@@ -300,8 +300,8 @@ export function AnswerField({
       : locked
         ? "border-slate-200 bg-slate-50 text-slate-500"
         : tone === "wrong"
-          ? "border-amber-400 bg-white ring-2 ring-amber-100 focus-within:border-amber-500 focus-within:ring-amber-200"
-          : "border-slate-300 bg-white focus-within:border-bridge-500 focus-within:ring-2 focus-within:ring-bridge-200";
+          ? "border-amber-400 bg-surface ring-2 ring-amber-100 focus-within:border-amber-500 focus-within:ring-amber-200"
+          : "border-slate-300 bg-surface focus-within:border-bridge-500 focus-within:ring-2 focus-within:ring-bridge-200";
 
   return (
     <div className={className}>
@@ -354,7 +354,7 @@ export function AnswerField({
               aria-label={keysOpen ? "Close the math keys" : "More math keys"}
               title="More math keys"
               className={`flex h-10 w-full items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
-                keysOpen ? "border-bridge-400 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                keysOpen ? "border-bridge-400 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-surface text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon name="keyboard" size={19} />

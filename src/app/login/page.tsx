@@ -425,7 +425,7 @@ function LoginPageInner() {
               onClick={() => setMode("signup")}
               aria-pressed={mode === "signup"}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                mode === "signup" ? "bg-surface text-slate-900 shadow-sm" : "text-slate-600"
               }`}
             >
               Sign up
@@ -435,7 +435,7 @@ function LoginPageInner() {
               onClick={() => setMode("signin")}
               aria-pressed={mode === "signin"}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                mode === "signin" ? "bg-surface text-slate-900 shadow-sm" : "text-slate-600"
               }`}
             >
               Sign in
@@ -633,7 +633,7 @@ function LoginPageInner() {
               type="button"
               onClick={handleGoogle}
               disabled={!configured}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />

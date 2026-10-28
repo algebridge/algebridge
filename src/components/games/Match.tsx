@@ -64,8 +64,8 @@ export function MatchEnd({ winner, names, score, onRematch, onLeave }: { winner:
   }, []);
   const loser = winner === 0 ? 1 : 0;
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/45 p-4" style={{ zIndex: 950 }} role="dialog" aria-modal="true" aria-labelledby="match-end-title">
-      <div className="animate-pop-in w-full max-w-sm overflow-hidden rounded-2xl bg-white text-center shadow-2xl">
+    <div className="absolute inset-0 flex items-center justify-center bg-ink-900/45 p-4" style={{ zIndex: 950 }} role="dialog" aria-modal="true" aria-labelledby="match-end-title">
+      <div className="animate-pop-in w-full max-w-sm overflow-hidden rounded-2xl bg-surface text-center shadow-2xl">
         <div className="px-5 py-4 text-white" style={{ background: SIDE_COLORS[winner] }}>
           <Icon name="trophy" size={28} className="mx-auto" />
           <p id="match-end-title" className="mt-1 text-2xl font-black tracking-tight">
@@ -138,9 +138,9 @@ export function MatchSetupCard({
   return (
     // Taller than a phone's screen: lined up from the top (centered, the
     // card spilled upward past where scrolling reaches, cutting its title).
-    <div className="fixed inset-0 z-[700] flex items-start justify-center overflow-y-auto bg-slate-900/45 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="match-setup-title">
+    <div className="fixed inset-0 z-[700] flex items-start justify-center overflow-y-auto bg-ink-900/45 p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="match-setup-title">
       <form
-        className="animate-pop-in my-auto w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl sm:p-5"
+        className="animate-pop-in my-auto w-full max-w-xl rounded-2xl bg-surface p-4 shadow-2xl sm:p-5"
         onSubmit={(e) => {
           e.preventDefault();
           onStart();
@@ -215,7 +215,7 @@ export function MatchSetupCard({
                   role="radio"
                   aria-checked={setup.toWin === nToWin}
                   onClick={() => onChange({ toWin: nToWin })}
-                  className={`rounded-lg px-3 py-1 text-sm font-semibold transition ${setup.toWin === nToWin ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`rounded-lg px-3 py-1 text-sm font-semibold transition ${setup.toWin === nToWin ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
                 >
                   {nToWin}
                 </button>

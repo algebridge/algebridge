@@ -120,7 +120,7 @@ export default function TutorHubPage() {
               role="tab"
               aria-selected={who === id}
               onClick={() => setWho(id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${who === id ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${who === id ? "bg-surface text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}
             >
               {label}
             </button>
@@ -142,7 +142,7 @@ export default function TutorHubPage() {
           {(who === "students" ? students : tutors).length === 0 ? `No ${who} here yet.` : `No ${who} match your search.`}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface">
           {rows.map((r) => {
             const on = picked.has(r.id);
             return (
@@ -175,7 +175,7 @@ export default function TutorHubPage() {
       {/* The group call being put together. */}
       {picked.size > 0 && (
         <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
-          <div className="flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+          <div className="flex w-full max-w-3xl flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-surface p-3 shadow-2xl">
             <p className="min-w-0 flex-1 text-sm text-slate-700">
               <span className="font-semibold text-slate-900">
                 {picked.size + 1} in the call:

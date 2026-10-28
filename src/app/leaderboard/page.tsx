@@ -122,7 +122,7 @@ export default function LeaderboardPage() {
             {[1, 2, 3, 4, 5].map((rank) => (
               <div
                 key={rank}
-                className="flex h-24 flex-col rounded-2xl border border-slate-200 bg-white p-2.5 sm:h-40 sm:p-4"
+                className="flex h-24 flex-col rounded-2xl border border-slate-200 bg-surface p-2.5 sm:h-40 sm:p-4"
               >
                 <span className="scale-75 self-start sm:scale-100">
                   <RankBadge rank={rank} />
@@ -133,7 +133,7 @@ export default function LeaderboardPage() {
               </div>
             ))}
           </div>
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-surface px-6 py-8 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bridge-50 text-bridge-600">
               <Icon name="leaderboard" size={24} />
             </span>
@@ -182,7 +182,7 @@ export default function LeaderboardPage() {
               onKeyDown={(e) => onTabKey(e, index)}
               onClick={() => setSort(option.id)}
               className={`flex-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-semibold transition sm:flex-none sm:px-4 sm:text-sm ${
-                active ? "bg-white text-bridge-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                active ? "bg-surface text-bridge-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {option.label}
@@ -199,11 +199,11 @@ export default function LeaderboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-surface p-6 text-center text-sm text-slate-600">
           <p>{error}</p>
         </div>
       ) : top.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-surface p-8 text-center text-slate-600">
           <p className="font-semibold text-slate-800">The board is empty so far.</p>
           <p className="mt-1 text-sm">Finish a skill and earn Bridgeys to take the first place.</p>
         </div>
@@ -273,7 +273,7 @@ export default function LeaderboardPage() {
                   {rest.map((entry) => {
                     const isMe = user?.id === entry.userId;
                     return (
-                      <tr key={entry.userId} className={isMe ? "bg-bridge-50" : "bg-white"}>
+                      <tr key={entry.userId} className={isMe ? "bg-bridge-50" : "bg-surface"}>
                         <td className="px-4 py-2.5 font-semibold text-slate-600 tabular-nums">#{entry.rank}</td>
                         <td className="px-4 py-2.5 font-medium text-slate-900">
                           {entry.displayName}

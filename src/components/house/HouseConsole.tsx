@@ -312,7 +312,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
               onClick={() => chooseTab(t.id)}
               className={`flex-1 rounded-lg px-5 py-2 text-sm font-semibold transition sm:flex-none ${
                 active
-                  ? "bg-white text-bridge-700 shadow-sm"
+                  ? "bg-surface text-bridge-700 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >

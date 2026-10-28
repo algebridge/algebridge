@@ -136,8 +136,8 @@ export default function AchievementsPage() {
                 key={badge.id}
                 className={`group flex items-center gap-3 rounded-2xl border p-4 transition duration-200 ease-out ${
                   earned
-                    ? `${seasonal ? "border-orange-200" : "border-bridge-200"} bg-white shadow-panel hover:-translate-y-0.5 hover:shadow-raised`
-                    : `border-dashed ${seasonal ? "border-orange-300 bg-orange-50/40" : "border-slate-300 bg-white/70"}`
+                    ? `${seasonal ? "border-orange-200" : "border-bridge-200"} bg-surface shadow-panel hover:-translate-y-0.5 hover:shadow-raised`
+                    : `border-dashed ${seasonal ? "border-orange-300 bg-orange-50/40" : "border-slate-300 bg-surface/70"}`
                 }`}
               >
                 <BadgeMark id={badge.id} earned={earned} />
@@ -194,7 +194,7 @@ export default function AchievementsPage() {
               <Link
                 key={c.id}
                 href={`/certificate/${c.id}`}
-                className={`flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-raised ${c.unit ? "border-slate-200" : "border-amber-300 sm:col-span-2 lg:col-span-3"}`}
+                className={`flex items-center gap-3 rounded-2xl border bg-surface p-4 shadow-panel transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-raised ${c.unit ? "border-slate-200" : "border-amber-300 sm:col-span-2 lg:col-span-3"}`}
               >
                 {seal}
                 <span className="min-w-0">
@@ -206,7 +206,7 @@ export default function AchievementsPage() {
             ) : (
               <div
                 key={c.id}
-                className={`flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4 text-slate-400 ${c.unit ? "" : "sm:col-span-2 lg:col-span-3"}`}
+                className={`flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-surface/70 p-4 text-slate-400 ${c.unit ? "" : "sm:col-span-2 lg:col-span-3"}`}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100">
                   {c.unit ? <UnitMark unitId={c.unit.id} size={20} /> : <Icon name="trophy" size={19} />}

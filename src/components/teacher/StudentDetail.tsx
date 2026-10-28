@@ -50,7 +50,7 @@ export function StudentDetail({
   useDialogFocus(panel, true, onClose);
 
   return (
-    <div className="fixed inset-0 z-[120] flex justify-end bg-slate-900/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex justify-end bg-ink-900/40" onClick={onClose}>
       <aside
         ref={panel}
         role="dialog"
@@ -59,7 +59,7 @@ export function StudentDetail({
         onClick={(e) => e.stopPropagation()}
         className="h-full w-full max-w-2xl overflow-y-auto bg-slate-50 shadow-2xl"
       >
-        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-surface px-5 py-4">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bridge-600 text-sm font-semibold text-white">
             {initialsOf(name)}
           </span>
@@ -193,7 +193,7 @@ export function StudentDetail({
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-surface px-4 py-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
       <p className="text-xs text-slate-500">{sub}</p>

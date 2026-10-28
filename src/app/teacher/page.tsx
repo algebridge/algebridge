@@ -579,7 +579,7 @@ function ClassDetail({
                 onClick={copyCode}
                 title="Copy join code"
                 aria-label={`Copy join code ${classInfo.joinCode}`}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-[0.2em] text-slate-900 transition hover:border-bridge-400 hover:bg-bridge-50"
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-surface px-3 py-1.5 font-mono text-base font-bold tracking-[0.2em] text-slate-900 transition hover:border-bridge-400 hover:bg-bridge-50"
               >
                 {classInfo.joinCode}
                 {copied ? (
@@ -679,7 +679,7 @@ function ShowCodeOverlay({ classInfo, onClose }: { classInfo: ClassInfo; onClose
       role="dialog"
       aria-modal="true"
       aria-labelledby="show-code-title"
-      className="fixed inset-0 z-[130] flex flex-col items-center justify-center overflow-y-auto bg-white px-6 py-10 text-center"
+      className="fixed inset-0 z-[130] flex flex-col items-center justify-center overflow-y-auto bg-surface px-6 py-10 text-center"
     >
       <p className="text-xl font-medium text-slate-600 sm:text-3xl">
         Go to <span className="font-semibold text-slate-900">{site}</span>, then{" "}
@@ -860,7 +860,7 @@ function RosterTab({
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
-                className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                className="rounded-md border border-slate-300 bg-surface px-2 py-1.5 text-xs text-slate-700"
               >
                 <option value="name">Name</option>
                 <option value="progress">Progress</option>
@@ -883,7 +883,7 @@ function RosterTab({
               <>
                 <strong>{reset.name}</strong> now signs in with{" "}
                 <strong>{reset.signIn}</strong> and the password{" "}
-                <code className="rounded bg-white px-1.5 py-0.5 font-mono text-sm">{reset.password}</code>.
+                <code className="rounded bg-surface px-1.5 py-0.5 font-mono text-sm">{reset.password}</code>.
                 Write it down for them now. It won&apos;t be shown again.
               </>
             )}
@@ -925,7 +925,7 @@ function RosterTab({
               <tbody>
                 {sorted.map((student) => (
                   <tr key={student.id}>
-                    <td className="sticky left-0 z-[1] bg-white shadow-[inset_-1px_0_0_#f1f5f9]">
+                    <td className="sticky left-0 z-[1] bg-surface shadow-[inset_-1px_0_0_#f1f5f9]">
                       <button
                         type="button"
                         onClick={() => setOpenId(student.id)}

@@ -44,7 +44,7 @@ function StepMark({ n, done }: { n: number; done: boolean }) {
       <Icon name="check" size={15} />
     </span>
   ) : (
-    <span aria-hidden className="hue-ink hue-line flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white text-sm font-semibold">
+    <span aria-hidden className="hue-ink hue-line flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-surface text-sm font-semibold">
       {n}
     </span>
   );

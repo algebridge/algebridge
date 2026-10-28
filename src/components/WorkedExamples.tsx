@@ -16,7 +16,7 @@ export function WorkedExamples({ skillId }: { skillId: string }) {
   const ex = examples[Math.min(at, examples.length - 1)];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-panel">
+    <div className="rounded-2xl border border-slate-200 bg-surface shadow-panel">
       {examples.length > 1 && (
         <div role="tablist" aria-label="Kinds of problems" className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-4 pt-3 pb-2.5">
           {examples.map((e, i) => (

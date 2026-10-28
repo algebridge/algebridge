@@ -112,7 +112,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
         <Avatar name={otherName} url={otherAvatarUrl} size={40} />
@@ -149,7 +149,7 @@ export function MessageThread({
       >
         {blocked ? (
           <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 text-center">
-            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 ring-1 ring-slate-200" aria-hidden>
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-surface text-slate-600 ring-1 ring-slate-200" aria-hidden>
               <Icon name="eye-off" size={19} />
             </span>
             <p className="mt-3 text-sm font-semibold text-slate-900">You blocked {otherName ?? "this person"} on this device</p>

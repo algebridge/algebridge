@@ -221,13 +221,13 @@ function KeyMap() {
   };
   return (
     <div className="mt-4">
-      <div className="inline-flex flex-col gap-1 rounded-xl bg-slate-800 p-2">
+      <div className="inline-flex flex-col gap-1 rounded-xl bg-ink-800 p-2">
         {rows.map((row, r) => (
           <div key={r} className="flex gap-1" style={{ paddingLeft: r * 10 }}>
             {row.map((key) => {
               const hit = seatOf(key);
               return (
-                <span key={key} className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${hit ? `${CHOICE_STYLE[hit.i].bg} text-white` : "bg-slate-700 text-slate-400"}`} title={hit ? `Player ${hit.seat + 1}` : undefined}>
+                <span key={key} className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${hit ? `${CHOICE_STYLE[hit.i].bg} text-white` : "bg-ink-700 text-slate-400"}`} title={hit ? `Player ${hit.seat + 1}` : undefined}>
                   {key}
                 </span>
               );
@@ -279,7 +279,7 @@ function SettingsForm({ value, onChange, players = false }: { value: ArenaSettin
               key={n}
               type="button"
               onClick={() => onChange({ ...value, count: n })}
-              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${value.count === n ? "border-bridge-600 bg-bridge-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${value.count === n ? "border-bridge-600 bg-bridge-600 text-white" : "border-slate-300 bg-surface text-slate-700 hover:border-slate-400"}`}
               aria-pressed={value.count === n}
             >
               {n}

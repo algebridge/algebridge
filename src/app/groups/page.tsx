@@ -102,7 +102,7 @@ export default function GroupsPage() {
           {isTutor && " Create an AlgeGroup to tutor several students at once."}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface">
           {groups.map((g) => (
             <li key={g.id}>
               <Link href={`/groups/${g.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
@@ -136,7 +136,7 @@ export default function GroupsPage() {
             aria-modal="true"
             aria-labelledby="new-group-title"
             aria-describedby="new-group-help"
-            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl"
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-surface shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-4">

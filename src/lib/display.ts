@@ -10,15 +10,19 @@
  *   html[data-text="large"]    bumps the root font size (everything in rem grows)
  *   html[data-motion="reduce"] turns animations off, the same rules the
  *                              operating system's reduce-motion setting applies
+ *   html[data-theme="dark"]    the dark theme (theme.css); "device" follows the
+ *                              operating system's light or dark setting
  * Code that decides about motion itself asks prefersReducedMotion().
  */
 
 export type TextSize = "normal" | "large" | "largest";
 export type MotionPref = "auto" | "reduce";
+export type ThemePref = "light" | "dark" | "device";
 
 export interface DisplaySettings {
   text: TextSize;
   motion: MotionPref;
+  theme: ThemePref;
 }
 
 export const DISPLAY_KEY = "ab-display";
@@ -31,7 +35,25 @@ export const TEXT_SIZES: { id: TextSize; label: string; hint: string }[] = [
   { id: "largest", label: "Largest", hint: "For a projector or tired eyes" },
 ];
 
-const DEFAULTS: DisplaySettings = { text: "normal", motion: "auto" };
+export const THEMES: { id: ThemePref; label: string; hint: string }[] = [
+  { id: "light", label: "Light", hint: "Light background" },
+  { id: "dark", label: "Dark", hint: "Dark background, easier at night" },
+  { id: "device", label: "Device", hint: "Follow this device's setting" },
+];
+
+export const DEFAULT_DISPLAY: DisplaySettings = { text: "normal", motion: "auto", theme: "light" };
+const DEFAULTS = DEFAULT_DISPLAY;
+
+function isTheme(v: unknown): v is ThemePref {
+  return v === "light" || v === "dark" || v === "device";
+}
+
+/** Whether the dark theme is showing for this choice. */
+export function isDark(theme: ThemePref): boolean {
+  if (theme === "dark") return true;
+  if (theme === "light" || typeof window === "undefined") return false;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
 
 function isTextSize(v: unknown): v is TextSize {
   return v === "normal" || v === "large" || v === "largest";
@@ -45,6 +67,7 @@ export function readDisplay(): DisplaySettings {
     return {
       text: isTextSize(raw.text) ? raw.text : "normal",
       motion: raw.motion === "reduce" ? "reduce" : "auto",
+      theme: isTheme(raw.theme) ? raw.theme : "light",
     };
   } catch {
     return DEFAULTS;
@@ -59,13 +82,27 @@ export function applyDisplay(s: DisplaySettings): void {
   else d.setAttribute("data-text", s.text);
   if (s.motion === "reduce") d.setAttribute("data-motion", "reduce");
   else d.removeAttribute("data-motion");
+  if (isDark(s.theme)) d.setAttribute("data-theme", "dark");
+  else d.removeAttribute("data-theme");
+}
+
+/** Keeps "device" in step when the operating system switches. Call once. */
+export function watchDeviceTheme(): () => void {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onChange = () => {
+    const s = readDisplay();
+    if (s.theme === "device") applyDisplay(s);
+  };
+  mq.addEventListener?.("change", onChange);
+  return () => mq.removeEventListener?.("change", onChange);
 }
 
 /** Saves a change, applies it at once, and tells the page. */
 export function writeDisplay(change: Partial<DisplaySettings>): DisplaySettings {
   const next = { ...readDisplay(), ...change };
   try {
-    if (next.text === "normal" && next.motion === "auto") localStorage.removeItem(DISPLAY_KEY);
+    if (next.text === "normal" && next.motion === "auto" && next.theme === "light") localStorage.removeItem(DISPLAY_KEY);
     else localStorage.setItem(DISPLAY_KEY, JSON.stringify(next));
   } catch {
     /* storage blocked: the setting holds for this page view */
@@ -94,5 +131,5 @@ export function prefersReducedMotion(): boolean {
 export function displayBootScript(): string {
   return `(function(){try{var s=JSON.parse(localStorage.getItem(${JSON.stringify(
     DISPLAY_KEY
-  )})||"{}"),d=document.documentElement;if(s.text==="large"||s.text==="largest")d.setAttribute("data-text",s.text);if(s.motion==="reduce")d.setAttribute("data-motion","reduce")}catch(e){}})();`;
+  )})||"{}"),d=document.documentElement;if(s.text==="large"||s.text==="largest")d.setAttribute("data-text",s.text);if(s.motion==="reduce")d.setAttribute("data-motion","reduce");if(s.theme==="dark"||(s.theme==="device"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))d.setAttribute("data-theme","dark")}catch(e){}})();`;
 }

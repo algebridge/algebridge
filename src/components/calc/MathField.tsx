@@ -770,7 +770,7 @@ export function MathField({
           <span data-strut className="inline-block h-[1em] w-0" />
           {body}
           {!value && placeholder && <span className="ml-0.5 font-sans text-[0.72em] text-slate-400">{placeholder}</span>}
-          <span ref={caretRef} className="pointer-events-none absolute left-0 top-0 hidden w-[1.5px] bg-slate-900" />
+          <span ref={caretRef} className="pointer-events-none absolute left-0 top-0 hidden w-[1.5px] bg-ink-900" />
         </div>
       </div>
     </div>

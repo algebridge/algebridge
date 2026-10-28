@@ -11,7 +11,7 @@
   font-size: 1.875rem;
   line-height: 1.08;
   letter-spacing: 0.01em;
-  color: #0f172a;
+  color: rgb(var(--sl-900));
   text-wrap: balance;
 }
 @media (min-width: 640px) {
@@ -72,7 +72,7 @@
 /* A quiet header line instead of a grey admin-table strip. */
 .panel-head {
   background-color: transparent;
-  border-bottom-color: #f1f5f9;
+  border-bottom-color: rgb(var(--sl-100));
 }
 
 /* ---- Keyboard focus ---------------------------------------------

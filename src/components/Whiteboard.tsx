@@ -162,7 +162,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               aria-label={`Pen width ${w}`}
               aria-pressed={width === w}
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs ${
-                width === w ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                width === w ? "bg-ink-900 text-white" : "bg-slate-100 text-slate-600"
               }`}
             >
               <span className="rounded-full bg-current" style={{ width: w, height: w }} />
@@ -182,7 +182,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           onPointerMove={move}
           onPointerUp={up}
           onPointerLeave={up}
-          className="w-full flex-1 touch-none rounded-xl border border-slate-300 bg-white"
+          className="w-full flex-1 touch-none rounded-xl border border-slate-300 bg-surface"
           style={{ minHeight: 320 }}
         />
       </div>

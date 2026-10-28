@@ -20,7 +20,7 @@ export function WorkedSteps({ text, className = "" }: { text: string; className?
     <ol className={`space-y-1.5 ${className}`}>
       {steps.map((step, i) => (
         <li key={i} className="flex items-start gap-2.5">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/70 text-[11px] font-bold text-slate-600 ring-1 ring-black/10">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface/70 text-[11px] font-bold text-slate-600 ring-1 ring-black/10">
             {i + 1}
           </span>
           <span className="leading-relaxed">

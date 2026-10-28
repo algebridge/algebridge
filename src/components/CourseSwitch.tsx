@@ -105,7 +105,7 @@ export function CourseSwitch({ size = "base", className = "" }: { size?: "base" 
         <div
           role="menu"
           aria-label="Courses"
-          className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-surface p-1.5 shadow-lg"
         >
           {COURSE_LINKS.map((c) => {
             const on = c.id === current;

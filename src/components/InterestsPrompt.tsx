@@ -96,7 +96,7 @@ export function InterestsPrompt() {
     >
       <div
         data-lenis-prevent
-        className="animate-modal-in max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+        className="animate-modal-in max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl bg-surface p-6 shadow-2xl sm:p-8"
       >
         <InterestsPicker
           initial={getProgress().interests}

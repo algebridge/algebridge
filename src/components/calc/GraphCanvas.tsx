@@ -714,7 +714,7 @@ export function GraphCanvas({
     .filter(Boolean)
     .join(". ");
   const tool =
-    "flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 shadow-[0_1px_2px_rgb(15_23_42/0.08)] transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]";
+    "flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-surface text-slate-600 shadow-[0_1px_2px_rgb(15_23_42/0.08)] transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]";
 
   return (
     <div
@@ -728,13 +728,13 @@ export function GraphCanvas({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
-      className="absolute inset-0 touch-none select-none overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2f6bd8]"
+      className="absolute inset-0 touch-none select-none overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2f6bd8]"
     >
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 h-full w-full" />
       {markPx && markPx.x > -20 && markPx.x < (view?.w ?? 0) + 20 && markPx.y > -20 && markPx.y < (view?.h ?? 0) + 20 && (
         <div
           aria-live="polite"
-          className="pointer-events-none absolute whitespace-nowrap rounded-md bg-white/95 px-1.5 py-0.5 text-[13px] font-medium tabular-nums text-slate-700 shadow-[0_1px_3px_rgb(15_23_42/0.18)] ring-1 ring-slate-200"
+          className="pointer-events-none absolute whitespace-nowrap rounded-md bg-surface/95 px-1.5 py-0.5 text-[13px] font-medium tabular-nums text-slate-700 shadow-[0_1px_3px_rgb(15_23_42/0.18)] ring-1 ring-slate-200"
           style={{
             left: Math.min(Math.max(4, markPx.x + 10), (view?.w ?? 0) - 8 * markText.length - 12),
             top: Math.max(4, markPx.y - 32),

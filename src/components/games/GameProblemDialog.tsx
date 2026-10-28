@@ -108,8 +108,8 @@ export function GameProblemDialog({
   // The same problem always picks the same wearer for a number.
   const jersey = (text: string, size?: "sm" | "md") => (jerseys && jerseyNumberIn(text) ? <JerseyAnswer text={text} seed={problem.prompt} size={size} sport={jerseys} /> : null);
   return (
-    <div ref={dialogRef} className="fixed inset-0 z-[600] flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
-      <div style={hueVars(unitHue(open.unitId))} className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div ref={dialogRef} className="fixed inset-0 z-[600] flex items-end justify-center bg-ink-900/40 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={label}>
+      <div style={hueVars(unitHue(open.unitId))} className="w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div className="hue-banner flex items-center justify-between gap-3 px-4 py-2.5">
           <p className="text-xs font-semibold uppercase tracking-wide">
             Unit {open.unitNumber} · {open.skillTitle}
@@ -153,7 +153,7 @@ export function GameProblemDialog({
                     disabled={out}
                     data-autofocus={i === (turn?.steal && problem.choices?.[0] === turn.missedChoice ? 1 : 0) ? "" : undefined}
                     onClick={() => onCheck(choice)}
-                    className={`flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 ${out ? "pointer-events-none text-slate-400 line-through opacity-60" : ""}`}
+                    className={`flex items-center gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 ${out ? "pointer-events-none text-slate-400 line-through opacity-60" : ""}`}
                   >
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-500">
                       {/* Numbered like practice, where the 1-4 keys pick a choice. */}
@@ -232,7 +232,7 @@ export function GameProblemDialog({
 /** A small label on the game stage. */
 export function GameChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-slate-800 sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
+    <span className="inline-flex items-center gap-1 rounded-md bg-surface/95 px-2 py-0.5 text-[11px] font-semibold text-slate-800 sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs">
       {children}
     </span>
   );
@@ -279,8 +279,8 @@ export function GameHowTo({ id, children, demo = false }: { id: string; children
     <p
       className={
         intro
-          ? "animate-pop-in pointer-events-none absolute left-1/2 top-1/2 w-max max-w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white/95 px-4 py-3 text-center text-sm font-semibold text-slate-800 shadow-lg"
-          : "pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-white/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto"
+          ? "animate-pop-in pointer-events-none absolute left-1/2 top-1/2 w-max max-w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-surface/95 px-4 py-3 text-center text-sm font-semibold text-slate-800 shadow-lg"
+          : "pointer-events-none absolute bottom-2 left-2 right-2 rounded-md bg-surface/95 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:bottom-3 sm:left-3 sm:right-auto"
       }
       style={intro ? { zIndex: 900 } : undefined}
     >

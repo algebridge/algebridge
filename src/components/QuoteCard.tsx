@@ -32,7 +32,7 @@ export function QuoteCard({ quote, variant = "card" }: { quote: MathQuote; varia
     );
   }
   return (
-    <figure className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4">
+    <figure className="flex h-full flex-col rounded-xl border border-slate-200 bg-surface p-4">
       <span className="text-3xl font-bold leading-none text-bridge-300" aria-hidden>
         “
       </span>

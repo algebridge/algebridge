@@ -57,7 +57,7 @@ export function NotificationsCard({ compact = false, who = "your tutor" }: { com
 
   return (
     <div className={`flex flex-wrap items-center gap-3 rounded-2xl border border-bridge-100 bg-bridge-50/60 ${compact ? "px-4 py-3" : "p-4"}`}>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-bridge-700 ring-1 ring-bridge-100" aria-hidden>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface text-bridge-700 ring-1 ring-bridge-100" aria-hidden>
         <Icon name="phone" size={17} />
       </span>
       <div className="min-w-0 flex-1">

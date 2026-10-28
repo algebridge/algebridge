@@ -572,7 +572,7 @@ export function Calculator() {
           data-engine={desmos ? "desmos" : "algebridge"}
           data-expanded={expanded ? "true" : undefined}
           data-calc-panel
-          className={`fixed z-50 flex flex-col rounded-2xl border border-slate-200 bg-white ${PANEL_SHADOW} ${placement} ${
+          className={`fixed z-50 flex flex-col rounded-2xl border border-slate-200 bg-surface ${PANEL_SHADOW} ${placement} ${
             shown ? "animate-fade-in" : "pointer-events-none invisible"
           }`}
           style={style}
@@ -610,7 +610,7 @@ export function Calculator() {
                     aria-pressed={mode === m.id}
                     onClick={() => setMode(m.id)}
                     className={`rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-bridge-400 ${
-                      mode === m.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      mode === m.id ? "bg-surface text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {m.label}
@@ -643,7 +643,7 @@ export function Calculator() {
           {/* The ring says where typing goes: inside it, keys are the calculator's. */}
           <div
             ref={bodyRef}
-            className={`relative mx-2 min-h-0 flex-1 overflow-hidden rounded-xl border bg-white transition-colors ${
+            className={`relative mx-2 min-h-0 flex-1 overflow-hidden rounded-xl border bg-surface transition-colors ${
               hasKeys ? "border-bridge-400 ring-2 ring-bridge-100" : "border-slate-200"
             }`}
           >

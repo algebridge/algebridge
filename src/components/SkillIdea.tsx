@@ -11,7 +11,7 @@ import type { Curve, Pan, Picture, SkillIdea as Idea } from "@/data/skill-ideas/
  */
 export function SkillIdea({ idea }: { idea: Idea }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-sm">
       <p className="px-5 pt-5 text-[17px] leading-relaxed text-slate-800 sm:px-6 sm:pt-6">{idea.idea}</p>
       <figure className="mx-5 mt-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100 sm:mx-6">
         <div className="mx-auto max-w-md">
@@ -76,7 +76,7 @@ export function IdeaPicture({ picture }: { picture: Picture }) {
             </thead>
             <tbody>
               {picture.rows.map((r, i) => (
-                <tr key={i} className="odd:bg-white">
+                <tr key={i} className="odd:bg-surface">
                   {r.map((c, j) => (
                     <td key={j} className="border-b border-slate-200 px-3 py-1.5 font-mono text-slate-700">
                       {c}
@@ -99,7 +99,7 @@ export function IdeaPicture({ picture }: { picture: Picture }) {
                   <path d="M1 6h14M11 2l4 4-4 4" fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
-              <span className="rounded-lg bg-white px-2.5 py-1.5 font-mono text-sm text-slate-800 shadow-sm ring-1 ring-slate-200">{s}</span>
+              <span className="rounded-lg bg-surface px-2.5 py-1.5 font-mono text-sm text-slate-800 shadow-sm ring-1 ring-slate-200">{s}</span>
             </span>
           ))}
         </div>

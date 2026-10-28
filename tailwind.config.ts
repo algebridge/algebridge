@@ -5,6 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Dark mode (src/app/theme.css) flips these through CSS variables.
+        slate: Object.fromEntries(
+          ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"].map((k) => [k, `rgb(var(--sl-${k}) / <alpha-value>)`])
+        ),
+        // Card and panel backgrounds: white in light, deep navy in dark.
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        // Fixed dark grays for tooltips and dark panels that stay dark in both themes.
+        ink: { 200: "#e2e8f0", 300: "#cbd5e1", 400: "#94a3b8", 700: "#334155", 800: "#1e293b", 900: "#0f172a", 950: "#020617" },
         // Primary brand ramp — the same blue the AlgeBridge marketing site
         // (algebridge.org) uses, so the course platform and the public site
         // read as one product.

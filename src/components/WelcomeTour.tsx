@@ -248,10 +248,10 @@ export function WelcomeTour() {
             <>
               {/* The dim, in four panels around a window over what the step
                   points at: around it the page waits, inside it, it works. */}
-              <div aria-hidden className={`fixed inset-x-0 top-0 z-[900] bg-slate-900/60 ${motion}`} style={{ height: Math.max(0, box.top) }} />
-              <div aria-hidden className={`fixed inset-x-0 bottom-0 z-[900] bg-slate-900/60 ${motion}`} style={{ top: box.top + box.height }} />
-              <div aria-hidden className={`fixed left-0 z-[900] bg-slate-900/60 ${motion}`} style={{ top: box.top, height: box.height, width: Math.max(0, box.left) }} />
-              <div aria-hidden className={`fixed right-0 z-[900] bg-slate-900/60 ${motion}`} style={{ top: box.top, height: box.height, left: box.left + box.width }} />
+              <div aria-hidden className={`fixed inset-x-0 top-0 z-[900] bg-ink-900/60 ${motion}`} style={{ height: Math.max(0, box.top) }} />
+              <div aria-hidden className={`fixed inset-x-0 bottom-0 z-[900] bg-ink-900/60 ${motion}`} style={{ top: box.top + box.height }} />
+              <div aria-hidden className={`fixed left-0 z-[900] bg-ink-900/60 ${motion}`} style={{ top: box.top, height: box.height, width: Math.max(0, box.left) }} />
+              <div aria-hidden className={`fixed right-0 z-[900] bg-ink-900/60 ${motion}`} style={{ top: box.top, height: box.height, left: box.left + box.width }} />
               <div
                 aria-hidden
                 className={`pointer-events-none fixed z-[900] rounded-lg ring-[3px] ring-white ${motion}`}
@@ -259,7 +259,7 @@ export function WelcomeTour() {
               />
             </>
           ) : (
-            <div aria-hidden className="fixed inset-0 z-[900] bg-slate-900/60" />
+            <div aria-hidden className="fixed inset-0 z-[900] bg-ink-900/60" />
           )}
 
           <div
@@ -269,7 +269,7 @@ export function WelcomeTour() {
             aria-modal={interactive ? undefined : "true"}
             aria-labelledby="tour-title"
             aria-describedby="tour-step tour-body"
-            className="animate-pop-in fixed z-[901] rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-slate-900/5"
+            className="animate-pop-in fixed z-[901] rounded-2xl bg-surface p-5 shadow-2xl ring-1 ring-slate-900/5"
             style={{ top: place.top, bottom: place.bottom, left: place.left, width: place.width }}
           >
             <div className="flex items-center gap-3">

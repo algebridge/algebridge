@@ -275,7 +275,7 @@ export function TryProblem({
             <div className="mt-4 grid gap-2 sm:grid-cols-2" role="group" aria-label="Answer choices">
               {choices.map((c) => {
                 const picked = given === c && state !== "open";
-                const tone = picked && state === "right" ? "border-emerald-500 bg-emerald-50 text-emerald-900" : picked ? "border-amber-400 bg-amber-50 text-amber-950" : "border-slate-200 bg-white hover:border-bridge-400";
+                const tone = picked && state === "right" ? "border-emerald-500 bg-emerald-50 text-emerald-900" : picked ? "border-amber-400 bg-amber-50 text-amber-950" : "border-slate-200 bg-surface hover:border-bridge-400";
                 return (
                   <button
                     key={c}

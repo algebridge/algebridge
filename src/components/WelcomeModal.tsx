@@ -63,7 +63,7 @@ export function WelcomeModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-title"
-        className="animate-modal-in w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+        className="animate-modal-in w-full max-w-md rounded-3xl bg-surface p-6 shadow-2xl sm:p-8"
       >
         <div className="text-center">
           <Image
@@ -82,7 +82,7 @@ export function WelcomeModal() {
           <span className="sr-only">
             Step {step + 1} of {STEPS.length}.{" "}
           </span>
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-bridge-600 shadow-panel ring-1 ring-bridge-100">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface text-bridge-600 shadow-panel ring-1 ring-bridge-100">
             <Icon name={current.icon} size={24} />
           </span>
           <h3 className="mt-3 font-bold text-slate-900">{current.title}</h3>

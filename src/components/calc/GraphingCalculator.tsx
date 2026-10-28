@@ -257,10 +257,10 @@ export function GraphingCalculator({ active }: { active: boolean }) {
   };
 
   const tool =
-    "flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] font-semibold text-slate-600 transition-colors hover:bg-white hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]";
+    "flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] font-semibold text-slate-600 transition-colors hover:bg-surface hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]";
 
   const list = (
-    <div className={`flex min-h-0 flex-col bg-white ${narrow ? "flex-1 border-t border-slate-200" : "w-[clamp(230px,38%,340px)] shrink-0 border-r border-slate-200"}`}>
+    <div className={`flex min-h-0 flex-col bg-surface ${narrow ? "flex-1 border-t border-slate-200" : "w-[clamp(230px,38%,340px)] shrink-0 border-r border-slate-200"}`}>
       <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-[#e3e6ea] bg-[#f6f7f9] px-1.5">
         <button
           type="button"
@@ -282,7 +282,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
           aria-pressed={keypad}
           aria-label={keypad ? "Hide the keypad" : "Show the keypad"}
           title={keypad ? "Hide the keypad" : "Show the keypad"}
-          className={`${tool} ${keypad ? "bg-white text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.12)]" : ""}`}
+          className={`${tool} ${keypad ? "bg-surface text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.12)]" : ""}`}
         >
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="2.5" y="6" width="19" height="12" rx="2" />
@@ -389,7 +389,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={() => addSliders(i, [m])}
                         aria-label={`Add a slider for ${m}`}
-                        className={`rounded-md border border-slate-300 bg-white px-2 py-px text-[15px] italic text-slate-700 transition-colors hover:border-[#2f6bd8] hover:text-[#2f6bd8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${MATH_FONT}`}
+                        className={`rounded-md border border-slate-300 bg-surface px-2 py-px text-[15px] italic text-slate-700 transition-colors hover:border-[#2f6bd8] hover:text-[#2f6bd8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${MATH_FONT}`}
                       >
                         {m}
                       </button>
@@ -400,7 +400,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={() => addSliders(i, g.missing)}
                         aria-label="Add a slider for each"
-                        className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[12px] font-semibold text-slate-600 transition-colors hover:border-[#2f6bd8] hover:text-[#2f6bd8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
+                        className="rounded-md border border-slate-300 bg-surface px-2 py-0.5 text-[12px] font-semibold text-slate-600 transition-colors hover:border-[#2f6bd8] hover:text-[#2f6bd8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
                       >
                         all
                       </button>
@@ -446,7 +446,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
   );
 
   return (
-    <div ref={rootRef} role="region" aria-label="Graphing calculator" className="flex h-full flex-col bg-white [container-type:size]">
+    <div ref={rootRef} role="region" aria-label="Graphing calculator" className="flex h-full flex-col bg-surface [container-type:size]">
       <div className={`flex min-h-0 flex-1 ${narrow ? "flex-col-reverse" : "flex-row"}`}>
         {list}
         <div className={`relative ${narrow ? "h-[50%] shrink-0" : "min-w-0 flex-1"}`}>
@@ -474,7 +474,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
                 onClick={() => setKeypadChoice(false)}
                 aria-label="Hide the keypad"
                 title="Hide the keypad"
-                className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
+                className="rounded-md p-1 text-slate-500 transition-colors hover:bg-surface hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
               >
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6" />

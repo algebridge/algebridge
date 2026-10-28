@@ -121,7 +121,7 @@ function ItemGrid({ items, cols = 2 }: { items: Item[]; cols?: 2 | 3 }) {
   return (
     <ul className={`schools-grid grid gap-3 sm:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : ""}`}>
       {items.map((item) => (
-        <li key={item.title} className="schools-card flex gap-3.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+        <li key={item.title} className="schools-card flex gap-3.5 rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel">
           <Mark mark={item.mark} />
           <div className="min-w-0">
             <h3 className="text-[15px] font-semibold text-slate-900">{item.title}</h3>
@@ -332,7 +332,7 @@ export default function SchoolsPage() {
   return (
     <article className="schools-page mx-auto max-w-5xl">
       {/* ---- Opening ---------------------------------------------------- */}
-      <div className="schools-hero relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-7 shadow-panel sm:px-8 sm:py-9">
+      <div className="schools-hero relative overflow-hidden rounded-2xl border border-slate-200 bg-surface px-5 py-7 shadow-panel sm:px-8 sm:py-9">
         <div className="schools-hero-rule absolute inset-x-0 top-0 h-1 bg-bridge-600" aria-hidden="true" />
         <p className="eyebrow text-bridge-700">For schools and districts</p>
         <h1 className="mt-2 font-display text-[34px] font-normal leading-[1.05] tracking-[0.01em] text-slate-900 sm:text-[44px]">
@@ -363,7 +363,7 @@ export default function SchoolsPage() {
             { k: "Standards", v: `${CITED.length} CCSS-M codes`, d: MAPPED === TOTAL_SKILLS ? `All ${TOTAL_SKILLS} skills mapped` : `${MAPPED} of ${TOTAL_SKILLS} skills mapped` },
             { k: "Setup", v: "A web browser", d: "Sign in with email or Google" },
           ].map((f) => (
-            <div key={f.k} className="bg-white px-4 py-3.5">
+            <div key={f.k} className="bg-surface px-4 py-3.5">
               <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{f.k}</dt>
               <dd className="mt-1 text-lg font-semibold leading-tight text-slate-900">{f.v}</dd>
               <dd className="mt-0.5 text-xs text-slate-500">{f.d}</dd>
@@ -385,7 +385,7 @@ export default function SchoolsPage() {
             <li key={id}>
               <a
                 href={`#${id}`}
-                className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600 transition-colors hover:border-bridge-300 hover:text-bridge-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+                className="inline-flex rounded-full border border-slate-200 bg-surface px-3 py-1.5 font-medium text-slate-600 transition-colors hover:border-bridge-300 hover:text-bridge-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
               >
                 {label}
               </a>
@@ -404,7 +404,7 @@ export default function SchoolsPage() {
         >
           <ol className="schools-steps grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s) => (
-              <li key={s.n} className="schools-card rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+              <li key={s.n} className="schools-card rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-bridge-600 text-xs font-bold text-white">
                     {s.n}
@@ -421,7 +421,7 @@ export default function SchoolsPage() {
 
           {/* What is in the course, and what a district would expect that is not there yet. */}
           <div className="schools-coverage mt-3 grid gap-3 md:grid-cols-[1fr_1.35fr]">
-            <div className="schools-card rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+            <div className="schools-card rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel">
               <h3 className="text-[15px] font-semibold text-slate-900">What the course covers</h3>
               <ol className="mt-2 space-y-0.5 text-sm leading-relaxed text-slate-600">
                 {units.map((u) => (
@@ -431,7 +431,7 @@ export default function SchoolsPage() {
                 ))}
               </ol>
             </div>
-            <div className="schools-card rounded-2xl border border-dashed border-slate-300 bg-white p-4">
+            <div className="schools-card rounded-2xl border border-dashed border-slate-300 bg-surface p-4">
               <h3 className="text-[15px] font-semibold text-slate-900">Not covered yet</h3>
               <p className="mt-1 text-sm text-slate-600">
                 Commonly taught in Algebra 1, and not in AlgeBridge today. A class using it needs another source for:
@@ -504,7 +504,7 @@ export default function SchoolsPage() {
                 number={unit.number}
                 title={unit.title}
                 skillCount={unit.skills.length}
-                className="schools-unit mb-3 break-inside-avoid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel"
+                className="schools-unit mb-3 break-inside-avoid overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-panel"
               >
                 <table className="w-full text-sm">
                   <caption className="sr-only">
@@ -537,7 +537,7 @@ export default function SchoolsPage() {
             ))}
           </div>
 
-          <div className="schools-notclaimed mt-2 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4">
+          <div className="schools-notclaimed mt-2 rounded-2xl border border-dashed border-slate-300 bg-surface/70 p-4">
             <h3 className="text-sm font-semibold text-slate-900">Left off on purpose</h3>
             <p className="mt-1 text-sm text-slate-600">
               These standards look like a match from a skill&apos;s name, but the skill does not teach them, so we do
@@ -621,7 +621,7 @@ export default function SchoolsPage() {
         >
           <ItemGrid items={PRIVACY_ITEMS} />
 
-          <div id="school-mode" className="schools-card mt-4 scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel sm:p-5">
+          <div id="school-mode" className="schools-card mt-4 scroll-mt-24 rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel sm:p-5">
             <div className="flex items-center gap-3">
               <Mark mark={{ icon: "school" }} />
               <h3 className="text-[15px] font-semibold text-slate-900">What a district can turn off</h3>
@@ -650,7 +650,7 @@ export default function SchoolsPage() {
             </p>
           </div>
 
-          <div className="schools-card mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <div className="schools-card mt-4 rounded-2xl border border-slate-200 bg-surface p-4 sm:p-5">
             <h3 className="text-[15px] font-semibold text-slate-900">Rules the database enforces</h3>
             <p className="mt-1 text-sm leading-relaxed text-slate-700">
               Checked by the database itself, whatever app talks to it:
@@ -662,7 +662,7 @@ export default function SchoolsPage() {
             </ul>
           </div>
 
-          <div className="schools-ai mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
+          <div className="schools-ai mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-panel">
             <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
               <Mark mark={{ icon: "helper" }} />
               <div>
@@ -745,7 +745,7 @@ export default function SchoolsPage() {
         {/* ---- 6. Cost and contact -------------------------------------- */}
         <Section id="contact" n={6} title="Cost and contact">
           <div className="schools-contact grid gap-3 md:grid-cols-[1fr_1.3fr]">
-            <div className="schools-card rounded-2xl border border-slate-200 bg-white p-5 shadow-panel">
+            <div className="schools-card rounded-2xl border border-slate-200 bg-surface p-5 shadow-panel">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Cost</p>
               <p className="mt-1 font-display text-3xl font-normal leading-none text-slate-900">Free</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">

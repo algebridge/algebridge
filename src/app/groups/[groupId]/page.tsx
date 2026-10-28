@@ -95,7 +95,7 @@ export default function GroupPage() {
         )}
       </div>
       {(leaving === "asking" || leaving === "busy") && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-3 text-sm text-slate-700">
           <span className="min-w-0 flex-1">Leave {group?.name ?? "this group"}? You will stop seeing its messages. Your tutor can add you again.</span>
           <button type="button" onClick={() => setLeaving("idle")} className="btn-ghost btn-sm">
             Stay

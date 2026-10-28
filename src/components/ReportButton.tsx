@@ -112,14 +112,14 @@ function Modal({
   useDialogFocus(ref, true, onClose);
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink-900/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-raised sm:max-w-md sm:rounded-2xl"
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-raised sm:max-w-md sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 pb-3 pt-4">
           <h2 id={titleId} className="text-base font-semibold text-slate-900">

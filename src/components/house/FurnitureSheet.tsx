@@ -102,7 +102,7 @@ export function FurnitureSheet() {
   return (
     <div className="grid grid-cols-2 gap-3 bg-[#eef0f3] p-4 sm:grid-cols-3 lg:grid-cols-4">
       {shots.map((s) => (
-        <figure key={s.id} className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+        <figure key={s.id} className="overflow-hidden rounded-xl bg-surface shadow-sm ring-1 ring-slate-200">
           <div className="aspect-[4/3] bg-gradient-to-b from-slate-50 to-slate-100">
             {s.url && (
               // eslint-disable-next-line @next/next/no-img-element

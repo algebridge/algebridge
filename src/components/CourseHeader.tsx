@@ -141,7 +141,7 @@ export function CourseHeader({ course = "algebra-1" }: { course?: CourseId }) {
           {continueTarget && (
             <Link
               href={`/learn/${continueTarget.unitId}/${continueTarget.skillId}`}
-              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px hover:bg-slate-50"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl bg-surface px-5 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px hover:bg-slate-50"
             >
               Continue learning
             </Link>
@@ -154,7 +154,7 @@ export function CourseHeader({ course = "algebra-1" }: { course?: CourseId }) {
           <div className="flex items-center gap-3">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/15">
               <div
-                className="h-full rounded-full bg-white/90 transition-all duration-500"
+                className="h-full rounded-full bg-surface/90 transition-all duration-500"
                 style={{ width: `${stats.percent}%` }}
               />
             </div>

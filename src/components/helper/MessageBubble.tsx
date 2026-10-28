@@ -156,7 +156,7 @@ function RichText({ text, words = false }: { text: string; words?: boolean }) {
                 return s ? (
                   <div key={i} className="flex gap-2">
                     <span
-                      className={`mt-[3px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-bridge-700 ring-1 ring-bridge-200 ${words ? "rv-b" : ""}`}
+                      className={`mt-[3px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-surface text-[11px] font-semibold text-bridge-700 ring-1 ring-bridge-200 ${words ? "rv-b" : ""}`}
                     >
                       {s[1]}
                     </span>
@@ -218,7 +218,7 @@ function FormulaCardBody({ message }: { message: ChatMessage }) {
   return (
     <div>
       <p className="text-[13px] font-semibold text-slate-900">{card.name}</p>
-      <p className="mt-2 rounded-xl bg-white px-3 py-2.5 text-center text-[17px] font-semibold tracking-wide text-slate-900 ring-1 ring-bridge-100">
+      <p className="mt-2 rounded-xl bg-surface px-3 py-2.5 text-center text-[17px] font-semibold tracking-wide text-slate-900 ring-1 ring-bridge-100">
         <FormulaText text={card.formula} />
       </p>
       <p className="mt-2 text-[13px] text-slate-600">

@@ -62,7 +62,7 @@ export function CrisisCard({
           </div>
         )}
 
-        <div className="mt-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-teal-100">
+        <div className="mt-3 rounded-xl bg-surface px-3 py-2.5 ring-1 ring-teal-100">
           <p className="text-[14px] font-semibold text-slate-900">Talk to a trusted adult now</p>
           <p className="mt-0.5 text-[13px] leading-relaxed text-slate-600">
             Like a parent, a teacher, or your school counselor.
@@ -76,7 +76,7 @@ export function CrisisCard({
           <li key={c.id}>
             <a
               href={c.href}
-              className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-slate-200 transition hover:ring-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 active:scale-[0.99]"
+              className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2.5 ring-1 ring-slate-200 transition hover:ring-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 active:scale-[0.99]"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800" aria-hidden="true">
                 <Icon name={c.id === "call-988" ? "phone" : "messages"} size={17} />
@@ -93,7 +93,7 @@ export function CrisisCard({
             href={CRISIS_CHAT.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-slate-200 transition hover:ring-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 active:scale-[0.99]"
+            className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2.5 ring-1 ring-slate-200 transition hover:ring-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 active:scale-[0.99]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800" aria-hidden="true">
               <Icon name="external" size={17} />

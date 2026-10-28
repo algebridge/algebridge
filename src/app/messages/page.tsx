@@ -69,7 +69,7 @@ export default function MessagesPage() {
           </Link>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-surface">
           {convos.map((c) => (
             <li key={c.otherId}>
               <Link

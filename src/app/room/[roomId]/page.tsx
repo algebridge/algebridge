@@ -596,14 +596,14 @@ export default function CallRoomPage() {
           {/* Video column */}
           <div className="space-y-3 lg:col-span-2">
             {solo ? (
-              <div className="relative overflow-hidden rounded-2xl bg-slate-900" style={{ aspectRatio: "3 / 4" }}>
+              <div className="relative overflow-hidden rounded-2xl bg-ink-900" style={{ aspectRatio: "3 / 4" }}>
                 {remotes[0] && <VideoTile stream={remotes[0].stream} className="h-full w-full object-cover" />}
-                {status !== "live" && <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-300">{statusLabel[status]}</div>}
+                {status !== "live" && <div className="absolute inset-0 flex items-center justify-center text-sm text-ink-300">{statusLabel[status]}</div>}
                 <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-3 right-3 h-28 w-20 rounded-lg border-2 border-white/70 object-cover shadow-lg" />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                <div className="relative overflow-hidden rounded-xl bg-slate-900" style={{ aspectRatio: "3 / 4" }}>
+                <div className="relative overflow-hidden rounded-xl bg-ink-900" style={{ aspectRatio: "3 / 4" }}>
                   <video ref={localVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
                   <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">You</span>
                 </div>
@@ -611,10 +611,10 @@ export default function CallRoomPage() {
                   const r = remotes.find((x) => x.id === id);
                   const here = present.includes(id);
                   return (
-                    <div key={id} className="relative overflow-hidden rounded-xl bg-slate-900" style={{ aspectRatio: "3 / 4" }}>
+                    <div key={id} className="relative overflow-hidden rounded-xl bg-ink-900" style={{ aspectRatio: "3 / 4" }}>
                       {r && <VideoTile stream={r.stream} className="h-full w-full object-cover" />}
                       {!r?.live && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs text-slate-300">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs text-ink-300">
                           <Avatar name={people.get(id)?.displayName} url={people.get(id)?.avatarUrl} size={40} />
                           {blockedHere.includes(id) ? "Blocked" : here ? "Connecting…" : "Not here yet"}
                         </div>
@@ -645,7 +645,7 @@ export default function CallRoomPage() {
               </button>
             </div>
             {group && (
-              <details className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+              <details className="rounded-xl border border-slate-200 bg-surface px-3 py-2 text-sm">
                 <summary className="cursor-pointer font-medium text-slate-700">People in this call</summary>
                 <ul className="mt-2 space-y-2">
                   {otherIds.map((id) => (
@@ -662,7 +662,7 @@ export default function CallRoomPage() {
               </details>
             )}
             {captions && (
-              <div data-lenis-prevent className="max-h-32 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+              <div data-lenis-prevent className="max-h-32 overflow-y-auto rounded-xl border border-slate-200 bg-surface p-3 text-xs text-slate-600">
                 {transcriptView.length === 0 ? (
                   <p className="text-slate-500">Listening… speak and your words appear here.</p>
                 ) : (

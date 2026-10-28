@@ -216,7 +216,7 @@ export function ArenaPlay({ unit, mode }: { unit: Unit; mode: ArenaMode }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-panel">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-3 shadow-panel">
         <span className="font-semibold text-slate-900">{meta.title}</span>
         {mode === "speed" ? (
           <span className={`arena-clock ${left <= 10 ? "arena-clock-low" : ""}`} aria-label={`${left} seconds left`}>

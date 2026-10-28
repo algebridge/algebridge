@@ -212,7 +212,7 @@ export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: Cl
         </ul>
       </div>
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 shadow-panel">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-slate-200 bg-surface/95 px-4 py-3 shadow-panel">
         {status && (
           <p role={status.ok ? "status" : "alert"} className={`text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>
             {status.text}
@@ -264,7 +264,7 @@ function Switch({
       />
       <span
         aria-hidden
-        className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-slate-300 transition peer-checked:bg-bridge-600 peer-focus-visible:ring-2 peer-focus-visible:ring-bridge-400 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-4"
+        className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-slate-300 transition peer-checked:bg-bridge-600 peer-focus-visible:ring-2 peer-focus-visible:ring-bridge-400 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-surface after:transition peer-checked:after:translate-x-4"
       />
     </label>
   );

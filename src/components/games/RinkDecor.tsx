@@ -118,7 +118,7 @@ export function RinkTray({ progress, placing, onPick }: { progress: UserProgress
                   type="button"
                   aria-pressed={active}
                   onClick={() => onPick(id)}
-                  className={`flex w-24 flex-col items-center gap-1 rounded-xl border bg-white p-2 transition ${
+                  className={`flex w-24 flex-col items-center gap-1 rounded-xl border bg-surface p-2 transition ${
                     active ? "border-bridge-500 ring-2 ring-bridge-200" : "border-slate-200 hover:border-bridge-300 hover:shadow-panel"
                   }`}
                 >

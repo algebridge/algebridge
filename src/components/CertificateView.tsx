@@ -261,7 +261,7 @@ export function CertificateView({ id }: { id: string }) {
         )}
       </div>
 
-      <div ref={holder} className="certificate-print overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-panel">
+      <div ref={holder} className="certificate-print overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-panel">
         {course ? (
           <CourseCertificate name={name.trim()} date={date} className="block h-auto w-full" />
         ) : (

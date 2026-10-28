@@ -29,7 +29,7 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="character-title" className="animate-modal-in flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-3xl">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="character-title" className="animate-modal-in flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:max-h-[88vh] sm:rounded-3xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
             <p className="eyebrow">Your character</p>
@@ -55,7 +55,7 @@ export function CharacterSheet({ initial, name, onSave, onClose }: { initial: Av
                     type="button"
                     onClick={() => setSpec((s) => withFigure(s, f.id as AvatarSpec["figure"]))}
                     aria-pressed={spec.figure === f.id}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${spec.figure === f.id ? "border-bridge-600 bg-bridge-50 text-bridge-700 ring-2 ring-bridge-600" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${spec.figure === f.id ? "border-bridge-600 bg-bridge-50 text-bridge-700 ring-2 ring-bridge-600" : "border-slate-200 bg-surface text-slate-700 hover:border-slate-300"}`}
                   >
                     {f.label}
                   </button>

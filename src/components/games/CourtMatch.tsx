@@ -953,7 +953,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
         {cheer && cards && (
           <div key={cards.key} className="pointer-events-none absolute flex gap-[1.2%]" style={{ left: pctX(486), top: pctY(286), width: pctX(228), zIndex: 260 }} aria-live="polite">
             {cards.cards.map((c, i) => (
-              <div key={i} className="judge-card flex-1 rounded-md border-2 bg-white py-[3%] text-center font-black tabular-nums shadow-lg" style={{ borderColor: SIDE_COLORS[cards.side], color: "#0f172a", animationDelay: `${i * 140}ms`, fontSize: "clamp(11px, 2.1vw, 26px)" }}>
+              <div key={i} className="judge-card flex-1 rounded-md border-2 bg-surface py-[3%] text-center font-black tabular-nums shadow-lg" style={{ borderColor: SIDE_COLORS[cards.side], color: "#0f172a", animationDelay: `${i * 140}ms`, fontSize: "clamp(11px, 2.1vw, 26px)" }}>
                 {c.toFixed(1)}
               </div>
             ))}
@@ -970,7 +970,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
 
         {intro && (
           <div className="pointer-events-none absolute inset-x-0 top-[38%] text-center" style={{ zIndex: 880 }}>
-            <span className="court-pop inline-block rounded-full bg-slate-900/85 px-4 py-1.5 text-lg font-black text-white sm:text-2xl">
+            <span className="court-pop inline-block rounded-full bg-ink-900/85 px-4 py-1.5 text-lg font-black text-white sm:text-2xl">
               {soccer ? "Kick off!" : volley ? `${names[0]} serves` : wrestle ? "Wrestle!" : derby ? "Play ball!" : "Judges ready"}
             </span>
           </div>

@@ -669,7 +669,7 @@ export function RinkGame({
         {two && cards && (
           <div key={cards.key} className="pointer-events-none absolute flex gap-[0.6%]" style={{ left: pctX(30), top: pctY(316), width: pctX(170), zIndex: 260 }} aria-live="polite">
             {cards.cards.map((c, i) => (
-              <div key={i} className="judge-card flex-1 rounded-md border-2 bg-white py-[3%] text-center font-black tabular-nums shadow-lg" style={{ borderColor: SIDE_COLORS[cards.side], color: "#0f172a", animationDelay: `${i * 140}ms`, fontSize: "clamp(10px, 1.7vw, 22px)" }}>
+              <div key={i} className="judge-card flex-1 rounded-md border-2 bg-surface py-[3%] text-center font-black tabular-nums shadow-lg" style={{ borderColor: SIDE_COLORS[cards.side], color: "#0f172a", animationDelay: `${i * 140}ms`, fontSize: "clamp(10px, 1.7vw, 22px)" }}>
                 {c.toFixed(1)}
               </div>
             ))}
@@ -677,7 +677,7 @@ export function RinkGame({
         )}
         {two && pop && (
           <p key={pop.key} aria-live="polite" className="pointer-events-none absolute inset-x-0 text-center" style={{ top: pctY(470), zIndex: 900 }}>
-            <span className="court-pop inline-block whitespace-nowrap rounded-full bg-slate-900/85 px-3 py-1 text-base font-black text-white shadow-lg sm:px-4 sm:text-2xl">{pop.text}</span>
+            <span className="court-pop inline-block whitespace-nowrap rounded-full bg-ink-900/85 px-3 py-1 text-base font-black text-white shadow-lg sm:px-4 sm:text-2xl">{pop.text}</span>
           </p>
         )}
 

@@ -5,6 +5,8 @@ import "./helper.css";
 import "./polish.css";
 import "./season.css";
 import "./display.css";
+import "./theme.css";
+import "./theme-accents.css";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { SideNav } from "@/components/SideNav";
@@ -77,7 +79,7 @@ export default function RootLayout({
         {/* First in the Tab order: past the menus, straight to the page. */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-bridge-700 focus:shadow-raised focus:outline-none focus:ring-2 focus:ring-bridge-500"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-bridge-700 focus:shadow-raised focus:outline-none focus:ring-2 focus:ring-bridge-500"
         >
           Skip to main content
         </a>
@@ -112,7 +114,7 @@ export default function RootLayout({
               {/* pb-32 on phones: the calculator and Archie buttons stack in the
                   bottom right corner (about 120px tall), so the last line can
                   scroll up clear of them. */}
-              <footer className="season-footer border-t border-slate-200 bg-white px-4 pb-32 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
+              <footer className="season-footer border-t border-slate-200 bg-surface px-4 pb-32 pt-8 text-center text-sm text-slate-500 sm:px-6 sm:pb-8">
                 <p>Free forever. Videos, practice, and real tutors. Algebra&nbsp;1, grades 7-10.</p>
                 {/* py-1 makes each link a 24 px tall target (WCAG 2.5.8) where the links wrap on a phone. */}
                 <nav aria-label="Footer" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs [&>a]:py-1">

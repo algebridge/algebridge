@@ -212,7 +212,7 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
           aria-label="Draw on the screen"
           title="Draw on the screen"
           className={`fixed bottom-5 left-5 z-[35] hidden h-14 w-14 items-center justify-center rounded-full shadow-lg transition hover:-translate-y-px focus:outline-none sm:flex lg:left-[calc(15rem+1.25rem)] focus:ring-2 focus:ring-bridge-500 focus:ring-offset-2 ${
-            hasMarks ? "bg-bridge-600 text-white" : "bg-white text-slate-700 ring-1 ring-inset ring-slate-200"
+            hasMarks ? "bg-bridge-600 text-white" : "bg-surface text-slate-700 ring-1 ring-inset ring-slate-200"
           }`}
         >
           <Icon name="pen" size={22} />
@@ -235,7 +235,7 @@ export function ScratchpadProvider({ children }: { children: React.ReactNode }) 
           ref={toolbar}
           role="toolbar"
           aria-label="Drawing tools"
-          className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-lg"
+          className="fixed left-1/2 top-3 z-[710] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-surface/95 p-1.5 shadow-lg"
         >
           {TOOLS.map((t) => (
             <button
@@ -285,7 +285,7 @@ export function ScratchpadButton({ compact = false, className = "" }: { compact?
               drawing ? "bg-bridge-50 text-bridge-700" : "text-slate-400 hover:text-slate-600"
             } ${className}`
           : `inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
-              drawing ? "border-bridge-300 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              drawing ? "border-bridge-300 bg-bridge-50 text-bridge-700" : "border-slate-200 bg-surface text-slate-600 hover:bg-slate-50"
             } ${className}`
       }
     >

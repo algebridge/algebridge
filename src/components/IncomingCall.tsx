@@ -210,7 +210,7 @@ export function IncomingCall() {
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="animate-pop-in flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
+        className="animate-pop-in flex w-full max-w-md flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-surface p-4 shadow-2xl"
       >
         <div className="flex h-11 w-11 shrink-0 animate-pulse items-center justify-center rounded-full bg-bridge-100 text-bridge-700" aria-hidden>
           <Icon name="phone" size={20} />

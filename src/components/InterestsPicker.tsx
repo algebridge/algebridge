@@ -300,7 +300,7 @@ export function InterestsPicker({
                         className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
                           on
                             ? "border-bridge-600 bg-bridge-600 text-white"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                            : "border-slate-200 bg-surface text-slate-700 hover:border-slate-300"
                         }`}
                       >
                         {name}

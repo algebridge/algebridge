@@ -43,7 +43,7 @@ function FractionToggle({ on, tabbable, onToggle }: { on: boolean; tabbable: boo
       title={on ? "Show as a decimal" : "Show as a fraction"}
       tabIndex={tabbable ? 0 : -1}
       className={`ml-2 flex h-[24px] w-[24px] items-center justify-center rounded-md border text-[10px] leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${MATH_FONT} ${
-        on ? "border-[#2f6bd8] bg-[#e6eefc] text-[#2f6bd8]" : "border-slate-300 bg-white text-slate-500 hover:border-slate-400 hover:text-slate-700"
+        on ? "border-[#2f6bd8] bg-[#e6eefc] text-[#2f6bd8]" : "border-slate-300 bg-surface text-slate-500 hover:border-slate-400 hover:text-slate-700"
       }`}
     >
       <span aria-hidden className="flex flex-col items-center">
@@ -204,7 +204,7 @@ export function ScientificCalculator({ active }: { active: boolean }) {
   };
 
   return (
-    <div ref={rootRef} role="region" aria-label="Scientific calculator" className="flex h-full flex-col bg-white [container-type:size]">
+    <div ref={rootRef} role="region" aria-label="Scientific calculator" className="flex h-full flex-col bg-surface [container-type:size]">
       <div role="list" aria-label="Calculations" data-scroll-list="" className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {rows.map((row, i) => {
           const r = results[i];
@@ -324,7 +324,7 @@ export function ScientificCalculator({ active }: { active: boolean }) {
               onClick={clearAll}
               aria-label="Clear all calculations"
               title="Clear all"
-              className="rounded-md p-1 text-slate-500 transition-colors hover:bg-white hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
+              className="rounded-md p-1 text-slate-500 transition-colors hover:bg-surface hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
             >
               <Icon name="trash" size={15} />
             </button>

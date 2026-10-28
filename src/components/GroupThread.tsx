@@ -112,7 +112,7 @@ export function GroupThread({ groupId }: { groupId: string }) {
   }
 
   return (
-    <div className="flex h-[68vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="flex h-[68vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface">
       {/* Once loaded, the list is a log: a screen reader reads each new
           message as it arrives, politely, and not the whole history when the
           chat opens (it is mounted after the load). */}

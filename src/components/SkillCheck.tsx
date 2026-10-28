@@ -189,7 +189,7 @@ export function SkillCheck({
                     setNudge(null);
                   }}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition disabled:opacity-60 ${
-                    on ? "hue-tint hue-ink border-current" : "border-slate-200 bg-white text-slate-800 hover:border-bridge-300 hover:bg-bridge-50"
+                    on ? "hue-tint hue-ink border-current" : "border-slate-200 bg-surface text-slate-800 hover:border-bridge-300 hover:bg-bridge-50"
                   }`}
                 >
                   <span

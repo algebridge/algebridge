@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 
       {/* Ten sections over several screens: an index, so a parent or a
           district reviewer can go straight to the part they need. */}
-      <nav aria-label="On this page" className="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-3">
+      <nav aria-label="On this page" className="mt-5 rounded-xl border border-slate-200 bg-surface px-4 py-3">
         <p className="eyebrow">On this page</p>
         <ul className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
           {SECTIONS.map(([id, label]) => (

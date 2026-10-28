@@ -38,7 +38,7 @@ export function SkillRules({ skillId, variant }: { skillId: string; variant: "si
 
   if (variant === "fold") {
     return (
-      <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-panel lg:hidden">
+      <details className="group rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel lg:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-800">
           Rules to remember
           <span aria-hidden className="text-slate-400 transition group-open:rotate-180">⌄</span>

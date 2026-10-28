@@ -89,7 +89,7 @@ export function Header() {
   return (
     // Solid white: a translucent bar let the page (a lesson title, the game
     // tiles) show through it on scroll.
-    <header className="season-header sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <header className="season-header sticky top-0 z-40 border-b border-slate-200 bg-surface">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
         {/* Logo and course menu, the sidebar carries them on desktop. */}
         <CourseSwitch className="lg:hidden" />
@@ -107,7 +107,7 @@ export function Header() {
             <Link
               href="/achievements"
               title={`Level ${stats.level}: ${stats.levelTitle}`}
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 transition-colors duration-150 ease-out hover:border-bridge-300 hover:bg-bridge-50"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-surface px-3 py-1.5 transition-colors duration-150 ease-out hover:border-bridge-300 hover:bg-bridge-50"
             >
               <span className="text-xs font-semibold text-slate-700">Level {stats.level}</span>
               <div
@@ -205,7 +205,7 @@ export function Header() {
               {accountOpen && (
                 <div
                   id="account-menu"
-                  className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-raised"
+                  className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-surface shadow-raised"
                 >
                   <div className="border-b border-slate-100 px-4 py-3">
                     <p className="truncate text-sm font-semibold text-slate-900">
@@ -327,11 +327,11 @@ export function Header() {
             aria-label="Close menu"
             tabIndex={-1}
             onClick={() => setMenuOpen(false)}
-            className="menu-scrim-in absolute inset-0 h-full w-full touch-none bg-slate-900/30"
+            className="menu-scrim-in absolute inset-0 h-full w-full touch-none bg-ink-900/30"
           />
           <nav
             aria-label="Main"
-            className="menu-sheet-in relative max-h-full overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-3 pb-4 pt-3 shadow-raised"
+            className="menu-sheet-in relative max-h-full overflow-y-auto overscroll-contain border-t border-slate-200 bg-surface px-3 pb-4 pt-3 shadow-raised"
           >
             {withSchoolsLink(sections).map((section) => (
               <div key={section.title} className="mb-4 last:mb-0">

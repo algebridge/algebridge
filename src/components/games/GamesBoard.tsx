@@ -302,7 +302,7 @@ function TeamTile({ card, active, best, onPick }: { card: GameCard; active: bool
       onClick={onPick}
       aria-pressed={active}
       className={`flex min-w-0 shrink-0 basis-[31%] snap-start flex-col items-center rounded-xl border px-1 pb-2 pt-2 text-center transition duration-150 ease-out active:scale-[0.98] sm:shrink sm:basis-auto ${
-        active ? "border-transparent bg-white shadow-md" : "border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-raised"
+        active ? "border-transparent bg-surface shadow-md" : "border-slate-200 bg-surface hover:-translate-y-0.5 hover:shadow-raised"
       }`}
       style={active ? { boxShadow: `0 0 0 2px ${card.accent}, 0 6px 16px -6px rgba(15,23,42,0.25)` } : undefined}
       title={best > 0 ? `${card.title}. Best run ${best}.` : card.title}
@@ -332,7 +332,7 @@ function StageChrome({ title, children }: { title: string; children: React.React
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pt-2.5 sm:pt-4" style={{ zIndex: 360 }}>
-        <p className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-slate-900 shadow-sm sm:text-base">{title}</p>
+        <p className="rounded-full bg-surface/90 px-3 py-1 text-sm font-bold text-slate-900 shadow-sm sm:text-base">{title}</p>
       </div>
       <div className="absolute inset-x-0 top-[38%] flex justify-center gap-2 sm:top-[42%]" style={{ zIndex: 360 }}>
         {children}

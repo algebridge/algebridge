@@ -51,7 +51,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
           <div className="mt-5 flex items-center gap-3">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-black/15">
               <div
-                className="h-full rounded-full bg-white/90 transition-all duration-500"
+                className="h-full rounded-full bg-surface/90 transition-all duration-500"
                 style={{ width: `${percent}%` }}
               />
             </div>
@@ -64,7 +64,7 @@ export function UnitProgressHeader({ unit }: UnitProgressHeaderProps) {
         {/* The prize. What the unit pays is on the table before the work starts. */}
         {prize && (
           <div className="hue-chip mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/90">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-surface/90">
               <PieceShot itemId={prize.id} alt="" className="h-11 w-11" />
             </span>
             <div className="min-w-0 flex-1">

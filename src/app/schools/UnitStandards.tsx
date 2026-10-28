@@ -60,7 +60,7 @@ export function PhoneFold({ summary, children }: { summary: string; children: Re
   const fold = usePhoneFold();
   if (!fold) return <>{children}</>;
   return (
-    <details className="group mt-4 rounded-2xl border border-slate-200 bg-white">
+    <details className="group mt-4 rounded-2xl border border-slate-200 bg-surface">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">{summary}</span>
         {CHEVRON}

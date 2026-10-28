@@ -371,7 +371,7 @@ export function CitySheet({ progress, user, onClose, onUpdate, showMessage }: { 
 
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="city-title" className="animate-modal-in flex h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-[88vh] sm:rounded-3xl">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="city-title" className="animate-modal-in flex h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:h-[88vh] sm:rounded-3xl">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-3">
           <div className="min-w-0">
             <p className="eyebrow">Real cities</p>
@@ -393,10 +393,10 @@ export function CitySheet({ progress, user, onClose, onUpdate, showMessage }: { 
         </div>
         <div className="relative min-h-0 flex-1 bg-[#cfdde8]">
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" aria-label={`${city.name} in 3D. Drag to turn, scroll or pinch to zoom, tap a plot.`} />
-          {shown !== cityId && !failed && <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white/95 px-3 py-1.5 text-sm text-slate-700 shadow-sm">Loading {city.name}</p>}
+          {shown !== cityId && !failed && <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-surface/95 px-3 py-1.5 text-sm text-slate-700 shadow-sm">Loading {city.name}</p>}
           {failed && <p className="absolute inset-x-6 top-1/2 -translate-y-1/2 text-center text-sm text-slate-700">This browser cannot draw the city in 3D.</p>}
           {pick && (
-            <div className="absolute bottom-3 left-3 right-3 max-w-sm rounded-2xl bg-white/97 p-4 shadow-lg ring-1 ring-slate-200 sm:right-auto">
+            <div className="absolute bottom-3 left-3 right-3 max-w-sm rounded-2xl bg-surface/95 p-4 shadow-lg ring-1 ring-slate-200 sm:right-auto">
               <p className="text-sm font-semibold text-slate-900">
                 Plot {plotNumber} in {city.name}
               </p>

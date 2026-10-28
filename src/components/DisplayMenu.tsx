@@ -2,16 +2,20 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { DISPLAY_EVENT, readDisplay, TEXT_SIZES, writeDisplay, type DisplaySettings } from "@/lib/display";
+import { DEFAULT_DISPLAY, DISPLAY_EVENT, readDisplay, TEXT_SIZES, THEMES, watchDeviceTheme, writeDisplay, type DisplaySettings } from "@/lib/display";
 
 /** The display settings saved on this device, kept current across the page. */
 export function useDisplaySettings(): [DisplaySettings, (change: Partial<DisplaySettings>) => void] {
-  const [settings, setSettings] = useState<DisplaySettings>({ text: "normal", motion: "auto" });
+  const [settings, setSettings] = useState<DisplaySettings>(DEFAULT_DISPLAY);
   useEffect(() => {
     setSettings(readDisplay());
     const onChange = (e: Event) => setSettings((e as CustomEvent<DisplaySettings>).detail ?? readDisplay());
     window.addEventListener(DISPLAY_EVENT, onChange);
-    return () => window.removeEventListener(DISPLAY_EVENT, onChange);
+    const unwatch = watchDeviceTheme();
+    return () => {
+      window.removeEventListener(DISPLAY_EVENT, onChange);
+      unwatch();
+    };
   }, []);
   return [settings, (change) => setSettings(writeDisplay(change))];
 }
@@ -27,10 +31,37 @@ export function DisplayControls() {
   const [settings, set] = useDisplaySettings();
   const sizeId = useId();
   const motionId = useId();
+  const themeId = useId();
   const motionHintId = useId();
   const reduce = settings.motion === "reduce";
   return (
     <div className="space-y-4">
+      <div>
+        <p id={themeId} className="text-sm font-semibold text-slate-900">
+          Theme
+        </p>
+        <div role="group" aria-labelledby={themeId} className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+          {THEMES.map((t) => {
+            const on = settings.theme === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={on}
+                title={t.hint}
+                onClick={() => set({ theme: t.id })}
+                className={`flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
+                  on ? "bg-surface text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Icon name={t.id === "light" ? "sun" : t.id === "dark" ? "moon" : "monitor"} size={16} />
+                <span className="text-[11px] font-semibold leading-none">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div>
         <p id={sizeId} className="text-sm font-semibold text-slate-900">
           Text size
@@ -46,7 +77,7 @@ export function DisplayControls() {
                 title={t.hint}
                 onClick={() => set({ text: t.id })}
                 className={`flex min-h-12 flex-col items-center justify-center rounded-lg px-1 py-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500 ${
-                  on ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                  on ? "bg-surface text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <span aria-hidden className={`font-display leading-none ${SAMPLE[i]}`}>
@@ -81,7 +112,7 @@ export function DisplayControls() {
         >
           <span
             aria-hidden
-            className={`absolute top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-[left] ${
+            className={`absolute top-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface shadow transition-[left] ${
               reduce ? "left-6 text-bridge-600" : "left-1 text-transparent"
             }`}
           >
@@ -132,8 +163,8 @@ export function DisplayMenu({ className = "" }: { className?: string }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        aria-label="Display: text size and motion"
-        title="Text size and motion"
+        aria-label="Display: theme, text size and motion"
+        title="Theme, text size and motion"
         className={`flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100 ${
           open ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:text-slate-700"
         }`}
@@ -145,7 +176,7 @@ export function DisplayMenu({ className = "" }: { className?: string }) {
           id={panelId}
           role="group"
           aria-label="Display settings"
-          className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-raised"
+          className="animate-pop-in absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-surface p-4 shadow-raised"
         >
           <DisplayControls />
         </div>
