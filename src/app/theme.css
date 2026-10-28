@@ -102,3 +102,14 @@ html[data-theme="dark"] :where(input, textarea, select):not(.sr-only):focus-visi
   background-color: rgb(var(--surface));
   color: rgb(var(--sl-900));
 }
+
+/* Printing (certificates, worksheets) always uses the light colors. */
+@media print {
+  html[data-theme="dark"] {
+    color-scheme: light;
+    --surface: 255 255 255;
+    --sl-50: 248 250 252; --sl-100: 241 245 249; --sl-200: 226 232 240; --sl-300: 203 213 225;
+    --sl-400: 148 163 184; --sl-500: 100 116 139; --sl-600: 71 85 105; --sl-700: 51 65 85;
+    --sl-800: 30 41 59; --sl-900: 15 23 42; --sl-950: 2 6 23;
+  }
+}
