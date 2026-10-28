@@ -25,12 +25,15 @@ export function GameSetupBar({
   onChange,
   progress,
   disabled,
+  game,
 }: {
   setup: GameSetup;
   /** A change to the setup, merged into the latest one. */
   onChange: (patch: Partial<GameSetup>) => void;
   progress: UserProgress | null;
   disabled: boolean;
+  /** The game picked, so the two-player rules described are that game's. */
+  game?: string;
 }) {
   const here = progress ? rinkSkillIds(progress) : null;
   const unitTitle = here ? allUnits().find((u) => u.id === here.unitId)?.title : null;
@@ -92,8 +95,13 @@ export function GameSetupBar({
       {setup.players === 2 && (
         <p className="text-sm text-slate-600">
           Two players on this computer. Press Play, type your names and pick who you play as. Player 1 moves with W A S D, Player 2 with the arrow
-          keys, or each drags on their own half of a touch screen. Whoever reaches the question first answers, and a miss lets the other player
-          steal it. Matches are played for the win; Bridgeys come from 1-player games.
+          keys, or each drags on their own half of a touch screen.{" "}
+          {game === "soccer"
+            ? "You play on opposite sides, a half and a goal each. The ball is kicked across to you: touch it to get a question. Right kicks it back at the other goal; wrong, or letting it roll in, is a goal."
+            : game === "volleyball"
+              ? "You play on opposite sides of the net. The ball comes over to you: get under it before it lands to get a question. Right spikes it back over; too slow or wrong, and it drops for a point."
+              : "Whoever reaches the question first answers, and a miss lets the other player steal it."}{" "}
+          Matches are played for the win; Bridgeys come from 1-player games.
         </p>
       )}
     </fieldset>

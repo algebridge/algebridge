@@ -11,6 +11,7 @@ import { Athlete, Player } from "@/components/games/Players";
 import { RinkDecor, RinkTray } from "@/components/games/RinkDecor";
 import { CourtScene, RinkScene } from "@/components/games/Scenes";
 import { pctX, pctY } from "@/lib/dollhouse";
+import { KICKOFF, persp } from "@/lib/match-rules";
 import { depthScale, GAME_CARDS, getCourtGame, getGameCard, isGameId, type CourtGameId, type GameCard, type GameId } from "@/lib/games";
 import { today } from "@/lib/path";
 import { ATHLETE_HEIGHT, DEFAULT_SETUP, readSetup, saveSetup, sideName, topicLabel, type GameSetup, type PlayerKind } from "@/lib/game-session";
@@ -255,7 +256,7 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       )}
 
       {!decorating && (
-        <GameSetupBar setup={setup} onChange={changeSetup} progress={progress} disabled={playing || matchSetup} />
+        <GameSetupBar setup={setup} onChange={changeSetup} progress={progress} disabled={playing || matchSetup} game={picked} />
       )}
 
       <div className="space-y-2 text-sm text-slate-600">
@@ -375,10 +376,18 @@ function MatchPair({ match, left, right, y, scale, game }: { match: GameSetup; l
 function CourtPreview({ card, onPlay, match }: { card: GameCard; onPlay: () => void; match: GameSetup | null }) {
   const game = getCourtGame(card.id)!;
   const scale = depthScale(game.area, game.start.y);
+  // Soccer and volleyball for two are played side on, a half each: show the match court and where each one starts.
+  const rally = match && (game.id === "soccer" || game.id === "volleyball");
+  const at =
+    game.id === "soccer"
+      ? { left: 600 - KICKOFF.gap * persp(KICKOFF.y), right: 600 + KICKOFF.gap * persp(KICKOFF.y), y: KICKOFF.y }
+      : { left: 380, right: 820, y: 640 };
   return (
     <>
-      <CourtScene game={game.id} live={false} />
-      {match ? (
+      <CourtScene game={game.id} live={false} board={rally && match ? { names: [sideName(match, 0), sideName(match, 1)], score: [0, 0] } : undefined} />
+      {rally && match ? (
+        <MatchPair match={match} left={at.left} right={at.right} y={at.y} scale={persp(at.y)} game={game.id} />
+      ) : match ? (
         <MatchPair match={match} left={game.start.x - 150} right={game.start.x + 150} y={game.start.y} scale={scale} game={game.id} />
       ) : (
         // figures-still: before play the player is a picture, so their idle motion holds.
