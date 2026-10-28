@@ -4,15 +4,18 @@
  * Alone, every court is the same loop: run to the target, answer, do your
  * move. Two players now play the sport itself:
  *
- * - Soccer: the camera is on the touchline, a goal at each end, and each
- *   player keeps to their own half. Dribble up to the halfway line (the ball
- *   runs at your feet) and shoot from there at the far goal. The other one
- *   chooses: meet you at the line, where running into the ball steals it, or
- *   stay in goal, where a right answer of their own saves the shot.
- * - Volleyball: from the sideline, one player each side of the net. The ball
- *   comes over and where it will land shows on the floor; get under it and
- *   answer right to spike it back over. A wrong answer lets it drop: a point
- *   to the other side.
+ * - Soccer: a rally across the halfway line. The camera is on the
+ *   touchline, a goal at each end, a half each. One side kicks off: the ball
+ *   is struck over the halfway line and rolls along the grass toward the
+ *   other side's goal. Get to it and touch it, and you get a question; a
+ *   right answer kicks it back across at the other goal. A wrong answer, or
+ *   letting it roll over your goal line, is a goal to the other side. The
+ *   ball can stop on the grass: go and get it.
+ * - Volleyball: the same rally across the net, except the ball must never
+ *   touch the floor. It comes over and where it will land shows on the
+ *   floor; get under it before it comes down (VOLLEY_HANG) and answer right
+ *   to spike it back over. Too slow, or a wrong answer, and it drops: a
+ *   point to the other side.
  * - Wrestling: face each other and lock up. The one who shot in answers: a
  *   right answer is a takedown, a wrong one lets the other try a reversal.
  * - Cheer and skating: compete for the judges. Each round both perform in
@@ -108,6 +111,43 @@ export function attacking(side: 0 | 1): "left" | "right" {
   return side === 0 ? "right" : "left";
 }
 
+/** The goal a side defends: player one (blue) the left, player two the right. */
+export function defending(side: 0 | 1): "left" | "right" {
+  return side === 0 ? "left" : "right";
+}
+
+/** How quickly a rolling ball slows on the grass, per second (its speed is multiplied by e^-ROLL each second). */
+export const ROLL = 0.75;
+/** How long an untouched kick takes to reach the goal line it is aimed at. */
+export const ROLL_SECONDS = 3.2;
+
+/** Where a rolling ball is `t` seconds after being struck at `from` with velocity `v`. */
+export function rollAt(from: { x: number; y: number }, v: { x: number; y: number }, t: number, friction = ROLL): { x: number; y: number } {
+  const k = (1 - Math.exp(-friction * t)) / friction;
+  return { x: from.x + v.x * k, y: from.y + v.y * k };
+}
+
+/**
+ * A kick across the halfway line at the goal `side` defends: aimed at a spot
+ * in the goal's mouth, struck so an untouched ball would reach it in
+ * ROLL_SECONDS and still be rolling, so a side that does nothing concedes.
+ */
+export function kickAt(from: { x: number; y: number }, side: 0 | 1, random = Math.random): { v: { x: number; y: number }; target: { x: number; y: number } } {
+  const end = defending(side);
+  const y = GOAL_MOUTH.y0 + 12 + random() * (GOAL_MOUTH.y1 - GOAL_MOUTH.y0 - 24);
+  // A touch past the line, so the ball is still moving when it gets there.
+  const target = { x: goalLineX(end, y) + (end === "left" ? -30 : 30) * persp(y), y };
+  const k = (1 - Math.exp(-ROLL * ROLL_SECONDS)) / ROLL;
+  return { v: { x: (target.x - from.x) / k, y: (target.y - from.y) / k }, target };
+}
+
+/** Has a rolling ball gone over the goal line into the net `end` (between the posts)? */
+export function inGoal(end: "left" | "right", x: number, y: number): boolean {
+  if (y < GOAL_MOUTH.y0 || y > GOAL_MOUTH.y1) return false;
+  const line = goalLineX(end, y);
+  return end === "left" ? x <= line : x >= line;
+}
+
 /** The goal line's x at a depth. */
 export function goalLineX(end: "left" | "right", y: number): number {
   return lineX(end === "left" ? PITCH.l : PITCH.r, y);
@@ -139,6 +179,9 @@ export const HALF: Record<0 | 1, Trap> = {
   0: { ...VCOURT, r: 536 },
   1: { ...VCOURT, l: 676 },
 };
+/** How long a ball sent over the net hangs before it lands: get under it in time. */
+export const VOLLEY_HANG = 2.6;
+
 /** The net's top at a depth, for a ball to clear. */
 export function netTop(y: number): number {
   return y - NET.height * persp(y);

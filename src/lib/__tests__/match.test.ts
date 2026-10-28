@@ -68,6 +68,32 @@ for (const y of [450, 612, 770]) {
   check(`kickoff spots are out of the shot zone at ${y}`, !M.inShotZone(0, 600 - M.KICKOFF.gap * M.persp(y), y));
 }
 
+// Soccer rally: a kick from anywhere in a half reaches the other side's goal untouched, still rolling.
+check("each side defends the goal the other attacks", M.defending(0) === M.attacking(1) && M.defending(1) === M.attacking(0));
+{
+  const r = seeded(19);
+  let ok = true;
+  for (let i = 0; i < 300 && ok; i += 1) {
+    const kicker = (i % 2) as 0 | 1;
+    const receiver = (kicker === 0 ? 1 : 0) as 0 | 1;
+    const half = M.SOCCER_HALF[kicker];
+    const y = half.y0 + 20 + r() * (half.y1 - half.y0 - 40);
+    const from = M.clampToTrap(half, M.lineX(kicker === 0 ? half.l : half.r, y) + (kicker === 0 ? 1 : -1) * r() * 400, y, 20);
+    const { v } = M.kickAt(from, receiver, r);
+    const end = M.defending(receiver);
+    // It crosses into the receiver's half, then into their goal, not before ROLL_SECONDS minus a little.
+    const early = M.rollAt(from, v, M.ROLL_SECONDS * 0.6);
+    const late = M.rollAt(from, v, M.ROLL_SECONDS + 0.05);
+    const mid = M.rollAt(from, v, 1.2);
+    ok = !M.inGoal(end, early.x, early.y) && M.inGoal(end, late.x, late.y) && (receiver === 0 ? mid.x < from.x : mid.x > from.x);
+    if (!ok) console.log(kicker, from, v, early, late);
+  }
+  check("a kick reaches the receiver's goal in ROLL_SECONDS", ok);
+}
+check("wide of the posts is not a goal", !M.inGoal("left", M.goalLineX("left", 500) - 10, 500) && !M.inGoal("right", M.goalLineX("right", 700) + 10, 700));
+check("a ball short of the line is not a goal", !M.inGoal("left", M.goalLineX("left", 610) + 5, 610));
+check("the volleyball hangs long enough to reach", M.VOLLEY_HANG >= 2 && M.VOLLEY_HANG <= 4);
+
 // Volleyball from the sideline: a side each, the net between, every landing spot on the receiver's side.
 for (const y of [M.VCOURT.y0, (M.VCOURT.y0 + M.VCOURT.y1) / 2, M.VCOURT.y1]) {
   const a = M.clampToTrap(M.HALF[0], 2000, y);

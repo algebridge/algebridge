@@ -16,24 +16,25 @@ import { ATHLETE_HEIGHT, matchWinner, pickGameProblem, SIDE_COLORS, sideName, to
 import { answerIsRight } from "@/lib/grading";
 import { fireConfetti } from "@/lib/notify";
 import {
-  attacking,
   cardsTotal,
   clampToTrap,
+  defending,
   HALF,
-  goalLineX,
-  inBox,
-  inShotZone,
+  inGoal,
   inTrap,
   judgeCards,
+  kickAt,
   KICKOFF,
   netTop,
   persp,
   PITCH,
+  ROLL,
   roundWinner,
   shooter,
   shotTarget,
   SOCCER_HALF,
   spotInTrap,
+  VOLLEY_HANG,
   type Trap,
 } from "@/lib/match-rules";
 import type { RinkProblem } from "@/lib/rink";
@@ -42,8 +43,10 @@ import { prefersReducedMotion } from "@/lib/display";
 
 /**
  * Two players, one court, the sport itself (rules in lib/match-rules.ts):
- * soccer with a goal at each end and a half each, dribbling, steals at the
- * halfway line and saves in goal; volleyball across the net, a side each;
+ * soccer and volleyball as a rally, a half each: the ball comes across to
+ * you, reach it and answer, and a right answer sends it back to the other
+ * side (in soccer it rolls on the grass toward your goal; in volleyball it
+ * must not touch the floor);
  * wrestling face to face; cheer in front of the judges; baseball as a home
  * run derby, at-bats in turn. A right answer is
  * still what wins every play.
@@ -95,8 +98,7 @@ interface Ball {
 
 /** What the question on screen is for. */
 type Play =
-  | { kind: "shot"; side: 0 | 1 }
-  | { kind: "save"; side: 0 | 1; shooter: 0 | 1 }
+  | { kind: "trap"; side: 0 | 1 }
   | { kind: "dig"; side: 0 | 1 }
   | { kind: "shoot-in"; side: 0 | 1 }
   | { kind: "routine"; side: 0 | 1; started: number };
@@ -138,11 +140,24 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
 
   const movers = useRef<Mover[]>([makeMover(0, ATHLETE_HEIGHT[setup.kinds[0]], startAt(0), 1), makeMover(1, ATHLETE_HEIGHT[setup.kinds[1]], startAt(1), -1)]);
   const ball = useRef<Ball>({ ...KICKOFF.ball, vx: 0, vy: 0, owner: null, held: 0, wait: [0, 0], spin: 0 });
-  /** Volleyball: which side the ball is coming to, and where it will land. */
-  const rally = useRef<{ to: 0 | 1; spot: { x: number; y: number } } | null>(null);
+  /** Volleyball: which side the ball is coming to, where it will land, and when (performance.now()). */
+  const rally = useRef<{ to: 0 | 1; spot: { x: number; y: number }; lands: number } | null>(null);
+  /** Soccer: which side the rolling ball is coming to; null while it sits at a kicker's feet. */
+  const kickTo = useRef<0 | 1 | null>(null);
   const play = useRef<Play | null>(null);
 
   const [score, setScore] = useState<[number, number]>([0, 0]);
+  /** The score as the loop sees it, between renders. */
+  const scoreRef = useRef(score);
+  scoreRef.current = score;
+  /** A point to `side`, from inside the loop: returns the new score. */
+  function pointTo(side: 0 | 1): [number, number] {
+    const s0 = scoreRef.current;
+    const next: [number, number] = side === 0 ? [s0[0] + 1, s0[1]] : [s0[0], s0[1] + 1];
+    scoreRef.current = next;
+    setScore(next);
+    return next;
+  }
   const [winner, setWinner] = useState<0 | 1 | null>(null);
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
@@ -181,8 +196,22 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
 
   // ── Starting plays ───────────────────────────────────────────────────────
 
-  /** Soccer: both back to their halves, the ball on the spot; `to` gets it (the side that conceded), or a race. */
-  const kickoff = useCallback((to: 0 | 1 | null) => {
+  /** Soccer: strike the ball from where it lies across the halfway line at the other side's goal. */
+  const kick = useCallback((side: 0 | 1) => {
+    const bl = ball.current;
+    const other: 0 | 1 = side === 0 ? 1 : 0;
+    const { v } = kickAt({ x: bl.x, y: bl.y }, other);
+    bl.vx = v.x;
+    bl.vy = v.y;
+    bl.owner = null;
+    kickTo.current = other;
+    movers.current[side].facing = side === 0 ? 1 : -1;
+    setActing((a) => (side === 0 ? [a[0] + 1, a[1]] : [a[0], a[1] + 1]));
+    paused.current = false;
+  }, []);
+
+  /** Soccer: both back to their halves, the ball at `to`'s feet; a beat later they kick it across. */
+  const kickoff = useCallback((to: 0 | 1) => {
     const [a, b] = movers.current;
     a.pos = { ...startAt(0) };
     b.pos = { ...startAt(1) };
@@ -197,22 +226,24 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     bl.owner = null;
     bl.held = 0;
     bl.wait = [0, 0];
-    if (to !== null) {
-      // A restart: the ball at their feet in their own half, the other back in theirs.
-      bl.x = movers.current[to].pos.x + (to === 0 ? 30 : -30) * persp(KICKOFF.y);
-      bl.owner = to;
-    }
+    kickTo.current = null;
+    bl.x = movers.current[to].pos.x + (to === 0 ? 30 : -30) * persp(KICKOFF.y);
     setDown([false, false]);
     paused.current = false;
-  }, [startAt]);
+    window.setTimeout(() => kick(to), 800);
+  }, [startAt, kick]);
 
   /** Volleyball: the ball comes over to `to`, landing somewhere on their side. */
   const serveTo = useCallback((to: 0 | 1) => {
     const m = movers.current[to];
     const s = spotInTrap(HALF[to], m.pos);
-    rally.current = { to, spot: s };
+    const server = movers.current[to === 0 ? 1 : 0];
+    rally.current = { to, spot: s, lands: performance.now() + VOLLEY_HANG * 1000 };
     setSpot(s);
+    setActing((a) => (server.side === 0 ? [a[0] + 1, a[1]] : [a[0], a[1] + 1]));
+    flight(server, s, VOLLEY_HANG * 1000);
     paused.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Wrestling: back to the two sides of the circle. */
@@ -247,7 +278,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
 
   const begin = useCallback(() => {
     setIntro(false);
-    if (soccer) kickoff(null);
+    if (soccer) kickoff(0);
     else if (volley) serveTo(1);
     else if (wrestle) faceOff();
     else {
@@ -273,6 +304,8 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
       pointers.current.clear();
       for (const m of movers.current) m.vel = { x: 0, y: 0 };
       if (!item) return;
+      // The ball waits in the air while they answer.
+      flyer.current?.getAnimations().forEach((a) => a.pause());
       play.current = p;
       setOpen(item);
       setAnswer("");
@@ -416,6 +449,22 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
         const r = rally.current;
         const m = ms[r.to];
         if (Math.hypot(m.pos.x - r.spot.x, (m.pos.y - r.spot.y) * 1.6) < 48 * persp(r.spot.y)) ask({ kind: "dig", side: r.to });
+        else if (now >= r.lands) {
+          // Nobody under it: it hits the floor, a point to the side that sent it.
+          paused.current = true;
+          rally.current = null;
+          const sent: 0 | 1 = r.to === 0 ? 1 : 0;
+          drop(r.spot);
+          setSpot(null);
+          const next = pointTo(sent);
+          const won = matchWinner(next, setup.toWin);
+          window.setTimeout(() => {
+            if (won !== null) {
+              setWinner(won);
+              fireConfetti("big");
+            } else serveTo(r.to);
+          }, 1400);
+        }
       } else if (wrestle) {
         const [a, b] = ms;
         if (Math.hypot(a.pos.x - b.pos.x, (a.pos.y - b.pos.y) * 1.6) < 74 * persp((a.pos.y + b.pos.y) / 2)) {
@@ -460,63 +509,39 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   const spotRef = useRef<{ x: number; y: number } | null>(null);
   spotRef.current = spot;
 
-  /** Soccer: the ball at a dribbler's feet or rolling; steals; carrying it into the box is the shot. */
+  /**
+   * Soccer: the ball rolls across the grass toward the goal of the side it
+   * was kicked to, slowing as it goes. That side touching it is their
+   * question; over their goal line between the posts is a goal against them.
+   */
   function stepBall(dt: number) {
     const bl = ball.current;
     const ms = movers.current;
-    bl.wait = [Math.max(0, bl.wait[0] - dt), Math.max(0, bl.wait[1] - dt)];
     if (!paused.current) {
-      if (bl.owner !== null) {
-        const m = ms[bl.owner];
-        bl.held += dt;
-        const speed = Math.hypot(m.vel.x, m.vel.y * 1.6);
-        // Out in front of the dribbler, the way they are running.
-        const dx = speed > 20 ? m.vel.x / speed : m.facing;
-        const dy = speed > 20 ? (m.vel.y * 1.6) / speed / 1.6 : 0;
-        const reach = (24 + Math.min(18, speed * 0.05)) * persp(m.pos.y);
-        const tx = m.pos.x + dx * reach;
-        const ty = m.pos.y + dy * reach * 0.62 + 2;
-        bl.x += (tx - bl.x) * Math.min(1, dt * 14);
-        bl.y += (ty - bl.y) * Math.min(1, dt * 14);
-        bl.spin += speed * dt * 0.04 * (dx >= 0 ? 1 : -1);
-        // A tackle: the other runs into the ball.
-        const other = ms[bl.owner === 0 ? 1 : 0];
-        if (bl.held > 0.6 && bl.wait[other.side] <= 0 && Math.hypot(other.pos.x - bl.x, (other.pos.y - bl.y) * 1.6) < 30 * persp(bl.y)) {
-          bl.wait[bl.owner] = 0.8;
-          bl.owner = other.side;
-          bl.held = 0;
-          say("Stolen!", other.side);
-        }
-        // Up at the halfway line with room to strike (the other not on top of the ball): the shot.
-        if (bl.owner !== null && bl.held > 0.5) {
-          const side = bl.owner;
-          const m2 = ms[side];
-          const rival = ms[side === 0 ? 1 : 0];
-          const free = Math.hypot(rival.pos.x - bl.x, (rival.pos.y - bl.y) * 1.6) > 70 * persp(bl.y);
-          if (free && inShotZone(side, m2.pos.x, m2.pos.y)) {
-            ask({ kind: "shot", side });
-            m2.facing = attacking(side) === "right" ? 1 : -1;
-          }
-        }
+      const f = Math.exp(-ROLL * dt);
+      bl.x += bl.vx * dt;
+      bl.y += bl.vy * dt;
+      bl.vx *= f;
+      bl.vy *= f;
+      bl.spin += Math.hypot(bl.vx, bl.vy) * dt * 0.04 * (bl.vx >= 0 ? 1 : -1);
+      const to = kickTo.current;
+      // The pitch's edge keeps a loose ball 6 units in, so judge the goal line with that much to spare.
+      const end = to === null ? null : defending(to);
+      if (to !== null && end && inGoal(end, bl.x + (end === "left" ? -7 : 7), bl.y)) {
+        rolledIn(to === 0 ? 1 : 0);
       } else {
-        bl.x += bl.vx * dt;
-        bl.y += bl.vy * dt;
-        const f = Math.exp(-2.2 * dt);
-        bl.vx *= f;
-        bl.vy *= f;
-        bl.spin += Math.hypot(bl.vx, bl.vy) * dt * 0.04;
         const inside = clampToTrap(PITCH, bl.x, bl.y, 6);
         if (inside.x !== bl.x) bl.vx = -bl.vx * 0.5;
         if (inside.y !== bl.y) bl.vy = -bl.vy * 0.5;
         bl.x = inside.x;
         bl.y = inside.y;
-        const near = ms
-          .filter((m) => bl.wait[m.side] <= 0)
-          .map((m) => ({ m, d: Math.hypot(m.pos.x - bl.x, (m.pos.y - bl.y) * 1.6) }))
-          .sort((p, q) => p.d - q.d)[0];
-        if (near && near.d < 30 * persp(bl.y)) {
-          bl.owner = near.m.side;
-          bl.held = 0;
+        if (to !== null) {
+          const m = ms[to];
+          if (Math.hypot(m.pos.x - bl.x, (m.pos.y - bl.y) * 1.6) < 34 * persp(bl.y)) {
+            bl.vx = bl.vy = 0;
+            m.facing = to === 0 ? 1 : -1;
+            ask({ kind: "trap", side: to });
+          }
         }
       }
     }
@@ -524,7 +549,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     const sh = shadowEl.current;
     if (el && sh) {
       const k = persp(bl.y);
-      const hop = bl.owner !== null && !paused.current ? Math.abs(Math.sin(ms[bl.owner].gait.phase * Math.PI * 2)) * 5 * k : 0;
+      const hop = 0;
       el.style.left = pctX(bl.x);
       el.style.top = pctY(bl.y - 9 * k - hop);
       el.style.width = pctX(19 * k);
@@ -535,6 +560,26 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
       sh.style.width = pctX(20 * k);
       sh.style.zIndex = String(299 + Math.round((bl.y / SCENE_H) * 100));
     }
+  }
+
+  /** Soccer: the ball rolled over a goal line untouched. A goal to `scorer`, then the side that conceded kicks off. */
+  function rolledIn(scorer: 0 | 1) {
+    const conceded: 0 | 1 = scorer === 0 ? 1 : 0;
+    paused.current = true;
+    kickTo.current = null;
+    const bl = ball.current;
+    bl.vx = bl.vy = 0;
+    setGoalHit(defending(conceded));
+    window.setTimeout(() => setGoalHit(null), 700);
+    say("GOAL!", scorer, { x: bl.x, y: bl.y - 140 * persp(bl.y) });
+    const next = pointTo(scorer);
+    const won = matchWinner(next, setup.toWin);
+    window.setTimeout(() => {
+      if (won !== null) {
+        setWinner(won);
+        fireConfetti("big");
+      } else kickoff(conceded);
+    }, 1700);
   }
 
   // ── Answers ─────────────────────────────────────────────────────────────
@@ -563,37 +608,15 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
       setVerdict({ right, paid: 0, given: right ? undefined : given, note: right ? `Stuck it! The judges: ${c.join(", ")}.` : undefined });
       return;
     }
-    if (p.kind === "shot") {
-      const keeper = p.side === 0 ? 1 : 0;
-      if (!right) {
-        setVerdict({ right: false, paid: 0, given, note: `Wide of the post. Goal kick to ${names[keeper]}.` });
-        return;
-      }
-      // In goal? The keeper gets a go at saving it.
-      const k = movers.current[keeper];
-      if (inBox(attacking(p.side), k.pos.x, k.pos.y)) {
-        const item = problem();
-        if (item) {
-          play.current = { kind: "save", side: keeper, shooter: p.side };
-          setOpen(item);
-          setAnswer("");
-          setTurn({ side: keeper, steal: false, label: `${names[p.side]} shoots! ${names[keeper]}, save it!` });
-          return;
-        }
-      }
-      const next: [number, number] = p.side === 0 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
-      setScore(next);
-      setVerdict({ right: true, paid: 0, note: `Goal! Point to ${names[p.side]}. ${next[0]} to ${next[1]}.` });
-      return;
-    }
-    if (p.kind === "save") {
+    if (p.kind === "trap") {
+      const other: 0 | 1 = p.side === 0 ? 1 : 0;
       if (right) {
-        setVerdict({ right: true, paid: 0, note: `Saved! ${names[p.side]} has it.` });
+        setVerdict({ right: true, paid: 0, note: `Great touch! ${names[p.side]} sends it back across.` });
         return;
       }
-      const next: [number, number] = p.shooter === 0 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
+      const next: [number, number] = other === 0 ? [score[0] + 1, score[1]] : [score[0], score[1] + 1];
       setScore(next);
-      setVerdict({ right: false, paid: 0, given, note: `It's in. Point to ${names[p.shooter]}. ${next[0]} to ${next[1]}.` });
+      setVerdict({ right: false, paid: 0, given, note: `It squirms past into the net. Point to ${names[other]}. ${next[0]} to ${next[1]}.` });
       return;
     }
     if (right) {
@@ -649,20 +672,14 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
         next();
       }, ms);
 
-    if (p.kind === "shot" || p.kind === "save") {
-      const shooter = p.kind === "save" ? p.shooter : p.side;
-      const keeper = shooter === 0 ? 1 : 0;
-      const scored = p.kind === "shot" ? wasRight : !wasRight;
-      act(shooter);
-      if (scored) {
-        window.setTimeout(() => shoot(attacking(shooter), shooter), 380);
-        after(1700, () => kickoff(keeper));
+    if (p.kind === "trap") {
+      const other: 0 | 1 = side === 0 ? 1 : 0;
+      if (wasRight) {
+        window.setTimeout(() => kick(side), 250);
       } else {
-        if (p.kind === "save") {
-          act(keeper);
-          say("Saved!", keeper);
-        } else say("Wide!", null, { x: goalLineX(attacking(shooter), 560), y: 520 });
-        after(1100, () => kickoff(keeper));
+        // The touch was wrong: it runs on into their own net.
+        window.setTimeout(() => shoot(defending(side), other), 300);
+        after(1700, () => kickoff(side));
       }
       return;
     }
@@ -673,15 +690,17 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
         const other = side === 0 ? 1 : 0;
         const next = spotInTrap(HALF[other], movers.current[other].pos);
         setSpot(null);
-        window.setTimeout(() => spike(movers.current[side], next), 420);
+        rally.current = null;
+        window.setTimeout(() => flight(movers.current[side], next, VOLLEY_HANG * 1000 + 730), 420);
         window.setTimeout(() => {
-          rally.current = { to: other, spot: next };
+          rally.current = { to: other, spot: next, lands: performance.now() + VOLLEY_HANG * 1000 };
           setSpot(next);
           paused.current = false;
         }, 1150);
       } else {
         drop(r.spot);
         setSpot(null);
+        rally.current = null;
         // The point winner serves, to the side that let it drop.
         after(1300, () => serveTo(side));
       }
@@ -783,17 +802,23 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     };
   }
 
-  /** Volleyball: a spike from the hitter's hand over the net to where it will land. */
-  function spike(m: Mover, to: { x: number; y: number }) {
+  /**
+   * Volleyball: the ball from the hitter's hand, up over the net, and down
+   * toward where it will land, taking `ms` to come down to head height; it
+   * waits there (paused) if someone gets under it first.
+   */
+  function flight(m: Mover, to: { x: number; y: number }, ms: number) {
     const el = flyer.current;
-    if (!el || still()) return;
+    if (!el) return;
+    el.getAnimations().forEach((a) => a.cancel());
+    if (still()) return;
     const k = persp(m.pos.y);
     const from = { x: m.pos.x + 30 * k * m.facing, y: m.pos.y - (m.height + 6) * k };
     const land = { x: to.x, y: to.y - 70 * persp(to.y) };
-    // Over the net with room to spare.
-    const apex = { x: (from.x + land.x) / 2, y: Math.min(from.y, land.y, netTop((m.pos.y + to.y) / 2)) - 90 };
-    const at = (q: { x: number; y: number }, w: number, opacity: number, offset?: number) => ({ left: pctX(q.x), top: pctY(q.y), width: pctX(w), opacity, ...(offset === undefined ? {} : { offset }) });
-    el.animate([at(from, 30 * k, 1), at(apex, 26, 1, 0.5), at(land, 30 * persp(to.y), 1, 0.96), at(land, 30 * persp(to.y), 0)], { duration: 700, easing: "cubic-bezier(0.3, 0.55, 0.45, 1)", fill: "forwards" });
+    // Over the net with room to spare, then a long fall to the floor.
+    const apex = { x: (from.x + land.x) / 2, y: Math.min(from.y, land.y, netTop((m.pos.y + to.y) / 2)) - 130 };
+    const at = (q: { x: number; y: number }, w: number, offset?: number) => ({ left: pctX(q.x), top: pctY(q.y), width: pctX(w), opacity: 1, ...(offset === undefined ? {} : { offset }) });
+    el.animate([at(from, 30 * k), at(apex, 26, 0.42), at(land, 30 * persp(to.y))], { duration: ms, easing: "linear", fill: "forwards" });
   }
 
   /** Baseball: off the bat, high and long, out over the wall into the bleachers. */
@@ -816,6 +841,7 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   /** Volleyball: the ball drops to the floor and bounces where nobody got to it. */
   function drop(at: { x: number; y: number }) {
     const el = flyer.current;
+    el?.getAnimations().forEach((a) => a.cancel());
     if (!el || still()) return;
     const k = persp(at.y);
     const top = { x: at.x, y: at.y - 120 * k };
@@ -834,6 +860,8 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
     setRound(null);
     setSpot(null);
     rally.current = null;
+    kickTo.current = null;
+    flyer.current?.getAnimations().forEach((a) => a.cancel());
     for (const m of movers.current) m.still = false;
     begin();
   }
@@ -841,9 +869,9 @@ export function CourtMatch({ gameId, progress, onExit, setup, demo = false }: { 
   // ── Drawing ─────────────────────────────────────────────────────────────
   const dialogTurn: GameTurn | undefined = turn ? { name: names[turn.side], color: SIDE_COLORS[turn.side], steal: turn.steal, missedBy: names[turn.side === 0 ? 1 : 0], missedChoice: turn.missedChoice, label: turn.label } : undefined;
   const howTo = soccer
-    ? `A half each: ${names[0]} left, ${names[1]} right. Dribble up to the halfway line to shoot at the far goal. Defend at the line to steal, or stay in goal to save.`
+    ? `${names[0]} defends the left goal, ${names[1]} the right. The ball is kicked across to you: run to it and touch it to answer. Right kicks it back at the other goal; wrong, or letting it roll in, is a goal.`
     : volley
-      ? `${names[0]} left of the net, ${names[1]} right. Get under the ball where it lands, answer, and spike it back over.`
+      ? `${names[0]} left of the net, ${names[1]} right. Get under the ball before it lands, answer, and spike it back over. Too slow or wrong, and it drops: a point.`
       : wrestle
         ? `Shoot in on your opponent: the one who comes in answers. Right is a takedown; a miss gives the other a reversal.`
         : derby
