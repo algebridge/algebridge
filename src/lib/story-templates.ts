@@ -227,6 +227,7 @@ Hard rules, because a program checks every template:
 5. No quantity words (two, three, double, half). School-appropriate: no violence, weapons, dating, alcohol, drugs or gambling. A real player, team, creator or character the student named may do in the story what they do in their world, with the placeholders' numbers; nothing about anyone's private life, and no made-up records or quotes.
 6. Plain text. No emoji, no markdown, no em dashes.
 7. If a problem comes with your_rejected_version and rejected_because, fix exactly that.
+8. For an interest with the_students_own_favorites, use at least one real, famous detail from that favorite's world, in words: a song or album title, a tour, an award, a trophy, a stadium, a rival, a position, or a stat they are known for (Messi's Ballon d'Or, Frank Ocean's "Blonde", Caitlin Clark's logo threes). Put those exact words in "real_detail". Never invent one; if unsure, use the most famous fact you know.
 
 Examples of the standard (the interests are ones students rarely pick, so write your own for theirs):
 Original: "Solve for x: {1}x + {2} = {3}" (Gardening)
@@ -246,7 +247,7 @@ Never like these, which were rejected:
 - "Build a rail line for a redstone contraption. You must place {3} blocks total, have {2} laid already, and each row adds {1}." (telegraph style: orders and fragments)
 - "Your team's equipment bag holds {1} kilograms of volleyballs; convert {1} kilograms to grams. How many grams of ball weight are you hauling?" (the textbook instruction pasted in, and an odd phrase)
 
-Reply with JSON only: {"items":[{"id":"...","topic":"<one of the student's interests, exactly as given>","template":"..."}]}`;
+Reply with JSON only: {"items":[{"id":"...","topic":"<one of the student's interests, exactly as given>","template":"...","real_detail":"<the real detail's exact words in the template, or empty for an interest without favorites>"}]}`;
 
 /** A step problem's task, in words both the writer and the judge read. */
 export function stepTask(type?: string): string {

@@ -26,7 +26,14 @@
 import { allUnits } from "@/data/curriculum";
 import { generateProblemBank } from "@/data/skill-problem-generators";
 import { callJson } from "@/lib/ai-provider";
-import { namesFavorite, topicKey, type InterestTopic } from "@/lib/interests";
+import { namesFavorite, realDetailProblem, topicKey, type InterestTopic } from "@/lib/interests";
+
+/**
+ * Stories about a student's favorites are kept apart from the ones written
+ * before the real-detail check (Oct 28 2026), so none of those generic
+ * "Frank Ocean's new track" stories is served again. Plain topics keep theirs.
+ */
+const storyTopicKey = (t: InterestTopic): string => (t.specifics ? `${topicKey(t)}|real` : topicKey(t));
 import {
   BATCH_SIZE,
   canPersonalize,
@@ -233,16 +240,17 @@ export async function writeTemplates(
   stats.writer = written.provider;
 
   const byLabel = new Map(topics.map((t) => [t.label.toLowerCase(), t]));
-  const drafts = new Map<string, { template: unknown; topic?: InterestTopic }>();
+  const drafts = new Map<string, { template: unknown; topic?: InterestTopic; realDetail?: unknown }>();
   const list = parseModelJson(written.text)?.items;
   if (Array.isArray(list)) {
     for (const entry of list) {
       if (!entry || typeof entry !== "object") continue;
-      const { id, template, text, topic } = entry as { id?: unknown; template?: unknown; text?: unknown; topic?: unknown };
+      const { id, template, text, topic, real_detail } = entry as { id?: unknown; template?: unknown; text?: unknown; topic?: unknown; real_detail?: unknown };
       if (typeof id !== "string") continue;
       drafts.set(id, {
         template: template ?? text,
         topic: typeof topic === "string" ? byLabel.get(topic.trim().toLowerCase()) : undefined,
+        realDetail: real_detail,
       });
     }
   }
@@ -250,7 +258,7 @@ export async function writeTemplates(
   if (!drafts.size) stats.skipped?.push(`r${round} writer reply unreadable (${written.provider}): ${written.text.slice(0, 400)}`);
 
   // Code checks, on the template and then on every filled-in version.
-  type Candidate = { key: string; shape: Shape; sample: PersonalizableProblem; text: string };
+  type Candidate = { key: string; shape: Shape; sample: PersonalizableProblem; text: string; realDetail?: string; favorite?: string };
   const candidates: Candidate[] = [];
   const ready = new Map<string, { template: string; topic: InterestTopic }>();
   for (const shape of shapes) {
@@ -270,6 +278,13 @@ export async function writeTemplates(
       fail(shape, structural.template, "favorites", topicFor.specifics);
       continue;
     }
+    // ...and something real about them: a song, an award, a stadium, a stat.
+    const detailMiss = realDetailProblem(structural.template, draft.realDetail, topicFor);
+    if (detailMiss) {
+      fail(shape, structural.template, "real-detail", detailMiss);
+      continue;
+    }
+    const realDetail = topicFor.specifics ? String(draft.realDetail).trim() : undefined;
     let broken: { reason: string; detail?: string } | null = null;
     const filled: Candidate[] = [];
     for (const [k, sample] of shape.samples.entries()) {
@@ -278,7 +293,7 @@ export async function writeTemplates(
         broken = result;
         break;
       }
-      filled.push({ key: `${shape.id}#${k}`, shape, sample, text: result.text });
+      filled.push({ key: `${shape.id}#${k}`, shape, sample, text: result.text, realDetail, favorite: topicFor.specifics });
     }
     if (broken) {
       fail(shape, structural.template, broken.reason, broken.detail);
@@ -299,6 +314,8 @@ export async function writeTemplates(
         choices: c.sample.type === "multiple-choice" ? c.sample.choices : undefined,
         steps: isStepProblem(c.sample) ? c.sample.steps : undefined,
         type: c.sample.type,
+        realDetail: c.realDetail,
+        favorite: c.favorite,
       }))
     ),
     groqModels: JUDGE_MODELS,
@@ -317,7 +334,7 @@ export async function writeTemplates(
   }
   stats.judge = judged.provider;
 
-  type Entry = { answer?: unknown; fits?: unknown; gives_away?: unknown; engaging?: unknown; why?: unknown };
+  type Entry = { answer?: unknown; fits?: unknown; gives_away?: unknown; engaging?: unknown; detail_true?: unknown; why?: unknown };
   const verdicts = new Map<string, Entry>();
   const got = parseModelJson(judged.text)?.answers;
   if (Array.isArray(got)) {
@@ -336,7 +353,9 @@ export async function writeTemplates(
     let failure: { reason: string; detail?: string } | null = null;
     for (const c of mine) {
       const entry = verdicts.get(c.key);
-      const verdict = judgeVerdict(c.sample, entry);
+      const base = judgeVerdict(c.sample, entry);
+      // A favorite's story stands on its real detail being true.
+      const verdict = base === "keep" && c.realDetail && entry?.detail_true !== true ? "untrue" : base;
       if (verdict !== "keep") {
         const why = typeof entry?.why === "string" && entry.why ? entry.why.slice(0, 120) : undefined;
         // For development: what the judge got, next to the key.
@@ -400,10 +419,10 @@ export async function personalizeProblems(opts: {
   // --- 1. The library ------------------------------------------------------
   // Stored templates are re-checked against today's rules, so tightening a
   // rule in code also retires every stored template that breaks it.
-  const keys = [...new Set(items.flatMap((p) => topics.map((t) => templateKey(shapeOf(p).signature, topicKey(t)))))];
+  const keys = [...new Set(items.flatMap((p) => topics.map((t) => templateKey(shapeOf(p).signature, storyTopicKey(t)))))];
   const library = await getTemplates(keys);
   const storedFor = (signature: string, topic: InterestTopic): StoredTemplate[] =>
-    (library.get(templateKey(signature, topicKey(topic))) ?? []).filter(
+    (library.get(templateKey(signature, storyTopicKey(topic))) ?? []).filter(
       (t) => checkTemplate(signature, t.template, shapeSpans(signature)).ok && namesFavorite(t.template, topic)
     );
 
@@ -452,7 +471,7 @@ export async function personalizeProblems(opts: {
     for (const shape of shapes) {
       const got = accepted.get(shape.id);
       if (!got) continue;
-      await saveTemplate(templateKey(shape.signature, topicKey(got.topic)), shape.signature, {
+      await saveTemplate(templateKey(shape.signature, storyTopicKey(got.topic)), shape.signature, {
         template: got.template,
         topic: got.topic.label,
       });

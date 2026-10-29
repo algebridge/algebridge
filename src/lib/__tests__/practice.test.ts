@@ -183,6 +183,19 @@ ok("not an array is nothing", sanitizeTopics("Basketball").length === 0);
   const fan = { specifics: "Arsenal, Messi, my club team" };
   ok("a story that names a favorite passes", namesFavorite("Messi lines up the penalty with {1} minutes left.", fan) && namesFavorite("Your club's keeper saves {1} shots.", fan));
   ok("a story that names none goes back", !namesFavorite("You need exactly {3} points to secure the championship.", fan) && !namesFavorite("Arsenals are flowers", { specifics: "Arsenal" }));
+  {
+    const { realDetailProblem: rd } = await import("../interests.ts");
+    const music = { specifics: "Frank Ocean, Taylor Swift" };
+    const soccer = { specifics: "Messi, Inter Miami" };
+    ok("a real song title counts as a real detail", rd("Frank Ocean plays {1} songs from Blonde tonight.", "Blonde", music) === null);
+    ok("a tour counts", rd("The Eras Tour has {1} shows left.", "Eras Tour", music) === null);
+    ok("a trophy counts", rd("Messi lifts his Ballon d'Or after {1} goals.", "Ballon d'Or", soccer) === null);
+    ok("a stat they are known for counts", rd("Messi needs {1} more assists.", "Messi's assists", { specifics: "Messi" }) === null || rd("Messi needs {1} more assists.", "assists", { specifics: "Messi" }) === null);
+    ok("the name and a generic noun do not count", rd("Frank Ocean's new track starts with {1} beats.", "Frank Ocean's new track", music) !== null);
+    ok("a detail missing from the story does not count", rd("Frank Ocean plays {1} songs.", "Blonde", music) !== null);
+    ok("no detail at all goes back", rd("Messi scores {1} goals.", undefined, soccer) === "missing");
+    ok("a topic without favorites needs no detail", rd("You bake {1} cookies.", undefined, {}) === null);
+  }
   ok("no specifics means nothing to name", namesFavorite("anything", { specifics: undefined }));
   ok("short names still count", namesFavorite("Your EA FC squad scores {1} goals.", { specifics: "EA FC" }));
 }

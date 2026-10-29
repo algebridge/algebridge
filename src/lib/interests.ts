@@ -216,6 +216,44 @@ export function namesFavorite(text: string, topic: Pick<InterestTopic, "specific
     .some((item) => favoriteWords(item).some(wordIn));
 }
 
+/**
+ * Words that say nothing real on their own: "Frank Ocean's new track" or
+ * "LeBron's big game" could be anyone. Stat words (goals, assists, threes)
+ * are not here: what a player is known for counting is a real detail.
+ */
+const GENERIC_DETAIL = new Set([
+  "new", "latest", "big", "next", "last", "first", "final", "famous", "favorite", "huge", "best", "own",
+  "track", "tracks", "song", "songs", "album", "albums", "single", "hit", "hits", "music", "beat", "beats",
+  "show", "shows", "concert", "concerts", "gig", "set", "setlist", "playlist", "video", "stream", "streams",
+  "game", "games", "match", "matches", "season", "practice", "drill", "training", "career", "fans", "crowd",
+  "player", "players", "star", "squad", "club", "night", "day", "week", "year", "stage", "studio", "event",
+  "is", "was", "are", "s", "his", "her", "their", "from", "by", "as", "or", "but",
+]);
+
+/**
+ * A story about a student's favorite must use something real from that
+ * favorite's world, not just the name: a song or album title, an award, a
+ * trophy, a stadium, a position, a stat they are known for. The writer
+ * returns the words it used as `real_detail`; this checks they are in the
+ * story and say more than the name and a generic noun. The judge then
+ * checks the fact is true.
+ */
+export function realDetailProblem(text: string, detail: unknown, topic: Pick<InterestTopic, "specifics">): string | null {
+  if (!topic.specifics) return null;
+  if (typeof detail !== "string" || detail.trim().length < 3) return "missing";
+  const norm = (s: string) => s.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim();
+  const d = norm(detail);
+  if (d.length > 80) return "too long";
+  if (!norm(text).includes(d)) return `"${detail.trim()}" is not in the story`;
+  const names = new Set(
+    topic.specifics.split(",").flatMap((item) => favoriteWords(item.trim())).flatMap((w) => w.split(/[^\p{L}\p{N}]+/u))
+  );
+  const left = d
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w && !FILLER.has(w) && !GENERIC_DETAIL.has(w) && !names.has(w));
+  return left.length ? null : `"${detail.trim()}" is only the name and a generic word`;
+}
+
 /** "Soccer (Arsenal, Messi)" for a topic with specifics, else the label. */
 export function describeTopic(topic: InterestTopic): string {
   return topic.specifics ? `${topic.label} (${topic.specifics})` : topic.label;

@@ -539,11 +539,13 @@ export const SOLVER_SYSTEM = `You check algebra practice problems (Algebra 1 and
 4. "engaging" from 1 to 5, as a 13 year old who loves that interest would feel it. 5: the answer matters to them inside the story and there are stakes. 4: clearly their world, with a real reason to want the answer. 3: their world, but flat. 2: barely connected. 1: generic.
 5. "natural" from 1 to 5: how it reads as writing, the way a careful textbook editor would judge it. 5: polished, every sentence natural. 4: natural, with at most one small rough spot. 3: understandable but clunky. 2: awkward, telegraphic or oddly worded. 1: hard to follow. A textbook instruction pasted into the story ("...holds 18 kilograms of volleyballs; convert 18 kilograms to grams."), fragments and chains of orders ("Build a rail line. Place 30 blocks."), odd phrases ("grams of ball weight you are hauling") or the math book inside the story score 2 or lower.
 
+When a problem comes with real_detail and favorite, also give "detail_true": true only if that detail is a real, well-known fact about that favorite (the song is really theirs, they really won that award, that is really their stadium or position). A wrong or made-up fact is false. A number in the story is the problem's own and is not part of this check.
+
 When fits is false, engaging is below 3 or natural is below 4, add "why": what is wrong, in at most 12 words.
 
 Be strict. When in doubt, fits is false and gives_away is true.
 
-Reply with JSON only: {"answers":[{"id":"...","answer":"...","fits":true,"gives_away":false,"engaging":4,"natural":5,"why":""}]}`;
+Reply with JSON only: {"answers":[{"id":"...","answer":"...","fits":true,"gives_away":false,"engaging":4,"natural":5,"detail_true":true,"why":""}]}`;
 
 export interface WriterItem {
   id: string;
@@ -577,12 +579,13 @@ export function writerUserMessage(
 }
 
 export function solverUserMessage(
-  items: { id: string; text: string; choices?: string[]; steps?: string[]; type?: string }[]
+  items: { id: string; text: string; choices?: string[]; steps?: string[]; type?: string; realDetail?: string; favorite?: string }[]
 ): string {
   return JSON.stringify({
     problems: items.map((i) => ({
       id: i.id,
       problem: i.text,
+      ...(i.realDetail ? { real_detail: i.realDetail, favorite: i.favorite } : {}),
       ...(i.choices ? { choices: i.choices.map((c, n) => `${String.fromCharCode(65 + n)}. ${c}`) } : {}),
       ...(i.steps
         ? {
@@ -604,6 +607,10 @@ export function whyRejected(reason: string, detail?: string): string {
   switch (reason) {
     case "favorites":
       return `It never names one of the student's own favorites${detail ? ` (${detail})` : ""}. Set the story among them by name: that player, that team, that character, that game.`;
+    case "real-detail":
+      return `It names the favorite but nothing real about them${detail ? ` (${detail})` : ""}. Use a real song, album, award, trophy, stadium, position or stat of theirs, and put its exact words in real_detail.`;
+    case "untrue":
+      return `Its real detail was wrong${detail ? `: ${detail}` : ""}. Use a fact you are sure of, like their most famous song, album or trophy.`;
     case "numbers":
       return `It changed the numbers${detail ? ` (${detail})` : ""}. If you repeated the steps or their results, leave them out: they are shown below the story.`;
     case "number-words":
