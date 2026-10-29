@@ -12,6 +12,7 @@ const D = 'html[data-theme="dark"]';
 const PREFIXES = ["", "hover\\:", "group-hover\\:", "focus\\:", "peer-checked\\:"];
 const state = (p) => (p === "hover\\:" ? ":hover" : p === "focus\\:" ? ":focus" : "");
 const sel = (p, cls) => {
+  if (cls.startsWith("text-")) cls = `${cls}:not(.bg-white)`;
   if (p === "group-hover\\:") return `${D} .group:hover .${p}${cls}`;
   if (p === "peer-checked\\:") return `${D} .peer:checked ~ .${p}${cls}`;
   return `${D} .${p}${cls}${state(p)}`;
