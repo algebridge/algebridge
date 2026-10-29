@@ -12,7 +12,7 @@ const config: Config = {
         // Card and panel backgrounds: white in light, deep navy in dark.
         surface: "rgb(var(--surface) / <alpha-value>)",
         // Fixed dark grays for tooltips and dark panels that stay dark in both themes.
-        ink: { 200: "#e2e8f0", 300: "#cbd5e1", 400: "#94a3b8", 700: "#334155", 800: "#1e293b", 900: "#0f172a", 950: "#020617" },
+        ink: { 200: "#e4e4e7", 300: "#d4d4d8", 400: "#a1a1aa", 700: "#3f3f46", 800: "#27272a", 900: "#18181b", 950: "#09090b" },
         // Primary brand ramp — the same blue the AlgeBridge marketing site
         // (algebridge.org) uses, so the course platform and the public site
         // read as one product.

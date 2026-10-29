@@ -19,24 +19,24 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --surface: 19 28 46;
-  --sl-50: 11 17 30;
-  --sl-100: 30 41 61;
-  --sl-200: 43 56 79;
-  --sl-300: 61 76 102;
-  --sl-400: 100 116 139;
-  --sl-500: 148 163 184;
-  --sl-600: 172 185 203;
-  --sl-700: 203 213 225;
-  --sl-800: 226 232 240;
-  --sl-900: 241 245 249;
-  --sl-950: 248 250 252;
+  --surface: 24 24 27;
+  --sl-50: 12 12 14;
+  --sl-100: 34 34 38;
+  --sl-200: 46 46 51;
+  --sl-300: 63 63 70;
+  --sl-400: 113 113 122;
+  --sl-500: 161 161 170;
+  --sl-600: 184 184 192;
+  --sl-700: 212 212 216;
+  --sl-800: 228 228 231;
+  --sl-900: 244 244 245;
+  --sl-950: 250 250 250;
 }
 
 /* globals.css darkens these two for contrast on white; in dark they go light. */
 html[data-theme="dark"] .text-slate-400,
-html[data-theme="dark"] .placeholder\:text-slate-400::placeholder { color: #8796ab; }
-html[data-theme="dark"] .text-slate-500 { color: #a3b1c4; }
+html[data-theme="dark"] .placeholder\:text-slate-400::placeholder { color: #8e8e98; }
+html[data-theme="dark"] .text-slate-500 { color: #a8a8b2; }
 
 /* Shadows read as dirt on navy; deepen them instead. */
 html[data-theme="dark"] .shadow-panel { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.35); }
@@ -71,8 +71,8 @@ html[data-theme="dark"] .arena-clock-low { background: color-mix(in srgb, #ef444
 
 /* Halloween in the dark: a plum night instead of parchment. */
 html[data-theme="dark"][data-season="halloween"] {
-  --season-bg: #0e0b18;
-  --season-line: #33264a;
+  --season-bg: #0c0c0e;
+  --season-line: #2e2a33;
 }
 html[data-theme="dark"][data-season="halloween"] .panel-head,
 html[data-theme="dark"][data-season="halloween"] footer.season-footer {
@@ -83,8 +83,8 @@ html[data-theme="dark"][data-season="halloween"] ::selection { background: #5b2a
 
 /* Archie's bubble: a deep blue tile with a brighter edge. */
 html[data-theme="dark"] .archie-bubble {
-  --archie-edge: #2c4f8f;
-  --archie-fill: #172a4d;
+  --archie-edge: #3f3f46;
+  --archie-fill: #232327;
   color: #e2e8f0;
 }
 html[data-theme="dark"] .archie-bubble[data-tone="error"] {
