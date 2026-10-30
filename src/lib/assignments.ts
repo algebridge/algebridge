@@ -38,6 +38,22 @@ export function assignmentHref(assignment: ClassAssignment): string {
 const DONE_LEVELS = new Set(["proficient", "mastered"]);
 
 /** How much of an assignment a given progress blob has finished. */
+/**
+ * When the student finished every skill of an assignment: the latest finish
+ * among its skills. Null while unfinished. Saves from before finish times were
+ * kept fall back to the skill's last practice.
+ */
+export function assignmentCompletedAt(progress: UserProgress | null, assignment: ClassAssignment): string | null {
+  if (!assignmentProgress(progress, assignment).complete) return null;
+  let latest: string | null = null;
+  for (const id of assignmentSkillIds(assignment)) {
+    const s = progress?.skills[id];
+    const at = s?.completedAt ?? s?.lastPracticed ?? null;
+    if (at && (!latest || at > latest)) latest = at;
+  }
+  return latest;
+}
+
 export function assignmentProgress(
   progress: UserProgress | null,
   assignment: ClassAssignment

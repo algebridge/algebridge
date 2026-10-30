@@ -10,7 +10,7 @@
  */
 
 import { units } from "@/data/curriculum";
-import { assignmentProgress, assignmentTitle } from "@/lib/assignments";
+import { assignmentCompletedAt, assignmentProgress, assignmentTitle } from "@/lib/assignments";
 import { isSkillComplete } from "@/lib/path";
 import type { ClassAssignment, SkillProgress, UserProgress } from "@/types";
 
@@ -50,6 +50,8 @@ export interface AssignmentGrade {
   percent: number;
   /** Past its due date and unfinished. */
   late: boolean;
+  /** When they finished it, or null. */
+  completedAt: string | null;
 }
 
 export interface ClassGrade {
@@ -77,6 +79,7 @@ export function classGrade(progress: UserProgress | null, assignments: ClassAssi
       total: p.total,
       percent: p.percent,
       late: !!a.dueDate && a.dueDate < todayIso && !p.complete,
+      completedAt: assignmentCompletedAt(progress, a),
     };
   });
   if (total === 0) return { percent: null, letter: null, done: 0, total: 0, assignments: rows };

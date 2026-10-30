@@ -153,6 +153,7 @@ export function StudentDetail({
                     <th>Assignment</th>
                     <th>Due</th>
                     <th>Done</th>
+                    <th>Finished</th>
                     <th>Score</th>
                   </tr>
                 </thead>
@@ -166,6 +167,9 @@ export function StudentDetail({
                       </td>
                       <td className="text-xs">
                         {a.done}/{a.total}
+                      </td>
+                      <td className="whitespace-nowrap text-xs">
+                        {finishedText(a.completedAt, a.dueDate)}
                       </td>
                       <td className="text-xs font-medium">{a.percent}%</td>
                     </tr>
@@ -252,4 +256,14 @@ function Field({ label, value, mono = false }: { label: string; value: string; m
 function skillName(id: string, rows: { skills: { id: string; title: string }[] }[]): string {
   for (const u of rows) for (const s of u.skills) if (s.id === id) return s.title;
   return id;
+}
+
+/** "Oct 30", with "late" when it came after the due date. */
+export function finishedText(at: string | null, due: string | null): string {
+  if (!at) return "-";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "-";
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const text = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return due && day > due ? `${text} (late)` : text;
 }

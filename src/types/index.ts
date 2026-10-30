@@ -94,6 +94,8 @@ export interface SkillProgress {
   videoWatchedVerified?: boolean;
   /** Legacy: the run of correct answers from the five-in-a-row rule. Only read to carry old saves over. */
   correctStreak?: number;
+  /** ISO time the skill was finished (from Oct 30 2026; older saves use lastPracticed). */
+  completedAt?: string;
   /** Problems answered right on the first try. Five of these completes the skill. */
   solved?: number;
   /** Opened ahead of the learning path by passing "Show what you know". */

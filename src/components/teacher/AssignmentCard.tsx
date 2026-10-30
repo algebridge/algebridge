@@ -4,8 +4,9 @@ import { useState } from "react";
 import { units } from "@/data/curriculum";
 import { Icon } from "@/components/Icon";
 import { showToast } from "@/lib/notify";
-import { assignmentProgress, assignmentSubtitle, assignmentTitle, dueLabel } from "@/lib/assignments";
+import { assignmentCompletedAt, assignmentProgress, assignmentSubtitle, assignmentTitle, dueLabel } from "@/lib/assignments";
 import { createAssignment, updateAssignment } from "@/lib/teacher";
+import { finishedText } from "@/components/teacher/StudentDetail";
 import type { ClassAssignment, ClassInfo, RosterStudent } from "@/types";
 
 /** yyyy-mm-dd for a local date. */
@@ -202,7 +203,7 @@ export function AssignmentCard({
       {showWho && (
         <div className="ml-10 mt-3 grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2">
           <WhoList title={`Still working (${notDone.length})`} rows={notDone.map((r) => ({ id: r.s.id, name: r.s.displayName ?? "Unnamed", detail: `${r.p.done}/${r.p.total}` }))} />
-          <WhoList title={`Finished (${done.length})`} rows={done.map((r) => ({ id: r.s.id, name: r.s.displayName ?? "Unnamed", detail: "Done" }))} />
+          <WhoList title={`Finished (${done.length})`} rows={done.map((r) => ({ id: r.s.id, name: r.s.displayName ?? "Unnamed", detail: finishedText(assignmentCompletedAt(r.s.progress, a), a.dueDate) }))} />
         </div>
       )}
 

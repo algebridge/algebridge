@@ -418,6 +418,7 @@ export function recordProblemAttempt(
     solved,
     lastPracticed: new Date().toISOString(),
     videoWatched: existing.videoWatched,
+    ...(!wasComplete && (level === "proficient" || level === "mastered") ? { completedAt: new Date().toISOString() } : {}),
   };
 
   if (correct) {
