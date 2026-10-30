@@ -6,7 +6,7 @@ import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { GamesBanner } from "@/components/GamesBanner";
-import { HowEachSkillWorks } from "@/components/HowEachSkillWorks";
+import { VisualizeIt } from "@/components/VisualizeIt";
 
 export const metadata: Metadata = { title: "AlgeBridge 2" };
 
@@ -60,7 +60,7 @@ export default function Algebra2Page() {
 
       <GamesBanner />
 
-      <HowEachSkillWorks />
+      <VisualizeIt />
 
       <CourseGate quiet>
         <p className="text-xs text-slate-500">AlgeBridge 2 is new. Something off? Use Feedback in the menu.</p>

@@ -6,7 +6,7 @@ import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { GamesBanner } from "@/components/GamesBanner";
-import { HowEachSkillWorks } from "@/components/HowEachSkillWorks";
+import { VisualizeIt } from "@/components/VisualizeIt";
 import { QuoteCard } from "@/components/QuoteCard";
 import { HOME_QUOTES } from "@/data/quotes";
 import { SeasonBanner } from "@/components/SeasonBanner";
@@ -95,7 +95,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <HowEachSkillWorks />
+      <VisualizeIt />
     </div>
   );
 }

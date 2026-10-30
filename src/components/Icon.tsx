@@ -73,7 +73,8 @@ export type IconName =
   | "moon"
   | "monitor"
   | "pumpkin"
-  | "ghost";
+  | "ghost"
+  | "shapes";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -262,6 +263,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   // A small ghost.
+  shapes: (
+    <>
+      <path d="M7.5 3.5l4.5 7.5H3Z" />
+      <circle cx="17" cy="7.25" r="3.75" />
+      <rect x="9" y="13.5" width="7.5" height="7" rx="1.2" />
+    </>
+  ),
   ghost: (
     <>
       <path d="M6 20.5V11a6 6 0 0 1 12 0v9.5l-2.4-1.8-2.4 1.8-1.2-1.2-1.2 1.2-2.4-1.8Z" />

@@ -39,6 +39,8 @@ import { answerIsRight, gradeAnswer } from "@/lib/grading";
 import { announcePractice } from "@/lib/sidebar";
 import { replyToSubmit, SUBMIT_EVENT } from "@/lib/answer-bridge";
 import { SlipSteps } from "@/components/SlipSteps";
+import { ProblemPicture } from "@/components/ProblemPicture";
+import { pictureFor } from "@/lib/pictures";
 import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
@@ -90,6 +92,9 @@ interface Celebration {
   unitBonus: number;
   prizeName: string | null;
 }
+
+/** Where this device remembers that the student hid the drawing of each problem. */
+const VIZ_PREF_KEY = "ab-visualize";
 
 /** The answer as a student would write it, for "Show me how". */
 function answerText(problem: ActiveProblem): string | null {
@@ -256,6 +261,23 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [nudge, setNudge] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
+  /** Visualize it: the drawing of the problem, open with the question unless this device hid it. */
+  const [vizOpen, setVizOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIZ_PREF_KEY) === "hidden") setVizOpen(false);
+    } catch {
+      /* storage blocked: the picture shows */
+    }
+  }, []);
+  const toggleViz = useCallback((open: boolean) => {
+    setVizOpen(open);
+    try {
+      localStorage.setItem(VIZ_PREF_KEY, open ? "open" : "hidden");
+    } catch {
+      /* fine */
+    }
+  }, []);
   const [attempts, setAttempts] = useState(0);
   /** What was tried last, read for where it went wrong once it is marked. */
   const [lastTry, setLastTry] = useState<Attempt | null>(null);
@@ -1060,6 +1082,10 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const showNudge = misses - nudgeDismissedAt >= MISSES_BEFORE_NUDGE;
 
   const over = feedback === "correct" || revealed;
+  const picture = useMemo(
+    () => (pending || !problem ? null : pictureFor(skill.id, displayPrompt) ?? pictureFor(skill.id, problem.prompt)),
+    [pending, problem, skill.id, displayPrompt]
+  );
 
   // A wrong answer, read for where it went wrong: shown under the retry
   // message (with the answer left out) and again on the worked answer.
@@ -1331,6 +1357,44 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
               </figure>
             )}
           </div>
+        )}
+
+        {/* Visualize it: the problem drawn, like graph paper under the question. A drawing that
+            would give the answer away (the graph of the line asked about) waits for the first try. */}
+        {picture && picture.reveals && attempts === 0 && !over && (
+          <p className="mt-3 inline-flex items-center gap-1.5 px-2 py-1 text-sm font-semibold text-slate-400">
+            <Icon name="shapes" size={15} />
+            Visualize it <span className="font-normal">after your first try</span>
+          </p>
+        )}
+        {picture && (!picture.reveals || attempts > 0 || over) && (
+          vizOpen ? (
+            <div className="animate-pop-in mt-4 rounded-xl border border-slate-200 bg-surface p-3 sm:p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                  <Icon name="shapes" size={15} className="text-bridge-600" />
+                  Visualize it
+                </p>
+                <button
+                  type="button"
+                  onClick={() => toggleViz(false)}
+                  className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+                >
+                  Hide
+                </button>
+              </div>
+              <ProblemPicture picture={picture} />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleViz(true)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-bridge-700 transition hover:bg-bridge-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+            >
+              <Icon name="shapes" size={15} />
+              Visualize it
+            </button>
+          )
         )}
 
         {/* The answer, written as math: a square root with its bar, a fraction stacked. */}
