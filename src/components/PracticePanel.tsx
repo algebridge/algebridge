@@ -403,11 +403,15 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
     [skill.id, skill.problems]
   );
 
+  // Students asked for the calculator on every question (Oct 30 2026
+  // meeting), so practice always offers it. `calculatorAllowed` still decides
+  // grading: where the skill is the arithmetic itself, a typed "12/3" is not
+  // an answer.
   useEffect(() => {
-    setCalculatorAccess(calculatorAllowed);
+    setCalculatorAccess(true);
     // Leaving practice hands the calculator back to the rest of the app.
     return () => setCalculatorAccess(null);
-  }, [calculatorAllowed]);
+  }, []);
 
   const fetchBatch = useCallback(async () => {
     if (seed === null || !topics.length || askingRef.current) return;

@@ -261,7 +261,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
 
   const list = (
     <div className={`flex min-h-0 flex-col bg-surface ${narrow ? "flex-1 border-t border-slate-200" : "w-[clamp(230px,38%,340px)] shrink-0 border-r border-slate-200"}`}>
-      <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-[#e3e6ea] bg-[#f6f7f9] px-1.5">
+      <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-slate-200 bg-slate-50 px-1.5">
         <button
           type="button"
           onClick={() => {
@@ -305,10 +305,10 @@ export function GraphingCalculator({ active }: { active: boolean }) {
           const focused = focusedId === row.id;
           const showError = !!g?.error && !g.missing.length && !(g.incomplete && (focused || !row.text.trim()));
           return (
-            <div key={row.id} role="listitem" className="group relative flex shrink-0 border-b border-[#e3e6ea]">
+            <div key={row.id} role="listitem" className="group relative flex shrink-0 border-b border-slate-200">
               <div
                 className={`flex w-[40px] shrink-0 select-none flex-col items-center gap-1 pt-[5px] transition-colors ${
-                  isCurrent ? "bg-[#e6eefc]" : "bg-[#f6f7f9]"
+                  isCurrent ? "bg-bridge-50" : "bg-slate-50"
                 }`}
               >
                 <span aria-hidden className={`text-[10px] leading-none tabular-nums ${isCurrent ? "font-semibold text-[#2f6bd8]" : "text-slate-400"}`}>
@@ -408,7 +408,7 @@ export function GraphingCalculator({ active }: { active: boolean }) {
                   </div>
                 )}
                 {showError && (
-                  <p className={`basis-full pb-1 text-[12px] leading-snug ${g!.incomplete ? "text-slate-400" : "text-[#a85a12]"}`}>
+                  <p className={`basis-full pb-1 text-[12px] leading-snug ${g!.incomplete ? "text-slate-400" : "text-amber-700"}`}>
                     {!g!.incomplete && <WarningMark />}
                     {g!.error}
                   </p>

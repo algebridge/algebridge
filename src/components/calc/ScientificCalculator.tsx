@@ -43,7 +43,7 @@ function FractionToggle({ on, tabbable, onToggle }: { on: boolean; tabbable: boo
       title={on ? "Show as a decimal" : "Show as a fraction"}
       tabIndex={tabbable ? 0 : -1}
       className={`ml-2 flex h-[24px] w-[24px] items-center justify-center rounded-md border text-[10px] leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8] ${MATH_FONT} ${
-        on ? "border-[#2f6bd8] bg-[#e6eefc] text-[#2f6bd8]" : "border-slate-300 bg-surface text-slate-500 hover:border-slate-400 hover:text-slate-700"
+        on ? "border-[#2f6bd8] bg-bridge-50 text-[#2f6bd8]" : "border-slate-300 bg-surface text-slate-500 hover:border-slate-400 hover:text-slate-700"
       }`}
     >
       <span aria-hidden className="flex flex-col items-center">
@@ -66,7 +66,7 @@ export function UndoClear({ onUndo, what }: { onUndo: () => void; what: string }
       onClick={onUndo}
       aria-label={`Undo: bring back the ${what}`}
       title="Undo"
-      className="flex items-center gap-1 rounded-md px-1.5 py-[3px] text-[12px] font-semibold text-[#2f6bd8] transition-colors hover:bg-[#e6eefc] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
+      className="flex items-center gap-1 rounded-md px-1.5 py-[3px] text-[12px] font-semibold text-[#2f6bd8] transition-colors hover:bg-bridge-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
     >
       <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M9 14 4 9l5-5" />
@@ -212,11 +212,11 @@ export function ScientificCalculator({ active }: { active: boolean }) {
           const focused = focusedId === row.id;
           const showError = r?.kind === "error" && !(r.incomplete && (focused || !row.text.trim()));
           return (
-            <div key={row.id} role="listitem" className="group relative flex shrink-0 border-b border-[#e3e6ea]">
+            <div key={row.id} role="listitem" className="group relative flex shrink-0 border-b border-slate-200">
               <div
                 aria-hidden
                 className={`flex w-[34px] shrink-0 select-none justify-center pt-[12px] text-[11px] tabular-nums transition-colors ${
-                  isCurrent ? "bg-[#e6eefc] font-semibold text-[#2f6bd8]" : "bg-[#f6f7f9] text-slate-400"
+                  isCurrent ? "bg-bridge-50 font-semibold text-[#2f6bd8]" : "bg-slate-50 text-slate-400"
                 }`}
               >
                 {i + 1}
@@ -268,7 +268,7 @@ export function ScientificCalculator({ active }: { active: boolean }) {
                   </div>
                 )}
                 {showError && (
-                  <p className={`basis-full pb-1 text-[12.5px] leading-snug ${r.incomplete ? "text-slate-400" : "text-[#a85a12]"}`}>
+                  <p className={`basis-full pb-1 text-[12.5px] leading-snug ${r.incomplete ? "text-slate-400" : "text-amber-700"}`}>
                     {!r.incomplete && <WarningMark />}
                     {r.error}
                   </p>

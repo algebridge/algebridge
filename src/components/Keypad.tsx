@@ -219,10 +219,10 @@ const NAV: KeyDef[] = [
 ];
 
 const TONE: Record<Tone, string> = {
-  num: "bg-surface text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.22)] hover:bg-[#f7f8fa]",
-  op: "bg-[#f3f4f6] text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-[#e9ebee]",
-  fn: "bg-[#e3e6ea] text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.18)] hover:bg-[#d9dde2]",
-  nav: "bg-[#ccd1d8] text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-[#c2c8d0]",
+  num: "bg-surface text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.22)] hover:bg-slate-50",
+  op: "bg-slate-100 text-slate-900 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-slate-200/70",
+  fn: "bg-slate-200 text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.18)] hover:bg-slate-300/70",
+  nav: "bg-slate-300 text-slate-800 shadow-[0_1px_0_rgb(15_23_42/0.2)] hover:bg-slate-400/50",
   enter: "bg-[#2f6bd8] text-white shadow-[0_1px_0_rgb(15_23_42/0.3)] hover:bg-[#285fc2]",
 };
 
@@ -261,7 +261,7 @@ export function AngleSwitch({ degrees, onDegrees }: { degrees: boolean; onDegree
       aria-label={`Angles in ${degrees ? "degrees" : "radians"}. Switch to ${degrees ? "radians" : "degrees"}`}
       aria-pressed={degrees}
       title="Radians or degrees"
-      className="h-[24px] w-[86px] rounded-[7px] bg-[#e3e6ea] p-[2px] shadow-[0_1px_0_rgb(15_23_42/0.14)] transition-colors hover:bg-[#d9dde2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
+      className="h-[24px] w-[86px] rounded-[7px] bg-slate-200 p-[2px] shadow-[0_1px_0_rgb(15_23_42/0.14)] transition-colors hover:bg-slate-300/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6bd8]"
     >
       <AngleSegments degrees={degrees} />
     </button>
@@ -302,7 +302,7 @@ export function Keypad({
   const nav = <div className="grid flex-[2] grid-cols-2 gap-[5px]">{NAV.map((k, i) => key(k, 100 + i))}</div>;
 
   return (
-    <div className="shrink-0 border-t border-slate-200 bg-[#eceef1] px-1.5 pb-1.5 pt-1" data-keypad="">
+    <div className="shrink-0 border-t border-slate-200 bg-slate-100 px-1.5 pb-1.5 pt-1" data-keypad="">
       <div className="mb-1 flex items-center gap-1 px-0.5">
         {/* Only the tabs sit in the tablist (the switch and buttons beside it are not tabs).
             One Tab stop for the set; the arrow keys, Home and End move between them. */}
