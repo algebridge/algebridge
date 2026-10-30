@@ -104,15 +104,11 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
   return (
     <div className="panel">
       <div className="panel-head">
-        <h3 className="panel-title">Make accounts for your students</h3>
+        <h3 className="panel-title">Make accounts</h3>
       </div>
       <form onSubmit={handleMake} className="space-y-2 p-5">
-        <p className="text-sm text-slate-600">
-          The simplest start when students have no accounts yet: you make them here, print the login cards, and
-          every student is in {classInfo.name} already.
-        </p>
         <label htmlFor="make-accounts" className="label">
-          One student a line: first and last name, and a school email if they have one
+          One name per line
         </label>
         <textarea
           id="make-accounts"
@@ -124,9 +120,7 @@ export function MakeAccounts({ classInfo, onMade }: { classInfo: ClassInfo; onMa
           className="field font-mono text-xs"
         />
         <p className="field-hint">
-          Students without an email get a username, like maria.lopez4821. Each account gets a password and joins{" "}
-          {classInfo.name} straight away. The passwords show once, on this visit only: print the cards or copy the
-          list before you close or reload the page.
+          Passwords show once. Print them before you leave.
         </p>
         {bad.length > 0 && (
           <ul role="alert" className="space-y-0.5 text-sm text-red-600">

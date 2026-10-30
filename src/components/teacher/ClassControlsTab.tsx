@@ -71,7 +71,7 @@ export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: Cl
       return;
     }
     setSaved(draft);
-    setStatus({ ok: true, text: "Saved. Students see it the next time a page loads." });
+    setStatus({ ok: true, text: "Saved" });
   }
 
   if (loading) return <p className="py-8 text-center text-sm text-slate-500">Loading…</p>;
@@ -90,33 +90,30 @@ export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: Cl
     <div className="space-y-4 pb-20">
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">What the class works on</h3>
+          <h3 className="panel-title">Class</h3>
         </div>
         <div className="space-y-3 p-5">
           <Switch
             checked={draft.assignedOnly}
             onChange={(v) => setDraft((d) => ({ ...d, assignedOnly: v }))}
             label="Only what I assign"
-            detail="Students open only the skills on the Assignments tab, plus any they already finished. Everything else stays locked until you assign it."
           />
           {draft.assignedOnly && assignmentCount === 0 && (
             <p role="status" className="notice-warn">
-              Nothing is assigned yet, so students would see every skill locked. Add work on the Assignments tab
-              first, then turn this on.
+              Assign something first.
             </p>
           )}
           <Switch
             checked={!draft.allowLeave}
             onChange={(v) => setDraft((d) => ({ ...d, allowLeave: !v }))}
             label="Students can't leave this class"
-            detail="Only you can take a student off the roster, so these controls stay on them."
           />
         </div>
       </div>
 
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">Turn off parts of AlgeBridge</h3>
+          <h3 className="panel-title">Features</h3>
         </div>
         <ul className="divide-y divide-slate-100">
           {CLASS_FEATURES.filter((f) => !ALWAYS_OFF.has(f.feature)).map((f) => (
@@ -125,17 +122,13 @@ export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: Cl
                 checked={draft.blockedFeatures.includes(f.feature)}
                 onChange={() => toggle("blockedFeatures", f.feature as ClassFeature)}
                 label={f.name}
-                detail={f.detail}
                 offWords
               />
             </li>
           ))}
         </ul>
         <div className="border-t border-slate-200 px-5 py-4">
-          <p className="text-sm font-medium text-slate-900">Already off for everyone in a class</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            Joining a class makes a student a school account, which keeps these off for safety. Nothing to set here.
-          </p>
+          <p className="text-sm font-medium text-slate-900">Always off</p>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {CLASS_FEATURES.filter((f) => ALWAYS_OFF.has(f.feature)).map((f) => (
               <li key={f.feature} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
@@ -149,7 +142,7 @@ export function ClassControlsTab({ classInfo, assignmentCount }: { classInfo: Cl
 
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">Close units and skills</h3>
+          <h3 className="panel-title">Lock units and skills</h3>
           <span className="text-xs text-slate-500">
             {draft.blockedUnits.length} unit{draft.blockedUnits.length === 1 ? "" : "s"}, {blockedSkillCount} skill
             {blockedSkillCount === 1 ? "" : "s"} closed
@@ -240,7 +233,7 @@ function Switch({
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
-  detail: string;
+  detail?: string;
   /** For a feature: "Off" when checked, since checking turns it off. */
   offWords?: boolean;
 }) {
@@ -248,7 +241,7 @@ function Switch({
     <label className="flex cursor-pointer items-start gap-3">
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-slate-900">{label}</span>
-        <span className="block text-xs leading-relaxed text-slate-500">{detail}</span>
+        {detail && <span className="block text-xs leading-relaxed text-slate-500">{detail}</span>}
       </span>
       {offWords && (
         <span className={`mt-0.5 text-xs font-medium ${checked ? "text-red-600" : "text-slate-400"}`}>

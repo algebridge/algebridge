@@ -59,12 +59,12 @@ export function ProblemHistory({ log }: { log: ProblemLogEntry[] }) {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3 className="panel-title">Problems they worked on</h3>
+        <h3 className="panel-title">Problems</h3>
         <span className="text-xs text-slate-500">Latest {log.length}</span>
       </div>
       {log.length === 0 ? (
         <p className="px-5 py-4 text-sm text-slate-500">
-          No practice tries saved yet. Each problem they answer from now on shows up here, with their answer and the time it took.
+          No problems yet.
         </p>
       ) : (
         <>

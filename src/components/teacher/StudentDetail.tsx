@@ -121,7 +121,7 @@ export function StudentDetail({
               <Field label="Working on" value={progress?.currentSkillId ? skillName(progress.currentSkillId, unitRows) : "-"} />
             </dl>
             <div className="border-t border-slate-100 px-5 py-3 text-sm">
-              <p className="text-xs text-slate-500">Interests (their word problems are set in these)</p>
+              <p className="text-xs text-slate-500">Interests</p>
               <p className="mt-0.5 text-slate-900">{interestText || "None picked yet"}</p>
             </div>
           </section>
@@ -141,11 +141,10 @@ export function StudentDetail({
           <section className="panel">
             <div className="panel-head">
               <h3 className="panel-title">Grade</h3>
-              <span className="text-xs text-slate-500">Assigned skills completed</span>
             </div>
             {grade.assignments.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-500">
-                Nothing assigned yet. Add work on the Assignments tab and the grade follows it.
+                Nothing assigned yet.
               </p>
             ) : (
               <table className="data-table">
@@ -180,8 +179,7 @@ export function StudentDetail({
 
           <section className="panel">
             <div className="panel-head">
-              <h3 className="panel-title">What they completed</h3>
-              <span className="text-xs text-slate-500">Accuracy is right answers out of all answers</span>
+              <h3 className="panel-title">Skills</h3>
             </div>
             <ul className="divide-y divide-slate-100">
               {unitRows.map((u) => {

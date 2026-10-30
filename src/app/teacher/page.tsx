@@ -36,7 +36,7 @@ import { MakeAccounts } from "@/components/teacher/MakeAccounts";
 import { signInName, StudentDetail } from "@/components/teacher/StudentDetail";
 import { classGrade, overallAccuracy } from "@/lib/student-report";
 import { StandardsChip } from "@/components/StandardsChip";
-import { AssignmentCard, QuickButton, TITLE_IDEAS } from "@/components/teacher/AssignmentCard";
+import { AssignmentCard } from "@/components/teacher/AssignmentCard";
 import { standardsForSkill } from "@/data/standards";
 import type { ClassAssignment, ClassColor, ClassInfo, RosterStudent } from "@/types";
 
@@ -176,10 +176,6 @@ export default function TeacherDashboardPage() {
         <div>
           <p className="eyebrow">Teaching</p>
           <h1 className="page-title">My classes</h1>
-          <p className="page-subtitle">
-            Create a class, share the join code, assign units with due dates, and
-            watch every student&apos;s progress in one table.
-          </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span>
@@ -219,8 +215,7 @@ export default function TeacherDashboardPage() {
               <p className="px-5 py-4 text-sm text-slate-500">Loading classes…</p>
             ) : visibleClasses.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-500">
-                No classes yet. Create your first one above, it takes about ten
-                seconds.
+                No classes yet.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
@@ -786,23 +781,24 @@ function RosterTab({
     <div className="space-y-4">
       {error && <p role="alert" className="notice-error">{error}</p>}
 
-      {/* First, the way in for students with no account yet: the common case
-          in 7th to 9th grade. Then the two ways for students who have one. */}
+      <details open={roster.length === 0} className="group space-y-4">
+        <summary className="btn-secondary inline-flex cursor-pointer list-none items-center gap-1.5">
+          <Icon name="plus" size={15} /> Add students
+        </summary>
+        <div className="mt-4 space-y-4">
       <MakeAccounts classInfo={classInfo} onMade={onChanged} />
 
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">Students who already have an account</h3>
+          <h3 className="panel-title">Already have an account</h3>
         </div>
         <div className="space-y-3 p-5">
-          <div className="notice-info">
-            Give them the class code <strong className="font-mono tracking-wider">{classInfo.joinCode}</strong>.
-            They enter it under <strong>My classes</strong> and appear here within a few seconds.{" "}
-            <strong>Show to class</strong>, above, puts the code on the screen in big type.
-          </div>
+          <p className="text-sm text-slate-700">
+            Class code: <strong className="font-mono tracking-wider">{classInfo.joinCode}</strong>
+          </p>
           <form onSubmit={handleAdd} className="space-y-2">
             <label htmlFor="bulk-emails" className="label">
-              Or paste their school emails
+              Or add by email
             </label>
             <textarea
               id="bulk-emails"
@@ -812,10 +808,6 @@ function RosterTab({
               placeholder={"maria@school.edu\njordan@school.edu\nsam@school.edu"}
               className="field font-mono text-xs"
             />
-            <p className="field-hint">
-              One per line, or separated by commas, paste a whole column from your gradebook. Each student gets an
-              invite to accept under My classes, so they are on the roster once they say yes.
-            </p>
             <button type="submit" disabled={adding} className="btn-secondary">
               {adding ? "Adding…" : "Add to class"}
             </button>
@@ -852,6 +844,8 @@ function RosterTab({
           )}
         </div>
       </div>
+        </div>
+      </details>
 
       <div className="panel">
         <div className="panel-head">
@@ -875,11 +869,6 @@ function RosterTab({
             </label>
           </div>
         </div>
-        {/* What the columns mean, said once: a grade here is work done, a level is the game. */}
-        <p className="border-b border-slate-100 px-5 py-2.5 text-xs leading-relaxed text-slate-500">
-          Grade is the share of assigned work finished: A from 90%, B from 80, C from 70, D from 60. Level is the
-          game level earned by practicing. New students appear on their own, about every 15 seconds.
-        </p>
         {reset && (
           <div className={`${reset.error ? "notice-error" : "notice-success"} mx-5 my-3`} role="status">
             {reset.error ? (
@@ -901,9 +890,8 @@ function RosterTab({
           <p role="status" className="px-5 py-6 text-sm text-slate-500">Loading roster…</p>
         ) : sorted.length === 0 ? (
           <p role="status" className="px-5 py-6 text-sm text-slate-500">
-            No students yet. Make their accounts above, or share the code{" "}
-            <strong className="font-mono tracking-wider text-slate-700">{classInfo.joinCode}</strong>. They appear
-            here on their own once they join.
+            No students yet. Class code:{" "}
+            <strong className="font-mono tracking-wider text-slate-700">{classInfo.joinCode}</strong>
           </p>
         ) : (
           <div tabIndex={0} role="region" aria-label="Class roster" className="relative overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-bridge-500">
@@ -1192,7 +1180,7 @@ function AssignmentsTab({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="assign-due" className="label">
-                Due date <span className="font-normal text-slate-400">(optional)</span>
+                Due date
               </label>
               <div className="mt-1 flex gap-2">
                 <input
@@ -1209,28 +1197,21 @@ function AssignmentsTab({
             </div>
             <div>
               <label htmlFor="assign-title" className="label">
-                Name it <span className="font-normal text-slate-400">(optional)</span>
+                Name it
               </label>
               <input
                 id="assign-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={80}
-                placeholder="Uses the skill's name"
+                
                 className="field mt-1"
               />
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {TITLE_IDEAS.slice(0, 5).map((idea) => (
-                  <QuickButton key={idea} onClick={() => setTitle(idea)}>
-                    {idea}
-                  </QuickButton>
-                ))}
-              </div>
             </div>
           </div>
           <div>
             <label htmlFor="assign-note" className="label">
-              Instructions for students <span className="font-normal text-slate-400">(optional)</span>
+              Instructions
             </label>
             <textarea
               id="assign-note"
@@ -1238,12 +1219,10 @@ function AssignmentsTab({
               onChange={(e) => setNote(e.target.value)}
               rows={2}
               maxLength={600}
-              placeholder="Finish before the Friday quiz. Show your work in the notebook."
+              
               className="field mt-1"
             />
           </div>
-          {/* What the chosen scope covers, so it can be matched to a pacing guide. */}
-          <StandardsChip codes={scopeStandardCodes(unitId, skillId)} label="Covers" />
           {error && <p role="alert" className="field-error">{error}</p>}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? "Adding…" : "Add assignment"}
@@ -1253,13 +1232,11 @@ function AssignmentsTab({
 
       <div className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">Assigned, in order</h3>
-          <span className="text-xs text-slate-500">Students see this list on their dashboard</span>
+          <h3 className="panel-title">Assigned</h3>
         </div>
         {assignments.length === 0 ? (
           <p className="px-5 py-6 text-sm text-slate-500">
-            Nothing assigned yet. Students can still work through the course on
-            their own.
+            Nothing assigned yet.
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -1405,8 +1382,7 @@ function SettingsTab({
                 {classInfo.archived ? "Restore this class" : "Archive at the end of term"}
               </p>
               <p className="text-xs text-slate-500">
-                Archiving hides the class from your list. Nothing is deleted and you
-                can bring it back any time.
+                Hides it. Nothing is deleted.
               </p>
             </div>
             <button type="button" onClick={handleArchive} className="btn-secondary shrink-0">
@@ -1418,7 +1394,7 @@ function SettingsTab({
             <div>
               <p className="text-sm font-medium text-slate-900">Delete this class</p>
               <p className="text-xs text-slate-500">
-                Removes the roster and assignments. Students keep their own progress.
+                Students keep their progress.
               </p>
             </div>
             <button type="button" onClick={handleDelete} className="btn-danger shrink-0">

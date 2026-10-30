@@ -210,7 +210,7 @@ export function AssignmentCard({
         <form onSubmit={handleSave} className="ml-10 mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div>
             <label htmlFor={`title-${a.id}`} className="label">
-              Name it <span className="font-normal text-slate-400">(blank uses the skill&apos;s name)</span>
+              Name
             </label>
             <input
               id={`title-${a.id}`}
@@ -230,7 +230,7 @@ export function AssignmentCard({
           </div>
           <div>
             <label htmlFor={`note-${a.id}`} className="label">
-              Instructions for students
+              Instructions
             </label>
             <textarea
               id={`note-${a.id}`}
@@ -238,7 +238,6 @@ export function AssignmentCard({
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               maxLength={600}
-              placeholder="Show your work in the notebook. Watch the video first if you get stuck."
               className="field mt-1"
             />
           </div>
@@ -265,7 +264,7 @@ export function AssignmentCard({
             </div>
             <div>
               <label htmlFor={`skill-${a.id}`} className="label">
-                What it covers
+                Skill
               </label>
               <select id={`skill-${a.id}`} value={skillId} onChange={(e) => setSkillId(e.target.value)} className="field mt-1">
                 <option value="">Whole unit ({unit?.skills.length ?? 0} skills)</option>
