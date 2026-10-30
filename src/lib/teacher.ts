@@ -566,6 +566,24 @@ export async function createAssignment(input: {
   return null;
 }
 
+/** Change an assignment in place: its name, instructions, due date or what it covers. */
+export async function updateAssignment(
+  id: string,
+  changes: { unitId?: string; skillId?: string | null; title?: string | null; note?: string | null; dueDate?: string | null }
+): Promise<string | null> {
+  const supabase = createClient();
+  if (!supabase) return "Cloud login is not configured yet.";
+  const row: Record<string, unknown> = {};
+  if (changes.unitId !== undefined) row.unit_id = changes.unitId;
+  if (changes.skillId !== undefined) row.skill_id = changes.skillId || null;
+  if (changes.title !== undefined) row.title = changes.title?.trim() || null;
+  if (changes.note !== undefined) row.note = changes.note?.trim() || null;
+  if (changes.dueDate !== undefined) row.due_date = changes.dueDate || null;
+  const { error } = await supabase.from("class_assignments").update(row).eq("id", id);
+  if (error) return isMissingSchema(error) ? CLASSROOM_MIGRATION_HINT : error.message;
+  return null;
+}
+
 export async function deleteAssignment(id: string): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return "Cloud login is not configured yet.";

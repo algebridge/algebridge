@@ -36,6 +36,7 @@ import { MakeAccounts } from "@/components/teacher/MakeAccounts";
 import { signInName, StudentDetail } from "@/components/teacher/StudentDetail";
 import { classGrade, overallAccuracy } from "@/lib/student-report";
 import { StandardsChip } from "@/components/StandardsChip";
+import { AssignmentCard, QuickButton, TITLE_IDEAS } from "@/components/teacher/AssignmentCard";
 import { standardsForSkill } from "@/data/standards";
 import type { ClassAssignment, ClassColor, ClassInfo, RosterStudent } from "@/types";
 
@@ -284,6 +285,7 @@ export default function TeacherDashboardPage() {
             <ClassDetail
               key={selectedClass.id}
               classInfo={selectedClass}
+              otherClasses={classes.filter((c) => c.id !== selectedClass.id && !c.archived)}
               tab={tab}
               onTabChange={setTab}
               onChanged={() => refreshClasses(selectedClass.id)}
@@ -480,12 +482,14 @@ function ClassDetail({
   onTabChange,
   onChanged,
   onDeleted,
+  otherClasses,
 }: {
   classInfo: ClassInfo;
   tab: Tab;
   onTabChange: (t: Tab) => void;
   onChanged: () => void;
   onDeleted: () => void;
+  otherClasses: ClassInfo[];
 }) {
   const [roster, setRoster] = useState<RosterStudent[]>([]);
   const [rosterLoading, setRosterLoading] = useState(true);
@@ -648,6 +652,7 @@ function ClassDetail({
           roster={roster}
           unavailable={assignmentsUnavailable}
           onChanged={loadAssignments}
+          otherClasses={otherClasses}
         />
       </div>
 
@@ -1045,18 +1050,21 @@ function AssignmentsTab({
   roster,
   unavailable,
   onChanged,
+  otherClasses,
 }: {
   classInfo: ClassInfo;
   assignments: ClassAssignment[];
   roster: RosterStudent[];
   unavailable: boolean;
   onChanged: () => void;
+  otherClasses: ClassInfo[];
 }) {
   const [unitId, setUnitId] = useState(units[0]?.id ?? "");
   const [unitTouched, setUnitTouched] = useState(false);
   const [skillId, setSkillId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [note, setNote] = useState("");
+  const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -1080,6 +1088,7 @@ function AssignmentsTab({
       skillId: skillId || null,
       dueDate: dueDate || null,
       note,
+      title,
     });
     setSaving(false);
     if (err) {
@@ -1092,6 +1101,7 @@ function AssignmentsTab({
     setSkillId("");
     setDueDate("");
     setNote("");
+    setTitle("");
     setUnitTouched(false);
     onChanged();
   }
@@ -1198,17 +1208,39 @@ function AssignmentsTab({
               </div>
             </div>
             <div>
-              <label htmlFor="assign-note" className="label">
-                Note for students <span className="font-normal text-slate-400">(optional)</span>
+              <label htmlFor="assign-title" className="label">
+                Name it <span className="font-normal text-slate-400">(optional)</span>
               </label>
               <input
-                id="assign-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Finish before the Friday quiz"
+                id="assign-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={80}
+                placeholder="Uses the skill's name"
                 className="field mt-1"
               />
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {TITLE_IDEAS.slice(0, 5).map((idea) => (
+                  <QuickButton key={idea} onClick={() => setTitle(idea)}>
+                    {idea}
+                  </QuickButton>
+                ))}
+              </div>
             </div>
+          </div>
+          <div>
+            <label htmlFor="assign-note" className="label">
+              Instructions for students <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <textarea
+              id="assign-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={600}
+              placeholder="Finish before the Friday quiz. Show your work in the notebook."
+              className="field mt-1"
+            />
           </div>
           {/* What the chosen scope covers, so it can be matched to a pacing guide. */}
           <StandardsChip codes={scopeStandardCodes(unitId, skillId)} label="Covers" />
@@ -1231,66 +1263,20 @@ function AssignmentsTab({
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {assignments.map((a, i) => {
-              const due = dueLabel(a.dueDate);
-              const doneCount = roster.filter(
-                (s) => assignmentProgress(s.progress, a).complete
-              ).length;
-              return (
-                <li key={a.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <div className="flex shrink-0 flex-col gap-1 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleMove(i, -1)}
-                      disabled={i === 0}
-                      aria-label="Move up"
-                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
-                    >
-                      <Icon name="chevron-up" size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMove(i, 1)}
-                      disabled={i === assignments.length - 1}
-                      aria-label="Move down"
-                      className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
-                    >
-                      <Icon name="chevron-down" size={16} />
-                    </button>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{assignmentTitle(a)}</p>
-                    <p className="text-xs text-slate-500">{assignmentSubtitle(a)}</p>
-                    <StandardsChip codes={scopeStandardCodes(a.unitId, a.skillId ?? "")} label={false} className="mt-1.5" />
-                    {a.note && <p className="mt-1 text-xs italic text-slate-500">{a.note}</p>}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className={
-                          due.tone === "overdue"
-                            ? "badge bg-red-50 text-red-700 ring-1 ring-inset ring-red-100"
-                            : due.tone === "today" || due.tone === "soon"
-                              ? "badge-warn"
-                              : "badge-neutral"
-                        }
-                      >
-                        {due.text}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {doneCount} of {roster.length} finished
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(a)}
-                    aria-label="Remove assignment"
-                    className="shrink-0 rounded p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Icon name="trash" size={16} />
-                  </button>
-                </li>
-              );
-            })}
+            {assignments.map((a, i) => (
+              <AssignmentCard
+                key={a.id}
+                assignment={a}
+                classInfo={classInfo}
+                roster={roster}
+                otherClasses={otherClasses}
+                first={i === 0}
+                last={i === assignments.length - 1}
+                onMove={(d) => handleMove(i, d)}
+                onDelete={() => handleDelete(a)}
+                onChanged={onChanged}
+              />
+            ))}
           </ul>
         )}
       </div>
