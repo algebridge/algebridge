@@ -1,4 +1,4 @@
-import type { GeneratedProblem, MasteryLevel, UserProgress, SkillProgress, Unit } from "@/types";
+import type { GeneratedProblem, MasteryLevel, ProblemLogEntry, UserProgress, SkillProgress, Unit } from "@/types";
 import { seasonKey } from "@/lib/season";
 import { units, COURSES, type CourseId } from "@/data/curriculum";
 import {
@@ -371,12 +371,19 @@ export function markVideoWatched(skillId: string): VideoWatchedResult {
 }
 
 
+/** How many practice tries the log keeps for a teacher to look through. */
+export const PROBLEM_LOG_MAX = 200;
+
 export function recordProblemAttempt(
   skillId: string,
   correct: boolean,
-  opts?: { firstTry?: boolean; run?: number }
+  opts?: { firstTry?: boolean; run?: number; log?: Omit<ProblemLogEntry, "skillId" | "correct" | "at"> }
 ): AttemptResult {
   const progress = getProgress();
+  if (opts?.log) {
+    const entry: ProblemLogEntry = { skillId, correct, at: new Date().toISOString(), ...opts.log };
+    progress.problemLog = [...(progress.problemLog ?? []), entry].slice(-PROBLEM_LOG_MAX);
+  }
   const existing = getSkillProgress(skillId);
   const wasComplete = existing.level === "proficient" || existing.level === "mastered";
 

@@ -95,7 +95,8 @@ export function navForSchool<S extends { items: { href: string }[] }>(
 ): S[] {
   if (!on && blocked.size === 0) return sections;
   const off = (href: string) => {
-    if (on && featureForPath(href) !== null) return true;
+    const sf = featureForPath(href);
+    if (on && sf !== null && !leftToTeacher(sf)) return true;
     const f = classFeatureForPath(href);
     return f !== null && blocked.has(f);
   };
@@ -184,6 +185,24 @@ export function setClassBlocked(features: Iterable<ClassFeature>): void {
 
 export function classBlockedNow(): ReadonlySet<ClassFeature> {
   return classBlocked;
+}
+
+/**
+ * What joining a class keeps off on its own: the parts where a student talks
+ * to people outside the class. Games and the leaderboard are the teacher's
+ * call (class controls), on until the teacher turns them off. A school build
+ * (NEXT_PUBLIC_SCHOOL_MODE) still turns every one of SCHOOL_MODE_OFF off.
+ */
+export const CLASS_ALWAYS_OFF: ReadonlySet<SchoolFeature> = new Set<SchoolFeature>(["messages", "groups", "calls", "tutors", "booking"]);
+
+/** True when school mode is on only because of a class membership, and this feature is the teacher's to set. */
+export function leftToTeacher(feature: SchoolFeature): boolean {
+  return managedAccount && !SCHOOL_MODE && !schoolModePreview() && !CLASS_ALWAYS_OFF.has(feature);
+}
+
+/** Is school mode keeping this one feature off in this browser? */
+export function schoolOffNow(feature: SchoolFeature): boolean {
+  return schoolModeNow() && !leftToTeacher(feature);
 }
 
 /** The switch in this browser: the build's, a school-managed account's, or a developer's preview. */

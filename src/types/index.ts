@@ -102,8 +102,29 @@ export interface SkillProgress {
   checkedOn?: string;
 }
 
+/** One try at one practice problem, kept so a teacher can see the work. */
+export interface ProblemLogEntry {
+  skillId: string;
+  /** The problem as the student saw it. */
+  prompt: string;
+  type: ProblemType;
+  /** What the student gave: typed text, the choice, or the step picked. */
+  given: string;
+  /** The right answer, when the problem has one to show. */
+  answer?: string;
+  correct: boolean;
+  /** 1 for the first try at this problem, 2 for the second, and so on. */
+  attempt: number;
+  /** Seconds from the problem showing to this answer. */
+  seconds: number;
+  /** ISO time of the answer. */
+  at: string;
+}
+
 export interface UserProgress {
   skills: Record<string, SkillProgress>;
+  /** The most recent practice tries, newest last (PROBLEM_LOG_MAX). */
+  problemLog?: ProblemLogEntry[];
   currentUnitId?: string;
   currentSkillId?: string;
   streak: number;

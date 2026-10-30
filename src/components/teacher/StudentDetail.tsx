@@ -6,6 +6,8 @@ import { useDialogFocus } from "@/components/useDialogFocus";
 import { initialsOf } from "@/lib/name";
 import { classGrade, overallAccuracy, unitReport, type Accuracy } from "@/lib/student-report";
 import { USERNAME_DOMAIN } from "@/lib/student-accounts";
+import { INTEREST_OPTIONS } from "@/lib/interests";
+import { ProblemHistory } from "@/components/teacher/ProblemHistory";
 import type { ClassAssignment, ClassInfo, RosterStudent } from "@/types";
 
 function pct(a: Accuracy): string {
@@ -44,6 +46,24 @@ export function StudentDetail({
   const unitRows = unitReport(progress);
   const name = student.displayName ?? "Unnamed student";
   const stats = student.stats;
+  const log = progress?.problemLog ?? [];
+  const weekAgo = Date.now() - 7 * 86400000;
+  const week = log.filter((e) => Date.parse(e.at) >= weekAgo);
+  const weekDays = new Set(week.map((e) => e.at.slice(0, 10))).size;
+  const weekMinutes = Math.round(week.reduce((n, e) => n + e.seconds, 0) / 60);
+  const interests = progress?.interests;
+  const interestText = interests
+    ? [
+        ...interests.picks.map((id) => {
+          const label = INTEREST_OPTIONS.find((o) => o.id === id)?.label ?? id;
+          const specific = interests.specifics?.[id]?.trim();
+          return specific ? `${label} (${specific})` : label;
+        }),
+        interests.note.trim(),
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "";
 
   // Focus moves in, Tab stays inside, Escape closes, and focus goes back to
   // the roster row that opened it.
@@ -96,7 +116,26 @@ export function StudentDetail({
               <Field label="XP" value={`${stats?.xp ?? 0}`} />
               <Field label="Badges" value={`${stats?.badgeCount ?? 0}`} />
               <Field label="Course progress" value={`${stats?.percent ?? 0}%`} />
+              <Field label="Bridgeys" value={`${progress?.bridgeys ?? 0}`} />
+              <Field label="Daily goals reached" value={`${progress?.goalDays?.length ?? 0}`} />
+              <Field label="Working on" value={progress?.currentSkillId ? skillName(progress.currentSkillId, unitRows) : "-"} />
             </dl>
+            <div className="border-t border-slate-100 px-5 py-3 text-sm">
+              <p className="text-xs text-slate-500">Interests (their word problems are set in these)</p>
+              <p className="mt-0.5 text-slate-900">{interestText || "None picked yet"}</p>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <h3 className="panel-title">The last 7 days</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-4">
+              <Stat label="Problems" value={`${week.length}`} sub="answers given" />
+              <Stat label="Right" value={`${week.filter((e) => e.correct).length}`} sub={`of ${week.length}`} />
+              <Stat label="Days active" value={`${weekDays}`} sub="of 7" />
+              <Stat label="Time" value={`${weekMinutes}m`} sub="answering problems" />
+            </div>
           </section>
 
           <section className="panel">
@@ -136,6 +175,8 @@ export function StudentDetail({
               </table>
             )}
           </section>
+
+          <ProblemHistory log={log} />
 
           <section className="panel">
             <div className="panel-head">
@@ -208,4 +249,9 @@ function Field({ label, value, mono = false }: { label: string; value: string; m
       <dd className={`truncate text-slate-900 ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
     </div>
   );
+}
+
+function skillName(id: string, rows: { skills: { id: string; title: string }[] }[]): string {
+  for (const u of rows) for (const s of u.skills) if (s.id === id) return s.title;
+  return id;
 }

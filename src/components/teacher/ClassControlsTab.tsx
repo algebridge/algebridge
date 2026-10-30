@@ -10,14 +10,14 @@ import {
   saveClassControls,
   type ClassControls,
 } from "@/lib/class-controls";
-import { SCHOOL_MODE_OFF, type ClassFeature } from "@/lib/school-mode";
+import { CLASS_ALWAYS_OFF, type ClassFeature } from "@/lib/school-mode";
 
 /**
- * What school mode already turns off. Joining a class sets profiles.managed,
- * which turns school mode on for that student, so these are off for every
- * class member whatever the teacher sets.
+ * What joining a class keeps off for safety (profiles.managed): talking to
+ * people outside the class. Games and the leaderboard are on until the
+ * teacher turns them off here.
  */
-const ALWAYS_OFF: ReadonlySet<ClassFeature> = new Set(SCHOOL_MODE_OFF.map((f) => f.feature));
+const ALWAYS_OFF: ReadonlySet<ClassFeature> = CLASS_ALWAYS_OFF;
 import type { ClassInfo } from "@/types";
 
 /**

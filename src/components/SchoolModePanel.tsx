@@ -10,6 +10,7 @@ import {
   SCHOOL_MODE_PREVIEW_KEY,
   classBlockedNow,
   schoolModeNow,
+  schoolOffNow,
   type ClassFeature,
   type SchoolFeature,
 } from "@/lib/school-mode";
@@ -35,6 +36,11 @@ const getServer = () => SCHOOL_MODE;
  */
 export function useSchoolMode(): boolean {
   return useSyncExternalStore(subscribe, schoolModeNow, getServer);
+}
+
+/** Is school mode keeping this one feature off? Games and the leaderboard are left to a class's teacher. */
+export function useSchoolOff(feature: SchoolFeature): boolean {
+  return useSyncExternalStore(subscribe, () => schoolOffNow(feature), getServer);
 }
 
 const NONE: ReadonlySet<ClassFeature> = new Set();
@@ -112,14 +118,14 @@ export function SchoolModePanel({ feature }: { feature: SchoolFeature }) {
 
 /** A page, or the panel in its place when school mode is on. */
 export function SchoolGate({ feature, children }: { feature: SchoolFeature; children: ReactNode }) {
-  const on = useSchoolMode();
+  const on = useSchoolOff(feature);
   if (on) return <SchoolModePanel feature={feature} />;
   return <ClassGate feature={feature}>{children}</ClassGate>;
 }
 
 /** Something shown only when school mode is off, like the games banner on the course page. */
 export function HideInSchoolMode({ children }: { children: ReactNode }) {
-  const on = useSchoolMode();
+  const on = useSchoolOff("games");
   const blocked = useClassBlocked();
   return on || blocked.has("games") ? null : <>{children}</>;
 }

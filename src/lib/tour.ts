@@ -10,7 +10,7 @@
 
 import { units } from "@/data/curriculum";
 import type { ArchiePose } from "@/components/archie/Archie";
-import { featureForPath } from "@/lib/school-mode";
+import { featureForPath, leftToTeacher } from "@/lib/school-mode";
 
 export interface TourStep {
   id: string;
@@ -90,7 +90,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
 
 /** The steps for this build: a page school mode turns off (the games) is left out. */
 export function tourSteps(school: boolean): TourStep[] {
-  return TOUR_STEPS.filter((s) => !school || !s.route || featureForPath(s.route) === null);
+  return TOUR_STEPS.filter((s) => {
+    const f = !school || !s.route ? null : featureForPath(s.route);
+    return f === null || leftToTeacher(f);
+  });
 }
 
 /** Pages a visitor reaches with a job of their own: signing in, a teacher reading /schools, the fine print. */

@@ -664,6 +664,27 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       order: [...stepOrder],
     });
     const firstTry = attempts === 0;
+    // The try as the teacher will see it in the student's report.
+    const log = {
+      prompt: displayPrompt.slice(0, 400),
+      type: problem.type,
+      given:
+        problem.type === "multiple-choice"
+          ? (selectedChoice ?? "")
+          : problem.type === "error-analysis"
+            ? selectedStep === null ? "" : `Step ${selectedStep + 1}`
+            : problem.type === "step-order"
+              ? stepOrder.map((i) => i + 1).join(", ")
+              : userAnswer.slice(0, 120),
+      answer:
+        "wrongStepIndex" in problem && problem.wrongStepIndex !== undefined
+          ? `Step ${problem.wrongStepIndex + 1}`
+          : "correctOrder" in problem && problem.correctOrder
+            ? problem.correctOrder.map((i: number) => i + 1).join(", ")
+            : problem.answer !== undefined ? String(problem.answer) : undefined,
+      attempt: attempts + 1,
+      seconds: Math.round((Date.now() - shownAtRef.current) / 1000),
+    };
     announcePractice(correct ? "correct" : "wrong");
     setFeedback(correct ? "correct" : "wrong");
     setFeedbackSeed((s) => s + 1);
@@ -704,7 +725,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
         return;
       }
 
-      const result = recordProblemAttempt(skill.id, true, { firstTry, run });
+      const result = recordProblemAttempt(skill.id, true, { firstTry, run, log });
       setMastery(result.newLevel);
       onMasteryChange?.(result.newLevel);
       setPay({ amount: result.answerBridgeys, key: Date.now() });
@@ -791,7 +812,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       setPay(null);
       setMisses((m) => m + 1);
       if (attempts + 1 >= 2) setShowHint(true);
-      if (!practiceOnly) recordProblemAttempt(skill.id, false);
+      if (!practiceOnly) recordProblemAttempt(skill.id, false, { log });
     }
   }, [
     problem,

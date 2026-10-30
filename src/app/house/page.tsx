@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { HouseConsole } from "@/components/house/HouseConsole";
-import { useSchoolMode } from "@/components/SchoolModePanel";
+import { useClassBlocked, useSchoolOff } from "@/components/SchoolModePanel";
 import { hasUnlimitedBridgeys } from "@/lib/bridgeys";
 import { getProgress, PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 import type { UserProgress } from "@/types";
@@ -19,7 +19,8 @@ export default function HousePage() {
   const [unlimited, setUnlimited] = useState(false);
   // School mode turns the leaderboard and the team games off (src/lib/school-mode.ts),
   // so the house does not point to them or sell pieces for the rink.
-  const school = useSchoolMode();
+  const blocked = useClassBlocked();
+  const school = useSchoolOff("leaderboard") || blocked.has("leaderboard") || blocked.has("games");
 
   function refresh() {
     setProgress(getProgress());

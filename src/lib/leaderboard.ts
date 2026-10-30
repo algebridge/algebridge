@@ -2,7 +2,7 @@ import { HOUSE_STYLES } from "@/data/house-catalog";
 import { CITY_LOTS } from "@/lib/house3d/city";
 import { sanitizePlots } from "@/lib/world";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { schoolModeNow } from "@/lib/school-mode";
+import { schoolOffNow } from "@/lib/school-mode";
 import { sanitizeAvatar } from "@/lib/avatar";
 import type { AvatarSpec, LeaderboardEntry } from "@/types";
 
@@ -60,8 +60,8 @@ export async function syncLeaderboardStats(
     best_furniture_value: snapshot.bestFurnitureValue,
     best_furniture_name: snapshot.bestFurnitureName,
     equipped_title: snapshot.equippedTitle,
-    // Opt-in, off by default; and school mode keeps everyone off the board.
-    leaderboard_opt_in: snapshot.leaderboardOptIn === true && !schoolModeNow(),
+    // Opt-in, off by default; a school build keeps everyone off the board.
+    leaderboard_opt_in: snapshot.leaderboardOptIn === true && !schoolOffNow("leaderboard"),
     updated_at: new Date().toISOString(),
   };
   const style = snapshot.houseStyle && STREET_STYLES.has(snapshot.houseStyle) ? snapshot.houseStyle : null;
