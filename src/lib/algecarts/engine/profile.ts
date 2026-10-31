@@ -32,7 +32,18 @@ export type CharacterId =
   | "ghost"
   | "skeleton"
   | "unicorn"
-  | "dragon";
+  | "dragon"
+  | "wolf"
+  | "tiger"
+  | "owl"
+  | "koala"
+  | "raccoon"
+  | "sloth"
+  | "axolotl"
+  | "yeti"
+  | "astronaut"
+  | "ninja"
+  | "zombie";
 
 export interface Loadout {
   character: CharacterId;
@@ -75,6 +86,17 @@ export const CATALOG: Record<ItemKind, ShopItem[]> = {
     { id: "skeleton", name: "Skeleton", price: 900, blurb: "Skull, ribs, bony hands." },
     { id: "unicorn", name: "Unicorn", price: 1100, blurb: "Golden horn, rainbow mane." },
     { id: "dragon", name: "Dragon", price: 1200, blurb: "Horns, wings and fangs." },
+    { id: "sloth", name: "Sloth", price: 300, blurb: "In no hurry, somehow winning." },
+    { id: "koala", name: "Koala", price: 350, blurb: "Big ears, bigger nose." },
+    { id: "wolf", name: "Wolf", price: 350, blurb: "Yellow eyes and a bushy tail." },
+    { id: "raccoon", name: "Raccoon", price: 400, blurb: "Masked, up to something." },
+    { id: "tiger", name: "Tiger", price: 450, blurb: "Stripes and a toothy grin." },
+    { id: "owl", name: "Owl", price: 500, blurb: "Round eyes that miss nothing." },
+    { id: "axolotl", name: "Axolotl", price: 600, blurb: "Pink, frilly, always smiling." },
+    { id: "ninja", name: "Ninja", price: 650, blurb: "Masked, with a red headband." },
+    { id: "yeti", name: "Yeti", price: 700, blurb: "Snow fur and a blue face." },
+    { id: "zombie", name: "Zombie", price: 750, blurb: "Green, stitched, still driving." },
+    { id: "astronaut", name: "Astronaut", price: 850, blurb: "A visor and an antenna." },
   ],
   body: [
     { id: "classic", name: "Classic", price: 0, blurb: "The everyday kart." },

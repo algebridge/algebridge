@@ -9,10 +9,14 @@
  * (the math question before a booster) goes through GameHooks.requestBooster.
  */
 
-export type WeaponId = "rockets" | "machinegun" | "mines" | "shield" | "boost" | "bomb";
+export type WeaponId = "rockets" | "machinegun" | "mines" | "shield" | "boost" | "bomb" | "seeker" | "laser" | "ice" | "slick" | "shock";
 
 import type { Loadout } from "./profile";
+import type { SoundName } from "./audio/Audio";
 export type { HatId, Loadout } from "./profile";
+
+/** Who runs the simulation: nobody else (solo), this tab for a lobby (host), or another tab (guest, mirroring). */
+export type NetRole = "solo" | "host" | "guest";
 
 export type ArenaId = "sunset-mesa" | "neon-harbor";
 
@@ -54,6 +58,10 @@ export interface KartSetup {
   bot: boolean;
   /** 0..1, bots only: aim, reaction time and weapon timing. */
   skill: number;
+  /** A human driving from another tab; the host reads their input off the wire. */
+  remote?: boolean;
+  /** That human's player id. */
+  pid?: string | null;
 }
 
 export interface PlayerSetup {
@@ -171,6 +179,15 @@ export interface GameHooks {
   onMatchEnd?(r: MatchResult): void;
   /** Once per rendered frame. Cheap: the same object, mutated. */
   onHud?(s: HudState): void;
+  /** Guest: the local kart's input each step, numbered, for the wire. */
+  onInput?(input: InputState, seq: number): void;
+  /** Guest: the answer to a booster question, for the host to grant. */
+  onBoosterResolved?(w: WeaponId | null): void;
+  /** Guest: the player pressed Play or left; the host has to seat or unseat them. */
+  onJoinRequest?(p: PlayerSetup): void;
+  onLeaveRequest?(): void;
+  /** Host: a seat changed hands (a human in, a bot back), so the roster should go out. */
+  onSeatChange?(): void;
 }
 
 export interface GameOptions {
@@ -186,6 +203,14 @@ export interface GameOptions {
   sound?: boolean;
   /** Seeded bots and rolls, for tests. */
   seed?: number;
+  /** Start as this role (default solo). A guest makes no karts until a roster arrives. */
+  role?: NetRole;
+  /** Karts in the lobby, bots and humans together (default 8). */
+  seats?: number;
+  /** Names for the bot seats, in order. */
+  botNames?: string[];
+  /** This tab's player id on the wire, so a roster can say which seat is ours. */
+  pid?: string;
 }
 
 export interface GameHandle {
@@ -208,4 +233,124 @@ export interface GameHandle {
   /** Run the simulation forward by this many seconds right now and draw a frame. For tests. */
   advance(seconds: number): void;
   dispose(): void;
+
+  // ----- the lobby wire -----
+  role(): NetRole;
+  /** Change role in place: a guest that becomes the host keeps every kart and carries on. */
+  setRole(role: NetRole): void;
+  /** Host: give the bot seats these names. */
+  setBotNames(names: string[]): void;
+  /** Host: a human from another tab takes a bot's seat; -1 when every seat is human. */
+  seatRemote(pid: string, name: string, loadout: Loadout): number;
+  /** Host: that human left; a bot takes the seat back. */
+  unseatRemote(pid: string): void;
+  setRemoteInput(pid: string, input: InputState, seq: number): void;
+  resolveRemoteBooster(pid: string, w: WeaponId | null): void;
+  /** Host: the world right now plus everything that happened since the last call. */
+  exportSnap(): NetSnap;
+  roster(): RosterEntry[];
+  /** Humans in the lobby, this tab included. */
+  humans(): number;
+  /** Guest: who sits where. */
+  applyRoster(r: RosterEntry[]): void;
+  applySnap(s: NetSnap): void;
+  /** Guest: which seat is this tab's player (null for watching). */
+  setLocalSeat(i: number | null): void;
+}
+
+/** One kart in a host snapshot. Short keys: ten of these go out a second. */
+export interface SnapKart {
+  i: number;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  vx: number;
+  vz: number;
+  /** Signed forward speed. */
+  sp: number;
+  hp: number;
+  a: 0 | 1;
+  w: WeaponId | null;
+  am: number;
+  st: number;
+  k: number;
+  d: number;
+  /** Bits: 1 shield, 2 boost, 4 frozen, 8 spinning, 16 pending a question, 32 protected, 64 celebrating, 128 in the air. */
+  f: number;
+  /** Seconds left on a shield or a boost. */
+  shl: number;
+  bol: number;
+  /** Last input sequence applied, for a remote human. */
+  sq: number;
+  /** Seconds until respawn when dead. */
+  rs: number;
+}
+
+export interface SnapProjectile {
+  id: number;
+  k: "rocket" | "bullet" | "bomb" | "seeker" | "ice";
+  o: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+}
+
+export interface SnapMine {
+  id: number;
+  o: number;
+  x: number;
+  y: number;
+  z: number;
+  ar: 0 | 1;
+}
+
+export interface SnapSlick {
+  id: number;
+  o: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Something that happened on the host between two snapshots. Kart indexes, not ids. */
+export type NetEvent =
+  | { t: "kill"; k: number; v: number; w: WeaponId | "bump"; st: number }
+  | { t: "dmg"; v: number; k: number; n: number; w: WeaponId | "bump" }
+  | { t: "boom"; x: number; y: number; z: number; r: number; s: number }
+  | { t: "snd"; n: SoundName; x: number; y: number; z: number }
+  | { t: "pick"; b: number; k: number }
+  | { t: "ask"; k: number; w: WeaponId }
+  | { t: "grant"; k: number; w: WeaponId }
+  | { t: "deny"; k: number }
+  | { t: "spawn"; k: number }
+  | { t: "over"; standings: Standing[] }
+  | { t: "match"; arena: ArenaId };
+
+export interface NetSnap {
+  /** Sequence number. */
+  n: number;
+  ph: Phase;
+  tl: number;
+  cd: number;
+  ni: number;
+  ar: ArenaId;
+  karts: SnapKart[];
+  /** Bit i set: item box i is there to take. */
+  bx: number;
+  pr: SnapProjectile[];
+  mn: SnapMine[];
+  sl: SnapSlick[];
+  ev: NetEvent[];
+}
+
+export interface RosterEntry {
+  i: number;
+  name: string;
+  loadout: Loadout;
+  bot: boolean;
+  pid: string | null;
 }

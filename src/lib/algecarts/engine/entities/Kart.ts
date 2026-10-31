@@ -13,6 +13,11 @@ export class Kart {
   readonly color: string;
   readonly bot: boolean;
   readonly skill: number;
+  /** A human in another tab. */
+  readonly remote: boolean;
+  pid: string | null;
+  /** Guest: the last input sequence the host applied to us. */
+  lastSeq = 0;
 
   readonly pos = new THREE.Vector3();
   readonly vel = new THREE.Vector3();
@@ -34,6 +39,10 @@ export class Kart {
   weapon: { id: WeaponId; ammo: number } | null = null;
   shieldUntil = 0;
   boostUntil = 0;
+  /** Hit by an ice shot: crawling until then. */
+  frozenUntil = 0;
+  /** Drove through an oil slick: spinning, no control, until then. */
+  spinUntil = 0;
   fireCooldown = 0;
   /** Waiting on the host to answer a requestBooster. */
   pendingBooster = false;
@@ -72,6 +81,8 @@ export class Kart {
     this.loadout = s.loadout;
     this.color = s.loadout.color;
     this.bot = s.bot;
+    this.remote = !!s.remote;
+    this.pid = s.pid ?? null;
     this.skill = s.skill;
   }
 
@@ -90,6 +101,12 @@ export class Kart {
   }
   isBoosting(now: number): boolean {
     return this.boostUntil > now;
+  }
+  isFrozen(now: number): boolean {
+    return this.frozenUntil > now;
+  }
+  isSpinning(now: number): boolean {
+    return this.spinUntil > now;
   }
   /** Immune to damage right now. */
   isImmune(now: number): boolean {
@@ -115,6 +132,8 @@ export class Kart {
     this.weapon = null;
     this.shieldUntil = 0;
     this.boostUntil = 0;
+    this.frozenUntil = 0;
+    this.spinUntil = 0;
     this.fireCooldown = 0;
     this.pendingBooster = false;
     this.lastHitBy = null;
@@ -158,13 +177,14 @@ export class Kart {
     }
 
     const shield = this.isShielded(now);
-    const protect = !shield && this.isProtected(now);
-    v.shield.visible = shield || protect;
+    const frozen = !shield && this.isFrozen(now);
+    const protect = !shield && !frozen && this.isProtected(now);
+    v.shield.visible = shield || protect || frozen;
     if (v.shield.visible) {
       const m = v.shield.material as THREE.MeshBasicMaterial;
-      m.color.set(shield ? "#6ff6ff" : "#ffe9a8");
-      m.opacity = shield ? 0.26 : 0.07 + 0.04 * Math.sin(now * 14);
-      const s = (shield ? 1 : 0.86) + 0.03 * Math.sin(now * 9);
+      m.color.set(shield ? "#6ff6ff" : frozen ? "#dff6ff" : "#ffe9a8");
+      m.opacity = shield ? 0.26 : frozen ? 0.34 : 0.07 + 0.04 * Math.sin(now * 14);
+      const s = (shield ? 1 : frozen ? 0.96 : 0.86) + 0.03 * Math.sin(now * 9);
       v.shield.scale.setScalar(s);
     }
     const boost = this.isBoosting(now);

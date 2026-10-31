@@ -329,6 +329,15 @@
   color: rgba(255, 255, 255, 0.65);
 }
 
+.algecarts .g-lobby {
+  margin-bottom: 4px;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--yellow);
+  text-align: center;
+}
+
 .algecarts .lobby-foot {
   font-size: 12px;
   font-weight: 600;

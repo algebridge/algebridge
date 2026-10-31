@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { AlgeCarts } from "@/components/games/AlgeCarts";
+import { CartsLeaderboard } from "@/components/games/CartsLeaderboard";
 import { useAuth } from "@/lib/auth";
 import { firstNameOf, isCartsTester } from "@/lib/algecarts/testers";
 
@@ -11,14 +13,35 @@ import { firstNameOf, isCartsTester } from "@/lib/algecarts/testers";
  * the page like the other games. Anyone else gets a short note and the way
  * back. A local-only deployment, with no accounts to check, opens it for
  * whoever is there.
+ *
+ * In development, `?guest=1` opens it for a signed-out tab as a guest with a
+ * made-up name, so two local tabs can share a lobby. Read after mount, so the
+ * server and the first client render agree.
  */
 export default function CartsPage() {
   const { user, profile, loading, configured } = useAuth();
   const router = useRouter();
+  const [devGuest, setDevGuest] = useState<string | null>(null);
+  const [boardKey, setBoardKey] = useState(0);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    if (!new URLSearchParams(window.location.search).has("guest")) return;
+    let id = "";
+    try {
+      id = sessionStorage.getItem("algebridge:carts:guest") ?? "";
+      if (!id) {
+        id = `guest-${Math.random().toString(36).slice(2, 6)}`;
+        sessionStorage.setItem("algebridge:carts:guest", id);
+      }
+    } catch {
+      id = "guest-local";
+    }
+    setDevGuest(id);
+  }, []);
 
   if (configured && loading) return null;
 
-  if (configured && !user) {
+  if (configured && !user && !devGuest) {
     return (
       <Note title="Sign in to open Alge Carts">
         <Link href="/login" className="font-semibold text-indigo-700 underline">
@@ -29,7 +52,7 @@ export default function CartsPage() {
     );
   }
 
-  const allowed = !configured || isCartsTester(profile?.displayName);
+  const allowed = !configured || !!devGuest || isCartsTester(profile?.displayName);
   if (!allowed) {
     return (
       <Note title="Alge Carts is a demo for a few testers right now">
@@ -42,7 +65,8 @@ export default function CartsPage() {
     );
   }
 
-  const name = firstNameOf(profile?.displayName) || "You";
+  const guest = !user && devGuest ? devGuest : null;
+  const name = firstNameOf(profile?.displayName) || (guest ? `Guest ${guest.slice(-4)}` : "You");
   return (
     <div className="space-y-5">
       <header>
@@ -52,7 +76,14 @@ export default function CartsPage() {
           track, or F, takes it full screen; Esc brings the page back. A demo for the testers.
         </p>
       </header>
-      <AlgeCarts userId={user?.id ?? "local"} name={name} onExit={() => router.push("/games")} />
+      <AlgeCarts
+        userId={user?.id ?? guest ?? "local"}
+        name={name}
+        displayName={profile?.displayName ?? name}
+        onExit={() => router.push("/games")}
+        onMatchEnd={() => setBoardKey((k) => k + 1)}
+      />
+      <CartsLeaderboard userId={user?.id ?? null} refresh={boardKey} />
     </div>
   );
 }

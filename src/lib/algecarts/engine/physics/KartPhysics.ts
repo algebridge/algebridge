@@ -1,6 +1,9 @@
 import type { Arena } from "../world/Arena";
 import type { Kart } from "../entities/Kart";
+import type { InputState } from "../types";
 import { approach, clamp } from "../util";
+
+const NO_INPUT: InputState = { throttle: 0, steer: 0, fire: false, firePressed: false };
 
 /** Arcade tuning. Units are metres and seconds; a kart is about 2.4 m long. */
 export const KART = {
@@ -33,14 +36,17 @@ export const KART = {
 /** One fixed step of kart motion: throttle, steering, slip, gravity and the ground. */
 export function stepKart(k: Kart, dt: number, arena: Arena, now: number): void {
   const boosting = k.boostUntil > now;
-  const maxSpeed = KART.maxSpeed * (boosting ? KART.boostMul : 1);
-  const accel = KART.accel * (boosting ? 1.7 : 1);
+  const frozen = k.frozenUntil > now;
+  const spinning = k.spinUntil > now;
+  // An ice shot caps the speed low; an oil slick spins the kart with no control.
+  const maxSpeed = KART.maxSpeed * (boosting ? KART.boostMul : 1) * (frozen ? 0.42 : 1);
+  const accel = KART.accel * (boosting ? 1.7 : 1) * (frozen ? 0.6 : 1);
   const fx = Math.sin(k.yaw);
   const fz = Math.cos(k.yaw);
   let fwd = k.vel.x * fx + k.vel.z * fz;
   let latX = k.vel.x - fx * fwd;
   let latZ = k.vel.z - fz * fwd;
-  const inp = k.input;
+  const inp = spinning ? NO_INPUT : k.input;
 
   // The pedal and the wheel take time to travel, so nothing happens in a snap.
   // Bots already plan ahead, so theirs move faster; the feel is for the player.
@@ -61,7 +67,11 @@ export function stepKart(k: Kart, dt: number, arena: Arena, now: number): void {
     } else if (th < 0) fwd -= (fwd > 0.5 ? KART.brake : accel * 0.5) * -th * dt;
     else fwd = approach(fwd, 0, KART.coast * dt);
     if (boosting) fwd = Math.max(fwd, Math.min(maxSpeed, fwd + accel * dt));
-    fwd = clamp(fwd, -KART.reverseMax, maxSpeed);
+    fwd = clamp(fwd, -KART.reverseMax, fwd > maxSpeed ? approach(fwd, maxSpeed, (frozen ? 40 : 12) * dt) : maxSpeed);
+    if (spinning) {
+      fwd = approach(fwd, 0, 10 * dt);
+      k.yaw += 7.5 * dt;
+    }
     // Over the top speed (a knockback, a boost that just ended) you bleed off.
     if (fwd > maxSpeed) fwd = approach(fwd, maxSpeed, 12 * dt);
     // Grip loosens with speed, so fast corners slide a little.

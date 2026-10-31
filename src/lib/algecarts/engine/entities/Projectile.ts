@@ -3,9 +3,10 @@ import type { Kart } from "./Kart";
 import type { Palette } from "../render/Materials";
 import { WEAPONS } from "../weapons/weapons";
 
-export type ProjKind = "rocket" | "bullet" | "bomb";
+export type ProjKind = "rocket" | "bullet" | "bomb" | "seeker" | "ice";
 
 export class Projectile {
+  uid = 0;
   readonly pos = new THREE.Vector3();
   readonly vel = new THREE.Vector3();
   life = 0;
@@ -15,7 +16,7 @@ export class Projectile {
   readonly root: THREE.Group;
 
   constructor(readonly kind: ProjKind, readonly owner: Kart, pal: Palette) {
-    this.root = kind === "rocket" ? rocketMesh(pal) : kind === "bullet" ? bulletMesh(pal) : bombMesh(pal);
+    this.root = kind === "rocket" ? rocketMesh(pal) : kind === "bullet" ? bulletMesh(pal) : kind === "seeker" ? seekerMesh(pal) : kind === "ice" ? iceMesh(pal) : bombMesh(pal);
   }
 
   /** Point the mesh along the velocity (rockets, bullets) or roll it (bombs). */
@@ -41,6 +42,7 @@ export class Projectile {
 const LOOK = new THREE.Vector3();
 
 export class Mine {
+  uid = 0;
   readonly pos = new THREE.Vector3();
   readonly root: THREE.Group;
   readonly armedAt: number;
@@ -131,4 +133,68 @@ function bombMesh(pal: Palette): THREE.Group {
   spark.position.set(0.12, 0.74, 0);
   g.add(ball, cap, fuse, spark);
   return g;
+}
+
+function seekerMesh(pal: Palette): THREE.Group {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.15, 0.95, 10), pal.toon(WEAPONS.seeker.color));
+  body.rotation.x = Math.PI / 2;
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.36, 10), pal.toon("#ffffff"));
+  nose.rotation.x = Math.PI / 2;
+  nose.position.z = 0.65;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.04, 6, 14), pal.toon("#2a2f3f"));
+  ring.position.z = -0.3;
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), pal.unlit("#ff9af7"));
+  eye.position.set(0, 0.16, 0.2);
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), pal.unlit("#ff9af7"));
+  flame.position.z = -0.58;
+  g.add(body, nose, ring, eye, flame);
+  return g;
+}
+
+function iceMesh(pal: Palette): THREE.Group {
+  const g = new THREE.Group();
+  const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), pal.toon(WEAPONS.ice.color));
+  shard.scale.set(0.7, 0.7, 1.4);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), pal.unlit("#ffffff"));
+  g.add(shard, core);
+  return g;
+}
+
+/** An oil slick on the ground: whoever drives through it spins out. */
+export class Slick {
+  uid = 0;
+  readonly pos = new THREE.Vector3();
+  readonly root: THREE.Group;
+  readonly diesAt: number;
+  dead = false;
+  private readonly sheen: THREE.Mesh;
+
+  constructor(readonly owner: Kart, x: number, y: number, z: number, now: number, life: number, radius: number, pal: Palette) {
+    this.pos.set(x, y, z);
+    this.diesAt = now + life;
+    this.root = new THREE.Group();
+    const puddle = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.92, 0.05, 20), pal.toon("#15171f"));
+    puddle.position.y = 0.03;
+    this.sheen = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.55, 0.06, 5, 20), pal.unlit("#7c6cff"));
+    this.sheen.rotation.x = Math.PI / 2;
+    this.sheen.position.y = 0.07;
+    this.sheen.userData.own = true;
+    this.root.add(puddle, this.sheen);
+    this.root.position.copy(this.pos);
+  }
+
+  sync(now: number): void {
+    this.sheen.rotation.z = now * 0.8;
+    const m = this.sheen.material as THREE.MeshBasicMaterial;
+    m.color.setHSL((now * 0.15) % 1, 0.7, 0.6);
+  }
+
+  dispose(): void {
+    this.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.userData.own) (m.material as THREE.Material).dispose();
+    });
+  }
 }

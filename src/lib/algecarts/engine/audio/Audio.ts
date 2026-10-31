@@ -24,7 +24,11 @@ export type SoundName =
   | "bump"
   | "land"
   | "streak"
-  | "deny";
+  | "deny"
+  | "laser"
+  | "freeze"
+  | "shock"
+  | "slick";
 
 const BPM = 126;
 const ROOTS = [45, 41, 48, 43];
@@ -164,6 +168,21 @@ export class GameAudio {
       case "boost":
         this.noise(0.6, 0.32 * vol, "bandpass", 300, 3200, 1.2);
         this.tone("sawtooth", 120, 520, 0.6, 0.16 * vol);
+        break;
+      case "laser":
+        this.tone("sawtooth", 1800, 320, 0.22, 0.2 * vol);
+        this.tone("square", 2600, 1300, 0.12, 0.08 * vol);
+        break;
+      case "freeze":
+        this.tone("sine", 1200, 2600, 0.3, 0.16 * vol);
+        this.noise(0.35, 0.12 * vol, "highpass", 2500, 6000, 0.8);
+        break;
+      case "shock":
+        this.noise(0.5, 0.35 * vol, "bandpass", 200, 2400, 0.9);
+        this.tone("square", 90, 40, 0.5, 0.2 * vol);
+        break;
+      case "slick":
+        this.noise(0.25, 0.18 * vol, "lowpass", 900, 300, 0.7);
         break;
       case "explosion":
         this.noise(0.9, 0.85 * vol, "lowpass", 1800, 80, 0.6);

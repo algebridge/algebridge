@@ -9,6 +9,11 @@ export const WEAPON_ICONS: Record<WeaponId | "bump", string> = {
   bomb: svg('<circle cx="11" cy="14" r="7"/><path d="M14 8l2-3 3 1"/><circle cx="20" cy="4" r="1.3" fill="currentColor" stroke="none"/>'),
   shield: svg('<path d="M12 2l8 3v7c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5z"/><path d="M9 12l2 2 4-4"/>'),
   boost: svg('<path d="M13 2L5 14h6l-1 8 9-13h-6z"/>'),
+  seeker: svg('<path d="M4 18c3-1 5-4 6-8l2-6 3 1-1 6c-1 4 1 7 6 7"/><circle cx="15" cy="5" r="1.4" fill="currentColor" stroke="none"/><path d="M9 14l-2 3M6 12l-3 2"/>'),
+  laser: svg('<path d="M3 12h11"/><path d="M14 9l7 3-7 3z" fill="currentColor"/><path d="M3 8l3 1M3 16l3-1"/>'),
+  ice: svg('<path d="M12 2v20M4 7l16 10M4 17L20 7"/><path d="M12 2l-2 3M12 2l2 3M12 22l-2-3M12 22l2-3M4 7l3.5-.5M4 7l.5 3.5M20 17l-3.5.5M20 17l-.5-3.5M4 17l3.5.5M4 17l.5-3.5M20 7l-3.5-.5M20 7l-.5 3.5"/>'),
+  slick: svg('<ellipse cx="12" cy="16" rx="9" ry="4"/><path d="M9 10c0-2 1.5-3.5 3-6 1.5 2.5 3 4 3 6a3 3 0 01-6 0z"/>'),
+  shock: svg('<circle cx="12" cy="12" r="9"/><path d="M13 5l-5 8h4l-1 6 5-8h-4z" fill="currentColor"/>'),
   bump: svg('<path d="M4 12h5M15 12h5"/><circle cx="12" cy="12" r="3"/><path d="M9 7l-2-3M15 7l2-3M9 17l-2 3M15 17l2 3"/>'),
 };
 

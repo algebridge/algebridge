@@ -71,6 +71,7 @@ export class Garage {
           </div>
         </footer>
       </div>
+      <div class="g-lobby hidden" data-q="lobby"></div>
       <div class="lobby-foot">${esc(this.opts.footNote ?? "Progress and Bridgeys save on this device. Connected to AlgeBridge, they live on the student's account.")}</div>
     `;
     parent.appendChild(this.root);
@@ -125,6 +126,12 @@ export class Garage {
     this.render();
     this.renderFoot();
     this.preview.setLoadout(this.previewLoadout(), profile.name);
+  }
+
+  /** Who is in the lobby, under the garage; empty hides it. */
+  setLobby(text: string): void {
+    this.q.lobby.textContent = text;
+    this.q.lobby.classList.toggle("hidden", !text);
   }
 
   /** The profile changed elsewhere (rewards after a match). */

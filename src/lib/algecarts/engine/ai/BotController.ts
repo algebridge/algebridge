@@ -82,7 +82,7 @@ export class BotBrain {
         const lead = k.weapon ? dist / this.projSpeed() : 0;
         gx = t.pos.x + t.vel.x * lead;
         gz = t.pos.z + t.vel.z * lead;
-        if (dist < 5 && k.weapon && k.weapon.id !== "shield" && k.weapon.id !== "boost") {
+        if (dist < 5 && k.weapon && k.weapon.id !== "shield" && k.weapon.id !== "boost" && k.weapon.id !== "shock") {
           gx += (k.pos.x - t.pos.x) * 0.8;
           gz += (k.pos.z - t.pos.z) * 0.8;
         }
@@ -206,6 +206,9 @@ export class BotBrain {
     const id = this.k.weapon?.id;
     if (id === "machinegun") return STATS.bullet.speed;
     if (id === "bomb") return STATS.bomb.speed * 1.2;
+    if (id === "seeker") return STATS.seeker.speed;
+    if (id === "ice") return STATS.ice.speed;
+    if (id === "laser") return 400;
     return STATS.rocket.speed;
   }
 
@@ -237,7 +240,8 @@ export class BotBrain {
       case "bomb":
         if (canHurt && Math.abs(d) < 0.3 + err && dist < 26 && dist > 4) o.firePressed = true;
         break;
-      case "mines": {
+      case "mines":
+      case "slick": {
         let behind = false;
         for (const other of w.karts) {
           if (other === k || !other.alive) continue;
@@ -249,6 +253,18 @@ export class BotBrain {
         if (behind || (k.speed > 8 && this.rng.next() < 0.006)) o.firePressed = true;
         break;
       }
+      case "seeker":
+        if (canHurt && Math.abs(d) < 0.6 + err && dist < 44 && dist > 3) o.firePressed = true;
+        break;
+      case "laser":
+        if (canHurt && Math.abs(d) < 0.09 + err * 0.5 && dist < 34 && dist > 2) o.firePressed = true;
+        break;
+      case "ice":
+        if (canHurt && Math.abs(d) < 0.18 + err && dist < 36 && dist > 2.5) o.firePressed = true;
+        break;
+      case "shock":
+        if (canHurt && (dist < 8 || (k.hp < 40 && dist < 11))) o.firePressed = true;
+        break;
       case "shield":
         if (k.hp < 50 || (canHurt && dist < 9) || this.rng.next() < 0.002) o.firePressed = true;
         break;

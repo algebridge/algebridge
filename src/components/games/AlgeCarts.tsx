@@ -20,9 +20,20 @@ import { Hud } from "@/lib/algecarts/ui/hud";
 import { ICON_SOUND_OFF, ICON_SOUND_ON } from "@/lib/algecarts/ui/icons";
 import { Scoreboard } from "@/lib/algecarts/ui/scoreboard";
 import { TouchInput } from "@/lib/algecarts/ui/touch";
+import { CartsNet, type LobbyInfo } from "@/lib/algecarts/net";
+import { addBotResults, syncMyCartsRow } from "@/lib/algecarts/leaderboard";
 import "@/lib/algecarts/carts.css";
 
 const ARENA_KEY = "algebridge:carts:arena";
+
+/** The line under the garage: which lobby, and who else is in it. */
+function lobbyLine(info: LobbyInfo): string {
+  if (info.role === "solo") return "";
+  const others = info.others;
+  if (!others.length) return `Lobby ${info.id} · you and the bots so far`;
+  const names = others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} and ${others[others.length - 1]}`;
+  return `Lobby ${info.id} · with ${names}`;
+}
 
 const ICON_EXPAND = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>`;
 const ICON_COMPRESS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>`;
@@ -55,7 +66,7 @@ interface FullscreenEl extends HTMLElement {
  * stays visible; Esc gives the page back. Where the Fullscreen API is
  * missing (iPhones) the stage pins itself over the page instead.
  */
-export function AlgeCarts({ userId, name, onExit }: { userId: string; name: string; onExit: () => void }) {
+export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { userId: string; name: string; displayName: string; onExit: () => void; onMatchEnd?: () => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<GameHandle | null>(null);
@@ -71,6 +82,8 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
   const [verdict, setVerdict] = useState<GameVerdict | null>(null);
   const exitRef = useRef(onExit);
   exitRef.current = onExit;
+  const matchEndRef = useRef(onMatchEnd);
+  matchEndRef.current = onMatchEnd;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -100,12 +113,15 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(() => void store.save(profile), 250);
       };
+      let net: CartsNet | null = null;
+      const pid = `${userId}-${Math.random().toString(36).slice(2, 8)}`;
       const savedArena = (localStorage.getItem(ARENA_KEY) as ArenaId | "random" | null) ?? "random";
       const startArena: ArenaId = savedArena !== "random" && ARENA_ORDER.includes(savedArena) ? savedArena : ARENA_ORDER[Math.floor(Math.random() * ARENA_ORDER.length)];
 
       const game = createGame(canvas, {
         arena: startArena,
-        bots: 7,
+        seats: 8,
+        pid,
         quality: lowPower ? "low" : "high",
         sound: profile.settings.sound,
         hooks: {
@@ -139,6 +155,12 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
             profile.stats.deaths++;
             saveSoon();
           },
+          // The lobby wire: a guest's inputs and answers go to the host; a host's seat changes go out as a roster.
+          onInput: (input, seq) => net?.sendInput(input, seq),
+          onBoosterResolved: (w) => net?.sendBooster(w),
+          onJoinRequest: (p) => net?.join(p),
+          onLeaveRequest: () => net?.leave(),
+          onSeatChange: () => net?.seatChanged(),
           onMatchEnd: (r) => {
             if (!joined) return;
             const before = levelOf(profile.xp);
@@ -153,6 +175,15 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
             scoreboard.showRewards(rw, before.level, after.level, after.title, store.balance());
             void store.save(profile);
             garage.setProfile(profile);
+            // The board: this student's totals, and (from the host) the bots' results.
+            const botsHere = new Set(game.roster().filter((e) => e.bot).map((e) => e.name));
+            const board = [
+              syncMyCartsRow(userId, displayName, profile.stats, profile.xp),
+              game.role() !== "guest"
+                ? addBotResults(r.standings.filter((s) => botsHere.has(s.name)).map((s) => ({ name: s.name, kills: s.kills, won: s.id === r.standings[0]?.id, streak: s.streak })))
+                : Promise.resolve(),
+            ];
+            void Promise.all(board).then(() => matchEndRef.current?.());
           },
         },
       });
@@ -206,6 +237,9 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
         },
       );
       garageRef.current = garage;
+      net = new CartsNet(game, { pid, name, onLobby: (info) => garage.setLobby(lobbyLine(info)) });
+      void net.start();
+      if (process.env.NODE_ENV === "development") (window as unknown as { __cartsNet?: CartsNet }).__cartsNet = net;
       // The question gate is always on here; the garage's switch is not shown.
       garage.root.querySelector(".toggle")?.classList.add("hidden");
       garage.show();
@@ -328,6 +362,7 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
         if (saveTimer) clearTimeout(saveTimer);
         pending.current?.resolve(null);
         pending.current = null;
+        net?.close();
         game.dispose();
         hud.dispose();
         garage.dispose();

@@ -1029,6 +1029,191 @@ const CHARACTERS: Record<CharacterId, CharacterDef> = {
       return { top: H * 0.9 };
     },
   },
+  wolf: {
+    body: (f) => mat(f, pick(["#6b7280", "#4b5563", "#9ca3af"], f.name, "w")),
+    belly: "#e5e7eb",
+    build(f, body) {
+      headSphere(f, body);
+      muzzle(f, "#d1d5db", { y: -0.12, z: H * 0.8, rx: 0.26, ry: 0.2, rz: 0.26 });
+      noseOf(f, "dot", -0.04, H * 0.8 + 0.24, 0.065);
+      bigEyes(f, { x: 0.16, y: 0.1, z: H * 0.8, rx: 0.11, ry: 0.12, white: "#fde68a", pupil: "#1b1b24", tilt: 0.2 });
+      grin(f, { y: -0.23, z: H * 0.9, w: 0.2, h: 0.09, teeth: 4, fangs: true });
+      earsPointy(f, body, mat(f, "#f3d2c9"), { x: 0.24, y: H * 0.78, tilt: 0.25, size: 0.13 });
+      tailOf(f, "bushy", body, mat(f, "#e5e7eb"));
+      return { top: H * 1.0 };
+    },
+  },
+  tiger: {
+    body: (f) => mat(f, "#f97316"),
+    belly: "#fff7ed",
+    build(f, body) {
+      headSphere(f, body);
+      const dark = mat(f, "#1f2937");
+      for (const x of [-0.16, 0, 0.16]) {
+        const s = f.add(SPHERE(1), dark, x, H * 0.92, -0.08, f.head);
+        s.scale.set(0.035, 0.03, 0.16);
+      }
+      for (const side of [1, -1]) {
+        const s = f.add(SPHERE(1), dark, side * 0.36, 0.0, 0.1, f.head);
+        s.scale.set(0.035, 0.14, 0.03);
+      }
+      muzzle(f, "#fff7ed", { y: -0.12, z: H * 0.8, rx: 0.27, ry: 0.2, rz: 0.22 });
+      noseOf(f, "pink", -0.02, H * 0.8 + 0.2, 0.06);
+      bigEyes(f, { x: 0.16, y: 0.1, z: H * 0.8, rx: 0.12, ry: 0.13, white: "#fef3c7", pupil: "#14532d" });
+      grin(f, { y: -0.23, z: H * 0.9, w: 0.2, h: 0.09, teeth: 4, fangs: true });
+      whiskers(f, -0.08, H * 0.92, 0.3, "#fff7ed");
+      earsRound(f, body, mat(f, "#fff7ed"), { x: 0.3, y: H * 0.72, r: 0.12 });
+      tailOf(f, "cat", body, dark);
+      return { top: H * 1.0 };
+    },
+  },
+  owl: {
+    body: (f) => mat(f, pick(["#92400e", "#78350f", "#a16207"], f.name, "o")),
+    belly: "#fcd9b6",
+    build(f, body) {
+      headSphere(f, body, H, 0.95, 1);
+      const disc = f.add(SPHERE(1), mat(f, "#fcd9b6"), 0, 0.02, H * 0.72, f.head);
+      disc.scale.set(0.4, 0.3, 0.16);
+      bigEyes(f, { x: 0.15, y: 0.06, z: H * 0.84, rx: 0.15, ry: 0.15, white: "#fff7ed", pupil: "#1b1b24", pr: 0.085 });
+      const beak = f.add(new THREE.ConeGeometry(0.07, 0.2, 6), mat(f, "#f59e0b"), 0, -0.1, H * 0.96, f.head);
+      beak.rotation.x = Math.PI / 2;
+      earsPointy(f, body, mat(f, "#fcd9b6"), { x: 0.22, y: H * 0.82, tilt: 0.45, size: 0.09 });
+      return { top: H * 1.0 };
+    },
+  },
+  koala: {
+    body: (f) => mat(f, "#9ca3af"),
+    belly: "#e5e7eb",
+    build(f, body) {
+      headSphere(f, body, H * 1.02, 0.95, 1);
+      earsRound(f, body, mat(f, "#f3d2c9"), { x: 0.4, y: H * 0.5, r: 0.2, z: -0.02 });
+      muzzle(f, "#1b1b24", { y: -0.05, z: H * 0.9, rx: 0.12, ry: 0.17, rz: 0.12 });
+      bigEyes(f, { x: 0.17, y: 0.1, z: H * 0.78, rx: 0.08, ry: 0.09, dark: true });
+      grin(f, { y: -0.26, z: H * 0.84, w: 0.12, h: 0.05 });
+      cheeks(f, -0.1, H * 0.78, 0.3);
+      return { top: H * 1.02 };
+    },
+  },
+  raccoon: {
+    body: (f) => mat(f, "#6b7280"),
+    belly: "#d1d5db",
+    build(f, body) {
+      headSphere(f, body);
+      const mask = f.add(SPHERE(1), mat(f, "#1f2937"), 0, 0.08, H * 0.74, f.head);
+      mask.scale.set(0.38, 0.14, 0.2);
+      bigEyes(f, { x: 0.15, y: 0.08, z: H * 0.86, rx: 0.1, ry: 0.11, pupil: "#1b1b24" });
+      muzzle(f, "#d1d5db", { y: -0.14, z: H * 0.8, rx: 0.24, ry: 0.18, rz: 0.24 });
+      noseOf(f, "dot", -0.06, H * 0.8 + 0.22, 0.06);
+      grin(f, { y: -0.24, z: H * 0.9, w: 0.16, h: 0.07, teeth: 3 });
+      earsRound(f, body, mat(f, "#d1d5db"), { x: 0.28, y: H * 0.76, r: 0.11 });
+      tailOf(f, "bushy", body, mat(f, "#1f2937"));
+      return { top: H * 1.0 };
+    },
+  },
+  sloth: {
+    body: (f) => mat(f, "#a8743f"),
+    belly: "#e7d1a9",
+    hands: "bare",
+    build(f, body) {
+      headSphere(f, body);
+      muzzle(f, "#e7d1a9", { y: -0.04, z: H * 0.78, rx: 0.32, ry: 0.29, rz: 0.18 });
+      for (const side of [1, -1]) {
+        const patch = f.add(SPHERE(1), mat(f, "#5c3a26"), side * 0.17, 0.06, H * 0.86, f.head);
+        patch.scale.set(0.12, 0.07, 0.08);
+        patch.rotation.z = side * 0.5;
+      }
+      bigEyes(f, { x: 0.17, y: 0.06, z: H * 0.9, rx: 0.06, ry: 0.05, dark: true });
+      noseOf(f, "dot", -0.1, H * 0.94, 0.045);
+      grin(f, { y: -0.2, z: H * 0.9, w: 0.17, h: 0.05 });
+      return { top: H * 1.0 };
+    },
+  },
+  axolotl: {
+    body: (f) => mat(f, pick(["#f9a8d4", "#fbcfe8", "#f0abfc"], f.name, "a")),
+    belly: "#fce7f3",
+    hands: "bare",
+    build(f, body) {
+      headSphere(f, body, H, 0.9, 0.95);
+      const frill = mat(f, "#ec4899");
+      for (const side of [1, -1]) {
+        for (let i = 0; i < 3; i++) {
+          const a = 0.35 + i * 0.5;
+          f.add(SPHERE(0.075 - i * 0.012), frill, side * (H * 0.86 + Math.cos(a) * 0.12), 0.1 - i * 0.14, -0.1 - i * 0.1, f.head);
+        }
+      }
+      bigEyes(f, { x: 0.18, y: 0.08, z: H * 0.78, rx: 0.07, ry: 0.07, dark: true });
+      grin(f, { y: -0.14, z: H * 0.88, w: 0.26, h: 0.06 });
+      cheeks(f, -0.06, H * 0.8, 0.3);
+      return { top: H * 0.92 };
+    },
+  },
+  yeti: {
+    body: (f) => mat(f, "#f3f4f6"),
+    belly: "#ffffff",
+    build(f, body) {
+      headSphere(f, body, H * 1.04);
+      muzzle(f, "#93c5fd", { y: -0.04, z: H * 0.76, rx: 0.3, ry: 0.3, rz: 0.2 });
+      bigEyes(f, { x: 0.14, y: 0.08, z: H * 0.9, rx: 0.08, ry: 0.09, dark: true });
+      grin(f, { y: -0.2, z: H * 0.94, w: 0.18, h: 0.08, teeth: 4, fangs: true });
+      for (const x of [-0.14, 0, 0.14]) f.add(SPHERE(0.1), body, x, H * 0.98, -0.02 + Math.abs(x) * 0.3, f.head);
+      return { top: H * 1.1 };
+    },
+  },
+  astronaut: {
+    body: (f) => mat(f, "#f8fafc"),
+    build(f) {
+      const suit = mat(f, "#f8fafc");
+      headSphere(f, suit, H * 1.06);
+      const visor = f.add(SPHERE(1), mat(f, "#0f172a", "#1e3a8a", 0.5), 0, 0.02, H * 0.6, f.head);
+      visor.scale.set(0.36, 0.3, 0.32);
+      const glint = f.add(SPHERE(0.05), f.k.pal.unlit("#ffffff"), 0.14, 0.14, H * 0.6 + 0.26, f.head);
+      glint.castShadow = false;
+      f.add(new THREE.CylinderGeometry(0.02, 0.02, 0.26, 5), mat(f, "#9aa3b2"), 0.24, H * 1.0, -0.1, f.head);
+      f.add(SPHERE(0.045), f.k.pal.glow("#ff3b3b", 1.4), 0.24, H * 1.0 + 0.15, -0.1, f.head);
+      f.add(new THREE.TorusGeometry(H * 0.9, 0.04, 6, 20), mat(f, "#9aa3b2"), 0, -H * 0.75, 0, f.head).rotation.x = Math.PI / 2;
+      return { top: H * 1.08 };
+    },
+  },
+  ninja: {
+    body: (f) => mat(f, "#1f2937"),
+    build(f, body) {
+      headSphere(f, body);
+      const skin = mat(f, pick(SKINS, f.name, "s"));
+      const slit = f.add(SPHERE(1), skin, 0, 0.08, H * 0.74, f.head);
+      slit.scale.set(0.32, 0.1, 0.24);
+      bigEyes(f, { x: 0.13, y: 0.08, z: H * 0.9, rx: 0.07, ry: 0.05, pupil: "#1b1b24", tilt: -0.3 });
+      const red = mat(f, "#dc2626");
+      f.add(new THREE.TorusGeometry(H * 0.98, 0.035, 6, 24), red, 0, 0.2, 0, f.head).rotation.x = Math.PI / 2;
+      for (const side of [1, -1]) {
+        const tail = f.add(new THREE.BoxGeometry(0.07, 0.42, 0.02), red, side * 0.1, 0.0, -H * 0.98, f.head);
+        tail.rotation.z = side * 0.35;
+        tail.rotation.x = 0.3;
+      }
+      return { top: H * 1.0 };
+    },
+  },
+  zombie: {
+    body: (f) => mat(f, "#86a85f"),
+    hands: "bare",
+    build(f) {
+      const skin = mat(f, "#9fbf6a");
+      headSphere(f, skin);
+      bigEyes(f, { x: 0.15, y: 0.07, z: H * 0.8, rx: 0.11, ry: 0.1, white: "#fef9c3", pupil: "#3f6212", pr: 0.045, tilt: 0.35 });
+      grin(f, { y: -0.17, z: H * 0.88, w: 0.22, h: 0.07, teeth: 3, color: "#4a1020" });
+      const patch = f.add(SPHERE(1), mat(f, "#5b7a3a"), -0.26, -0.05, H * 0.7, f.head);
+      patch.scale.set(0.09, 0.07, 0.06);
+      const hair = mat(f, "#1f2937");
+      for (const [x, z, r] of [
+        [-0.12, 0.02, 0.3],
+        [0.05, 0.08, -0.2],
+        [0.17, -0.06, 0.5],
+      ]) {
+        const spike = f.add(new THREE.ConeGeometry(0.05, 0.22, 5), hair, x, H * 0.98, z, f.head);
+        spike.rotation.z = r;
+      }
+      return { top: H * 1.0 };
+    },
+  },
 };
 
 /** The driver: torso, arms (pivoting at the shoulders), the character's head, then the hat. */
