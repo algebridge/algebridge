@@ -615,7 +615,8 @@ class Game implements GameHandle, CombatCtx {
       b.update(dt, now);
       if (!b.active) continue;
       for (const k of this.karts) {
-        if (!k.alive || k.pendingBooster) continue;
+        // A loaded kart drives past boxes: the booster has to be used first.
+        if (!k.alive || k.pendingBooster || k.weapon) continue;
         const dx = k.pos.x - b.x;
         const dz = k.pos.z - b.z;
         if (dx * dx + dz * dz < 1.75 * 1.75 && Math.abs(k.pos.y + 0.6 - b.y) < 2.2) {

@@ -8,7 +8,8 @@ import { answerIsRight } from "@/lib/grading";
 import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { getProgress } from "@/lib/progress";
-import { pickRinkProblem, type RinkProblem } from "@/lib/rink";
+import type { RinkProblem } from "@/lib/rink";
+import { pickCartsProblem } from "@/lib/algecarts/problems";
 import { createGame } from "@/lib/algecarts/engine/Game";
 import { applyRewards, levelOf, matchRewards, type Profile } from "@/lib/algecarts/engine/profile";
 import type { ArenaId, GameHandle, HudState, WeaponId } from "@/lib/algecarts/engine/types";
@@ -46,7 +47,8 @@ interface FullscreenEl extends HTMLElement {
  * other games, with the problem a `?` box stops for drawn by
  * GameProblemDialog over it. A right answer loads the booster and pays like
  * every other game, up to the shared daily cap; a wrong one leaves the box
- * empty. The game pauses while the card is up.
+ * empty. The match runs on behind the card: the engine parks and shields the
+ * student's kart until the answer is in.
  *
  * Full screen (the button at the top right of the stage, or F) sends the
  * stage itself full screen, so the question card, which lives inside it,
@@ -111,10 +113,10 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
             hud.update(s);
             scoreboard.update(s);
           },
-          // The math gate: a head-math problem from the unit the student is on.
+          // The math gate: a bare problem, numbers and symbols only, from the unit the student is on.
           requestBooster: (req) =>
             new Promise<WeaponId | null>((resolve) => {
-              const item = pickRinkProblem(getProgress(), seen.current);
+              const item = pickCartsProblem(getProgress(), seen.current);
               if (!item) {
                 resolve(req.suggested);
                 return;
@@ -123,7 +125,6 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
               if (seen.current.size > 40) seen.current = new Set([...seen.current].slice(-20));
               if (process.env.NODE_ENV === "development") (window as unknown as { __cartsItem?: RinkProblem }).__cartsItem = item;
               pending.current = { resolve, suggested: req.suggested };
-              game.setPaused(true);
               setAnswer("");
               setVerdict(null);
               setOpen(item);
@@ -369,7 +370,6 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
     setVerdict(null);
     const p = pending.current;
     pending.current = null;
-    gameRef.current?.setPaused(false);
     p?.resolve(right ? p.suggested : null);
     const profile = profileRef.current;
     const store = storeRef.current;

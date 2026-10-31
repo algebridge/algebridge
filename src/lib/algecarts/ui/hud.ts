@@ -142,7 +142,7 @@ export class Hud {
         q.wIcon.innerHTML = "";
       }
       this.text("wName", "No booster");
-      this.text("wAmmo", s.pending ? "Answer to unlock" : "Drive through a ? box");
+      this.text("wAmmo", s.pending ? "Answer to load it" : "Drive through a ? box");
     }
 
     // Shield or boost timer.
