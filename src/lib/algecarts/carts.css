@@ -21,11 +21,48 @@
   box-sizing: border-box;
 }
 
-.algecarts {
+/* The stage: the panel the page gives the game (4:3 on a phone, 16:9 from a
+   tablet up, never taller than the window), the element that goes full
+   screen, and, where the Fullscreen API is missing (iPhones), the box that
+   pins itself over the page instead (.full). The game's root fills it. */
+.algecarts-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #0f1226;
+}
+@media (min-width: 768px) {
+  .algecarts-stage {
+    aspect-ratio: 16 / 9;
+    width: min(100%, calc((100dvh - 11rem) * 16 / 9));
+  }
+}
+.algecarts-stage.full {
   position: fixed;
   inset: 0;
   z-index: 500;
+  width: auto;
+  aspect-ratio: auto;
+  /* The page wrapper spaces its children with a margin rule that outranks this one. */
+  margin: 0 !important;
+  border-radius: 0;
+}
+.algecarts-stage:fullscreen {
+  border-radius: 0;
+}
+.algecarts-stage:-webkit-full-screen {
+  border-radius: 0;
+}
+
+.algecarts {
+  position: absolute;
+  inset: 0;
   margin: 0;
+  /* Sizes inside the game read the stage (cqw, @container), never the window. */
+  container-type: inline-size;
   background: var(--ink);
   color: #fff;
   font-family: var(--body);
@@ -103,7 +140,7 @@
 .algecarts .logo {
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(44px, 9vw, 64px);
+  font-size: clamp(44px, 9cqw, 64px);
   line-height: 0.95;
   letter-spacing: -0.02em;
   text-align: center;
@@ -417,7 +454,7 @@
 }
 
 .algecarts .countdown {
-  font: 800 clamp(90px, 18vw, 160px)/1 var(--display);
+  font: 800 clamp(90px, 18cqw, 160px)/1 var(--display);
   color: var(--yellow);
   -webkit-text-stroke: 3px #4a2d00;
   text-shadow: 0 8px 0 #4a2d00, 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -458,7 +495,7 @@
 }
 
 .algecarts .message-title {
-  font: 800 clamp(28px, 5vw, 44px)/1.05 var(--display);
+  font: 800 clamp(28px, 5cqw, 44px)/1.05 var(--display);
   letter-spacing: 0.02em;
 }
 
@@ -683,7 +720,7 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  min-width: min(440px, 92vw);
+  min-width: min(440px, 92cqw);
   padding: 18px 20px;
   border-radius: 22px;
   background: var(--glass-2);
@@ -953,9 +990,10 @@
   border-color: rgba(255, 93, 143, 0.75);
 }
 
-.algecarts /* ---------- Sound button ---------- */
+/* ---------- Sound and full screen buttons ---------- */
 
-.sound {
+.algecarts .sound,
+.algecarts .full-btn {
   position: absolute;
   top: 14px;
   right: 16px;
@@ -969,7 +1007,12 @@
   z-index: 5;
 }
 
-.algecarts.playing .sound {
+.algecarts .full-btn {
+  right: 64px;
+}
+
+.algecarts.playing .sound,
+.algecarts.playing .full-btn {
   top: 78px;
 }
 
@@ -979,28 +1022,28 @@
 
 .algecarts /* ---------- Small screens ---------- */
 
-@media (max-width: 720px) {
-  .hud-top {
+@container (max-width: 720px) {
+  .algecarts .hud-top {
     grid-template-columns: 1fr auto;
   }
-  .feed {
+  .algecarts .feed {
     grid-row: 2;
     grid-column: 1 / -1;
   }
-  .hint {
+  .algecarts .hint {
     display: none;
   }
-  .hud-bottom {
+  .algecarts .hud-bottom {
     grid-template-columns: 1fr;
     justify-items: center;
   }
-  .weapon {
+  .algecarts .weapon {
     min-width: 0;
   }
-  .swatches {
+  .algecarts .swatches {
     grid-template-columns: repeat(6, 1fr);
   }
-  .controls {
+  .algecarts .controls {
     display: none;
   }
 }
@@ -1043,7 +1086,7 @@
 }
 
 .algecarts .g-head .logo {
-  font-size: clamp(32px, 5vw, 44px);
+  font-size: clamp(32px, 5cqw, 44px);
 }
 
 .algecarts .g-account {
@@ -1352,7 +1395,7 @@
   padding: 6px 10px;
 }
 
-@media (max-width: 860px) {
+@container (max-width: 860px) {
   .algecarts .g-body {
     grid-template-columns: 1fr;
   }

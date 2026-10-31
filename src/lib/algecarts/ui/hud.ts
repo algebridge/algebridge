@@ -33,7 +33,7 @@ export class Hud {
           <div class="weapon-body"><div class="weapon-name" data-q="wName">No booster</div><div class="weapon-ammo" data-q="wAmmo">Drive through a ? box</div></div>
         </div>
         <div class="active hidden" data-q="active"><div class="active-icon" data-q="aIcon"></div><div class="active-bar"><div class="active-fill" data-q="aFill"></div></div></div>
-        <div class="hint">WASD drive · Space fire · Tab scores · M sound · Esc garage</div>
+        <div class="hint">WASD drive · Space fire · Tab scores · M sound · F full screen · Esc garage</div>
       </div>
       <div class="speedlines" data-q="speed"></div>
       <div class="vignette" data-q="vignette"></div>

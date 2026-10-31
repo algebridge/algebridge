@@ -7,9 +7,10 @@ import { useAuth } from "@/lib/auth";
 import { firstNameOf, isCartsTester } from "@/lib/algecarts/testers";
 
 /**
- * /games/carts: the kart arena, as a demo for a few testers. Anyone else
- * gets a short note and the way back. A local-only deployment, with no
- * accounts to check, opens it for whoever is there.
+ * /games/carts: the kart arena, as a demo for a few testers, on a stage in
+ * the page like the other games. Anyone else gets a short note and the way
+ * back. A local-only deployment, with no accounts to check, opens it for
+ * whoever is there.
  */
 export default function CartsPage() {
   const { user, profile, loading, configured } = useAuth();
@@ -42,7 +43,18 @@ export default function CartsPage() {
   }
 
   const name = firstNameOf(profile?.displayName) || "You";
-  return <AlgeCarts userId={user?.id ?? "local"} name={name} onExit={() => router.push("/games")} />;
+  return (
+    <div className="space-y-5">
+      <header>
+        <h1 className="page-title">Alge Carts</h1>
+        <p className="page-subtitle">
+          Eight karts, one arena, three minutes. Drive into a question box and answer it to load the booster. The button at the top right of the
+          track, or F, takes it full screen; Esc brings the page back. A demo for the testers.
+        </p>
+      </header>
+      <AlgeCarts userId={user?.id ?? "local"} name={name} onExit={() => router.push("/games")} />
+    </div>
+  );
 }
 
 function Note({ title, children }: { title: string; children: React.ReactNode }) {

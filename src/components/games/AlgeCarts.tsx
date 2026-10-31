@@ -23,19 +23,38 @@ import "@/lib/algecarts/carts.css";
 
 const ARENA_KEY = "algebridge:carts:arena";
 
+const ICON_EXPAND = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>`;
+const ICON_COMPRESS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>`;
+
 interface Pending {
   resolve: (w: WeaponId | null) => void;
   suggested: WeaponId;
 }
 
+/** Older Safari spells the Fullscreen API with a prefix. */
+interface FullscreenDoc extends Document {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+interface FullscreenEl extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
 /**
  * The kart arena on AlgeBridge: the engine and its garage, HUD and results
- * (plain DOM, from lib/algecarts) inside one fixed box, with the problem a
- * `?` box stops for drawn by GameProblemDialog over it. A right answer loads
- * the booster and pays like every other game, up to the shared daily cap; a
- * wrong one leaves the box empty. The game pauses while the card is up.
+ * (plain DOM, from lib/algecarts) in a stage that sits in the page like the
+ * other games, with the problem a `?` box stops for drawn by
+ * GameProblemDialog over it. A right answer loads the booster and pays like
+ * every other game, up to the shared daily cap; a wrong one leaves the box
+ * empty. The game pauses while the card is up.
+ *
+ * Full screen (the button at the top right of the stage, or F) sends the
+ * stage itself full screen, so the question card, which lives inside it,
+ * stays visible; Esc gives the page back. Where the Fullscreen API is
+ * missing (iPhones) the stage pins itself over the page instead.
  */
 export function AlgeCarts({ userId, name, onExit }: { userId: string; name: string; onExit: () => void }) {
+  const stageRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<GameHandle | null>(null);
   const hudRef = useRef<Hud | null>(null);
@@ -53,7 +72,8 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    const stage = stageRef.current;
+    if (!root || !stage) return;
     let disposed = false;
     const store = new BridgeysProfileStore(userId, name);
     storeRef.current = store;
@@ -175,6 +195,9 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
           touch?.show();
           root.classList.add("playing");
           canvas.focus();
+          // On a phone the stage is a few hundred pixels wide: too small for
+          // touch pads, so Play takes it full screen (the Play tap is the gesture).
+          if (coarse && stage.clientWidth < 640 && !isFull()) void enterFull();
         },
         {
           footNote: "Demo for the testers. The Bridgeys are your AlgeBridge Bridgeys: a right answer on the track pays like the other games, and the shop spends them.",
@@ -185,6 +208,62 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
       // The question gate is always on here; the garage's switch is not shown.
       garage.root.querySelector(".toggle")?.classList.add("hidden");
       garage.show();
+
+      // Full screen: the stage goes full screen as a whole. Where the browser
+      // has no Fullscreen API for a div (iPhones), or refuses, the stage pins
+      // itself over the page with the .full class instead.
+      const doc = document as FullscreenDoc;
+      const el = stage as FullscreenEl;
+      const nativeFull = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null) === stage;
+      const isFull = () => nativeFull() || stage.classList.contains("full");
+      const fullBtn = document.createElement("button");
+      fullBtn.className = "full-btn";
+      const paintFull = () => {
+        const on = isFull();
+        fullBtn.innerHTML = on ? ICON_COMPRESS : ICON_EXPAND;
+        fullBtn.setAttribute("aria-label", on ? "Leave full screen" : "Full screen");
+        fullBtn.title = on ? "Leave full screen (F)" : "Full screen (F)";
+        game.resize();
+      };
+      const pinFull = () => {
+        stage.classList.add("full");
+        paintFull();
+      };
+      const enterFull = async () => {
+        if (el.requestFullscreen) {
+          try {
+            // A request the browser's host never answers (an embedded web
+            // view) stays pending for good: give it a moment, then pin.
+            await Promise.race([el.requestFullscreen(), new Promise<void>((_, reject) => setTimeout(() => reject(new Error("slow")), 800))]);
+            return;
+          } catch {
+            /* Refused (an iframe without allowfullscreen, say) or silent: pin the stage. */
+          }
+          if (nativeFull()) return;
+        } else if (el.webkitRequestFullscreen) {
+          el.webkitRequestFullscreen();
+          return;
+        }
+        pinFull();
+      };
+      const exitFull = () => {
+        if (nativeFull()) {
+          const out = doc.exitFullscreen ? doc.exitFullscreen() : doc.webkitExitFullscreen?.();
+          void Promise.resolve(out).catch(() => undefined);
+        }
+        stage.classList.remove("full");
+        paintFull();
+      };
+      const toggleFull = () => {
+        if (isFull()) exitFull();
+        else void enterFull();
+        canvas.focus();
+      };
+      fullBtn.addEventListener("click", toggleFull);
+      document.addEventListener("fullscreenchange", paintFull);
+      document.addEventListener("webkitfullscreenchange", paintFull);
+      paintFull();
+      root.appendChild(fullBtn);
 
       const soundBtn = document.createElement("button");
       soundBtn.className = "sound";
@@ -204,17 +283,30 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
       soundBtn.addEventListener("click", () => {
         game.unlockAudio();
         toggleMute();
+        canvas.focus();
       });
       root.appendChild(soundBtn);
 
       const onKey = (e: KeyboardEvent) => {
         const t = e.target as HTMLElement | null;
         const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
-        if ((e.code === "Escape" || e.key === "Escape") && joined && !pending.current) toGarage();
-        if ((e.code === "KeyM" || e.key === "m" || e.key === "M") && !typing && !pending.current) {
+        if (e.code === "Escape" || e.key === "Escape") {
+          // In the browser's own full screen Esc is the browser's: it gives
+          // the page back and does nothing else. Pinned, Esc unpins first.
+          if (nativeFull()) return;
+          if (stage.classList.contains("full")) {
+            exitFull();
+            return;
+          }
+          if (joined && !pending.current) toGarage();
+          return;
+        }
+        if (typing || pending.current) return;
+        if (e.code === "KeyM" || e.key === "m" || e.key === "M") {
           game.unlockAudio();
           toggleMute();
         }
+        if (e.code === "KeyF" || e.key === "f" || e.key === "F") toggleFull();
       };
       window.addEventListener("keydown", onKey);
       const unlockOnce = () => {
@@ -229,6 +321,9 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
         window.removeEventListener("keydown", onKey);
         window.removeEventListener("pointerdown", unlockOnce);
         window.removeEventListener("keydown", unlockOnce);
+        document.removeEventListener("fullscreenchange", paintFull);
+        document.removeEventListener("webkitfullscreenchange", paintFull);
+        if (isFull()) exitFull();
         if (saveTimer) clearTimeout(saveTimer);
         pending.current?.resolve(null);
         pending.current = null;
@@ -238,6 +333,7 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
         touch?.dispose();
         scoreboard.root.remove();
         soundBtn.remove();
+        fullBtn.remove();
       };
     })();
 
@@ -280,8 +376,10 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
     if (profile && store) profile.coins = store.balance();
   }
 
+  // The question card is inside the stage so it stays on screen in full screen,
+  // where only the full screen element shows.
   return (
-    <>
+    <div ref={stageRef} className="algecarts-stage shadow-raised ring-1 ring-slate-900/5">
       <div ref={rootRef} className="algecarts" />
       {open && (
         <GameProblemDialog
@@ -296,6 +394,6 @@ export function AlgeCarts({ userId, name, onExit }: { userId: string; name: stri
           label="Booster question"
         />
       )}
-    </>
+    </div>
   );
 }
