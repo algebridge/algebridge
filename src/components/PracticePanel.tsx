@@ -18,7 +18,7 @@ import { loadSeen, rememberSeen, shapeKey, spreadShapes } from "@/lib/problem-or
 import type { MasteryLevel } from "@/types";
 import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
-import { allUnits, units } from "@/data/curriculum";
+import { allUnits } from "@/data/curriculum";
 import { noteAnswered, placeOfSkill, trackInsight } from "@/lib/insights-client";
 import { DailyGoalRing } from "@/components/DailyGoalRing";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
@@ -28,9 +28,7 @@ import { useSound } from "@/hooks/useSound";
 import { useSpeech } from "@/hooks/useSpeech";
 import { AnswerFeedback, feedbackLine } from "@/components/AnswerFeedback";
 import { MistakeNote } from "@/components/MistakeNote";
-import { QuoteCard } from "@/components/QuoteCard";
 import { WorkedSteps } from "@/components/WorkedSteps";
-import { quoteForFinish } from "@/data/quotes";
 import { diagnoseMistake, explanationSteps, type Attempt } from "@/lib/diagnose";
 import { Icon } from "@/components/Icon";
 import { openInterestsPicker } from "@/components/InterestsPrompt";
@@ -41,7 +39,8 @@ import { replyToSubmit, SUBMIT_EVENT } from "@/lib/answer-bridge";
 import { SlipSteps } from "@/components/SlipSteps";
 import { ProblemPicture } from "@/components/ProblemPicture";
 import { pictureFor } from "@/lib/pictures";
-import { HUES, hueVars, topicHue, unitHue } from "@/lib/hues";
+import { HUES, hueVars, topicHue } from "@/lib/hues";
+import { SkillDone, type SkillDoneFacts } from "@/components/SkillDone";
 import { MathText, PromptText } from "@/components/PromptText";
 import { ScratchpadButton, useScratchpadSurface } from "@/components/Scratchpad";
 import { AnswerField, type AnswerFieldHandle } from "@/components/AnswerField";
@@ -86,13 +85,6 @@ interface PracticePanelProps {
 }
 
 /** The finish moment, shown over the card until the student moves on. */
-interface Celebration {
-  paid: number;
-  unitNumber: number | null;
-  unitBonus: number;
-  prizeName: string | null;
-}
-
 /** Where this device remembers that the student hid the drawing of each problem. */
 const VIZ_PREF_KEY = "ab-visualize";
 
@@ -247,7 +239,7 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
   const [eliminatedSteps, setEliminatedSteps] = useState<number[]>([]);
   /** "Show me how" was pressed: the worked answer is on screen and this problem is over. */
   const [revealed, setRevealed] = useState(false);
-  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [celebration, setCelebration] = useState<SkillDoneFacts | null>(null);
   /** The last unit of the course was just finished: the whole screen celebrates. */
   const [courseParty, setCourseParty] = useState(false);
   const [certificateName] = useCertificateName();
@@ -1124,75 +1116,33 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
 
   return (
     <div className={`space-y-4 ${season === "halloween" ? "season-practice" : ""}`}>
-      {courseParty && <CourseCelebration progress={getProgress()} name={certificateName.trim()} onClose={() => setCourseParty(false)} />}
-      {celebration && (
-        <div
-          style={hueVars(unitHue(unitOfSkill?.id ?? units[0].id))}
-          className="hue-banner animate-pop-in relative overflow-hidden rounded-2xl px-5 py-5 shadow-sm sm:px-6"
-        >
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20">
-              <Icon name={celebration.unitNumber ? "trophy" : "check"} size={26} />
-            </span>
-            {/* Read out by the practice's status line below, which is on the page before this arrives.
-                min-w-[14rem]: in the 640px lesson column the text used to get 130px beside the buttons. */}
-            <div className="min-w-[14rem] flex-1">
-              <p className="text-lg font-bold leading-tight">
-                {celebration.unitNumber ? `Unit ${celebration.unitNumber} complete` : "Skill complete"}
-              </p>
-              <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm opacity-95">
-                <span>{skill.title} is done.</span>
-                <span className="inline-flex items-center gap-1 font-semibold">
-                  <BridgeysLogo size={15} />+{celebration.paid + celebration.unitBonus} Bridgeys
-                </span>
-                {celebration.prizeName && <span>and the {celebration.prizeName} for your house.</span>}
-              </p>
-            </div>
-            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-              {celebration.unitNumber && unitOfSkill && (
-                <Link
-                  href={`/certificate/${unitOfSkill.id}`}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10"
-                >
-                  <Icon name="printer" size={15} />
-                  Your certificate
-                </Link>
-              )}
-              {celebration.prizeName && (
-                <Link href="/house" className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10">
-                  Place it
-                </Link>
-              )}
-              {next ? (
-                <Link
-                  href={next.href}
-                  className="inline-flex min-h-11 items-center rounded-xl bg-surface px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px"
-                >
-                  Next: {next.title}
-                  <Icon name="arrow-right" size={15} className="ml-1.5 shrink-0" />
-                </Link>
-              ) : (
-                <Link href="/" className="inline-flex min-h-11 items-center rounded-xl bg-surface px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-px">
-                  Back to the course
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setCelebration(null);
-                  // The banner, and this button with it, goes away: the focus goes on to the practice.
-                  requestAnimationFrame(() => (nextRef.current ? nextRef.current.focus() : answerField.current?.focus()));
-                }}
-                className="inline-flex min-h-11 items-center rounded-xl border border-white/35 px-5 py-2 text-sm font-semibold transition hover:bg-white/10"
-              >
-                Keep practicing
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 border-t border-white/20 pt-3">
-            <QuoteCard quote={quoteForFinish(skill.id)} variant="line" />
-          </div>
-        </div>
+      {courseParty && (
+        <CourseCelebration
+          progress={getProgress()}
+          name={certificateName.trim()}
+          onClose={() => {
+            // The course party said it all; the skill's own card stays down.
+            setCourseParty(false);
+            setCelebration(null);
+          }}
+        />
+      )}
+      {/* The finish comes to the student, over the page, wherever they are
+          on it: the last answer is usually checked far below this card's top.
+          Read out by the practice's status line below. */}
+      {celebration && !courseParty && (
+        <SkillDone
+          facts={celebration}
+          skill={skill}
+          unit={unitOfSkill}
+          required={ps.required}
+          next={next}
+          onClose={() => {
+            setCelebration(null);
+            // The card goes away: the focus goes on to the practice.
+            requestAnimationFrame(() => (nextRef.current ? nextRef.current.focus() : answerField.current?.focus()));
+          }}
+        />
       )}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-surface px-4 py-3 shadow-panel">

@@ -315,6 +315,56 @@ html.lenis body {
   animation: pop-in 0.3s ease-out;
 }
 
+/* ── Skill complete (SkillDone.tsx) ───────────────────────────
+   The card lands with a little bounce, its ring draws itself, the
+   mark pops into it, and the pips fill one after another. Reduced
+   motion collapses every duration above, so it all just appears. */
+@keyframes done-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-done-fade {
+  animation: done-fade 0.25s ease-out both;
+}
+
+@keyframes done-in {
+  0% { opacity: 0; transform: translateY(28px) scale(0.92); }
+  60% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+.animate-done-in {
+  animation: done-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+@keyframes done-ring {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+.done-ring {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  animation: done-ring 0.7s ease-out 0.15s forwards;
+}
+
+@keyframes done-icon {
+  0%, 45% { opacity: 0; transform: scale(0.4); }
+  75% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-done-icon {
+  animation: done-icon 0.8s ease-out both;
+}
+
+@keyframes done-pip {
+  from { opacity: 0.35; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.done-pip {
+  animation: done-pip 0.35s ease-out both;
+}
+
 @keyframes shake-x {
   10%, 90% { transform: translateX(-2px); }
   20%, 80% { transform: translateX(4px); }

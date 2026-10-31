@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MasteryLevel, Skill, Unit } from "@/types";
 import { courseOfUnit, getNextSkill, getPrevSkill } from "@/data/curriculum";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import { SkillRules } from "@/components/SkillRules";
 import { WorkedExamples } from "@/components/WorkedExamples";
 import { workedExamplesFor } from "@/data/worked-examples";
 import { rulesForSkill } from "@/data/skill-rules";
@@ -47,6 +46,74 @@ function StepMark({ n, done }: { n: number; done: boolean }) {
     <span aria-hidden className="hue-ink hue-line flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-surface text-sm font-semibold">
       {n}
     </span>
+  );
+}
+
+/** The parts of a lesson, each of which folds from its heading. */
+type PartId = "watch" | "practice" | "examples" | "learn" | "help";
+
+/**
+ * One part of the lesson. The heading is the button, so the whole row is the
+ * target, and a folded part is just its heading: the page stays short, and
+ * the practice stays near the top. `keep` holds the content mounted while
+ * folded, for the practice, whose problem would otherwise start over.
+ */
+function LessonPart({
+  id,
+  n,
+  done = false,
+  title,
+  badge,
+  hint,
+  open,
+  onToggle,
+  keep = false,
+  children,
+}: {
+  id: PartId;
+  n?: number;
+  done?: boolean;
+  title: string;
+  badge?: React.ReactNode;
+  /** One line under the heading, shown while the part is open. */
+  hint?: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  keep?: boolean;
+  children: React.ReactNode;
+}) {
+  const bodyId = `${id}-body`;
+  return (
+    <section id={id} className="scroll-mt-20">
+      <h2 className="section-title -mx-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={onToggle}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-slate-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bridge-500"
+        >
+          {n !== undefined && <StepMark n={n} done={done} />}
+          <span className="min-w-0">{title}</span>
+          {badge}
+          {done && <span className="sr-only">, done</span>}
+          <span aria-hidden className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-medium text-slate-500">
+            {open ? "Hide" : "Show"}
+            <Icon name={open ? "chevron-up" : "chevron-down"} size={16} />
+          </span>
+        </button>
+      </h2>
+      {open && hint && <p className="mt-1 text-sm text-slate-500">{hint}</p>}
+      {keep ? (
+        <div id={bodyId} hidden={!open} className="mt-3">
+          {children}
+        </div>
+      ) : open ? (
+        <div id={bodyId} className="mt-3">
+          {children}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -101,6 +168,47 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const [backToCheck, setBackToCheck] = useState(false);
   const looking = practiceOnly && state?.open === false;
 
+  /**
+   * Which parts the student opened or folded, this visit; unset means the
+   * part's own default. Kept with the skill it belongs to, so the next lesson
+   * starts fresh without a flash of this one's folds.
+   */
+  const [folds, setFolds] = useState<{ id: string; parts: Partial<Record<PartId, boolean>> }>({ id: skill.id, parts: {} });
+  const parts = folds.id === skill.id ? folds.parts : {};
+  const setPart = useCallback(
+    (part: PartId, open: boolean) => {
+      setFolds((f) => ({ id: skill.id, parts: { ...(f.id === skill.id ? f.parts : {}), [part]: open } }));
+    },
+    [skill.id]
+  );
+  /**
+   * The video starts folded once it has been watched, or the skill is done,
+   * so a student coming back lands on the practice. Decided once per lesson,
+   * when it first shows: a video marked watched while it plays stays up.
+   */
+  const watchFold = useRef<{ id: string; folded: boolean } | null>(null);
+  if (state && watchFold.current?.id !== skill.id) {
+    const p = getSkillProgress(skill.id);
+    watchFold.current = { id: skill.id, folded: p.videoWatched || p.level === "proficient" || p.level === "mastered" };
+  }
+  // What you'll learn and See it done wait until they are asked for: the
+  // practice is the lesson, and it should be on the screen without scrolling.
+  const partDefaults: Record<PartId, boolean> = {
+    watch: !(watchFold.current?.id === skill.id && watchFold.current.folded),
+    practice: true,
+    examples: false,
+    learn: false,
+    help: true,
+  };
+  const partOpen = (part: PartId) => parts[part] ?? partDefaults[part];
+
+  // A link into the lesson (#watch from the house's TV, #examples from the
+  // practice's own hint) opens the part it points at.
+  useEffect(() => {
+    const at = window.location.hash.slice(1);
+    if (at === "watch" || at === "practice" || at === "examples") setPart(at, true);
+  }, [skill.id, setPart]);
+
   useEffect(() => {
     setPracticeOnly(false);
     setPracticeRight(0);
@@ -129,6 +237,7 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const skillIndex = unit.skills.findIndex((s) => s.id === skillId) + 1;
   const pay = bridgeysForSkill(skill.id);
   const prize = getUnitPrize(unit.id);
+  const hasExamples = workedExamplesFor(skill.id).length > 0;
 
   function handleVideoWatched() {
     const result = markVideoWatched(skill.id);
@@ -168,7 +277,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
   const courseName = inAlgebra2 ? "AlgeBridge 2" : "Home";
 
   return (
-    <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
+    // One column, as wide as a lesson reads well: the practice card is the page.
+    <div className="mx-auto max-w-4xl space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <Link href={courseHome} className="-my-1 inline-block rounded px-0.5 py-1 hover:text-bridge-600">{courseName}</Link>
         <span aria-hidden className="mx-2">/</span>
@@ -229,10 +339,8 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
         {!state ? (
           <div className="space-y-6" aria-busy="true">
             <p role="status" className="sr-only">Loading the lesson</p>
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-              <div className="aspect-video animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-3" />
-              <div className="hidden h-72 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2 lg:block" />
-            </div>
+            <div className="h-10 w-48 animate-pulse rounded-lg bg-slate-200/60" />
+            <div className="h-80 animate-pulse rounded-2xl bg-slate-200/60" />
           </div>
         ) : !state.open && state.byTeacher ? (
           <section className="panel">
@@ -302,156 +410,156 @@ export function LearnContent({ unit, skill, unitId, skillId }: LearnContentProps
               Teacher view: students open this skill after finishing {studentState.after.title}, or when you assign it.
             </p>
           )}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-            <div className="min-w-0 space-y-6 lg:col-span-3">
-              {/* Video first, then the problems, with worked examples under them for when they are stuck.
-                  #watch is where the house's TV and projector open the lesson. */}
-              <section id="watch" className="scroll-mt-20">
-                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={1} done={videoStepSatisfied} />
-                    Watch
-                    {videoStepSatisfied && <span className="sr-only">, done</span>}
-                  </h2>
-                  {!videoStepSatisfied && <p className="text-sm text-slate-500">Start here, or skip it if you know this.</p>}
-                </div>
-                {video.youtubeId ? (
-                  <VideoPlayer
-                    video={video}
-                    backupVideo={backupVideo}
-                    // In practice mode the watch shows on this page and goes no further.
-                    onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
-                  />
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                    <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
-                    <p className="mt-1">No lesson video is sourced for this skill yet. The worked examples below show every step.</p>
-                  </div>
-                )}
-              </section>
-
-              <section id="practice" className="scroll-mt-20">
-                <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h2 className="section-title flex items-center gap-2">
-                    <StepMark n={2} done={isSkillComplete} />
-                    Practice
-                    {spooky && <span className="season-chip">Spooky practice</span>}
-                    {isSkillComplete && <span className="sr-only">, done</span>}
-                  </h2>
-                  {!isSkillComplete && workedExamplesFor(skill.id).length > 0 && (
-                    <p className="text-sm text-slate-500">
-                      Stuck? The <a href="#examples" className="font-semibold text-bridge-700 hover:underline">worked examples</a> are right below.
-                    </p>
-                  )}
-                </div>
-                <PracticePanel
-                  skill={skill}
-                  onMasteryChange={handleMasteryChange}
-                  practiceOnly={looking}
-                  onPracticeRight={setPracticeRight}
-                  onOpenSkill={() => {
-                    // A fast run opens the skill the way passing "Show what you know" does.
-                    recordSkillCheck(skill.id, true, today());
-                    setPracticeOnly(false);
-                    showToast({
-                      icon: "check",
-                      tone: "reward",
-                      title: `${skill.title} is open`,
-                      description: "Your answers count from here.",
-                    });
-                  }}
-                  next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
-                />
-              </section>
-
-              {/* Taught before it is tested: every kind of problem in the practice,
-                  solved step by step with the reason for each step. */}
-              {workedExamplesFor(skill.id).length > 0 && (
-                <section id="examples" className="scroll-mt-20">
-                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h2 className="section-title flex items-center gap-2">
-                      <StepMark n={3} done={isSkillComplete} />
-                      See it done
-                      {isSkillComplete && <span className="sr-only">, done</span>}
-                    </h2>
-                    <p className="text-sm text-slate-500">Every kind of problem in the practice, worked step by step.</p>
-                  </div>
-                  <WorkedExamples skillId={skill.id} />
-                </section>
-              )}
-
-              <section>
-                <h2 className="section-title mb-3">Need a hand?</h2>
-                <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {school ? (
-                    <div>
-                      <p className="font-semibold text-slate-900">Stuck? Ask your teacher.</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Show them this problem. Archie can give you a hint on the first step, and your
-                        notebook keeps your work in one place.
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Message any tutor. They can start a video call with a shared whiteboard,
-                        your notebook, and a calculator, right here on AlgeBridge.
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {!school && <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>}
-                    <Link href="/notebook" className={`${school ? "btn-primary" : "btn-secondary"} text-sm`}>My notebook</Link>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            <aside aria-label="About this skill" className="min-w-0 lg:col-span-2">
-              <div className="card sticky top-24 space-y-4">
-                <div>
-                  <h3 className="font-bold text-slate-900">What you&apos;ll learn</h3>
-                  <p className="mt-2 text-sm text-slate-600">{skill.learningGoal}</p>
-                </div>
-                <SkillRules skillId={skill.id} variant="side" />
-                <div>
-                  {!rulesForSkill(skill.id).length && (
-                    <>
-                      <h3 className="font-bold text-slate-900">Key idea</h3>
-                      <p className="mt-2 text-sm text-slate-600">{skill.keyIdea}</p>
-                    </>
-                  )}
-                  {/* The Common Core standards this skill teaches, for a
-                      teacher or parent checking alignment. */}
-                  <StandardsChip skillId={skill.id} className="mt-3" />
-                </div>
-                {looking && state && !state.open ? (
-                  <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
-                    <p className="font-medium text-slate-800">You are looking ahead.</p>
-                    <p className="mt-1.5 text-xs leading-relaxed">
-                      This skill opens after {state.after.title}, or the moment you show what you know. Once it is open,
-                      5 right on the first try completes it.
-                    </p>
-                  </div>
-                ) : !teacher ? (
-                  // How to complete the skill is in the two step headings and
-                  // the practice card; what it pays is said only here.
-                  <p className="border-t border-slate-100 pt-3 text-xs text-slate-600">
-                    Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
-                    {prize ? (
-                      <>
-                        . Finish every skill in Unit {unit.number} for the{" "}
-                        <span className="font-semibold text-slate-800">{prize.name}</span>.
-                      </>
-                    ) : (
-                      "."
-                    )}
-                  </p>
-                ) : null}
+          {/* Video first, then the problems, then the worked examples and the
+              notes, each folding from its heading. The video folds itself once
+              watched; the notes and examples wait to be asked for. #watch is
+              where the house's TV and projector open the lesson. */}
+          <LessonPart
+            id="watch"
+            n={1}
+            done={videoStepSatisfied}
+            title="Watch"
+            hint={!videoStepSatisfied ? "Start here, or skip it if you know this." : undefined}
+            open={partOpen("watch")}
+            onToggle={() => setPart("watch", !partOpen("watch"))}
+          >
+            {video.youtubeId ? (
+              <VideoPlayer
+                video={video}
+                backupVideo={backupVideo}
+                // In practice mode the watch shows on this page and goes no further.
+                onWatched={looking ? () => setVideoWatched(true) : handleVideoWatched}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                <p className="font-semibold text-slate-800">{skill.keyIdea}</p>
+                <p className="mt-1">No lesson video is sourced for this skill yet. See it done, below, shows every step.</p>
               </div>
-            </aside>
-          </div>
+            )}
+          </LessonPart>
+
+          <LessonPart
+            id="practice"
+            n={2}
+            done={isSkillComplete}
+            title="Practice"
+            badge={spooky ? <span className="season-chip">Spooky practice</span> : undefined}
+            hint={
+              !isSkillComplete && hasExamples ? (
+                <>
+                  Stuck?{" "}
+                  <a href="#examples" onClick={() => setPart("examples", true)} className="font-semibold text-bridge-700 hover:underline">
+                    See it done
+                  </a>{" "}
+                  is right below.
+                </>
+              ) : undefined
+            }
+            open={partOpen("practice")}
+            onToggle={() => setPart("practice", !partOpen("practice"))}
+            keep
+          >
+            <PracticePanel
+              skill={skill}
+              onMasteryChange={handleMasteryChange}
+              practiceOnly={looking}
+              onPracticeRight={setPracticeRight}
+              onOpenSkill={() => {
+                // A fast run opens the skill the way passing "Show what you know" does.
+                recordSkillCheck(skill.id, true, today());
+                setPracticeOnly(false);
+                showToast({
+                  icon: "check",
+                  tone: "reward",
+                  title: `${skill.title} is open`,
+                  description: "Your answers count from here.",
+                });
+              }}
+              next={next ? { href: `/learn/${next.unitId}/${next.skill.id}`, title: next.skill.title } : null}
+            />
+          </LessonPart>
+
+          {/* Taught before it is tested: every kind of problem in the practice,
+              solved step by step with the reason for each step. */}
+          {hasExamples && (
+            <LessonPart
+              id="examples"
+              n={3}
+              done={isSkillComplete}
+              title="See it done"
+              hint="Every kind of problem in the practice, worked step by step."
+              open={partOpen("examples")}
+              onToggle={() => setPart("examples", !partOpen("examples"))}
+            >
+              <WorkedExamples skillId={skill.id} />
+            </LessonPart>
+          )}
+
+          <LessonPart id="learn" title="What you'll learn" open={partOpen("learn")} onToggle={() => setPart("learn", !partOpen("learn"))}>
+            <div className="card space-y-4">
+              <p className="text-sm leading-relaxed text-slate-700">{skill.learningGoal}</p>
+              {/* The rules fold out under the practice card; the key idea
+                  stands in for them where a skill has none. */}
+              {!rulesForSkill(skill.id).length && (
+                <div>
+                  <h3 className="font-bold text-slate-900">Key idea</h3>
+                  <p className="mt-1.5 text-sm text-slate-600">{skill.keyIdea}</p>
+                </div>
+              )}
+              {/* The Common Core standards this skill teaches, for a
+                  teacher or parent checking alignment. */}
+              <StandardsChip skillId={skill.id} />
+              {looking && state && !state.open ? (
+                <div className="hue-tint rounded-xl border p-3 text-sm text-slate-600">
+                  <p className="font-medium text-slate-800">You are looking ahead.</p>
+                  <p className="mt-1.5 text-xs leading-relaxed">
+                    This skill opens after {state.after.title}, or the moment you show what you know. Once it is open,
+                    5 right on the first try completes it.
+                  </p>
+                </div>
+              ) : !teacher ? (
+                // How to complete the skill is in the two step headings and
+                // the practice card; what it pays is said only here.
+                <p className="border-t border-slate-100 pt-3 text-xs text-slate-600">
+                  Pays <span className="font-semibold text-slate-800">{pay} Bridgeys</span>
+                  {prize ? (
+                    <>
+                      . Finish every skill in Unit {unit.number} for the{" "}
+                      <span className="font-semibold text-slate-800">{prize.name}</span>.
+                    </>
+                  ) : (
+                    "."
+                  )}
+                </p>
+              ) : null}
+            </div>
+          </LessonPart>
+
+          <LessonPart id="help" title="Need a hand?" open={partOpen("help")} onToggle={() => setPart("help", !partOpen("help"))}>
+            <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {school ? (
+                <div>
+                  <p className="font-semibold text-slate-900">Stuck? Ask your teacher.</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Show them this problem. Archie can give you a hint on the first step, and your
+                    notebook keeps your work in one place.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-semibold text-slate-900">Stuck? Get help from a real tutor.</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Message any tutor. They can start a video call with a shared whiteboard,
+                    your notebook, and a calculator, right here on AlgeBridge.
+                  </p>
+                </div>
+              )}
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {!school && <Link href="/tutors" className="btn-primary text-sm">Find a tutor</Link>}
+                <Link href="/notebook" className={`${school ? "btn-primary" : "btn-secondary"} text-sm`}>My notebook</Link>
+              </div>
+            </div>
+          </LessonPart>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-6">
             {prev ? (
