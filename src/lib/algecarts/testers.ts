@@ -2,7 +2,7 @@
  * Who can open the Alge Carts demo while it is a demo. Matched on the
  * account's real name, the way the unlimited-Bridgeys seed matches Ivan.
  */
-const TESTERS = ["ivan dubovyi", "zach balan", "shaurya sethi"];
+const TESTERS = ["ivan dubovyi", "zach balan", "zack balan", "shaurya sethi"];
 
 export function normalizeName(name: string | null | undefined): string {
   return (name ?? "")
