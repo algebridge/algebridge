@@ -2477,8 +2477,25 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
         return [p.start, p.result, ...p.factors.flatMap((f) => [f.top, f.bottom])];
       case "bars":
         return p.values.map(String);
+      case "balance":
+        return [...p.left, ...p.right];
+      case "strips":
+        return p.denominators.map(String);
+      case "factors":
+        return [...p.top, ...(p.bottom ?? [])].flatMap((g) => g.items.map((i) => i.text));
+      case "ladder":
+        return p.rows.map((r) => r.value ?? "");
+      case "digits":
+        return [p.digits];
+      case "squares":
+        return p.parts.flatMap((q) => [String(q.square), String(q.rest)]);
+      case "scatters":
+        return [];
+      case "givens":
+        return p.known.map((k) => k.value);
     }
   };
+  const missing: string[] = [];
   const numbers = (t: string) => (t.replace(/[−–]/g, "-").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
   for (const u of units) {
     for (const sk of u.skills) {
@@ -2489,7 +2506,10 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
         n++;
         total++;
         const pic = Pic.pictureFor(sk.id, p.prompt);
-        if (!pic) continue;
+        if (!pic) {
+          missing.push(`${sk.id}: ${p.prompt}`);
+          continue;
+        }
         d++;
         drawn++;
         if (pic.kind === "plane") {
@@ -2501,7 +2521,10 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
         }
         if (pic.kind === "numberline" && !(pic.max > pic.min)) bad.push(`${sk.id}: ${p.prompt}`);
         // A picture of the givens shows no number the prompt does not, when that number is the answer.
-        if (!pic.reveals && p.type === "numeric") {
+        // A conversion chain and a ratio table are made of the givens and unit constants (60 minutes
+        // in an hour), which can equal an answer by coincidence, so they are not held to this.
+        const givensOnly = pic.kind === "chain" || (pic.kind === "table" && pic.totals === false);
+        if (!pic.reveals && p.type === "numeric" && !givensOnly) {
           const answer = Number(p.answer);
           const inPrompt = numbers(p.prompt).some((v) => Math.abs(v - answer) < 1e-9);
           const shown = textOf(pic).flatMap(numbers).some((v) => Math.abs(v - answer) < 1e-9);
@@ -2511,7 +2534,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
       bySkill.set(sk.id, [d, n]);
     }
   }
-  ok("pictures: drawn for over half of all problems", drawn / total > 0.55, `${drawn} of ${total}`);
+  ok("pictures: every problem has one", drawn === total, `${drawn} of ${total}; missing: ${missing.slice(0, 4).join(" | ")}`);
   ok("pictures: every window is a real window", bad.length === 0, bad.slice(0, 3).join("; "));
   ok("pictures: every marked point is inside its window", outside.length === 0, outside.slice(0, 3).join("; "));
   ok("pictures: a picture of the givens never shows the answer", leaks.length === 0, leaks.slice(0, 3).join("; "));
@@ -2539,7 +2562,21 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("pictures: a conversion is a chain of factors that each equal 1", chain?.kind === "chain" && chain.factors.length === 2 && chain.factors[0].top === "60 min" && chain.factors[1].top === "60 s");
   const table = Pic.pictureFor("two-way-tables", "A survey asked 9th graders and 10th graders whether they walk to school or ride the bus. 24 of the 9th graders walk and 36 ride the bus; 30 of the 10th graders walk and 20 ride the bus. What fraction of the 9th graders walk to school? Give it as a fraction.");
   ok("pictures: a survey is a two-way table with the totals left to find", table?.kind === "table" && table.cells[0][0] === "24" && table.cells[1][1] === "20" && table.cells[2].every((c) => c === null));
-  ok("pictures: a prompt it cannot read gets none", Pic.pictureFor("slope", "What is the slope of a horizontal line?") === null && Pic.pictureFor("no-such-skill", "Solve for x: 3x + 5 = 20") === null);
+  ok("pictures: a horizontal line is drawn, any equation is a balance, and words alone get none", Pic.pictureFor("slope", "What is the slope of a horizontal line?")?.kind === "plane" && Pic.pictureFor("no-such-skill", "Solve for x: 3x + 5 = 20")?.kind === "balance" && Pic.pictureFor("no-such-skill", "Pick the true statement.") === null);
+  const bal = Pic.pictureFor("multi-step-equations", "Solve for x: 6x + 1 + 5x = 5x + 19");
+  ok("pictures: a balance holds each side's terms", bal?.kind === "balance" && bal.left.join("|") === "6x|+ 1|+ 5x" && bal.right.join("|") === "5x|+ 19" && !bal.reveals);
+  const fac = Pic.pictureFor("exponent-rules", "(x^2)^3 ÷ x^5 = x^n. What is n?");
+  ok("pictures: a quotient of powers is written out and cancelled", fac?.kind === "factors" && fac.top[0].items.length === 6 && fac.bottom?.[0].items.length === 5 && fac.bottom[0].items.every((i) => i.struck) && fac.top[0].items.filter((i) => i.struck).length === 5);
+  const lad = Pic.pictureFor("negative-fractional-exponents", "Evaluate 2^(−3). Write it as a fraction.");
+  ok("pictures: a negative exponent is the next rung of the ladder, left blank", lad?.kind === "ladder" && lad.rows.length === 7 && lad.rows[6].value === null && lad.rows[3].value === "1");
+  const dig = Pic.pictureFor("scientific-notation", "Write 450,000 in scientific notation.");
+  ok("pictures: scientific notation hops the point to after the first digit", dig?.kind === "digits" && dig.digits === "450000" && dig.from === 6 && dig.to === 1 && dig.reveals);
+  const sq = Pic.pictureFor("simplifying-radicals", "Simplify √72");
+  ok("pictures: a radical is its biggest square and the rest", sq?.kind === "squares" && sq.parts[0].square === 36 && sq.parts[0].rest === 2);
+  const rate = Pic.pictureFor("unit-basics", "A car travels 60 miles in 1 hour. How many feet per second is that?");
+  ok("pictures: a rate converts top and bottom", rate?.kind === "chain" && rate.startBottom === "1 h" && rate.factors.length === 3 && rate.result === "? ft/s");
+  const strips = Pic.pictureFor("equations-with-fractions", "What is the LCD of 1/2, 1/3, and 1/6?");
+  ok("pictures: a common denominator is fraction strips", strips?.kind === "strips" && strips.denominators.join(",") === "2,3,6");
 }
 
 

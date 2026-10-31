@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { fmt, niceRange, pretty, type NumberLineArc, type NumberLineMark, type NumberLineSpan, type Picture, type PlaneCurve, type Tone } from "@/lib/pictures";
+import { AXIS, Balance, Digits, FONT, Factors, GRID, Givens, INK, Ladder, Missing, Scatters, Squares, Strips, TEXT, TINT, minus } from "@/components/ProblemPictureMore";
 
 /**
  * Draws a picture from lib/pictures.ts. Graphs, number lines, bar models,
@@ -14,12 +15,6 @@ import { fmt, niceRange, pretty, type NumberLineArc, type NumberLineMark, type N
  * green. Everything else is the gray of graph paper.
  */
 
-const INK: Record<Tone, string> = { 0: "#2563eb", 1: "#ea580c", 2: "#059669" };
-const TINT: Record<Tone, string> = { 0: "rgba(37, 99, 235, 0.13)", 1: "rgba(234, 88, 12, 0.12)", 2: "rgba(5, 150, 105, 0.12)" };
-const GRID = "#e2e8f0";
-const AXIS = "#64748b";
-const TEXT = "#334155";
-const FONT = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 function tickStep(span: number): number {
   const target = span / 10;
@@ -419,13 +414,6 @@ function Tape({ p }: { p: Extract<Picture, { kind: "tape" }> }) {
   );
 }
 
-function Missing() {
-  return <span className="font-bold text-bridge-700">?</span>;
-}
-
-/** A typed minus as the printed one. */
-const minus = (s: string) => s.replace(/-/g, "−");
-
 function AreaModel({ p }: { p: Extract<Picture, { kind: "area" }> }) {
   return (
     <div className="inline-grid gap-1 text-[15px]" style={{ gridTemplateColumns: `auto repeat(${p.cols.length}, minmax(3.5rem, auto))` }} role="table" aria-label={p.title}>
@@ -464,8 +452,8 @@ function Table({ p }: { p: Extract<Picture, { kind: "table" }> }) {
         <thead>
           <tr>
             <th className="p-2" />
-            {p.cols.map((c) => (
-              <th key={c} scope="col" className="border-b-2 border-slate-300 px-3 py-2 text-center font-semibold text-slate-700">
+            {p.cols.map((c, i) => (
+              <th key={i} scope="col" className="border-b-2 border-slate-300 px-3 py-2 text-center font-semibold text-slate-700">
                 {c}
               </th>
             ))}
@@ -473,7 +461,7 @@ function Table({ p }: { p: Extract<Picture, { kind: "table" }> }) {
         </thead>
         <tbody>
           {p.rows.map((r, i) => (
-            <tr key={r} className={i === p.rows.length - 1 ? "border-t-2 border-slate-300" : ""}>
+            <tr key={i} className={p.totals !== false && i === p.rows.length - 1 ? "border-t-2 border-slate-300" : ""}>
               <th scope="row" className="px-3 py-2 text-left font-semibold text-slate-700">
                 {r}
               </th>
@@ -576,43 +564,65 @@ function Rect({ p }: { p: Extract<Picture, { kind: "rect" }> }) {
   );
 }
 
+/** The unit of "60 min", singular and lowercase, so "bags" and "bag" match. */
+function unitOf(text: string): string {
+  return text.replace(/^\$?[\d.,?]+\s*/, "").trim().replace(/s$/, "").toLowerCase();
+}
+
 /** "60 min": the number, and the unit, which is struck through when it cancels. */
 function Quantity({ text, struck }: { text: string; struck: boolean }) {
-  const m = text.match(/^([\d.,?]+)\s*(.*)$/);
+  const m = text.match(/^(\$?[\d.,?]+)\s*(.*)$/);
   const [n, u] = m ? [m[1], m[2]] : [text, ""];
   return (
     <span className="whitespace-nowrap tabular-nums">
-      {n}{" "}
-      <span className={struck ? "text-slate-400 line-through decoration-rose-500 decoration-2" : "font-semibold text-bridge-700"}>{u}</span>
+      {n}
+      {u && " "}
+      {u && <span className={struck ? "text-slate-400 line-through decoration-rose-500 decoration-2" : "font-semibold text-bridge-700"}>{u}</span>}
     </span>
   );
 }
 
 function Chain({ p }: { p: Extract<Picture, { kind: "chain" }> }) {
-  const unit = (s: string) => s.replace(/^[\d.,?]+\s*/, "").replace(/^(day|week)s$/, "$1");
+  // The units the result keeps ("ft/s" keeps ft and s); every other unit cancels on the way.
+  const kept = new Set(
+    p.result
+      .replace(/^\$?\?\s*/, "")
+      .split("/")
+      .map((u) => u.trim().replace(/s$/, "").toLowerCase())
+      .filter(Boolean)
+  );
+  const struck = (text: string) => {
+    const u = unitOf(text);
+    return u !== "" && !kept.has(u);
+  };
+  const stacked = (top: string, bottom: string) => (
+    <span className="inline-flex flex-col items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1">
+      <Quantity text={top} struck={struck(top)} />
+      <span className="my-0.5 h-px w-full bg-slate-400" />
+      <Quantity text={bottom} struck={struck(bottom)} />
+    </span>
+  );
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-3 text-[15px] text-slate-800" role="img" aria-label={p.title}>
-      <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-        <Quantity text={p.start} struck />
-      </span>
+      {p.startBottom ? (
+        stacked(p.start, p.startBottom)
+      ) : (
+        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+          <Quantity text={p.start} struck={struck(p.start)} />
+        </span>
+      )}
       {p.factors.map((f, i) => (
         <span key={i} className="flex items-center gap-2">
           <span aria-hidden className="text-slate-400">
             ×
           </span>
-          <span className="inline-flex flex-col items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1">
-            <Quantity text={f.top} struck={i < p.factors.length - 1 || unit(f.top) !== unit(p.result)} />
-            <span className="my-0.5 h-px w-full bg-slate-400" />
-            <Quantity text={f.bottom} struck />
-          </span>
+          {stacked(f.top, f.bottom)}
         </span>
       ))}
       <span aria-hidden className="text-slate-400">
         =
       </span>
-      <span className="rounded-lg border border-dashed border-bridge-300 bg-white px-2.5 py-1.5">
-        <Quantity text={p.result} struck={false} />
-      </span>
+      <span className="rounded-lg border border-dashed border-bridge-300 bg-white px-2.5 py-1.5 font-semibold text-bridge-700">{p.result}</span>
     </div>
   );
 }
@@ -696,6 +706,30 @@ export function ProblemPicture({ picture }: { picture: Picture }) {
       break;
     case "bars":
       body = <Bars p={picture} />;
+      break;
+    case "balance":
+      body = <Balance p={picture} />;
+      break;
+    case "strips":
+      body = <Strips p={picture} />;
+      break;
+    case "factors":
+      body = <Factors p={picture} />;
+      break;
+    case "ladder":
+      body = <Ladder p={picture} />;
+      break;
+    case "digits":
+      body = <Digits p={picture} />;
+      break;
+    case "squares":
+      body = <Squares p={picture} />;
+      break;
+    case "scatters":
+      body = <Scatters p={picture} />;
+      break;
+    case "givens":
+      body = <Givens p={picture} />;
       break;
   }
   return (

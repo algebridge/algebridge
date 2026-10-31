@@ -17,6 +17,7 @@
  */
 
 import { evalSafe, extractMath, holds, isConstant, scanRoots, variablesOf, type Node, type RelOp } from "@/lib/mathexpr";
+import { morePictures } from "@/lib/pictures-more";
 
 // ---------------------------------------------------------------------------
 // What a picture is
@@ -113,20 +114,39 @@ export type Picture =
   | (Base & { kind: "numberline"; min: number; max: number; marks: NumberLineMark[]; spans: NumberLineSpan[]; arcs: NumberLineArc[] })
   | (Base & { kind: "tape"; rows: TapeRow[] })
   | (Base & { kind: "area"; cols: string[]; rows: string[]; cells: (string | null)[][] })
-  | (Base & { kind: "table"; corner: string; cols: string[]; rows: string[]; cells: (string | null)[][] })
+  | (Base & { kind: "table"; corner: string; cols: string[]; rows: string[]; cells: (string | null)[][]; totals?: boolean })
   | (Base & { kind: "dots"; values: number[] })
   | (Base & { kind: "terms"; terms: { label: string; value: string | null }[]; steps: (string | null)[] })
   | (Base & { kind: "rect"; width: string; height: string; inside: string })
-  | (Base & { kind: "chain"; start: string; factors: { top: string; bottom: string }[]; result: string })
-  | (Base & { kind: "bars"; labels: string[]; values: number[]; money: boolean });
+  | (Base & { kind: "chain"; start: string; startBottom?: string; factors: { top: string; bottom: string }[]; result: string })
+  | (Base & { kind: "bars"; labels: string[]; values: number[]; money: boolean })
+  | (Base & { kind: "balance"; left: string[]; right: string[]; focus?: string })
+  | (Base & { kind: "strips"; denominators: number[] })
+  | (Base & { kind: "factors"; top: FactorGroup[]; bottom?: FactorGroup[] })
+  | (Base & { kind: "ladder"; rows: { power: string; value: string | null }[]; step: string })
+  | (Base & { kind: "digits"; digits: string; from: number; to: number })
+  | (Base & { kind: "squares"; parts: { coef: string; n: number; square: number; rest: number; extra: string }[]; op: string | null })
+  | (Base & { kind: "scatters"; panels: { r: number; label: string; axes?: [string, string] }[] })
+  | (Base & { kind: "givens"; known: { value: string; label: string }[]; want: string });
+
+/** One written-out factor, struck through when it cancels. */
+export interface FactorItem {
+  text: string;
+  struck?: boolean;
+}
+/** The factors one power expands to, under its own name: x³ is x · x · x. */
+export interface FactorGroup {
+  label: string;
+  items: FactorItem[];
+}
 
 // ---------------------------------------------------------------------------
 // Reading numbers and points
 // ---------------------------------------------------------------------------
 
 /** One spelling for minus signs, so "−3" reads like "-3". */
-const plain = (s: string) => s.replace(/[−–]/g, "-");
-const toNum = (s: string) => Number(plain(s).replace(/,/g, ""));
+export const plain = (s: string) => s.replace(/[−–]/g, "-");
+export const toNum = (s: string) => Number(plain(s).replace(/,/g, ""));
 const N = String.raw`-?\d[\d,]*(?:\.\d+)?`;
 const SUP: Record<string, string> = { "²": "2", "³": "3", "⁴": "4" };
 
@@ -286,7 +306,7 @@ function axesOf(rels: Rel[]): [string, string] | null {
  * root's domain), for fitting the window and marking. Values near a break
  * are left out of `ys`, or 1/(x − 2) would ask for a window a billion tall.
  */
-function features(
+export function features(
   f: (x: number) => number,
   lo = -12,
   hi = 12
@@ -366,13 +386,13 @@ function features(
 }
 
 /** Round a found crossing to the grid when it is on it: scanning lands a hair off. */
-const snap = (v: number) => (Math.abs(v - Math.round(v * 4) / 4) < 0.02 ? Math.round(v * 4) / 4 : v);
+export const snap = (v: number) => (Math.abs(v - Math.round(v * 4) / 4) < 0.02 ? Math.round(v * 4) / 4 : v);
 
 // ---------------------------------------------------------------------------
 // Builders
 // ---------------------------------------------------------------------------
 
-function plane(
+export function plane(
   title: string,
   reveals: boolean,
   parts: { curves?: PlaneCurve[]; vlines?: PlaneVLine[]; points?: PlanePoint[]; segments?: PlaneSegment[]; axes?: [string, string] },
@@ -797,7 +817,7 @@ function tilesFor(prompt: string): Picture | null {
   const m = p.match(/x\^2 ([+-]) (\d+)x/);
   if (!m) return null;
   const b = Number(m[2]);
-  if (b % 2 !== 0 || b > 24) return null;
+  if (b % 2 !== 0 || b > 120) return null;
   const h = b / 2;
   const minus = m[1] === "-";
   return {
@@ -818,7 +838,7 @@ function tilesFor(prompt: string): Picture | null {
 /** The survey written out as a two-way table, totals left to fill in. */
 function tableFor(prompt: string): Picture | null {
   const p = plain(prompt);
-  const m = p.match(/asked (.+?) and (.+?) whether they (.+?) or (.+?)\. (\d+) of the .+? (?:[a-z ]+?) and (\d+) [^;]+; (\d+) of the .+? (?:[a-z ]+?) and (\d+) /i);
+  const m = p.match(/asked (.+?) and (.+?) whether they (.+?) or (.+?)\. (\d+) of the .+? (?:[a-z -]+?) and (\d+) [^;]+; (\d+) of the .+? (?:[a-z -]+?) and (\d+) /i);
   if (!m) return null;
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const g1 = cap(m[1]);
@@ -943,7 +963,7 @@ function barsFor(prompt: string): Picture | null {
 }
 
 /** Known conversions, each unit to a bigger neighbor. */
-const UNIT_LINKS: [string, string, number][] = [
+export const UNIT_LINKS: [string, string, number][] = [
   ["ms", "s", 1000],
   ["s", "min", 60],
   ["min", "h", 60],
@@ -960,20 +980,22 @@ const UNIT_LINKS: [string, string, number][] = [
   ["oz", "lb", 16],
   ["mL", "L", 1000],
 ];
-const UNIT_NAMES: Record<string, string> = {
+export const UNIT_NAMES: Record<string, string> = {
   milliseconds: "ms", millisecond: "ms", seconds: "s", second: "s", minutes: "min", minute: "min", hours: "h", hour: "h", days: "day", day: "day", weeks: "week", week: "week",
   millimeters: "mm", centimeters: "cm", meters: "m", kilometers: "km", inches: "in", feet: "ft", yards: "yd", miles: "mi",
   milligrams: "mg", grams: "g", kilograms: "kg", ounces: "oz", pounds: "lb", milliliters: "mL", liters: "L",
+  millimeter: "mm", centimeter: "cm", meter: "m", kilometer: "km", inch: "in", foot: "ft", yard: "yd", mile: "mi",
+  milligram: "mg", gram: "g", kilogram: "kg", ounce: "oz", pound: "lb", milliliter: "mL", liter: "L",
 };
 
 /** "7 days", "1 day": the two units that read as words take an s. */
-function qty(n: string | number, unit: string): string {
+export function qty(n: string | number, unit: string): string {
   const plural = (unit === "day" || unit === "week") && Number(String(n).replace(/,/g, "")) !== 1;
   return `${typeof n === "number" ? n.toLocaleString("en-US") : n} ${unit}${plural ? "s" : ""}`;
 }
 
 /** The chain of factors from one unit to another, each one equal to 1. */
-function conversionPath(from: string, to: string): { top: string; bottom: string }[] | null {
+export function conversionPath(from: string, to: string): { top: string; bottom: string }[] | null {
   const edges = new Map<string, { to: string; top: string; bottom: string }[]>();
   const add = (a: string, b: string, top: string, bottom: string) => {
     if (!edges.has(a)) edges.set(a, []);
@@ -1016,7 +1038,7 @@ function chainFor(prompt: string): Picture | null {
 }
 
 /** The points a coordinate problem names, plotted, and nothing more. */
-function pointsPicture(prompt: string, title: string, opts: { segment?: boolean; reveals?: boolean } = {}): Picture | null {
+export function pointsPicture(prompt: string, title: string, opts: { segment?: boolean; reveals?: boolean } = {}): Picture | null {
   const pts = pointsIn(prompt);
   if (!pts.length || pts.length > 4) return null;
   const letters = ["A", "B", "C", "D"];
@@ -1137,7 +1159,7 @@ function storyLinesFor(prompt: string): Picture | null {
       axes: ["hours", "cm"],
     };
   }
-  if ((m = p.match(/Plan A costs \$(\d+) a month plus \$(\d+) per GB.*?Plan B costs \$(\d+) a month plus \$(\d+) per GB/))) {
+  if ((m = p.match(/[Pp]lan A costs \$(\d+) a month plus \$(\d+) per GB.*?Plan B costs \$(\d+) a month plus \$(\d+) per GB/))) {
     const [a, ra, b, rb] = m.slice(1, 5).map(Number);
     const fa = (x: number) => a + ra * x;
     const fb = (x: number) => b + rb * x;
@@ -1284,7 +1306,7 @@ const LINE_SKILLS = new Set([
   "quadratic-formula",
 ]);
 
-function build(skillId: string, prompt: string): Picture | null {
+function buildBase(skillId: string, prompt: string): Picture | null {
   switch (skillId) {
     case "unit-basics":
     case "dimensional-analysis":
@@ -1396,6 +1418,11 @@ function build(skillId: string, prompt: string): Picture | null {
   }
 }
 
+/** The base set first; whatever it leaves blank, lib/pictures-more.ts draws. */
+function build(skillId: string, prompt: string): Picture | null {
+  return buildBase(skillId, prompt) ?? morePictures(skillId, prompt);
+}
+
 /** A picture for a problem, or null when there is none to draw. */
 export function pictureFor(skillId: string, prompt: string): Picture | null {
   try {
@@ -1406,6 +1433,9 @@ export function pictureFor(skillId: string, prompt: string): Picture | null {
       if (!ok || (!pic.curves.length && !pic.points.length && !pic.vlines.length)) return null;
     }
     if (pic.kind === "numberline" && !(pic.max > pic.min)) return null;
+    if (pic.kind === "balance" && (!pic.left.length || !pic.right.length)) return null;
+    if (pic.kind === "factors" && !pic.top.length) return null;
+    if (pic.kind === "digits" && (pic.from < 0 || pic.to < 0 || pic.from > pic.digits.length || pic.to > pic.digits.length)) return null;
     return pic;
   } catch {
     return null;
