@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AlgeCarts } from "@/components/games/AlgeCarts";
 import { CartsLeaderboard } from "@/components/games/CartsLeaderboard";
 import { useAuth } from "@/lib/auth";
-import { firstNameOf, isCartsTester } from "@/lib/algecarts/testers";
+import { isCartsTester, racerNameOf } from "@/lib/algecarts/testers";
 
 /**
  * /games/carts: the kart arena, as a demo for a few testers, on a stage in
@@ -66,7 +66,7 @@ export default function CartsPage() {
   }
 
   const guest = !user && devGuest ? devGuest : null;
-  const name = firstNameOf(profile?.displayName) || (guest ? `Guest ${guest.slice(-4)}` : "You");
+  const name = racerNameOf(profile?.displayName) || (guest ? `Guest ${guest.slice(-4)}` : "You");
   return (
     <div className="space-y-5">
       <header>

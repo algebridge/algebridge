@@ -9,7 +9,7 @@ import { fireConfetti, showToast } from "@/lib/notify";
 import { today } from "@/lib/path";
 import { getProgress } from "@/lib/progress";
 import type { RinkProblem } from "@/lib/rink";
-import { pickCartsProblem } from "@/lib/algecarts/problems";
+import { pickCartsProblem, practiceTopics, topicOfSkill } from "@/lib/algecarts/problems";
 import { createGame } from "@/lib/algecarts/engine/Game";
 import { applyRewards, levelOf, matchRewards, type Profile } from "@/lib/algecarts/engine/profile";
 import type { ArenaId, GameHandle, HudState, WeaponId } from "@/lib/algecarts/engine/types";
@@ -25,6 +25,7 @@ import { addBotResults, syncMyCartsRow } from "@/lib/algecarts/leaderboard";
 import "@/lib/algecarts/carts.css";
 
 const ARENA_KEY = "algebridge:carts:arena";
+const PRACTICE_KEY = "algebridge:carts:practice";
 
 /** The line under the garage: which lobby, and who else is in it. */
 function lobbyLine(info: LobbyInfo): string {
@@ -77,6 +78,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
   const pending = useRef<Pending | null>(null);
   const seen = useRef(new Set<string>());
   const sessionPaid = useRef(0);
+  const practiceRef = useRef("mix");
   const [open, setOpen] = useState<RinkProblem | null>(null);
   const [answer, setAnswer] = useState("");
   const [verdict, setVerdict] = useState<GameVerdict | null>(null);
@@ -102,6 +104,13 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
       const profile = (await store.load())!;
       if (disposed) return;
       profileRef.current = profile;
+      // Nobody types a name: the racer is always the account's own, as "First L.".
+      profile.name = name;
+      try {
+        practiceRef.current = localStorage.getItem(PRACTICE_KEY) ?? "mix";
+      } catch {
+        /* fine */
+      }
       const coarse = window.matchMedia("(pointer: coarse)").matches;
       const lowPower = coarse || (navigator.hardwareConcurrency ?? 8) <= 4;
       const hud = new Hud(root);
@@ -132,7 +141,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           // The math gate: a bare problem, numbers and symbols only, from the unit the student is on.
           requestBooster: (req) =>
             new Promise<WeaponId | null>((resolve) => {
-              const item = pickCartsProblem(getProgress(), seen.current);
+              const item = pickCartsProblem(getProgress(), seen.current, practiceRef.current);
               if (!item) {
                 resolve(req.suggested);
                 return;
@@ -208,9 +217,11 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         root,
         profile,
         store,
-        { arena: savedArena, gate: true },
+        { arena: savedArena, gate: true, practice: practiceRef.current },
         (p, choice) => {
+          practiceRef.current = choice.practice;
           try {
+            localStorage.setItem(PRACTICE_KEY, choice.practice);
             localStorage.setItem(ARENA_KEY, choice.arena);
           } catch {
             /* fine */
@@ -218,7 +229,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           void store.save(p);
           game.unlockAudio();
           if (choice.arena !== "random" && choice.arena !== game.hud().arenaId) game.startMatch(choice.arena);
-          game.join({ name: p.name.trim() || name, loadout: { ...p.loadout } });
+          game.join({ name, loadout: { ...p.loadout } });
           joined = true;
           sessionPaid.current = 0;
           hud.setCoins(0);
@@ -234,6 +245,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         {
           footNote: "Demo for the testers. The Bridgeys are your AlgeBridge Bridgeys: a right answer on the track pays like the other games, and the shop spends them.",
           onBack: () => exitRef.current(),
+          topics: practiceTopics(getProgress()).map((t) => ({ id: t.id, label: t.label })),
         },
       );
       garageRef.current = garage;
@@ -426,7 +438,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           onContinue={carryOn}
           continueLabel="Back to the race"
           note="Get it right and the booster is yours."
-          label="Booster question"
+          label={`Booster question${open ? ` · ${topicOfSkill(open.skillId)?.label ?? ""}` : ""}`}
         />
       )}
     </div>

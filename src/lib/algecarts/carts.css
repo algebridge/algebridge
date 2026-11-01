@@ -1110,14 +1110,36 @@
   background: rgba(255, 255, 255, 0.08);
   border: 2px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   color: #fff;
-  width: 160px;
-  outline: none;
+  white-space: nowrap;
+  user-select: none;
 }
 
-.algecarts .g-name:focus {
-  border-color: var(--pink);
+.algecarts .g-foot-left {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.algecarts .g-practice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.algecarts .g-practice .pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.algecarts .g-practice-label {
+  font: 800 12px var(--display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffd400;
 }
 
 .algecarts .g-level {
@@ -1546,4 +1568,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.algecarts .g-foot .g-foot-left {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }

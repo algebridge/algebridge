@@ -5,6 +5,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { Arena } from "../world/Arena";
 import { disposeTree, Palette } from "./Materials";
+import { MathSymbols } from "./MathSymbols";
 import { Sky } from "./Sky";
 import { WaterMaterial } from "./Water";
 
@@ -17,6 +18,7 @@ export class Renderer {
   readonly scene = new THREE.Scene();
   readonly palette = new Palette();
   readonly sky = new Sky();
+  private readonly symbols = new MathSymbols();
   readonly quality: "high" | "low";
   private readonly sun: THREE.DirectionalLight;
   private readonly hemi: THREE.HemisphereLight;
@@ -49,7 +51,7 @@ export class Renderer {
     this.scene.add(this.sun, this.sun.target);
     this.hemi = new THREE.HemisphereLight("#ffffff", "#444444", 0.8);
     this.ambient = new THREE.AmbientLight("#ffffff", 0.3);
-    this.scene.add(this.hemi, this.ambient, this.sky.group, this.lamps);
+    this.scene.add(this.hemi, this.ambient, this.sky.group, this.lamps, this.symbols.group);
 
     if (quality === "high") {
       const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
@@ -78,6 +80,7 @@ export class Renderer {
       if (m instanceof WaterMaterial) this.water.push(m);
     });
     this.sky.setTheme(t, this.palette);
+    this.symbols.build(t.night ? ["#37e6ff", "#ff4fd8", "#b6ff5c", "#ffe066"] : ["#fff3c4", "#2ec4b6", "#ff8fb1", "#ffffff"], this.quality === "high" ? 54 : 30, arena.half);
     this.scene.fog = new THREE.Fog(t.fog, t.fogNear, t.fogFar);
     this.sun.color.set(t.sun);
     this.sun.intensity = t.sunIntensity;
@@ -125,6 +128,7 @@ export class Renderer {
 
   render(camera: THREE.Camera, dt: number): void {
     for (const w of this.water) w.tick(dt);
+    this.symbols.update(dt);
     if (this.composer && this.renderPass) {
       this.renderPass.camera = camera;
       this.composer.render();
@@ -137,6 +141,7 @@ export class Renderer {
     if (this.arenaGroup) disposeTree(this.arenaGroup);
     for (const w of this.water) w.dispose();
     this.composer?.dispose();
+    this.symbols.dispose();
     this.sky.dispose();
     this.palette.dispose();
     this.gl.dispose();

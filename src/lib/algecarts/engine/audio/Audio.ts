@@ -30,6 +30,9 @@ export type SoundName =
   | "shock"
   | "slick";
 
+/** Sounds the round does without: only shots, hits and the match's own cues are heard. */
+const QUIET = new Set<SoundName>(["bounce", "spark", "land", "bump", "pickup", "streak", "kill", "deny"]);
+
 const BPM = 126;
 const ROOTS = [45, 41, 48, 43];
 const CHORDS = [
@@ -49,6 +52,11 @@ export class GameAudio {
   private engineGain!: GainNode;
   private engineFilter!: BiquadFilterNode;
   private engineOsc: OscillatorNode[] = [];
+  private engineMul: number[] = [];
+  private engineAmp!: GainNode;
+  private engineLfo!: OscillatorNode;
+  private intakeGain!: GainNode;
+  private intakeBand!: BiquadFilterNode;
   private musicTimer: ReturnType<typeof setInterval> | null = null;
   private nextNote = 0;
   private step = 0;
@@ -56,7 +64,8 @@ export class GameAudio {
   private ly = 0;
   private lz = 0;
   muted: boolean;
-  musicOn = true;
+  /** No music loop: the track is quiet but for engines, shots and hits. */
+  musicOn = false;
 
   constructor(enabled: boolean) {
     this.muted = !enabled;
@@ -91,28 +100,66 @@ export class GameAudio {
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
 
+    // A four-cylinder engine: stacked harmonics, a sub, a pulse at the firing rate,
+    // a soft clip for grit and a breath of intake noise.
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = "lowpass";
-    this.engineFilter.frequency.value = 400;
-    this.engineFilter.Q.value = 1.5;
-    this.engineFilter.connect(this.engineGain);
+    this.engineFilter.frequency.value = 600;
+    this.engineFilter.Q.value = 2.2;
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(257);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / 128) - 1;
+      curve[i] = Math.tanh(x * 2.4);
+    }
+    shaper.curve = curve;
+    this.engineAmp = ctx.createGain();
+    this.engineAmp.gain.value = 0.78;
+    this.engineFilter.connect(shaper);
+    shaper.connect(this.engineAmp);
+    this.engineAmp.connect(this.engineGain);
     this.engineGain.connect(this.sfx);
-    for (const [type, mul] of [
-      ["sawtooth", 1],
-      ["square", 2.02],
+    for (const [type, mul, g0] of [
+      ["sawtooth", 1, 1],
+      ["sawtooth", 2.01, 0.55],
+      ["square", 0.5, 0.7],
+      ["triangle", 3, 0.3],
     ] as const) {
       const o = ctx.createOscillator();
       o.type = type;
-      o.frequency.value = 60 * mul;
+      o.frequency.value = 50 * mul;
       const g = ctx.createGain();
-      g.gain.value = type === "square" ? 0.35 : 1;
+      g.gain.value = g0;
       o.connect(g);
       g.connect(this.engineFilter);
       o.start();
       this.engineOsc.push(o);
+      this.engineMul.push(mul);
     }
+    this.engineLfo = ctx.createOscillator();
+    this.engineLfo.type = "sine";
+    this.engineLfo.frequency.value = 25;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.22;
+    this.engineLfo.connect(depth);
+    depth.connect(this.engineAmp.gain);
+    this.engineLfo.start();
+    const intake = ctx.createBufferSource();
+    intake.buffer = this.noiseBuf;
+    intake.loop = true;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 900;
+    band.Q.value = 0.8;
+    this.intakeGain = ctx.createGain();
+    this.intakeGain.gain.value = 0;
+    intake.connect(band);
+    band.connect(this.intakeGain);
+    this.intakeGain.connect(this.sfx);
+    this.intakeBand = band;
+    intake.start();
     if (this.musicOn) this.startMusic();
   }
 
@@ -127,22 +174,33 @@ export class GameAudio {
     this.lz = z;
   }
 
-  /** The player's engine: pitch and loudness from speed. active false fades it out. */
+  /**
+   * The player's engine: revs climb through four gears and drop at each shift,
+   * the pulse follows the revs, and the intake breathes with speed.
+   */
   engine(speedFrac: number, boosting: boolean, active: boolean): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    const f = 55 + speedFrac * 120 + (boosting ? 40 : 0);
-    this.engineOsc[0].frequency.setTargetAtTime(f, t, 0.08);
-    this.engineOsc[1].frequency.setTargetAtTime(f * 2.02, t, 0.08);
-    this.engineFilter.frequency.setTargetAtTime(300 + speedFrac * 1400 + (boosting ? 800 : 0), t, 0.1);
-    this.engineGain.gain.setTargetAtTime(active ? 0.035 + speedFrac * 0.045 : 0, t, 0.12);
+    const gears = [0, 0.2, 0.4, 0.62, 0.82, 1.01];
+    let g = 0;
+    while (g < gears.length - 2 && speedFrac >= gears[g + 1]) g++;
+    const within = Math.min(1, Math.max(0, (speedFrac - gears[g]) / (gears[g + 1] - gears[g])));
+    const rpm = Math.min(1.1, 0.18 + 0.72 * within + g * 0.02 + (boosting ? 0.12 : 0));
+    const base = 34 + rpm * 78;
+    for (let i = 0; i < this.engineOsc.length; i++) this.engineOsc[i].frequency.setTargetAtTime(base * this.engineMul[i], t, 0.045);
+    this.engineLfo.frequency.setTargetAtTime(base * 0.5, t, 0.05);
+    this.engineFilter.frequency.setTargetAtTime(380 + rpm * 1500 + speedFrac * 500 + (boosting ? 700 : 0), t, 0.07);
+    this.engineGain.gain.setTargetAtTime(active ? 0.05 + rpm * 0.05 : 0, t, 0.1);
+    this.intakeBand.frequency.setTargetAtTime(500 + speedFrac * 1400, t, 0.1);
+    this.intakeGain.gain.setTargetAtTime(active ? 0.006 + speedFrac * 0.05 + (boosting ? 0.03 : 0) : 0, t, 0.12);
   }
 
   play(name: SoundName, x?: number, y?: number, z?: number): void {
-    if (!this.ctx) return;
+    if (!this.ctx || QUIET.has(name)) return;
     let vol = 1;
     if (x !== undefined && y !== undefined && z !== undefined) {
       const d = Math.hypot(x - this.lx, y - this.ly, z - this.lz);
+      if (d > 85) return;
       vol = Math.max(0.04, 1 / (1 + (d / 22) * (d / 22)));
     }
     switch (name) {

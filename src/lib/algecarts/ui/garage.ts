@@ -8,6 +8,13 @@ import { ICON_COIN } from "./icons";
 export interface GarageChoice {
   arena: ArenaId | "random";
   gate: boolean;
+  /** The topic the ? boxes ask about: "mix" or a topic id. */
+  practice: string;
+}
+
+export interface GarageTopic {
+  id: string;
+  label: string;
 }
 
 /**
@@ -30,7 +37,7 @@ export class Garage {
     private readonly store: ProfileStore,
     initial: GarageChoice,
     private readonly onPlay: (p: Profile, c: GarageChoice) => void,
-    private readonly opts: { footNote?: string; onBack?: () => void } = {},
+    private readonly opts: { footNote?: string; onBack?: () => void; topics?: GarageTopic[] } = {},
   ) {
     this.choice = { ...initial };
     this.root = document.createElement("div");
@@ -40,7 +47,7 @@ export class Garage {
         <header class="g-head">
           <div class="logo"><span class="logo-a">ALGE</span><span class="logo-b">CARTS</span></div>
           <div class="g-account">
-            <input class="g-name" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Your name" data-q="name" />
+            <div class="g-name" data-q="name" title="Your name on the track"></div>
             <div class="g-level"><span class="g-level-badge" data-q="level">Lv 1</span><span class="g-level-title" data-q="title">Rookie</span><div class="xp"><div class="xp-fill" data-q="xpFill"></div></div></div>
             <div class="g-coins" data-q="coins" title="Bridgeys">${ICON_COIN}<span data-q="coinsN">0</span><span class="g-coins-label">Bridgeys</span></div>
           </div>
@@ -58,6 +65,7 @@ export class Garage {
         </div>
         <footer class="g-foot">
           <div class="g-foot-left">
+            <div class="g-practice"><span class="g-practice-label">Practice</span><div class="pills" data-q="topics"></div></div>
             <div class="pills" data-q="arenas"></div>
             <label class="toggle small">
               <input type="checkbox" data-q="gate" />
@@ -79,15 +87,17 @@ export class Garage {
 
     this.preview = new KartPreview(this.q.preview as HTMLCanvasElement);
 
-    const name = this.q.name as HTMLInputElement;
-    name.value = profile.name;
-    name.addEventListener("input", () => {
-      this.profile.name = name.value.slice(0, 14);
-      void this.store.save(this.profile);
-    });
-    name.addEventListener("change", () => this.preview.setLoadout(this.previewLoadout(), this.profile.name));
-    name.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") this.play();
+    // Names are never typed: the racer wears the account's own, set by the host page.
+    this.q.name.textContent = profile.name;
+
+    const topics = [{ id: "mix", label: "Mix" }, ...(this.opts.topics ?? [])];
+    if (!topics.some((t) => t.id === this.choice.practice)) this.choice.practice = "mix";
+    this.q.topics.innerHTML = topics.map((t) => `<button class="pill" data-t="${esc(t.id)}">${esc(t.label)}</button>`).join("");
+    this.q.topics.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>(".pill");
+      if (!b) return;
+      this.choice.practice = b.dataset.t!;
+      this.renderFoot();
     });
 
     this.q.tabs.innerHTML = ITEM_KINDS.map((k) => `<button class="g-tab" data-k="${k}">${KIND_LABELS[k]}</button>`).join("");
@@ -137,6 +147,7 @@ export class Garage {
   /** The profile changed elsewhere (rewards after a match). */
   setProfile(p: Profile): void {
     this.profile = p;
+    this.q.name.textContent = p.name;
     this.trying = null;
     this.render();
     this.preview.setLoadout(this.previewLoadout(), p.name);
@@ -245,6 +256,7 @@ export class Garage {
 
   private renderFoot(): void {
     this.q.arenas.querySelectorAll<HTMLElement>("[data-a]").forEach((b) => b.classList.toggle("on", b.dataset.a === this.choice.arena));
+    this.q.topics.querySelectorAll<HTMLElement>("[data-t]").forEach((b) => b.classList.toggle("on", b.dataset.t === this.choice.practice));
   }
 
   dispose(): void {

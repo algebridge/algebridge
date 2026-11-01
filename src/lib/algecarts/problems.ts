@@ -270,12 +270,50 @@ const FORMS: Form[] = [
 const SKILL_HOME = new Map<string, { unitId: string; unitNumber: number; title: string }>();
 for (const u of units) for (const s of u.skills) SKILL_HOME.set(s.id, { unitId: u.id, unitNumber: u.number, title: s.title });
 
-/** A fresh bare problem for the unit the student is on; `avoid` holds prompts already asked. */
-export function pickCartsProblem(progress: UserProgress, avoid = new Set<string>()): RinkProblem | null {
+/** What a student can choose to practice on the track. "mix" is every form up to their unit. */
+export interface PracticeTopic {
+  id: string;
+  label: string;
+  skills: string[];
+}
+
+const TOPICS: PracticeTopic[] = [
+  { id: "equations", label: "Equations", skills: ["one-step-equations", "two-step-equations", "multi-step-equations"] },
+  { id: "slope", label: "Slope & lines", skills: ["slope", "intercepts", "slope-intercept"] },
+  { id: "systems", label: "Systems", skills: ["elimination"] },
+  { id: "functions", label: "Functions", skills: ["function-notation"] },
+  { id: "sequences", label: "Sequences", skills: ["arithmetic-sequences", "geometric-sequences"] },
+  { id: "powers", label: "Powers & roots", skills: ["exponent-rules", "simplifying-radicals"] },
+  { id: "polynomials", label: "Polynomials", skills: ["multiplying-binomials", "solving-by-factoring"] },
+  { id: "absolute", label: "Absolute value", skills: ["absolute-value"] },
+];
+
+export const MIX_TOPIC = "mix";
+
+/** The topic a skill belongs to, for the card's label. */
+export const topicOfSkill = (skill: string): PracticeTopic | undefined => TOPICS.find((t) => t.skills.includes(skill));
+
+/** The topics a student has reached: a topic shows once any of its forms is at or below their unit. */
+export function practiceTopics(progress: UserProgress): PracticeTopic[] {
   const n = Math.max(2, currentUnit(progress).number);
-  const eligible = FORMS.filter((f) => f.unit <= n && SKILL_HOME.has(f.skill));
+  return TOPICS.filter((t) => FORMS.some((f) => t.skills.includes(f.skill) && f.unit <= n));
+}
+
+/**
+ * A fresh bare problem for the unit the student is on; `avoid` holds prompts
+ * already asked. A chosen `topic` limits it to that topic's forms (every form
+ * the student has reached, never ahead of their unit).
+ */
+export function pickCartsProblem(progress: UserProgress, avoid = new Set<string>(), topic: string = MIX_TOPIC): RinkProblem | null {
+  const n = Math.max(2, currentUnit(progress).number);
+  let eligible = FORMS.filter((f) => f.unit <= n && SKILL_HOME.has(f.skill));
+  const chosen = TOPICS.find((t) => t.id === topic);
+  if (chosen) {
+    const narrowed = eligible.filter((f) => chosen.skills.includes(f.skill));
+    if (narrowed.length) eligible = narrowed;
+  }
   if (!eligible.length) return null;
-  const here = eligible.filter((f) => f.unit === n);
+  const here = chosen ? [] : eligible.filter((f) => f.unit === n);
   const pool = here.length && Math.random() < 0.6 ? here : eligible;
   let form = pick(pool);
   let made = form.make();

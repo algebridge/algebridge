@@ -249,6 +249,7 @@ export class Arena {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     g.add(ground);
+    g.add(axesDecal(palette, half, t.night));
     if (t.outside !== "same") {
       const water = new WaterMaterial(t.outside.color, t.outside.light);
       water.userData.own = true;
@@ -479,5 +480,57 @@ function groundMaterial(palette: Palette, color: string, line: string, size: num
   const tile = 8;
   tex.repeat.set(size / tile, size / tile);
   const m = new THREE.MeshToonMaterial({ map: tex, gradientMap: palette.gradient });
+  return m;
+}
+
+
+/**
+ * The floor is a coordinate plane: glowing x and y axes cross at the middle
+ * with tick numbers every 10 metres, so the arena reads as graph paper.
+ */
+function axesDecal(palette: Palette, half: number, night: boolean): THREE.Group {
+  const g = new THREE.Group();
+  const color = night ? "#37e6ff" : "#fff3c4";
+  const mat = palette.glow(color, night ? 1.6 : 1.0);
+  const len = half * 2;
+  for (const rot of [0, Math.PI / 2]) {
+    const bar = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.45), mat);
+    bar.rotation.x = -Math.PI / 2;
+    bar.rotation.z = rot;
+    bar.position.y = 0.05;
+    g.add(bar);
+  }
+  for (let v = -half + 10; v < half; v += 10) {
+    if (Math.abs(v) < 1) continue;
+    const label = numberDecal(String(v / 10), color);
+    for (const horizontal of [true, false]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), label);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(horizontal ? v : 2.6, 0.06, horizontal ? 2.6 : v);
+      g.add(m);
+    }
+  }
+  return g;
+}
+
+const numberCache = new Map<string, THREE.MeshBasicMaterial>();
+function numberDecal(text: string, color: string): THREE.MeshBasicMaterial {
+  const key = `${text}|${color}`;
+  let m = numberCache.get(key);
+  if (!m) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const ctx = c.getContext("2d")!;
+    ctx.font = "900 84px 'Baloo 2', 'Nunito', system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(text, 64, 70);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    m = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    numberCache.set(key, m);
+  }
   return m;
 }
