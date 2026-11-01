@@ -2534,7 +2534,8 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
       bySkill.set(sk.id, [d, n]);
     }
   }
-  ok("pictures: every problem has one", drawn === total, `${drawn} of ${total}; missing: ${missing.slice(0, 4).join(" | ")}`);
+  // Coverage is not the goal: a picture that only repeats the question is left off, so equations alone stay blank.
+  ok("pictures: most problems have one", drawn / total >= 0.7, `${drawn} of ${total}; missing: ${missing.slice(0, 4).join(" | ")}`);
   ok("pictures: every window is a real window", bad.length === 0, bad.slice(0, 3).join("; "));
   ok("pictures: every marked point is inside its window", outside.length === 0, outside.slice(0, 3).join("; "));
   ok("pictures: a picture of the givens never shows the answer", leaks.length === 0, leaks.slice(0, 3).join("; "));
@@ -2542,7 +2543,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
     const [d, n] = bySkill.get(id) ?? [0, 1];
     return d / n;
   };
-  for (const id of ["graphing-systems", "two-way-tables", "center-spread", "absolute-value", "piecewise-functions", "exponential-growth", "quadratic-formula", "graphing-lines", "domain-range"]) {
+  for (const id of ["graphing-systems", "two-way-tables", "absolute-value", "piecewise-functions", "quadratic-formula", "graphing-lines", "domain-range"]) {
     ok(`pictures: most ${id} problems have one`, share(id) >= 0.8, `${Math.round(share(id) * 100)}%`);
   }
   // The answer waits: graphs of the problem's own equation, solution sets and growth bars only come after a try.
@@ -2558,25 +2559,14 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ok("pictures: both inequalities of a system are shaded, the strict one dashed", sysIneq?.kind === "plane" && sysIneq.curves.length === 2 && sysIneq.curves.every((c) => c.shade) && sysIneq.curves.filter((c) => c.dashed).length === 1);
   const asym = Pic.pictureFor("domain-range", "What is the domain of f(x) = 1/(x − 2)?");
   ok("pictures: a break is a dashed line, and the window stays the classroom grid", asym?.kind === "plane" && asym.vlines.length === 1 && asym.vlines[0].x === 2 && asym.y[1] <= 15);
-  const chain = Pic.pictureFor("dimensional-analysis", "Convert 2.5 hours to seconds.");
-  ok("pictures: a conversion is a chain of factors that each equal 1", chain?.kind === "chain" && chain.factors.length === 2 && chain.factors[0].top === "60 min" && chain.factors[1].top === "60 s");
+  ok("pictures: only a bar model, graph, number line, area model, table or rectangle is drawn", ["unit-basics|Convert 3 miles to feet. (1 mile = 5280 ft)", "exponent-rules|Simplify: 2³ × 2⁴ (enter as a number)", "simplifying-radicals|Simplify √72", "center-spread|Find the median of 12, 7, 19, 7, 25, 15, 10."].every((x) => Pic.pictureFor(x.split("|")[0], x.split("|")[1]) === null));
+  ok("pictures: a unit conversion gets no chain of factors, which is the working itself", Pic.pictureFor("dimensional-analysis", "Convert 2.5 hours to seconds.") === null);
   const table = Pic.pictureFor("two-way-tables", "A survey asked 9th graders and 10th graders whether they walk to school or ride the bus. 24 of the 9th graders walk and 36 ride the bus; 30 of the 10th graders walk and 20 ride the bus. What fraction of the 9th graders walk to school? Give it as a fraction.");
   ok("pictures: a survey is a two-way table with the totals left to find", table?.kind === "table" && table.cells[0][0] === "24" && table.cells[1][1] === "20" && table.cells[2].every((c) => c === null));
-  ok("pictures: a horizontal line is drawn, any equation is a balance, and words alone get none", Pic.pictureFor("slope", "What is the slope of a horizontal line?")?.kind === "plane" && Pic.pictureFor("no-such-skill", "Solve for x: 3x + 5 = 20")?.kind === "balance" && Pic.pictureFor("no-such-skill", "Pick the true statement.") === null);
-  const bal = Pic.pictureFor("multi-step-equations", "Solve for x: 6x + 1 + 5x = 5x + 19");
-  ok("pictures: a balance holds each side's terms", bal?.kind === "balance" && bal.left.join("|") === "6x|+ 1|+ 5x" && bal.right.join("|") === "5x|+ 19" && !bal.reveals);
-  const fac = Pic.pictureFor("exponent-rules", "(x^2)^3 ÷ x^5 = x^n. What is n?");
-  ok("pictures: a quotient of powers is written out and cancelled", fac?.kind === "factors" && fac.top[0].items.length === 6 && fac.bottom?.[0].items.length === 5 && fac.bottom[0].items.every((i) => i.struck) && fac.top[0].items.filter((i) => i.struck).length === 5);
-  const lad = Pic.pictureFor("negative-fractional-exponents", "Evaluate 2^(−3). Write it as a fraction.");
-  ok("pictures: a negative exponent is the next rung of the ladder, left blank", lad?.kind === "ladder" && lad.rows.length === 7 && lad.rows[6].value === null && lad.rows[3].value === "1");
-  const dig = Pic.pictureFor("scientific-notation", "Write 450,000 in scientific notation.");
-  ok("pictures: scientific notation hops the point to after the first digit", dig?.kind === "digits" && dig.digits === "450000" && dig.from === 6 && dig.to === 1 && dig.reveals);
-  const sq = Pic.pictureFor("simplifying-radicals", "Simplify √72");
-  ok("pictures: a radical is its biggest square and the rest", sq?.kind === "squares" && sq.parts[0].square === 36 && sq.parts[0].rest === 2);
+  ok("pictures: a horizontal line is drawn, an equation alone is not echoed in a balance, and words alone get none", Pic.pictureFor("slope", "What is the slope of a horizontal line?")?.kind === "plane" && Pic.pictureFor("no-such-skill", "Solve for x: 3x + 5 = 20") === null && Pic.pictureFor("no-such-skill", "Pick the true statement.") === null);
+  ok("pictures: a bare equation gets no balance", Pic.pictureFor("multi-step-equations", "Solve for x: 6x + 1 + 5x = 5x + 19") === null);
   const rate = Pic.pictureFor("unit-basics", "A car travels 60 miles in 1 hour. How many feet per second is that?");
-  ok("pictures: a rate converts top and bottom", rate?.kind === "chain" && rate.startBottom === "1 h" && rate.factors.length === 3 && rate.result === "? ft/s");
-  const strips = Pic.pictureFor("equations-with-fractions", "What is the LCD of 1/2, 1/3, and 1/6?");
-  ok("pictures: a common denominator is fraction strips", strips?.kind === "strips" && strips.denominators.join(",") === "2,3,6");
+  ok("pictures: a rate conversion gets no chain either", rate === null);
 }
 
 

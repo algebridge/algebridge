@@ -1423,17 +1423,24 @@ function build(skillId: string, prompt: string): Picture | null {
   return buildBase(skillId, prompt) ?? morePictures(skillId, prompt);
 }
 
+/**
+ * The kinds that show structure the question only describes: a bar model, a graph, a number line, an area
+ * model, a table. The rest (a balance, a chain of conversion factors, strings of terms, powers written out)
+ * repeat the question or hand over the working, so those problems get none. Add a kind back to bring it back.
+ */
+const EXPLAINS = new Set<Picture["kind"]>(["plane", "numberline", "tape", "area", "table", "rect"]);
+
 /** A picture for a problem, or null when there is none to draw. */
 export function pictureFor(skillId: string, prompt: string): Picture | null {
   try {
     const pic = build(skillId, prompt);
     if (!pic) return null;
+    if (!EXPLAINS.has(pic.kind)) return null;
     if (pic.kind === "plane") {
       const ok = [...pic.x, ...pic.y].every(Number.isFinite) && pic.x[1] > pic.x[0] && pic.y[1] > pic.y[0];
       if (!ok || (!pic.curves.length && !pic.points.length && !pic.vlines.length)) return null;
     }
     if (pic.kind === "numberline" && !(pic.max > pic.min)) return null;
-    if (pic.kind === "balance" && (!pic.left.length || !pic.right.length)) return null;
     if (pic.kind === "factors" && !pic.top.length) return null;
     if (pic.kind === "digits" && (pic.from < 0 || pic.to < 0 || pic.from > pic.digits.length || pic.to > pic.digits.length)) return null;
     return pic;
