@@ -11,6 +11,7 @@ import { Athlete, Player } from "@/components/games/Players";
 import { RinkDecor, RinkTray } from "@/components/games/RinkDecor";
 import { CourtScene, RinkScene } from "@/components/games/Scenes";
 import { pctX, pctY } from "@/lib/dollhouse";
+import { postActivity } from "@/lib/activity-client";
 import { KICKOFF, persp } from "@/lib/match-rules";
 import { depthScale, GAME_CARDS, getCourtGame, getGameCard, isGameId, type CourtGameId, type GameCard, type GameId } from "@/lib/games";
 import { today } from "@/lib/path";
@@ -71,6 +72,8 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
     const seconds = Math.round((Date.now() - playStart.current) / 1000);
     playStart.current = null;
     trackInsight({ name: "game_end", label: picked, value: seconds, n: setup.players });
+    // The activity ticker: a game actually played, not one opened and left.
+    if (seconds >= 30) postActivity({ kind: "game", detail: getGameCard(picked)?.title ?? null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
   const stage = useRef<HTMLDivElement>(null);

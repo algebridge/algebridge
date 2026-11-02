@@ -11,6 +11,7 @@ import { WelcomeModal } from "@/components/WelcomeModal";
 import { InterestsPrompt } from "@/components/InterestsPrompt";
 import { MoodCheck } from "@/components/MoodCheck";
 import { setInsightsIdentity } from "@/lib/insights-client";
+import { setActivityIdentity } from "@/lib/activity-client";
 
 /** Mounted once in the root layout: handles daily streak tracking and global overlays. */
 export function AppInit() {
@@ -27,6 +28,8 @@ export function AppInit() {
     }
     const role = profile?.role === "teacher" || profile?.role === "tutor" || profile?.role === "student" ? profile.role : "guest";
     setInsightsIdentity({ role, admin: profile?.isAdmin ?? false });
+    // The activity ticker posts a student's moments under their first name.
+    setActivityIdentity(user && profile ? { userId: user.id, displayName: profile.displayName, role: profile.role } : null);
   }, [user, profile, loading]);
 
   // Activity heartbeat. This is what the admin console's "active in the last

@@ -21,6 +21,7 @@
     "test:detect:dom": "node extension/test/dom.test.mjs",
     "test:ui": "node extension/test/ui-harness.mjs",
     "test:insights": "node --no-warnings --experimental-strip-types src/lib/__tests__/insights.test.ts",
+    "test:activity": "node --no-warnings --experimental-strip-types src/lib/__tests__/activity.test.ts",
     "test:classroom": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/classroom.test.ts"
   },
   "dependencies": {

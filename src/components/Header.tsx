@@ -16,6 +16,7 @@ import { CourseSwitch } from "@/components/CourseSwitch";
 import { initialsOf } from "@/lib/name";
 import { TitlePlate } from "@/components/TitlePlate";
 import { useWornTitle } from "@/lib/use-worn-title";
+import { ActivityTicker } from "@/components/ActivityTicker";
 import { DisplayControls, DisplayMenu } from "@/components/DisplayMenu";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -315,6 +316,11 @@ export function Header() {
           )}
         </div>
       )}
+
+      {/* One running line of what students across AlgeBridge are doing. Inside
+          the header so it sticks under it at any height (the phone's progress
+          strip makes the header taller). */}
+      <ActivityTicker />
 
       {/* Mobile / tablet nav sheet. It drops over the page, under the header,
           with a scrim behind it that closes it, instead of pushing the page

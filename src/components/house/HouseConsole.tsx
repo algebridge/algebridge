@@ -31,6 +31,7 @@ import {
   setItemColor,
 } from "@/lib/bridgeys";
 import { showToast } from "@/lib/notify";
+import { postActivity } from "@/lib/activity-client";
 import { TitlesPanel } from "@/components/house/TitlesPanel";
 import { HALLOWEEN_ENDS } from "@/lib/season";
 import { useSeason } from "@/lib/use-season";
@@ -107,8 +108,9 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
     }
   }
 
-  function handlePurchase(action: () => { ok: boolean; message: string }) {
+  function handlePurchase(action: () => { ok: boolean; message: string }, bought?: string) {
     const result = action();
+    if (result.ok && bought) postActivity({ kind: "bought", detail: bought });
     showToast({
       icon: result.ok ? "coin" : "x-circle",
       tone: result.ok ? "reward" : "info",
@@ -207,7 +209,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                         <button
                           type="button"
                           disabled={!affordable}
-                          onClick={() => handlePurchase(() => buyFurniture(item.id, preview[item.id]))}
+                          onClick={() => handlePurchase(() => buyFurniture(item.id, preview[item.id]), item.name)}
                           className="btn-primary btn-sm"
                           title={
                             affordable
@@ -418,7 +420,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                           owned={owned}
                           affordable={affordable}
                           shortfall={house.price - balance}
-                          onClick={() => handlePurchase(() => buyHouseStyle(house.id))}
+                          onClick={() => handlePurchase(() => buyHouseStyle(house.id), house.name)}
                         />
                       </div>
                     </div>
@@ -594,7 +596,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                         <button
                           type="button"
                           disabled={!affordable}
-                          onClick={() => handlePurchase(() => buyOrnament(item.id))}
+                          onClick={() => handlePurchase(() => buyOrnament(item.id), item.name)}
                           className="btn-primary btn-sm"
                           title={
                             affordable
@@ -670,7 +672,7 @@ export function HouseConsole({ progress, onUpdate, unlimited = false, school = f
                           <button
                             type="button"
                             disabled={!affordable}
-                            onClick={() => handlePurchase(() => buyRinkItem(item.id, preview[item.id]))}
+                            onClick={() => handlePurchase(() => buyRinkItem(item.id, preview[item.id]), item.name)}
                             className="btn-primary btn-sm"
                             title={affordable ? undefined : `${(item.price - balance).toLocaleString()} more Bridgeys needed`}
                           >

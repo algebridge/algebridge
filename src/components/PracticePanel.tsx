@@ -20,6 +20,7 @@ import { getSkillProgress, getSkillPracticeStats } from "@/lib/progress";
 import { BRIDGEY_REWARDS, bridgeysForSkill, DAILY_GOAL, REQUIRED_CORRECT } from "@/lib/gamification";
 import { allUnits } from "@/data/curriculum";
 import { noteAnswered, placeOfSkill, trackInsight } from "@/lib/insights-client";
+import { postActivity } from "@/lib/activity-client";
 import { DailyGoalRing } from "@/components/DailyGoalRing";
 import { BridgeysLogo } from "@/components/house/BridgeysLogo";
 import { getFurnitureItem } from "@/data/house-catalog";
@@ -743,6 +744,16 @@ export function PracticePanel({ skill, onMasteryChange, practiceOnly = false, on
       setMastery(result.newLevel);
       onMasteryChange?.(result.newLevel);
       setPay({ amount: result.answerBridgeys, key: Date.now() });
+      // The activity ticker: one line per right answer, the biggest moment of
+      // it. A payout worth telling is a bonus (the daily goal, a long run); the
+      // one or two Bridgeys of an ordinary answer stay "solved a problem".
+      {
+        const earned = result.answerBridgeys + result.bridgeysGained + result.dailyBonus;
+        if (result.unitJustCompleted && unitOfSkill) postActivity({ kind: "unit", detail: `Unit ${unitOfSkill.number}: ${unitOfSkill.title}` });
+        else if (result.skillJustCompleted) postActivity({ kind: "skill", detail: skill.title });
+        else if (earned >= 5) postActivity({ kind: "bridgeys", amount: earned });
+        else postActivity({ kind: "solved" });
+      }
 
       if (run > 0 && run % 5 === 0) {
         fireConfetti(run >= 10 ? "big" : "small");

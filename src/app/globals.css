@@ -1877,3 +1877,43 @@ html[data-game-dialog] [data-calc-launch] {
 html[data-game-dialog] [data-calc-panel] {
   z-index: 660;
 }
+
+/* The activity ticker (components/ActivityTicker.tsx): one running line
+   under the header. A line is a name in bold, the moment, and a dot before
+   the next line. The track moves by transform; the dot sits inside each
+   line's box so the track shifts by exactly one line's width when the first
+   line comes off. */
+.ab-ticker[data-empty] {
+  display: none;
+}
+.ab-ticker-window {
+  /* Lines fade in at the right edge and out at the left. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
+}
+.ab-tick {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-right: 2.5rem;
+  position: relative;
+}
+.ab-tick > b {
+  font-weight: 600;
+  color: rgb(var(--sl-800, 30 41 59));
+  margin-right: 0.3em;
+}
+.ab-tick-dot {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.45;
+}
+html[data-bare] .ab-ticker {
+  display: none !important;
+}
