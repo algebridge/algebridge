@@ -34,6 +34,31 @@ const TRACK_MAX = 40;
 /** Under "reduce motion": one line at a time, this long each. */
 const STILL_MS = 5000;
 
+/**
+ * Development builds only: ?ticker=sample puts made-up lines on the strip so
+ * the motion and the look can be reviewed on a laptop where the database has
+ * nothing to tell. Never on a production build, never real students.
+ */
+const SAMPLE: ActivityItem[] = [
+  { id: -901, at: "", name: "Shaurya", kind: "solved", amount: null, detail: null },
+  { id: -902, at: "", name: "Ava", kind: "bridgeys", amount: 25, detail: null },
+  { id: -903, at: "", name: "Liam", kind: "skill", amount: null, detail: "Two-Step Equations" },
+  { id: -904, at: "", name: "Maya", kind: "unit", amount: null, detail: "Unit 1: Working with Units" },
+  { id: -905, at: "", name: "Zack", kind: "bought", amount: null, detail: "Arcade Cabinet" },
+  { id: -906, at: "", name: "Noah", kind: "game", amount: null, detail: "Bat with Liam" },
+  { id: -907, at: "", name: "Priya", kind: "solved", amount: null, detail: null },
+  { id: -908, at: "", name: "Jordan", kind: "bridgeys", amount: 15, detail: null },
+];
+
+function sampleMode(): boolean {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).get("ticker") === "sample";
+  } catch {
+    return false;
+  }
+}
+
 /** Pages where a moving strip would get in the way. */
 const QUIET_ROUTES = ["/room", "/arena"];
 
@@ -113,6 +138,10 @@ export function ActivityTicker() {
       return;
     }
     let alive = true;
+    if (sampleMode()) {
+      take(SAMPLE, false);
+      fresh.current = [];
+    }
     void fetchActivity(0, RECENT_LIMIT).then((rows) => {
       if (!alive) return;
       // The first batch feeds the pool only: the strip starts on the newest and cycles.
