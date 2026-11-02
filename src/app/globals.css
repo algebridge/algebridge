@@ -1883,6 +1883,11 @@ html[data-game-dialog] [data-calc-panel] {
    the next line. The track moves by transform; the dot sits inside each
    line's box so the track shifts by exactly one line's width when the first
    line comes off. */
+.ab-ticker {
+  /* A brand gradient, blue into violet into pink, so the line stands out from the header. */
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 55%, #db2777 100%);
+  color: rgb(255 255 255 / 0.86);
+}
 .ab-ticker[data-empty] {
   display: none;
 }
@@ -1899,8 +1904,8 @@ html[data-game-dialog] [data-calc-panel] {
   position: relative;
 }
 .ab-tick > b {
-  font-weight: 600;
-  color: rgb(var(--sl-800, 30 41 59));
+  font-weight: 700;
+  color: #fff;
   margin-right: 0.3em;
 }
 .ab-tick-dot {
@@ -1911,8 +1916,8 @@ html[data-game-dialog] [data-calc-panel] {
   height: 4px;
   margin-top: -2px;
   border-radius: 9999px;
-  background: currentColor;
-  opacity: 0.45;
+  background: #fff;
+  opacity: 0.55;
 }
 html[data-bare] .ab-ticker {
   display: none !important;

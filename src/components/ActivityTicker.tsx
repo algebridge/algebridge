@@ -35,9 +35,10 @@ const TRACK_MAX = 40;
 const STILL_MS = 5000;
 
 /**
- * Development builds only: ?ticker=sample puts made-up lines on the strip so
- * the motion and the look can be reviewed on a laptop where the database has
- * nothing to tell. Never on a production build, never real students.
+ * Placeholder lines, until the database has real moments to tell (before the
+ * migration runs, or on a quiet day with nothing in the last two days). The
+ * names are made up; the kinds and titles are real parts of the course and
+ * the shop. They fall away the moment a real row arrives.
  */
 const SAMPLE: ActivityItem[] = [
   { id: -901, at: "", name: "Shaurya", kind: "solved", amount: null, detail: null },
@@ -48,15 +49,24 @@ const SAMPLE: ActivityItem[] = [
   { id: -906, at: "", name: "Noah", kind: "game", amount: null, detail: "Bat with Liam" },
   { id: -907, at: "", name: "Priya", kind: "solved", amount: null, detail: null },
   { id: -908, at: "", name: "Jordan", kind: "bridgeys", amount: 15, detail: null },
+  { id: -909, at: "", name: "Kenise", kind: "skill", amount: null, detail: "Dimensional Analysis" },
+  { id: -910, at: "", name: "Mateo", kind: "bought", amount: null, detail: "Lava Lamp" },
+  { id: -911, at: "", name: "Sofia", kind: "game", amount: null, detail: "Skate with Veronica" },
+  { id: -912, at: "", name: "Ethan", kind: "solved", amount: null, detail: null },
+  { id: -913, at: "", name: "Amara", kind: "bridgeys", amount: 40, detail: null },
+  { id: -914, at: "", name: "Rayla", kind: "skill", amount: null, detail: "Equations with Fractions" },
 ];
 
-function sampleMode(): boolean {
-  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") return false;
-  try {
-    return new URLSearchParams(window.location.search).get("ticker") === "sample";
-  } catch {
-    return false;
+const isSample = (item: ActivityItem) => item.id <= -900;
+
+/** The placeholders in a fresh random order, so the strip reads differently on every visit. */
+function shuffledSamples(): ActivityItem[] {
+  const out = [...SAMPLE];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
   }
+  return out;
 }
 
 /** Pages where a moving strip would get in the way. */
@@ -121,7 +131,11 @@ export function ActivityTicker() {
       if (item.id > maxId.current) maxId.current = item.id;
     }
     if (!added.length) return;
-    pool.current = [...added, ...pool.current].slice(0, POOL_MAX);
+    // A real moment puts the placeholders away for good.
+    const real = added.some((a) => a.id > 0);
+    const kept = real ? pool.current.filter((p) => !isSample(p)) : pool.current;
+    if (real) fresh.current = fresh.current.filter((f) => !isSample(f));
+    pool.current = [...added, ...kept].slice(0, POOL_MAX);
     // Newest last in the fresh queue, so a batch goes by in the order it happened.
     const chronological = [...added].reverse();
     fresh.current = front ? [...fresh.current, ...chronological] : [...chronological, ...fresh.current];
@@ -138,14 +152,13 @@ export function ActivityTicker() {
       return;
     }
     let alive = true;
-    if (sampleMode()) {
-      take(SAMPLE, false);
-      fresh.current = [];
-    }
     void fetchActivity(0, RECENT_LIMIT).then((rows) => {
       if (!alive) return;
       // The first batch feeds the pool only: the strip starts on the newest and cycles.
       take(rows, false);
+      fresh.current = [];
+      // Nothing real to tell yet: placeholders keep the strip alive.
+      if (!pool.current.length) take(shuffledSamples(), false);
       fresh.current = [];
     });
     const poll = () => {
@@ -276,7 +289,7 @@ export function ActivityTicker() {
   return (
     <div
       ref={boxRef}
-      className="ab-ticker border-t border-slate-100 bg-surface text-xs text-slate-600"
+      className="ab-ticker text-xs"
       data-empty={hasItems ? undefined : ""}
       aria-hidden="true"
     >
