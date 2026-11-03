@@ -36,12 +36,10 @@ create policy "Admins manage leaderboard links" on public.leaderboard_links
   for all using (public.is_admin()) with check (public.is_admin());
 revoke all on public.leaderboard_links from anon;
 
--- Zack Balan's account joins Zach Balan's. Zachary Balan is a tutor account
--- with no board row; linked too, so it joins if it ever gets one.
-insert into public.leaderboard_links (user_id, person_key, note) values
-  ('050afd88-3df3-4d26-9d02-a8b82f0dbb3f', 'zach balan', 'Zack Balan, same student'),
-  ('097395a1-a4f5-4b96-ba52-bd35263cfe6d', 'zach balan', 'Zachary Balan, same student')
-on conflict (user_id) do update set person_key = excluded.person_key, note = excluded.note;
+-- Links between one person's accounts are rows an admin adds in the SQL
+-- editor (user_id, person_key, note). The Oct 14 2026 rows were applied
+-- then and are kept out of this file: account ids never live in the
+-- repository, which is public.
 
 drop view if exists public.leaderboard_public;
 create view public.leaderboard_public with (security_barrier = true) as

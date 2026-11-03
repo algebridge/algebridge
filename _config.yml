@@ -1,0 +1,21 @@
+# GitHub Pages serves algebridge.org from this repository. Only the website
+# itself is published: the platform's code, database files and tooling stay
+# in the repository and off the site.
+exclude:
+  - src
+  - supabase
+  - scripts
+  - extension
+  - public
+  - node_modules
+  - README.md
+  - CLOUD_SETUP.md
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - next.config.ts
+  - next-env.d.ts
+  - tailwind.config.ts
+  - postcss.config.mjs
+  - components.json
+  - vercel.json
