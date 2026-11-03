@@ -54,6 +54,24 @@ export function namesForLobby(lobby: number, seats: number): string[] {
   });
 }
 
+/**
+ * A racer's name as it arrives from another tab: the "First L." shape
+ * racerNameOf makes (src/lib/algecarts/names.ts) or a bot's name, and nothing
+ * else. Letters, spaces, hyphens and apostrophes, a period only at the end of
+ * a word, at most 24 characters; a bot from lobby 7 up keeps its number
+ * ("Mason R2."). Anything else (digits, a web address, an email, a message)
+ * comes out as "Racer".
+ */
+export function cleanRacerName(raw: unknown, fallback = "Racer"): string {
+  if (typeof raw !== "string") return fallback;
+  const name = raw.normalize("NFC").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 24) return fallback;
+  const letters = name.replace(/ (\p{Lu})\d{1,2}\.$/u, " $1.");
+  if (!/^\p{L}[\p{L}\p{M}'’. -]*$/u.test(letters)) return fallback;
+  if (/\.[^ ]/u.test(letters) || /\p{M}{3,}/u.test(letters)) return fallback;
+  return name;
+}
+
 export function createGame(canvas: HTMLCanvasElement, options: GameOptions = {}): GameHandle {
   return new Game(canvas, options);
 }
@@ -390,7 +408,7 @@ class Game implements GameHandle, CombatCtx {
     if (!this.player && bots <= 1) return -1;
     const i = this.freeSeat();
     if (i < 0) return -1;
-    const k = this.placeSeat(i, { id: `seat-${i}`, name: name.trim() || "Racer", loadout: { ...loadout }, bot: false, skill: 1, remote: true, pid }, false);
+    const k = this.placeSeat(i, { id: `seat-${i}`, name: cleanRacerName(name), loadout: { ...loadout }, bot: false, skill: 1, remote: true, pid }, false);
     this.respawn(k, true);
     this.emit({ t: "spawn", k: i });
     this.hooks.onSeatChange?.();

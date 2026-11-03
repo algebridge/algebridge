@@ -1,9 +1,10 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { managedAccountNow } from "@/lib/school-mode";
 import type { GameHandle, InputState, Loadout, NetRole, NetSnap, PlayerSetup, RosterEntry, WeaponId } from "./engine/types";
 import { unwireLoadout, wireLoadout } from "./engine/profile";
-import { namesForLobby } from "./engine/Game";
+import { cleanRacerName, namesForLobby } from "./engine/Game";
 
 /**
  * The public lobby, over Supabase Realtime. One tab hosts: it runs the
@@ -13,6 +14,15 @@ import { namesForLobby } from "./engine/Game";
  * page lands in the first lobby with a free seat, or starts the next one.
  * When a host leaves, the guest who arrived first carries on as host on the
  * same channel, so nobody reconnects.
+ *
+ * Both channels are private: the database lets only signed-in accounts in
+ * (supabase/schema-2026-11-03-hardening.sql), so the session's token goes to
+ * Realtime before either is joined, and a signed-out tab plays solo. On the
+ * wire a tab is a random player id, never its account id; presence carries
+ * no names; a name from another tab is cleaned before it is shown
+ * (cleanRacerName); a school account races as "Racer". A guest only takes
+ * snapshots, rosters and seats from a tab that presence lists as this
+ * lobby's host.
  *
  * Without Supabase (a local-only build) the game stays solo.
  */
@@ -26,6 +36,8 @@ const INPUT_KEEPALIVE_MS = 250;
 const HOST_SILENCE_MS = 4000;
 const REGISTRY = "carts-lobbies";
 const lobbyTopic = (id: number) => `carts-lobby-${id}`;
+/** What a player id from another tab may look like. */
+const PID = /^[A-Za-z0-9-]{1,80}$/;
 
 export interface LobbyInfo {
   id: number;
@@ -52,16 +64,23 @@ type PlayerMsg =
   | { k: "booster"; pid: string; w: WeaponId | null }
   | { k: "ping"; pid: string; t: number };
 
+/** What a tab puts on presence. No name: nothing on presence is shown, so nobody's name rides on it. */
 interface Meta {
   role: "host" | "guest";
   since: number;
-  name: string;
   lobby?: number;
   humans?: number;
   open?: number;
 }
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** This tab's id on the wire: random, so the account id never leaves the tab. */
+function randomPid(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return `p${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
 
 function subscribe(ch: RealtimeChannel): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -97,6 +116,8 @@ export class CartsNet {
   /** Host: the humans present on the lobby channel, by player id. */
   private readonly present = new Map<string, Meta>();
   private hostHere = false;
+  /** The other tabs presence lists as this lobby's host (normally one). */
+  private readonly hostPids = new Set<string>();
   private joined = false;
   private wanted: PlayerSetup | null = null;
   private deciding = false;
@@ -106,6 +127,12 @@ export class CartsNet {
   /** Host: when another host last spoke on this lobby's channel. */
   private foreignSnapAt = 0;
   private seatRetries = 0;
+  /**
+   * This tab on the wire. opts.pid (the account id plus a suffix) stays the
+   * local game's id for its own seat; rosters are translated on the way out
+   * and in.
+   */
+  private readonly wirePid = randomPid();
 
   constructor(
     private readonly game: GameHandle,
@@ -124,6 +151,10 @@ export class CartsNet {
     document.addEventListener("visibilitychange", this.onVisibility);
     try {
       this.supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { isSingleton: false });
+      // Private channels are authorized per topic, so a session is needed and its token goes first.
+      const { data } = await this.supabase.auth.getSession();
+      if (!data.session) throw new Error("Alge Carts lobbies are for signed-in accounts.");
+      await this.supabase.realtime.setAuth();
       await this.decide();
     } catch (e) {
       if (this.closed) return;
@@ -140,14 +171,14 @@ export class CartsNet {
   join(p: PlayerSetup): void {
     this.wanted = { name: p.name, loadout: { ...p.loadout } };
     this.joined = true;
-    if (this.role === "guest") this.sendPlayer({ k: "join", pid: this.opts.pid, name: p.name, loadout: wireLoadout(p.loadout) });
+    if (this.role === "guest") this.sendPlayer({ k: "join", pid: this.wirePid, name: this.wireName(p.name), loadout: wireLoadout(p.loadout) });
   }
 
   leave(): void {
     this.joined = false;
     this.wanted = null;
     this.lastInput = null;
-    if (this.role === "guest") this.sendPlayer({ k: "leave", pid: this.opts.pid });
+    if (this.role === "guest") this.sendPlayer({ k: "leave", pid: this.wirePid });
   }
 
   sendInput(i: InputState, sq: number): void {
@@ -157,7 +188,7 @@ export class CartsNet {
     const last = this.lastInput;
     const changed = !last || last.throttle !== i.throttle || last.steer !== i.steer || last.fire !== i.fire || this.pressPending;
     if ((changed && now - this.lastInputSentAt >= INPUT_MIN_MS) || now - this.lastInputSentAt >= INPUT_KEEPALIVE_MS) {
-      this.sendPlayer({ k: "input", pid: this.opts.pid, i: { throttle: i.throttle, steer: i.steer, fire: i.fire, firePressed: this.pressPending }, sq });
+      this.sendPlayer({ k: "input", pid: this.wirePid, i: { throttle: i.throttle, steer: i.steer, fire: i.fire, firePressed: this.pressPending }, sq });
       this.pressPending = false;
       this.lastInputSentAt = now;
       this.lastInput = { ...i };
@@ -165,7 +196,7 @@ export class CartsNet {
   }
 
   sendBooster(w: WeaponId | null): void {
-    if (this.role === "guest") this.sendPlayer({ k: "booster", pid: this.opts.pid, w });
+    if (this.role === "guest") this.sendPlayer({ k: "booster", pid: this.wirePid, w });
   }
 
   /** Host: a seat changed hands. */
@@ -183,7 +214,7 @@ export class CartsNet {
     if (this.watchTimer) clearInterval(this.watchTimer);
     if (this.conflictTimer) clearTimeout(this.conflictTimer);
     this.snapTimer = this.watchTimer = this.conflictTimer = null;
-    if (this.role === "guest" && this.joined) this.sendPlayer({ k: "leave", pid: this.opts.pid });
+    if (this.role === "guest" && this.joined) this.sendPlayer({ k: "leave", pid: this.wirePid });
     const s = this.supabase;
     const chans = [this.lobby, this.registry].filter((c): c is RealtimeChannel => !!c);
     this.lobby = this.registry = null;
@@ -218,6 +249,11 @@ export class CartsNet {
     }
   };
 
+  /** The name other tabs see for this player: a school account races as "Racer". */
+  private wireName(name: string): string {
+    return managedAccountNow() ? "Racer" : cleanRacerName(name);
+  }
+
   // ----- deciding where to be -----
 
   private async decide(): Promise<void> {
@@ -229,7 +265,7 @@ export class CartsNet {
       const lobbies = this.readLobbies();
       const open = lobbies.filter((l) => l.open > 0).sort((a, b) => a.id - b.id)[0];
       // The open lobby may be the one this tab already hosts.
-      if (open && open.pid === this.opts.pid && this.role === "host" && this.lobby) return;
+      if (open && open.pid === this.wirePid && this.role === "host" && this.lobby) return;
       if (open) await this.becomeGuest(open.id);
       else await this.becomeHost(lobbies.length ? Math.max(...lobbies.map((l) => l.id)) + 1 : 1);
     } finally {
@@ -238,7 +274,7 @@ export class CartsNet {
   }
 
   private async openRegistry(): Promise<void> {
-    const ch = this.supabase!.channel(REGISTRY, { config: { presence: { key: this.opts.pid } } });
+    const ch = this.supabase!.channel(REGISTRY, { config: { presence: { key: this.wirePid }, private: true } });
     ch.on("presence", { event: "sync" }, () => this.onRegistrySync());
     await subscribe(ch);
     this.registry = ch;
@@ -266,7 +302,7 @@ export class CartsNet {
     this.game.setRole("host");
     this.game.setBotNames(namesForLobby(id, SEATS));
     if (!this.lobby) await this.openLobby(id);
-    await this.lobby!.track({ role: "host", since: this.since, name: this.opts.name } satisfies Meta);
+    await this.lobby!.track({ role: "host", since: this.since } satisfies Meta);
     await this.trackRegistry();
     if (this.watchTimer) clearInterval(this.watchTimer);
     this.watchTimer = null;
@@ -284,19 +320,19 @@ export class CartsNet {
     this.snapTimer = null;
     this.game.setRole("guest");
     if (!this.lobby) await this.openLobby(id);
-    await this.lobby!.track({ role: "guest", since: this.since, name: this.opts.name } satisfies Meta);
+    await this.lobby!.track({ role: "guest", since: this.since } satisfies Meta);
     await this.registry?.untrack();
     this.lastSnapAt = Date.now();
-    this.sendPlayer({ k: "hello", pid: this.opts.pid });
-    if (this.joined && this.wanted) this.sendPlayer({ k: "join", pid: this.opts.pid, name: this.wanted.name, loadout: wireLoadout(this.wanted.loadout) });
+    this.sendPlayer({ k: "hello", pid: this.wirePid });
+    if (this.joined && this.wanted) this.sendPlayer({ k: "join", pid: this.wirePid, name: this.wireName(this.wanted.name), loadout: wireLoadout(this.wanted.loadout) });
     if (!this.watchTimer) this.watchTimer = setInterval(() => this.watchHost(), 1000);
     this.announce();
   }
 
   private async openLobby(id: number): Promise<void> {
-    const ch = this.supabase!.channel(lobbyTopic(id), { config: { presence: { key: this.opts.pid }, broadcast: { self: false, ack: false } } });
-    ch.on("broadcast", { event: "host" }, ({ payload }) => this.onHostMsg(payload as HostMsg));
-    ch.on("broadcast", { event: "player" }, ({ payload }) => this.onPlayerMsg(payload as PlayerMsg));
+    const ch = this.supabase!.channel(lobbyTopic(id), { config: { presence: { key: this.wirePid }, broadcast: { self: false, ack: false }, private: true } });
+    ch.on("broadcast", { event: "host" }, ({ payload }) => this.onHostMsg(payload));
+    ch.on("broadcast", { event: "player" }, ({ payload }) => this.onPlayerMsg(payload));
     ch.on("presence", { event: "sync" }, () => this.onLobbySync());
     await subscribe(ch);
     this.lobby = ch;
@@ -316,7 +352,7 @@ export class CartsNet {
     const hostPlaying = this.game.hud().joined;
     // The host keeps one seat for itself while only watching.
     const open = Math.max(0, SEATS - humans - (hostPlaying ? 0 : 1));
-    return this.registry.track({ role: "host", since: this.since, name: this.opts.name, lobby: this.lobbyId, humans, open } satisfies Meta);
+    return this.registry.track({ role: "host", since: this.since, lobby: this.lobbyId, humans, open } satisfies Meta);
   }
 
   private announce(): void {
@@ -333,7 +369,7 @@ export class CartsNet {
     if (this.role !== "host" || this.closed) return;
     // Two tabs opened at once and both started lobby N: the later one joins the earlier.
     const mine = this.readLobbies().find((l) => l.id === this.lobbyId);
-    const conflict = !!mine && mine.pid !== this.opts.pid && mine.since < this.since;
+    const conflict = !!mine && mine.pid !== this.wirePid && mine.since < this.since;
     if (!conflict || this.conflictTimer) return;
     // A host whose tab just closed lingers in presence until its socket times out, so a
     // registry entry alone proves nothing: the other host has to be sending snapshots on
@@ -343,7 +379,7 @@ export class CartsNet {
       if (this.role !== "host" || this.closed) return;
       const again = this.readLobbies().find((l) => l.id === this.lobbyId);
       const talking = Date.now() - this.foreignSnapAt < 3000;
-      if (again && again.pid !== this.opts.pid && again.since < this.since && talking) void this.demote();
+      if (again && again.pid !== this.wirePid && again.since < this.since && talking) void this.demote();
     }, 3000);
   }
 
@@ -358,13 +394,16 @@ export class CartsNet {
     if (!this.lobby || this.closed) return;
     const state = this.lobby.presenceState<Meta>();
     this.present.clear();
+    this.hostPids.clear();
     this.hostHere = false;
     for (const [pid, metas] of Object.entries(state)) {
       const m = metas[0];
       if (!m) continue;
-      if (pid === this.opts.pid) continue;
-      if (m.role === "host") this.hostHere = true;
-      else this.present.set(pid, m);
+      if (pid === this.wirePid) continue;
+      if (m.role === "host") {
+        this.hostHere = true;
+        this.hostPids.add(pid);
+      } else this.present.set(pid, m);
     }
     if (this.role === "host") {
       // Anyone seated whose tab is gone hands the seat back to a bot.
@@ -379,9 +418,9 @@ export class CartsNet {
     if (this.hostHere && Date.now() - this.lastSnapAt < HOST_SILENCE_MS * 3) return;
     if (Date.now() - this.lastSnapAt < HOST_SILENCE_MS) return;
     const guests = [...this.present.entries()].filter(([, m]) => m.role === "guest").map(([pid, m]) => ({ pid, since: m.since }));
-    guests.push({ pid: this.opts.pid, since: this.since });
+    guests.push({ pid: this.wirePid, since: this.since });
     guests.sort((a, b) => a.since - b.since || a.pid.localeCompare(b.pid));
-    if (guests[0].pid !== this.opts.pid) return;
+    if (guests[0].pid !== this.wirePid) return;
     void this.promote();
   }
 
@@ -398,9 +437,10 @@ export class CartsNet {
 
   // ----- messages -----
 
+  /** Every host message says which tab sent it, so a guest can check it against presence. */
   private sendHost(m: HostMsg): void {
     if (!this.lobby) return;
-    void this.lobby.send({ type: "broadcast", event: "host", payload: m });
+    void this.lobby.send({ type: "broadcast", event: "host", payload: { ...m, from: this.wirePid } });
   }
 
   private sendPlayer(m: PlayerMsg): void {
@@ -408,8 +448,13 @@ export class CartsNet {
     void this.lobby.send({ type: "broadcast", event: "player", payload: m });
   }
 
+  /** The roster as other tabs see it: this tab's seat under its wire id and wire name. */
   private sendRoster(): void {
-    this.sendHost({ k: "roster", r: this.game.roster().map((e) => ({ ...e, loadout: wireLoadout(e.loadout) })), host: this.opts.pid });
+    const r = this.game.roster().map((e) => {
+      const own = !e.bot && e.pid === this.opts.pid;
+      return { ...e, pid: own ? this.wirePid : e.pid, name: own ? this.wireName(e.name) : e.name, loadout: wireLoadout(e.loadout) };
+    });
+    this.sendHost({ k: "roster", r, host: this.wirePid });
   }
 
   private tick(): void {
@@ -421,12 +466,16 @@ export class CartsNet {
     if (this.ticks % 20 === 0) this.sendRoster();
   }
 
-  private onHostMsg(m: HostMsg): void {
+  private onHostMsg(raw: unknown): void {
+    if (!raw || typeof raw !== "object") return;
+    const m = raw as HostMsg & { from?: unknown };
+    // Only a tab that presence lists as this lobby's host may steer it.
+    const fromHost = typeof m.from === "string" && this.hostPids.has(m.from);
     if (this.role === "host") {
-      if (m.k === "snap") this.foreignSnapAt = Date.now();
+      if (m.k === "snap" && fromHost) this.foreignSnapAt = Date.now();
       return;
     }
-    if (this.role !== "guest") return;
+    if (this.role !== "guest" || !fromHost) return;
     switch (m.k) {
       case "yield":
         // The host is stepping back: the earliest guest takes over right away.
@@ -435,15 +484,24 @@ export class CartsNet {
         this.watchHost();
         return;
       case "snap":
+        if (!m.s || typeof m.s !== "object") return;
         this.lastSnapAt = Date.now();
         this.game.applySnap(m.s);
         return;
       case "roster":
-        this.game.applyRoster(m.r.map((e) => ({ ...e, loadout: unwireLoadout(e.loadout) })));
+        if (!Array.isArray(m.r) || !m.r.every((e) => !!e && typeof e === "object" && Number.isInteger(e.i))) return;
+        this.game.applyRoster(
+          m.r.map((e) => ({
+            ...e,
+            pid: e.pid === this.wirePid ? this.opts.pid : typeof e.pid === "string" ? e.pid : null,
+            name: cleanRacerName(e.name),
+            loadout: unwireLoadout(e.loadout),
+          })),
+        );
         this.announce();
         return;
       case "seat":
-        if (m.pid !== this.opts.pid) return;
+        if (m.pid !== this.wirePid || typeof m.i !== "number") return;
         if (m.i >= 0) {
           this.seatRetries = 0;
           this.game.setLocalSeat(m.i);
@@ -452,7 +510,7 @@ export class CartsNet {
           if (this.seatRetries++ < 3) {
             const w = this.wanted;
             setTimeout(() => {
-              if (this.joined && this.role === "guest" && !this.closed) this.sendPlayer({ k: "join", pid: this.opts.pid, name: w.name, loadout: wireLoadout(w.loadout) });
+              if (this.joined && this.role === "guest" && !this.closed) this.sendPlayer({ k: "join", pid: this.wirePid, name: this.wireName(w.name), loadout: wireLoadout(w.loadout) });
             }, 2000);
           } else {
             this.seatRetries = 0;
@@ -465,14 +523,17 @@ export class CartsNet {
     }
   }
 
-  private onPlayerMsg(m: PlayerMsg): void {
-    if (this.role !== "host") return;
+  private onPlayerMsg(raw: unknown): void {
+    if (this.role !== "host" || !raw || typeof raw !== "object") return;
+    const m = raw as PlayerMsg;
+    if (typeof m.pid !== "string" || !PID.test(m.pid) || m.pid === this.wirePid) return;
     switch (m.k) {
       case "hello":
         this.sendRoster();
         return;
       case "join": {
-        const i = this.game.seatRemote(m.pid, m.name, unwireLoadout(m.loadout));
+        // Whatever a tab calls its player, the lobby shows a "First L." shape or "Racer".
+        const i = this.game.seatRemote(m.pid, cleanRacerName(m.name), unwireLoadout(m.loadout));
         this.sendRoster();
         this.sendHost({ k: "seat", pid: m.pid, i });
         void this.trackRegistry();
@@ -486,7 +547,8 @@ export class CartsNet {
         this.announce();
         return;
       case "input":
-        this.game.setRemoteInput(m.pid, m.i, m.sq);
+        if (!m.i || typeof m.i !== "object" || typeof m.sq !== "number") return;
+        this.game.setRemoteInput(m.pid, { throttle: Number(m.i.throttle) || 0, steer: Number(m.i.steer) || 0, fire: !!m.i.fire, firePressed: !!m.i.firePressed }, m.sq);
         return;
       case "booster":
         this.game.resolveRemoteBooster(m.pid, m.w);

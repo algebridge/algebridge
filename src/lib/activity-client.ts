@@ -9,8 +9,11 @@
  * student sees their own line go by, and sends the moment to the database
  * when counting is allowed (never from a local host, a frame or a bare
  * route, the same gate as page views). The database puts the first name on
- * the row itself from the profile, checks the student is on the leaderboard,
- * and refuses more than one row every two seconds per account.
+ * the row itself from the profile (only a name that passes the real-name
+ * rule), checks the student is on the leaderboard and not a school account,
+ * keeps a title only when the app really has it (public.ticker_titles; any
+ * other is told as the plain line), and refuses more than one row every two
+ * seconds, or six a minute, per account.
  */
 
 import { countingAllowed, type AnalyticsContext } from "@/lib/analytics";
