@@ -30,7 +30,7 @@ export function CartsLeaderboard({ userId, refresh }: { userId: string | null; r
         <h2 id="carts-board-title" className="text-base font-bold text-slate-900">
           Alge Carts leaderboard
         </h2>
-        <p className="text-xs text-slate-500">Smashes across every match. Bots hold a place until students take it.</p>
+        <p className="text-xs text-slate-500">Smashes across every match.</p>
       </div>
       <div className="panel-body">
         {error ? (
@@ -57,7 +57,6 @@ export function CartsLeaderboard({ userId, refresh }: { userId: string | null; r
                     <td className="px-4 py-2.5 tabular-nums text-slate-500">{r.rank}</td>
                     <td className="px-4 py-2.5 text-slate-900">
                       {r.name}
-                      {r.isBot && <span className="ml-2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">bot</span>}
                       {r.isMe && <span className="ml-2 text-xs font-semibold text-bridge-700">you</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{r.smashes}</td>
