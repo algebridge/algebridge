@@ -1,41 +1,41 @@
 # AlgeBridge
 
-**Bridge the gap from arithmetic to algebra.**
+A free, ad-free Algebra 1 course for students, built by students. The marketing site is [algebridge.org](https://algebridge.org) and the platform is [learn.algebridge.org](https://learn.algebridge.org).
 
-AlgeBridge is a free Algebra 1 learning platform for grades 7–10. It combines curated YouTube videos, research-backed teaching methods, and interactive practice with mastery tracking.
+## What students get
 
-## Phase 2 Features 
+- **Algebra 1**: 15 units and 52 skills, from working with units to modeling with functions. Each skill has a key idea, a video and practice with instant feedback, and the course tracks mastery skill by skill.
+- **Algebra 2**: a second course that builds on the first.
+- **Review**: finished skills come back for spaced review.
+- **Archie**: an AI study helper that gives hints. It tells students it is an AI.
+- **Games and a house**: practice earns Bridgeys, which students spend on a 3D house, and games such as Alge Carts ask practice questions as you play.
 
-- **Verified YouTube videos** — all 46 skills use validated video IDs
-- **Bridge Review** — spaced repetition at 1/3/7/14/30 day intervals (`/review`)
-- **AI Tutor** — personalized hints via `/api/tutor` (OpenAI optional, smart fallback built-in)
-- **Cloud login** — Supabase auth + progress sync (optional, configure via `.env`)
-- **Anonymous progress** — still works via localStorage with export/import
+## What teachers get
 
-## Environment Variables
+Classes, assignments with due dates, teacher-made student accounts, per-student progress, and class controls for games and the leaderboard.
 
-Copy `.env.example` to `.env.local`:
+## Safety and privacy
+
+- Student data lives in Supabase (Postgres) behind row-level security. A signed-out visitor reads nothing, and students cannot read each other's progress, email or messages.
+- Typed text is checked for personal information (phone numbers, emails, addresses, handles) and for crisis language, which brings up 988 and Crisis Text Line.
+- Messages, groups and calls have report and block.
+- No ads, and student data is never sold.
+
+The policies are at [learn.algebridge.org/privacy](https://learn.algebridge.org/privacy) and [learn.algebridge.org/terms](https://learn.algebridge.org/terms). Security reports go to info@algebridge.org.
+
+## Code
+
+- `index.html`: the marketing site, served by GitHub Pages.
+- `src/`: the platform, Next.js 15, React 19, TypeScript and Tailwind, deployed on Vercel.
+- `supabase/`: the database schema and row-level security policies, one file per change, applied in date order.
+- `extension/`: the AlgeBridge Hints browser extension.
 
 ```bash
-cp .env.example .env.local
+npm install
+npm run dev
 ```
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | No | Cloud login & sync |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | No | Cloud login & sync |
-| `NEXT_PUBLIC_GA_ID` | No | Google Analytics 4 measurement ID for visit counts. Unset: the Algebridge property (`G-3JJ9QGH9DM`). Set to an empty string to count nothing. |
-| `OPENAI_API_KEY` | No | AI-powered tutor hints |
-
-Run `supabase/schema.sql` in your Supabase project SQL editor to create the progress table.
-
-## Roadmap
-
-| Phase | Status | Features |
-|-------|--------|----------|
-| **1** | ✅ Done | Curriculum, videos, practice, local progress |
-| **2** | ✅ Current | Verified videos, AI tutor, Bridge Review, Supabase auth |
-| **3** | Planned | Desmos graphs, teacher dashboard, mobile PWA |
+Without `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` the platform runs local-only and keeps progress in the browser. Tests: `npm run test:practice`, `npm run test:problems` (solves every generated problem), `npm run test:helper`, `npm run test:classroom`.
 
 ## License
 

@@ -54,6 +54,16 @@ export const metadata: Metadata = {
   },
   description:
     "Bridge the gap from arithmetic to algebra. Free Algebra 1 learning with videos, practice, live tutors, and mastery tracking.",
+  // A shared link (a lesson, /schools) shows a card instead of a bare URL.
+  metadataBase: new URL("https://learn.algebridge.org"),
+  openGraph: {
+    type: "website",
+    siteName: "AlgeBridge",
+    title: "AlgeBridge, free Algebra 1 for grades 7 to 10",
+    description: "Free, ad-free Algebra 1: short lessons, videos, practice with instant feedback, and mastery tracking.",
+    images: [{ url: "https://algebridge.org/og.png", width: 1200, height: 630, alt: "AlgeBridge" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
