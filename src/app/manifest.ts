@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "AlgeBridge",
     short_name: "AlgeBridge",
-    description: "Free Algebra 1, start to finish.",
+    description: "Free, ad-free Algebra 1: lessons, practice and mastery tracking.",
     start_url: "/",
     scope: "/",
     display: "standalone",

@@ -34,7 +34,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "welcome",
     title: "Welcome to AlgeBridge",
-    body: `Free Algebra 1, start to finish: ${units.length} units and ${SKILLS} skills. Here is a one-minute look at what you can do.`,
+    body: `Free Algebra 1: ${units.length} units and ${SKILLS} skills. Here is a one-minute look at what you can do.`,
     pose: "wave",
   },
   {

@@ -34,7 +34,7 @@ export function CartsBanner() {
             </h2>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-white/90">
               Eight karts, one arena, three minutes. Drive into a question box and answer it to load the booster: rockets, mines, turbo and
-              more. Other students are on the track with you, and every right answer pays.
+              more. Students who are on race together, computer drivers fill the open karts, and every right answer pays.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link

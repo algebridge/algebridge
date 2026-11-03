@@ -32,7 +32,7 @@ export function VisualizeIt() {
     <section className="panel">
       <div className="panel-head">
         <h2 className="panel-title">Visualize it</h2>
-        <span className="text-xs text-slate-500">Every problem draws itself</span>
+        <span className="text-xs text-slate-500">Problems draw themselves</span>
       </div>
       <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_16rem]">
         <ProblemPicture picture={picture} />

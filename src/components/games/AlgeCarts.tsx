@@ -31,7 +31,7 @@ const PRACTICE_KEY = "algebridge:carts:practice";
 function lobbyLine(info: LobbyInfo): string {
   if (info.role === "solo") return "";
   const others = info.others;
-  if (!others.length) return `Lobby ${info.id} · ${info.seats} racers`;
+  if (!others.length) return `Lobby ${info.id} · you and the bots so far`;
   const names = others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} and ${others[others.length - 1]}`;
   return `Lobby ${info.id} · with ${names}`;
 }

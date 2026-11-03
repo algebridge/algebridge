@@ -37,13 +37,15 @@ export default function TutorsPage() {
         </p>
       </div>
 
-      {!user && (
+      {/* Tutor profiles are readable only when signed in, so a signed-out
+          visitor would otherwise be told nobody has signed up. */}
+      {!user ? (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-          <Link href="/login" className="font-semibold underline">Sign in</Link> to message a
-          tutor or start a call.
+          <Link href="/login" className="font-semibold underline">Sign in</Link> to see the
+          tutors, message one or start a call.
         </div>
-      )}
-
+      ) : (
+      <>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -93,6 +95,8 @@ export default function TutorsPage() {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

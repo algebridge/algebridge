@@ -60,7 +60,7 @@ export default function HomePage() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
           <p className="max-w-xl text-sm text-slate-600">
-            Algebra 2 in {ALGEBRA_2.units.length} units, from square roots up to i to the unit circle. Same lessons, same practice, same path.
+            Algebra 2 in {ALGEBRA_2.units.length} units, from square roots and complex numbers to the unit circle. Same lessons, same practice, same path.
           </p>
           <Link href="/algebra-2" className="btn-primary text-sm">
             See the AlgeBridge 2 outline

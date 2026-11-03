@@ -23,7 +23,7 @@ export default function PrivacyPage() {
   return (
     <article className="prose-slate mx-auto max-w-2xl">
       <h1 className="page-title">Privacy Policy</h1>
-      <p className="mt-1 text-sm text-slate-500">Last updated: October 2026</p>
+      <p className="mt-1 text-sm text-slate-500">Last updated: November 3, 2026</p>
 
       {/* Ten sections over several screens: an index, so a parent or a
           district reviewer can go straight to the part they need. */}
@@ -59,6 +59,8 @@ export default function PrivacyPage() {
             <li><strong>Profile</strong>: an optional photo and bio. Photos are not at a public link: only the people allowed to see you, while signed in, can open yours. A bio with a phone number, email address or social media username is not saved.</li>
             <li><strong>Messages and calls</strong>: direct messages, group messages, requests for help from a tutor, and call records, including the text recap written after a call.</li>
             <li><strong>Leaderboard</strong>: on unless you turn it off. Your first name and last initial, Bridgeys, skills finished and best house piece are shown to signed-in AlgeBridge users, never to visitors who are not signed in, and never with your account id. You agree to this when you create your account. Untick &quot;Shown on the board&quot; on the leaderboard page to hide yourself. School accounts are never shown.</li>
+            <li><strong>Activity strip</strong>: a running line under the header shows signed-in AlgeBridge users moments like &quot;Ava finished Two-Step Equations&quot;: a student&apos;s first name only, and that they solved a problem, earned Bridgeys, finished a skill or unit, bought something in the shop or played a game. Only students who are on the leaderboard appear, school accounts never do, visitors who are not signed in never see it, and each moment is deleted after 7 days. Turning off &quot;Shown on the board&quot; also keeps you off the strip.</li>
+            <li><strong>How practice goes</strong>: to see where students get stuck, the app records small facts such as which skill was open, seconds per problem, right or wrong, skips, Archie use, games played, and the answer to an occasional one-tap question, &quot;How are you feeling at this exact moment?&quot; (Frustrated to Great). These carry the same random code as visit counts, made fresh each day, never an account, name, email or IP address, and no typed text. Only AlgeBridge admins see the totals, and rows are deleted after about 13 months.</li>
             <li><strong>Visit counts</strong>: AlgeBridge counts visits to algebridge.org and to this site as daily totals: the page, with any account, group or call id taken out, the site that linked to it, and whether it was a phone, tablet or computer. A random code your browser makes fresh each day lets one visit count once that day. It is never tied to your account, name, email or IP address, and the next day a new one replaces it. Admins, bots and browsers that send Global Privacy Control are left out, and only AlgeBridge admins see the totals.</li>
             <li><strong>Feedback</strong>: what you send through the feedback page, the page you sent it from, and a contact email (your account email unless you change it).</li>
             <li><strong>Reports</strong>: if you report someone, the reason you pick, any details you add, where it happened (the conversation, group or call), the account you reported, and which message you reported, if any. Reports are saved for an AlgeBridge admin to read and are not shown to the person reported. The report quotes the message from the database&apos;s own copy, and one account can send at most 30 reports an hour. Reports wait in a list for an admin to read, so a report is not read right away.</li>
@@ -100,7 +102,7 @@ export default function PrivacyPage() {
             <li><strong>Supabase</strong> stores accounts, progress, messages and photos, and carries messages and call signals live.</li>
             <li><strong>Vercel</strong> hosts the website.</li>
             <li><strong>Stripe</strong> processes contributions from adult supporters. See <a href="#payments" className="underline">Payments and contributions</a>.</li>
-            <li><strong>Groq, with OpenAI as a backup</strong>, writes three kinds of text. Archie, the study helper, gets the problem on screen with its hint and worked solution, the conversation, and the student&apos;s first name and picked interests, never a last name or email. Interests get only the words a student types about them; tapping a listed interest uses no AI. Word problems set in an interest get a problem the app made and the chosen topic. The Hints extension is described below.</li>
+            <li><strong>Groq</strong> writes three kinds of text. (OpenAI is a backup that is switched off today; this page will name it before it is turned on.) Archie, the study helper, gets the problem on screen with its hint and worked solution, the conversation, and the student&apos;s first name and picked interests, never a last name or email. Interests get only the words a student types about them; tapping a listed interest uses no AI. Word problems set in an interest get a problem the app made and the chosen topic. The Hints extension is described below.</li>
             <li><strong>Anthropic or OpenAI</strong>, when one is set up, writes the recap after a tutoring call. It gets both people&apos;s names, the call&apos;s captions as a transcript labeled by speaker (if captions were on), and the student&apos;s notebook. The recap is saved with the call record and sent to the other person as a message. Without either service, a template on our own server writes it.</li>
             <li><strong>Google</strong>: if anyone turns on captions in a call, the browser&apos;s speech recognition turns the audio into text, and in Chrome that is a Google service. Google also handles &quot;Continue with Google&quot; sign-in if you choose it.</li>
             <li><strong>YouTube</strong> plays the lesson videos, embedded from youtube-nocookie.com. Your browser contacts YouTube when a lesson&apos;s video player loads.</li>
@@ -177,7 +179,8 @@ export default function PrivacyPage() {
         <section id="extension" className="scroll-mt-20">
           <h2 className="text-lg font-bold text-slate-900">AlgeBridge Hints browser extension</h2>
           <p className="mt-2">
-            AlgeBridge Hints is our Chrome extension. It spots Algebra 1 and Algebra 2 problems
+            AlgeBridge Hints is our Chrome extension. It is in testing and not yet published in
+            the Chrome Web Store; this section describes how it works. It spots Algebra 1 and Algebra 2 problems
             on the pages you visit and gives step by step hints, never the answer. It works
             without an account.
           </p>

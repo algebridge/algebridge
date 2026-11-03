@@ -43,20 +43,44 @@ export function canWriteBoard(userId: string): boolean {
   return isSupabaseConfigured() && /^[0-9a-f-]{36}$/i.test(userId);
 }
 
+/** A row as carts_board() returns it: no user id and no key (supabase/schema-2026-11-03-hardening.sql). */
+interface BoardRow {
+  rank: number;
+  name: string;
+  is_bot: boolean;
+  smashes: number;
+  wins: number;
+  matches: number;
+  best_streak: number;
+  xp: number;
+  is_me: boolean;
+}
+
 export async function fetchCartsBoard(userId: string | null): Promise<{ rows: CartsRow[]; error: string | null }> {
   const supabase = createClient();
   if (!supabase) return { rows: [], error: null };
-  const { data, error } = await supabase.from(TABLE).select(COLS).order("smashes", { ascending: false }).order("wins", { ascending: false }).limit(60);
-  if (error) return { rows: [], error: error.message };
-  const all = (data ?? []) as DbRow[];
+  // The board without account ids. Before the hardening file runs the function
+  // is missing (PGRST202) and the table is read as before; after it, the table
+  // shows a student only their own row and the bots.
+  let all: (Omit<DbRow, "key"> & { key: string; is_me: boolean })[];
+  const board = await supabase.rpc("carts_board", { p_limit: 60 });
+  if (!board.error) {
+    all = ((board.data ?? []) as BoardRow[]).map((r) => ({ ...r, key: `#${r.rank}` }));
+  } else if (board.error.code === "PGRST202") {
+    const { data, error } = await supabase.from(TABLE).select(COLS).order("smashes", { ascending: false }).order("wins", { ascending: false }).limit(60);
+    if (error) return { rows: [], error: error.message };
+    const me = userId ? `u:${userId}` : null;
+    all = ((data ?? []) as DbRow[]).map((r) => ({ ...r, is_me: r.key === me }));
+  } else {
+    return { rows: [], error: board.error.message };
+  }
   const people = all.filter((r) => !r.is_bot);
   const bots = all.filter((r) => r.is_bot);
   // Students first; bots fill the seats left, never pushing a student off.
   const picked = [...people.slice(0, BOARD_SIZE), ...bots.slice(0, Math.max(0, BOARD_SIZE - Math.min(people.length, BOARD_SIZE)))];
   picked.sort((a, b) => b.smashes - a.smashes || b.wins - a.wins || b.matches - a.matches || a.name.localeCompare(b.name));
-  const me = userId ? `u:${userId}` : null;
   return {
-    rows: picked.map((r, i) => ({ key: r.key, name: r.name, isBot: r.is_bot, smashes: r.smashes, wins: r.wins, matches: r.matches, bestStreak: r.best_streak, xp: r.xp, rank: i + 1, isMe: r.key === me })),
+    rows: picked.map((r, i) => ({ key: r.key, name: r.name, isBot: r.is_bot, smashes: r.smashes, wins: r.wins, matches: r.matches, bestStreak: r.best_streak, xp: r.xp, rank: i + 1, isMe: r.is_me })),
     error: null,
   };
 }
