@@ -97,6 +97,53 @@ export function promptNumbers(prompt: string): number[] {
   return out;
 }
 
+/**
+ * A unit fact the question hands over, "(1 L = 1,000 mL)" or "(1 mile =
+ * 5,280 ft)": a conversion to use, not an equation to solve, and its numbers
+ * are factors to multiply or divide by, never amounts to add or take away.
+ */
+const UNIT_FACT = /\(\s*[\d.,]+\s*[a-z][a-z. ]*=\s*[\d.,]+\s*[a-z][a-z. ]*\)/gi;
+
+/** Skills whose cards are equations to solve, even when a card does not say "solve". */
+const EQUATION_SKILL = /^(?:one-step|two-step|multi-step)-equations|^literal-equations|^equations-with-fractions/;
+
+/**
+ * Adding or taking away, in the question or in its worked answer: "x + 7",
+ * "45 − 12", "plus a $10 fee", "how many are left". A hyphen counts only with
+ * a space on each side, so "500-milliliter" and "-16t²" do not.
+ */
+const ADDS =
+  /[\w)\]²³|%]\s*[+−]\s*[\w(\[√|$.]|\s-\s|\b(?:plus|minus|sum|difference|more than|less than|fewer|add|added|adding|subtract|subtracted|subtracting|left|remain|remains|remaining)\b/i;
+
+/** A square or a square root, in the question or in its worked answer, or a distance, which the Pythagorean theorem squares. */
+const SQUARES = /[²√]|\^\s*\(?\s*2(?![\d.])|\^\s*\(\s*1\s*\/\s*2\s*\)|\bsquared?\b|\broots?\b|\bdistance\b|\bfar apart\b|hypotenuse|pythag/i;
+
+/** What the question says, and how the worked answer gets there, for checking which moves this problem has in it. */
+function problemText(problem: PracticeProblem): string {
+  return `${stripVariantTag(problem.prompt)} ${problem.explanation ?? ""}`;
+}
+
+/** 4 → "4", 27878400 → "27,878,400": the way the cards write a big number. */
+function grouped(n: number): string {
+  return Number.isInteger(n) && Math.abs(n) >= 10000 ? n.toLocaleString("en-US") : fmt(n);
+}
+
+/** How big an answer is next to the key, when it is n times too big: "twice the size". */
+function timesTheSize(n: number): string {
+  if (near(n, 2)) return "twice the size";
+  if (near(n, 3)) return "three times the size";
+  return `${grouped(n)} times the size`;
+}
+
+/** How big an answer is next to the key, when it is 1/n of it: "half the size", "1/12 the size". */
+function partOfTheSize(n: number): string {
+  if (near(n, 2)) return "half the size";
+  if (near(n, 3)) return "a third of the size";
+  if (near(n, 4)) return "a quarter of the size";
+  if (Number.isInteger(n)) return `1/${grouped(n)} the size`;
+  return `${fractionText(1 / n) ?? `1/${fmt(n)}`} the size`;
+}
+
 function matchTrap(traps: Trap[] | undefined, given: string, value: number | null, decimalPlaces?: number): Diagnosis | null {
   for (const t of traps ?? []) {
     if (typeof t.value === "number") {
@@ -134,7 +181,21 @@ function diagnoseNumeric(problem: PracticeProblem, given: string): Diagnosis {
   }
   const ans = Number(problem.answer);
   if (!Number.isFinite(ans)) return NONE;
-  const nums = promptNumbers(problem.prompt);
+  const prompt = stripVariantTag(problem.prompt);
+  const ownWords = prompt.replace(UNIT_FACT, " ");
+  // The amounts in the question, then the factors its unit facts hand over:
+  // "(1 L = 1,000 mL)" brings the 1,000, and its 1 is no amount at all.
+  const amounts = promptNumbers(ownWords);
+  const conversions = promptNumbers((prompt.match(UNIT_FACT) ?? []).join(" ")).filter((n) => !near(Math.abs(n), 1));
+  const nums = [...amounts, ...conversions.filter((n) => !amounts.some((m) => near(m, n)))];
+  // An equation to solve: the card says so, or it comes from a skill of
+  // equations. A unit fact's "=" is no equation.
+  const equation = /\bsolve\b/i.test(ownWords) || EQUATION_SKILL.test(problem.id ?? "");
+  // A slip has to be a move the problem has in it. Landing exactly 12 from
+  // the key is a 12 added or dropped only where something is added or taken
+  // away; on a card that only multiplies and divides it is chance.
+  const additive = ADDS.test(`${ownWords} ${problem.explanation ?? ""}`);
+  const squares = SQUARES.test(problemText(problem));
 
   if (ans !== 0 && near(value, -ans)) {
     return { kind: "sign", note: "Right size, wrong sign.", fix: "Follow the minus sign through each step: it decides which side of zero the answer lands on." };
@@ -152,49 +213,50 @@ function diagnoseNumeric(problem: PracticeProblem, given: string): Diagnosis {
     }
   }
   const diff = value - ans;
-  const equation = /=/.test(problem.prompt);
-  // Off by the number itself: it never came in, or came in twice.
-  for (const n of magnitudes(nums)) {
-    if (n >= 1 && near(Math.abs(diff), n)) {
-      return {
-        kind: "offby",
-        note: `Your answer is exactly ${fmt(n)} ${diff > 0 ? "more" : "less"} than it should be.`,
-        fix: `Check the step where ${fmt(n)} comes in.`,
-      };
+  if (additive) {
+    // Off by the number itself: it never came in, or came in twice.
+    for (const n of magnitudes(amounts)) {
+      if (n >= 1 && near(Math.abs(diff), n)) {
+        return {
+          kind: "offby",
+          note: `Your answer is exactly ${fmt(n)} ${diff > 0 ? "more" : "less"} than it should be.`,
+          fix: `Check the step where ${fmt(n)} comes in.`,
+        };
+      }
     }
-  }
-  // Off by twice the number: it went the wrong way. Undoing "+ 7" by adding 7
-  // again lands 14 from the mark, on the far side of it.
-  for (const n of magnitudes(nums)) {
-    if (n >= 1 && near(Math.abs(diff), 2 * n)) {
-      return {
-        kind: "offby",
-        note: `Your answer is ${fmt(2 * n)} off, twice the ${fmt(n)} in the question. That is what happens when ${fmt(n)} goes the wrong way: added where it should be subtracted, or the reverse.`,
-        fix: equation ? `To undo adding ${fmt(n)}, subtract it from both sides; to undo subtracting ${fmt(n)}, add it.` : undefined,
-      };
+    // Off by twice the number: it went the wrong way. Undoing "+ 7" by adding 7
+    // again lands 14 from the mark, on the far side of it.
+    for (const n of magnitudes(amounts)) {
+      if (n >= 1 && near(Math.abs(diff), 2 * n)) {
+        return {
+          kind: "offby",
+          note: `Your answer is ${fmt(2 * n)} off, twice the ${fmt(n)} in the question. That is what happens when ${fmt(n)} goes the wrong way: added where it should be subtracted, or the reverse.`,
+          fix: equation ? `To undo adding ${fmt(n)}, subtract it from both sides; to undo subtracting ${fmt(n)}, add it.` : undefined,
+        };
+      }
     }
   }
   const sameSide = Math.sign(value) === Math.sign(ans);
-  const factors = [...magnitudes(nums), 2].filter((n, i, arr) => n >= 2 && arr.findIndex((m) => near(m, n)) === i);
+  // Doubling and halving are slips of their own, so 2 is tried on every card;
+  // any other factor has to be one of the question's numbers. A step is named
+  // ("the step with 12 in it") only by a number the question has in it.
+  const own = magnitudes(nums).filter((n) => n >= 2);
+  const factors = [...own, 2].filter((n, i, arr) => arr.findIndex((m) => near(m, n)) === i);
   for (const n of factors) {
+    const fix = own.some((m) => near(m, n))
+      ? `Look at the step with ${fmt(n)} in it: multiplying by it and dividing by it are the two ways that step can go.`
+      : undefined;
     if (ans !== 0 && sameSide && near(Math.abs(value), Math.abs(ans) * n)) {
-      return {
-        kind: "factor",
-        note: `Your answer is ${fmt(n)} times the size it should be.`,
-        fix: `Look at the step with ${fmt(n)} in it: multiplying by it and dividing by it are the two ways that step can go.`,
-      };
+      return { kind: "factor", note: `Your answer is ${timesTheSize(n)} it should be.`, fix };
     }
     if (value !== 0 && sameSide && near(Math.abs(value) * n, Math.abs(ans))) {
-      return {
-        kind: "factor",
-        note: `Your answer is ${fmt(n)} times smaller than it should be.`,
-        fix: `Look at the step with ${fmt(n)} in it: multiplying by it and dividing by it are the two ways that step can go.`,
-      };
+      return { kind: "factor", note: `Your answer is ${partOfTheSize(n)} it should be.`, fix };
     }
   }
   // Off by the number squared: multiplied where it should have divided, which
-  // swaps ÷n for ×n, a factor of n twice over.
-  for (const n of factors) {
+  // swaps ÷n for ×n, a factor of n twice over. Only for the question's own
+  // numbers: a 2 that is not in it was never multiplied or divided by.
+  for (const n of own) {
     if (ans !== 0 && sameSide && near(Math.abs(value), Math.abs(ans) * n * n)) {
       return {
         kind: "factor",
@@ -205,40 +267,49 @@ function diagnoseNumeric(problem: PracticeProblem, given: string): Diagnosis {
     if (value !== 0 && sameSide && near(Math.abs(value) * n * n, Math.abs(ans))) {
       return {
         kind: "factor",
-        note: `Your answer is ${fmt(n)} times ${fmt(n)} too small, which is what dividing by ${fmt(n)} instead of multiplying by it does.`,
+        note: `Your answer is ${partOfTheSize(n * n)} it should be, which is what dividing by ${fmt(n)} instead of multiplying by it does.`,
         fix: `Where ${fmt(n)} comes in, multiply instead of dividing.`,
       };
     }
   }
-  if (Math.abs(ans) > 1 && near(value, ans * ans)) {
+  // Squared or rooted: only where the problem squares or takes a root.
+  if (squares && Math.abs(ans) > 1 && near(value, ans * ans)) {
     return { kind: "square", note: "That is the answer squared.", fix: "One squaring too many: check whether the last step is a square or a square root." };
   }
-  if (value > 0 && Math.abs(ans) > 1 && near(value * value, ans)) {
+  if (squares && value > 0 && Math.abs(ans) > 1 && near(value * value, ans)) {
     return { kind: "square", note: "That is the square root of the answer.", fix: "Check whether the last step is a square root or a square." };
   }
   const rel = Math.abs(diff) / Math.max(1, Math.abs(ans));
   if (rel < 0.02) {
+    // Rounding advice only where there is rounding: a whole-number key typed
+    // as a whole number was not rounded on the way.
+    const whole = Number.isInteger(ans) && Number.isInteger(value);
     return {
       kind: "close",
       note: "Close, but not exact.",
       fix:
         typeof problem.decimalPlaces === "number"
           ? `Keep every digit until the last step, then round once, to ${placeName(problem.decimalPlaces)}.`
-          : "Keep exact values until the last step, then round once, to the place the question asks for.",
+          : whole
+            ? "Redo the arithmetic one step at a time: one of the steps is a little off."
+            : "Keep exact values until the last step, then round once, to the place the question asks for.",
     };
   }
+  const isOne = (n: number) => near(Math.abs(n), 1);
+  const factorOnly = (n: number) => !amounts.some((m) => near(m, n));
   for (let i = 0; i < nums.length; i += 1) {
     for (let j = i + 1; j < nums.length; j += 1) {
       const a = nums[i];
       const b = nums[j];
-      const tries: [number, string][] = [
-        [a + b, `${fmt(a)} + ${fmt(b)}`],
-        [a - b, `${fmt(a)} − ${fmt(b)}`],
-        [b - a, `${fmt(b)} − ${fmt(a)}`],
-        [a * b, `${fmt(a)} × ${fmt(b)}`],
-        [a / b, `${fmt(a)} ÷ ${fmt(b)}`],
-        [b / a, `${fmt(b)} ÷ ${fmt(a)}`],
-      ];
+      // Only steps someone could take: a unit fact's factor is multiplied or
+      // divided by, never added; times 1 or over 1 changes nothing; and on a
+      // card with no adding in it, a 1 ("in 1 hour") is not added either.
+      const adds = !factorOnly(a) && !factorOnly(b) && (additive || (!isOne(a) && !isOne(b)));
+      const tries: [number, string][] = [];
+      if (adds) tries.push([a + b, `${fmt(a)} + ${fmt(b)}`], [a - b, `${fmt(a)} − ${fmt(b)}`], [b - a, `${fmt(b)} − ${fmt(a)}`]);
+      if (!isOne(a) && !isOne(b)) tries.push([a * b, `${fmt(a)} × ${fmt(b)}`]);
+      if (!isOne(b)) tries.push([a / b, `${fmt(a)} ÷ ${fmt(b)}`]);
+      if (!isOne(a)) tries.push([b / a, `${fmt(b)} ÷ ${fmt(a)}`]);
       for (const [r, text] of tries) {
         if (near(value, r)) return { kind: "combo", note: `${text} = ${fmt(value)} is a step, and not the one this question needs.` };
       }

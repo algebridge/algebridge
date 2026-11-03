@@ -329,7 +329,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         if (!divs.length) {
           const x = m === 1 ? 2 : m;
           return mcCard(
-            `Multiply: √${x} · √${2 * x}.`,
+            `Multiply and simplify: √${x} · √${2 * x}.`,
             "Multiply the numbers under one root, then simplify.",
             root(x, 2),
             [
@@ -344,7 +344,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         const b = p / a;
         const ans = root(k, m);
         return mcCard(
-          `Multiply: √${a} · √${b}.`,
+          `Multiply and simplify: √${a} · √${b}.`,
           "Multiply the numbers under one root, then simplify.",
           ans,
           [

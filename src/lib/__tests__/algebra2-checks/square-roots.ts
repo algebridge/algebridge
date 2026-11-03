@@ -107,7 +107,7 @@ export default function checks(h: CheckHelpers): Checks {
           return !!r && r.m === m1 && r.k === c;
         });
       }
-      if ((m = p.prompt.match(/^Multiply: √(\d+) · √(\d+)\.$/))) {
+      if ((m = p.prompt.match(/^Multiply(?: and simplify)?: √(\d+) · √(\d+)\.$/))) {
         const n = Number(m[1]) * Number(m[2]);
         return onlyRight(p, (c) => simplifies(c, n));
       }

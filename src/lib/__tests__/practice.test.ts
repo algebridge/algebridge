@@ -1690,7 +1690,7 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   const mult = d(num("Solve for x: 4x = 20", 5), "80");
   ok("a factor multiplied where it should divide", mult.kind === "factor" && mult.note.includes("4 times 4") && mult.fix!.includes("dividing both sides by 4"));
   ok("a factor that was never divided in", d(num("Solve for x: 3x = 21", 7), "21").kind === "factor");
-  ok("no equation, no equation advice", d(num("Convert 3 miles to feet.", 15840), "15846").fix === undefined);
+  ok("no equation, no equation advice", !/both sides/.test(d(num("Convert 3 miles to feet.", 15840), "15846").fix ?? "") && !/both sides/.test(d(num("A cooler holds 12 liters of water. How many 250-milliliter bottles can you fill from it? (1 L = 1,000 mL)", 48), "72").fix ?? ""));
   ok("a square too many", d(num("Simplify √64", 8), "64").kind === "square");
   const rounded = d(num("Value after 3 years? (round to the hundredths place)", 1157.63, { decimalPlaces: 2 }), "1157.6");
   ok("close but rounded early", rounded.kind === "close" && rounded.fix!.includes("hundredths"));
@@ -1715,6 +1715,57 @@ ok("a decimal inside an equation still holds together", JSON.stringify(P.mathSpa
   ];
   ok("no note ever states the answer", secrets.every((p) => ["19", "80", "300", "3/2", "-5", "0.66", "17", "four"].every((g) => !new RegExp(`(^|[^\\d.])${String(p.answer).replace(".", "\\.")}($|[^\\d.])`).test(d(p, g).note))));
   ok("working splits at the arrows", D.explanationSteps("3x + 4 = 19 → 3x = 15 → x = 5").length === 3 && D.explanationSteps("One sentence.").length === 1);
+
+  // The front-page demo (/try?fixed=1, embedded on algebridge.org) is unit
+  // conversion, cards that only multiply and divide. Its notes named slips
+  // those cards do not have: 24 bottles for 48 was "24 off, twice the 12 in
+  // the question ... subtract it from both sides", read off "(1 L = 1,000 mL)"
+  // as if it were an equation, and 44 ft/s for 88 was "2 times smaller ...
+  // the step with 2 in it" on a card with no 2.
+  const cooler = num("A cooler holds 12 liters of water. How many 250-milliliter bottles can you fill from it? (1 L = 1,000 mL)", 48, { explanation: "12 L × 1,000 mL/L = 12,000 mL → 12,000 ÷ 250 = 48 bottles" });
+  const halfCooler = d(cooler, "24");
+  ok("a unit fact is no equation, and half the bottles is half", halfCooler.kind === "factor" && halfCooler.note === "Your answer is half the size it should be." && !/both sides|twice the|subtract/.test(`${halfCooler.note} ${halfCooler.fix ?? ""}`), JSON.stringify(halfCooler));
+  const car = num("A car travels 60 miles in 1 hour. How many feet per second is that?", 88, { explanation: "60 mi/hr × 5280 ft/mi = 316,800 ft/hr → 316,800 ft/hr ÷ 3600 sec/hr = 88 ft/sec" });
+  const halfCar = d(car, "44");
+  ok("a 2 the question does not have is never a step to look at", halfCar.note === "Your answer is half the size it should be." && halfCar.fix === undefined && !/times smaller/.test(halfCar.note), JSON.stringify(halfCar));
+  ok("a card that only multiplies is never off by one of its numbers", ["60", "36", "49", "1048", "72"].every((g) => d(cooler, g).kind === "none") && ["148", "28", "90"].every((g) => d(car, g).kind === "none"));
+  ok("a square root only where something is squared", d(num("A cooler holds 12 liters of water. How many 750-milliliter bottles can you fill from it? (1 L = 1,000 mL)", 16), "4").kind === "none" && d(num("Simplify √64", 8), "64").kind === "square");
+  // ...and the notes that were right stay right.
+  ok("a 2 the question has is still a step to look at", d(num("Solve for x: x/2 = 6", 12), "6").fix?.includes("the step with 2 in it") === true);
+  const flipped = d(num("Convert 3 miles to feet. (1 mile = 5,280 ft)", 15840), "1/1760");
+  ok("a unit fact's factor divided instead of multiplied is still named", flipped.kind === "factor" && flipped.note.includes("dividing by 5280 instead of multiplying") && flipped.fix === "Where 5280 comes in, multiply instead of dividing.", JSON.stringify(flipped));
+  ok("a third, not 3 times smaller", d(num("3 friends split a dinner bill evenly. Each of them paid $19. How many dollars was the whole bill?", 57), "19").note === "Your answer is a third of the size it should be.");
+  const solved = d(num("Solve for x: x − 5 = 9 (1 L = 1,000 mL)", 14), "4");
+  ok("an equation beside a unit fact still gets equation advice", solved.kind === "offby" && solved.note.includes("twice the 5") && solved.fix!.includes("both sides"), JSON.stringify(solved));
+
+  // The three demo cards themselves, every likely miss: half, double, each
+  // of the card's numbers added or taken away, a conversion step left out.
+  {
+    const { getFreshProblemsForSkill: freshDemo } = await import("../../data/problem-banks.ts");
+    const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+    const first = units[0].skills[0];
+    const demo = freshDemo(first.id, first.problems, 20261003)
+      .filter((p) => p.type === "numeric" || p.type === "multiple-choice")
+      .sort((x, y) => x.prompt.localeCompare(y.prompt))
+      .slice(0, 3);
+    ok("the demo is the car and the two coolers", demo.length === 3 && /^A car travels 60 miles/.test(demo[0].prompt) && demo.slice(1).every((p) => /^A cooler holds/.test(p.prompt)), demo.map((p) => p.prompt).join(" | "));
+    const bad: string[] = [];
+    for (const p of demo) {
+      const ans = Number(p.answer);
+      const own = D.promptNumbers(p.prompt);
+      const misses = [ans / 2, ans * 2, ...own.flatMap((n) => [ans + n, ans - n])].filter((v) => !near(v, ans));
+      for (const v of misses) {
+        const r = d(p, String(Math.round(v * 1e6) / 1e6));
+        const said = `${r.note} ${r.fix ?? ""}`;
+        const named = [...said.matchAll(/step with ([\d.,]+) in it|where ([\d.,]+) comes in|twice the ([\d.,]+) in/gi)].map((m) => Number((m[1] ?? m[2] ?? m[3]).replace(/,/g, "")));
+        if (/both sides|times smaller|too small/.test(said) || r.kind === "offby" || named.some((n) => !own.some((m) => near(m, n)))) bad.push(`${p.prompt} <- ${v}: ${said}`);
+      }
+    }
+    ok("no demo note names a slip the card does not have", bad.length === 0, bad.join("\n"));
+    const [carCard, ...coolers] = demo;
+    ok("the car card names feet per hour and feet per minute", d(carCard, "316800").note.startsWith("That is feet per hour") && d(carCard, "316,800").kind === "trap" && d(carCard, "5280").note.startsWith("That is feet per minute") && d(carCard, "0.0167").note.startsWith("That is miles per second"));
+    ok("a cooler card names one liter's worth of bottles", coolers.every((p) => d(p, String(1000 / Number(/(\d+)-milliliter/.exec(p.prompt)![1]))).note.startsWith("That is how many bottles one liter fills")));
+  }
 
   // Quotes: real, sourced, and always the same one for the same place.
   ok("every quote carries who said it and where", Q.QUOTES.every((q) => q.text.length > 20 && q.who && q.role && q.source && q.about));

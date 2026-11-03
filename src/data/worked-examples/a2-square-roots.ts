@@ -147,7 +147,7 @@ export const EXAMPLES: WorkedExamples = {
     {
       kind: "Multiplying roots",
       plan: "We multiply √6 · √24. The plan: use the product rule to put both numbers under one root, then simplify that root.",
-      card: { type: "multiple-choice", prompt: "Multiply: √6 · √24.", answer: "12", choices: ["12", "√144", "√30", "144"] },
+      card: { type: "multiple-choice", prompt: "Multiply and simplify: √6 · √24.", answer: "12", choices: ["12", "√144", "√30", "144"] },
       steps: [
         { work: "√6 · √24 = √(6 · 24) = √144", why: "For numbers 0 or above, the product of two square roots is the square root of the product." },
         { work: "144 = 12 × 12, a perfect square", why: "12 times itself is 144, so the root comes out as a whole number." },

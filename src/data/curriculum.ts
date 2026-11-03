@@ -554,7 +554,7 @@ export const units: Unit[] = [
         title: "Factoring Trinomials",
         description: "Factor x² + bx + c and ax² + bx + c.",
         learningGoal: "Factor quadratic trinomials.",
-        keyIdea: "Find two numbers that multiply to c and add to b.",
+        keyIdea: "Find two numbers that multiply to a·c and add to b.",
         video: SKILL_VIDEOS["factoring-trinomials"],
         generatorKey: "factor-trinomial",
         problems: [

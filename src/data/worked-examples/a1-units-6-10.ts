@@ -1046,7 +1046,7 @@ export const EXAMPLES: WorkedExamples = {
         { work: "√72 = 6√2", why: "The 6 comes out in front. The 2 has no perfect square factor, so it stays inside." },
       ],
       answer: "6√2",
-      check: "Square the answer: (6√2)^2 = 36 × 2 = 72 ✓. As decimals, 6√2 ≈ 6 × 1.414 = 8.49, and √72 ≈ 8.49 too.",
+      check: "Square the answer: (6√2)^2 = 36 × 2 = 72 ✓. As decimals, 6√2 ≈ 6 × 1.4142 ≈ 8.49, and √72 ≈ 8.49 too.",
     },
     {
       kind: "A number already in front",

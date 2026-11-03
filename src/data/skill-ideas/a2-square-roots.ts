@@ -60,7 +60,7 @@ export const IDEAS: SkillIdeas = {
 
   "operations-square-roots": {
     idea: "Roots follow the rules you already know. Like roots add like like terms: 3√2 + 5√2 = 8√2, just as 3x + 5x = 8x. To multiply, put both numbers under one root: √3 · √12 = √36 = 6. And squaring undoes a root, so a real number squared always lands at zero or above. That last fact is the wall that i climbs over.",
-    everyday: "Square tiles 3√2 inches wide are about 4.24 inches. Lay three of them and then five more in a row and the row is 8√2 inches, about 11.3 inches. You count tiles, the √2 is the tile size.",
+    everyday: "Square tiles √2 inches wide are about 1.41 inches. Lay three of them and then five more in a row and the row is 3√2 + 5√2 = 8√2 inches, about 11.3 inches. You count tiles, the √2 is the tile size.",
     picture: {
       kind: "area",
       rows: ["√3"],

@@ -138,7 +138,7 @@ export const unit: Unit = {
         {
           id: "a2-sr-p8",
           type: "multiple-choice",
-          prompt: "Multiply: √3 · √12.",
+          prompt: "Multiply and simplify: √3 · √12.",
           hint: "Multiply the numbers under one root, then simplify.",
           answer: "6",
           choices: ["6", "√36", "√15", "36"],

@@ -96,7 +96,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
           id: "",
           type: "multiple-choice",
           prompt: `Write y = ${quad(1, b, c)} in vertex form.`,
-          hint: `Half of ${b} is ${m}, and ${m}² = ${m * m}. Add and subtract ${m * m}: y = (x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m})${plusTerm(c)} − ${m * m}.`,
+          hint: `Half of ${b} is ${m}, and ${par(m)}² = ${m * m}. Add and subtract ${m * m}: y = (x² ${b > 0 ? "+" : "−"} ${Math.abs(b)}x + ${m * m})${plusTerm(c)} − ${m * m}.`,
           answer,
           choices: mcChoices(answer, wrong),
           traps: trapsFor(answer, [

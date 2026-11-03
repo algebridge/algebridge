@@ -207,13 +207,34 @@ const CONVERSION_FACTORS = [
 
 type SkillGenerator = (seeds: PracticeProblem[]) => PracticeProblem[];
 
+/**
+ * The hand-written car card (curriculum.ts) comes with no traps, and it is
+ * the first card of the demo on algebridge.org, so its classic slips are
+ * named here: stopping at feet per hour or per minute, leaving the miles as
+ * miles, or multiplying by the 3,600 seconds instead of dividing.
+ */
+function withSpeedTraps(p: PracticeProblem): PracticeProblem {
+  const m = /^A car travels (\d+) miles in 1 hour\. How many feet per second is that\?$/.exec(p.prompt);
+  if (!m || p.traps?.length || typeof p.answer !== "number") return p;
+  const mph = Number(m[1]);
+  return {
+    ...p,
+    traps: trapsFor(p.answer, [
+      trap(mph * 5280, "That is feet per hour. An hour is 3,600 seconds, so divide by 3,600 as well.", 1),
+      trap(mph * 88, "That is feet per minute. A minute is 60 seconds, so divide by 60 once more.", 1),
+      trap(mph / 3600, "That is miles per second. Change the miles to feet too: 1 mile is 5,280 feet.", 0),
+      trap(mph * 5280 * 3600, "A second is shorter than an hour, so fewer feet go by in it: divide by 3,600 instead of multiplying.", 1),
+    ]),
+  };
+}
+
 /** First names for word problems, picked with the seeded generator. */
 const NAMES = PROBLEM_NAMES;
 
 const generators: Record<string, SkillGenerator> = {
   ...ALGEBRA2_GENERATORS,
   "unit-basics": (seeds) =>
-    fillToCount("unit-basics", seeds, PROBLEMS_PER_SKILL, (i) => {
+    fillToCount("unit-basics", seeds.map(withSpeedTraps), PROBLEMS_PER_SKILL, (i) => {
       // Seven kinds. A quick card on which way a factor goes, a plain
       // conversion, and five that take a conversion and then a question:
       // what is left, how many fit, how fast.
@@ -306,6 +327,9 @@ const generators: Record<string, SkillGenerator> = {
           traps: trapsFor(bottles, [
             trap(liters * 1000, "That is the whole cooler in milliliters. Divide it by the size of one bottle.", 1),
             trap(liters / ml, "Change liters to milliliters first: the cooler and the bottle have to be in the same unit.", 0),
+            // One liter's worth. With a 10-liter cooler this is also what 100 mL
+            // to the liter gives, so it comes first and says both.
+            trap(1000 / ml, `That is how many bottles one liter fills, since a liter is 1,000 mL. The cooler holds ${liters} liters.`, 0),
             trap((liters * 100) / ml, "A liter is 1,000 milliliters, not 100.", 0),
           ]),
           explanation: `${liters} L × 1,000 mL/L = ${usNum(liters * 1000)} mL → ${usNum(liters * 1000)} ÷ ${ml} = ${bottles} bottles`,
@@ -3735,7 +3759,7 @@ const generators: Record<string, SkillGenerator> = {
           hint: `Put ${x} in for x, in brackets. Square first, then multiply.`,
           answer: result,
           traps: trapsFor(result, [
-            trap((a * x) ** 2 + b, `Square x first, then multiply by ${a}: ${lead}(${x})² is ${a} times ${x}², not (${a} × ${x})².`, 1),
+            trap((a * x) ** 2 + b, `Square x first, then multiply by ${a}: ${lead}(${x})² is ${a} times ${par(x)}², not (${a} × ${par(x)})².`, 1),
             trap(a * x + b, `x is squared in g(x): work out ${par(x)}² before multiplying by ${a}.`, 1),
             x < 0 ? trap(-(a * x * x) + b, `A negative number squared is positive: ${par(x)}² = ${x * x}.`, 1) : null,
             b !== 0 ? trap(a * x * x - b, "The constant keeps the sign it has in g(x).", work.length - 1) : null,
@@ -6119,11 +6143,11 @@ const generators: Record<string, SkillGenerator> = {
           id: "",
           type: "numeric",
           prompt: askMin ? `What is the minimum value of y = ${quad(1, b, c)}?` : `Write ${quad(1, b, c)} in the form (x − h)² + k. What is k?`,
-          hint: `Half of ${b} is ${half}, and ${half}² = ${half * half}. Add it to make a square, and take it away again to keep things balanced.`,
+          hint: `Half of ${b} is ${half}, and ${par(half)}² = ${half * half}. Add it to make a square, and take it away again to keep things balanced.`,
           answer: k,
           traps: trapsFor(k, [
             trap(c + half * half, `Adding ${half * half} to make the square means taking ${half * half} away too.`, 0),
-            trap(c - b * b, `Square half of ${b}, not all of it: ${half}² = ${half * half}.`, 0),
+            trap(c - b * b, `Square half of ${b}, not all of it: ${par(half)}² = ${half * half}.`, 0),
             trap(c, `${c} is the constant before completing the square.`, 1),
             askMin ? trap(-half, `That is where the minimum happens, x = ${-half}. The question asks for the minimum value of y.`, 2) : null,
           ]),

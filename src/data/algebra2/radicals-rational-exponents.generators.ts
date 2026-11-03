@@ -462,7 +462,7 @@ export const generators: Record<string, (seeds: PracticeProblem[]) => PracticePr
         traps: trapsFor(x, [
           trap(b * b - a, "Undo a cube root by cubing, not squaring.", 0),
           trap(b ** 3 + a, a < 0 ? `To undo subtracting ${-a}, add ${-a} to both sides.` : `To undo adding ${a}, subtract ${a} from both sides.`, 2),
-          trap(b - a, `Cube both sides first: the right side becomes ${b}³.`, 0),
+          trap(b - a, `Cube both sides first: the right side becomes ${b < 0 ? `(${sn(b)})` : b}³.`, 0),
           b < 0 ? trap(-(b ** 3) - a, `(${b})³ is negative: a negative number cubed stays negative.`, 1) : null,
         ]),
         explanation: [

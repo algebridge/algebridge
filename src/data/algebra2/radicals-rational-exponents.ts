@@ -60,7 +60,7 @@ export const unit: Unit = {
           answer: 4,
           traps: [
             { value: 5.3333, why: "An exponent of 2/3 is a root and a power, not multiplying 8 by 2/3.", step: 0 },
-            { value: 32, why: "You squared 8 and then forgot the cube root, or took no root at all. The denominator 3 is a root.", step: 1 },
+            { value: 64, why: "You squared 8 and then forgot the cube root, or took no root at all. The denominator 3 is a root.", step: 1 },
           ],
           explanation: "the bottom 3 is a root and the top 2 is a power: 8^(2/3) = (∛8)^2 → ∛8 = 2 → 2^2 = 2 × 2 = 4",
         },
