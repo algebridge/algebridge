@@ -7,9 +7,10 @@ import { Arena } from "./world/Arena";
 import { ARENAS, nextArena } from "./world/arenas";
 import { Kart } from "./entities/Kart";
 import { ItemBox, itemBoxMaterial } from "./entities/ItemBox";
-import { buildKart, rainbowColors, TRAILS } from "./render/KartMesh";
+import { buildKart } from "./render/KartMesh";
+import { emitTrail, trailAt, trailLook } from "./render/Trails";
 import { DamageNumbers, FlashLights, SkidMarks } from "./render/Effects";
-import { CATALOG, type Loadout } from "./profile";
+import { CATALOG, ITEM_KINDS, type Loadout } from "./profile";
 import { Renderer } from "./render/Renderer";
 import { ChaseCamera } from "./render/Camera";
 import { Particles, Shockwaves } from "./render/Particles";
@@ -696,7 +697,9 @@ class Game implements GameHandle, CombatCtx {
       wheels: this.rng.pick(CATALOG.wheels).id as Loadout["wheels"],
       hat: this.rng.pick(CATALOG.hat).id as Loadout["hat"],
       decal: this.rng.pick(CATALOG.decal).id as Loadout["decal"],
-      trail: this.rng.next() < 0.6 ? "smoke" : (this.rng.pick(CATALOG.trail).id as Loadout["trail"]),
+      trail: this.rng.next() < 0.5 ? "smoke" : (this.rng.pick(CATALOG.trail).id as Loadout["trail"]),
+      accent: this.rng.next() < 0.55 ? "auto" : this.rng.pick(CATALOG.accent).id,
+      glow: this.rng.next() < 0.7 ? "none" : this.rng.pick(CATALOG.glow).id,
     };
     return { id: `seat-${i}`, name, loadout, bot: true, skill: this.rng.range(0.45, 0.95) };
   }
@@ -1380,14 +1383,11 @@ class Game implements GameHandle, CombatCtx {
     const rx = Math.cos(k.yaw);
     const rz = -Math.sin(k.yaw);
     const boosting = k.isBoosting(now);
-    let look = TRAILS[k.loadout.trail];
-    if (look.rainbow) {
-      const [a, b] = rainbowColors(now + k.wheelSpin * 0.01);
-      look = { ...look, puff: [a, b], boost: [a, b], flame: [a, b] };
-      if (boosting) {
-        v.flameMats[0].color.set(a).multiplyScalar(1.4);
-        v.flameMats[1].color.set(b).multiplyScalar(1.6);
-      }
+    const base = trailLook(k.loadout.trail);
+    const look = trailAt(base, now + k.wheelSpin * 0.01);
+    if (base.rainbow && boosting) {
+      v.flameMats[0].color.set(look.flame[0]).multiplyScalar(1.4);
+      v.flameMats[1].color.set(look.flame[1]).multiplyScalar(1.6);
     }
 
     // Rubber on the ground when drifting hard or braking.
@@ -1415,10 +1415,7 @@ class Game implements GameHandle, CombatCtx {
       const x = k.pos.x + k.fx * e.z + rx * e.x;
       const z = k.pos.z + k.fz * e.z + rz * e.x;
       const y = k.pos.y + e.y;
-      const jx = (this.rng.next() - 0.5) * 1.5;
-      const jz = (this.rng.next() - 0.5) * 1.5;
-      if (boosting) this.particles.puff(x, y, z, -k.fx * 6 + jx, look.rise + 0.5, -k.fz * 6 + jz, look.boost[0], 0.7, 0.35, look.boost[1]);
-      else this.particles.puff(x, y, z, -k.fx * 2 + jx * 0.6, look.rise, -k.fz * 2 + jz * 0.6, look.puff[0], 0.35, 0.5, look.puff[1]);
+      emitTrail(this.particles, look, x, y, z, -k.fx, -k.fz, boosting, () => this.rng.next());
     }
   }
 
@@ -1471,7 +1468,7 @@ class Game implements GameHandle, CombatCtx {
 }
 
 function sameLoadout(a: Loadout, b: Loadout): boolean {
-  return a.character === b.character && a.body === b.body && a.color === b.color && a.wheels === b.wheels && a.hat === b.hat && a.decal === b.decal && a.trail === b.trail;
+  return ITEM_KINDS.every((kind) => a[kind] === b[kind]);
 }
 
 function weaponLabel(w: WeaponId | "bump"): string {

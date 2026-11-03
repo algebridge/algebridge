@@ -8,10 +8,46 @@
 import type { MatchResult } from "./types";
 
 export type BodyId = "classic" | "buggy" | "rocket" | "monster" | "formula";
-export type WheelId = "standard" | "chunky" | "neon" | "gold";
-export type DecalId = "plain" | "stripes" | "flames" | "number" | "checker";
-export type TrailId = "smoke" | "fire" | "rainbow" | "bubbles";
-export type HatId = "none" | "cap" | "helmet" | "beanie" | "cone" | "horns" | "crown" | "halo" | "tophat" | "pumpkin" | "viking" | "cowboy" | "wizard" | "duck";
+export type WheelId = "standard" | "chunky" | "neon" | "gold" | "chrome" | "painted" | "candy" | "flame" | "spiked";
+export type DecalId = "plain" | "stripes" | "flames" | "number" | "checker" | "twotone" | "dots" | "stars" | "hearts" | "bolt" | "camo" | "tiger" | "waves" | "pi";
+export type TrailId =
+  | "smoke"
+  | "fire"
+  | "rainbow"
+  | "bubbles"
+  | "sparkle"
+  | "hearts"
+  | "lightning"
+  | "snow"
+  | "toxic"
+  | "shadow"
+  | "candy"
+  | "galaxy"
+  | "confetti"
+  | "lava";
+export type HatId =
+  | "none"
+  | "cap"
+  | "helmet"
+  | "beanie"
+  | "cone"
+  | "horns"
+  | "crown"
+  | "halo"
+  | "tophat"
+  | "pumpkin"
+  | "viking"
+  | "cowboy"
+  | "wizard"
+  | "duck"
+  | "party"
+  | "gradcap"
+  | "propeller"
+  | "chef"
+  | "headphones"
+  | "pirate"
+  | "flowers"
+  | "santa";
 export type CharacterId =
   | "kid"
   | "bunny"
@@ -53,6 +89,10 @@ export interface Loadout {
   hat: HatId;
   decal: DecalId;
   trail: TrailId;
+  /** A second colour for trim, decal ink, rims and cuffs; "auto" follows the paint. */
+  accent: string;
+  /** Neon light on the ground under the kart: "none", a colour, or "rainbow". */
+  glow: string;
 }
 
 export type ItemKind = keyof Loadout;
@@ -122,12 +162,43 @@ export const CATALOG: Record<ItemKind, ShopItem[]> = {
     { id: "#c08a4b", name: "Caramel", price: 150, blurb: "" },
     { id: "#ff8a1f", name: "Ember", price: 150, blurb: "" },
     { id: "#7dd3fc", name: "Ice", price: 150, blurb: "" },
+    { id: "#6ee7b7", name: "Mint", price: 120, blurb: "" },
+    { id: "#ff7f6b", name: "Coral", price: 120, blurb: "" },
+    { id: "#c4b5fd", name: "Lavender", price: 120, blurb: "" },
+    { id: "#166534", name: "Forest", price: 150, blurb: "" },
+    { id: "#1e3a8a", name: "Navy", price: 150, blurb: "" },
+    { id: "#6b2160", name: "Plum", price: 150, blurb: "" },
+    { id: "#ff2d95", name: "Hot pink", price: 180, blurb: "" },
+    { id: "#e8a598", name: "Rose gold", price: 220, blurb: "" },
+    { id: "#c0c7d1", name: "Silver", price: 250, blurb: "" },
+    { id: "#f5c542", name: "Gold", price: 300, blurb: "" },
+  ],
+  accent: [
+    { id: "auto", name: "Match paint", price: 0, blurb: "A darker shade of the paint." },
+    { id: "#ffffff", name: "White", price: 0, blurb: "" },
+    { id: "#1b1b24", name: "Black", price: 0, blurb: "" },
+    { id: "#e11d48", name: "Red", price: 100, blurb: "" },
+    { id: "#ffd400", name: "Yellow", price: 100, blurb: "" },
+    { id: "#22c55e", name: "Green", price: 100, blurb: "" },
+    { id: "#3d5aff", name: "Blue", price: 100, blurb: "" },
+    { id: "#f97316", name: "Orange", price: 100, blurb: "" },
+    { id: "#8b5cf6", name: "Purple", price: 120, blurb: "" },
+    { id: "#ff5d8f", name: "Pink", price: 120, blurb: "" },
+    { id: "#2ec4b6", name: "Teal", price: 120, blurb: "" },
+    { id: "#6ff6ff", name: "Cyan", price: 150, blurb: "" },
+    { id: "#c0c7d1", name: "Silver", price: 200, blurb: "" },
+    { id: "#f5c542", name: "Gold", price: 250, blurb: "" },
   ],
   wheels: [
     { id: "standard", name: "Standard", price: 0, blurb: "Black rubber, steel hubs." },
     { id: "chunky", name: "Chunky", price: 250, blurb: "Wider, taller, treaded." },
     { id: "neon", name: "Neon", price: 400, blurb: "Rims that glow." },
     { id: "gold", name: "Gold", price: 600, blurb: "Gold hubs, white walls." },
+    { id: "painted", name: "Painted", price: 150, blurb: "Rims in your trim colour." },
+    { id: "chrome", name: "Chrome", price: 300, blurb: "Big shiny dish hubs." },
+    { id: "candy", name: "Candy", price: 350, blurb: "Pink and white swirl rims." },
+    { id: "flame", name: "Flame", price: 450, blurb: "Rims that burn orange." },
+    { id: "spiked", name: "Spiked", price: 550, blurb: "Spikes out of the hubs." },
   ],
   hat: [
     { id: "none", name: "No hat", price: 0, blurb: "" },
@@ -144,6 +215,14 @@ export const CATALOG: Record<ItemKind, ShopItem[]> = {
     { id: "viking", name: "Viking", price: 400, blurb: "" },
     { id: "wizard", name: "Wizard", price: 450, blurb: "" },
     { id: "duck", name: "Duck", price: 500, blurb: "" },
+    { id: "party", name: "Party hat", price: 120, blurb: "" },
+    { id: "gradcap", name: "Grad cap", price: 200, blurb: "For the ones who did the math." },
+    { id: "propeller", name: "Propeller", price: 220, blurb: "" },
+    { id: "chef", name: "Chef hat", price: 250, blurb: "" },
+    { id: "headphones", name: "Headphones", price: 280, blurb: "" },
+    { id: "flowers", name: "Flower crown", price: 300, blurb: "" },
+    { id: "pirate", name: "Pirate hat", price: 350, blurb: "" },
+    { id: "santa", name: "Santa hat", price: 350, blurb: "" },
   ],
   decal: [
     { id: "plain", name: "Plain", price: 0, blurb: "" },
@@ -151,20 +230,104 @@ export const CATALOG: Record<ItemKind, ShopItem[]> = {
     { id: "number", name: "Number", price: 250, blurb: "" },
     { id: "flames", name: "Flames", price: 300, blurb: "" },
     { id: "checker", name: "Checker", price: 350, blurb: "" },
+    { id: "twotone", name: "Two tone", price: 150, blurb: "Half paint, half trim." },
+    { id: "dots", name: "Polka dots", price: 200, blurb: "" },
+    { id: "waves", name: "Waves", price: 220, blurb: "" },
+    { id: "stars", name: "Stars", price: 250, blurb: "" },
+    { id: "hearts", name: "Hearts", price: 250, blurb: "" },
+    { id: "bolt", name: "Lightning", price: 300, blurb: "" },
+    { id: "camo", name: "Camo", price: 300, blurb: "" },
+    { id: "tiger", name: "Tiger", price: 350, blurb: "" },
+    { id: "pi", name: "Pi", price: 314, blurb: "3.14159 on the hood." },
   ],
   trail: [
     { id: "smoke", name: "Smoke", price: 0, blurb: "Plain exhaust." },
     { id: "fire", name: "Fire", price: 300, blurb: "Burning exhaust and flames." },
     { id: "bubbles", name: "Bubbles", price: 450, blurb: "Soft blue bubbles." },
     { id: "rainbow", name: "Rainbow", price: 600, blurb: "Every colour, all the time." },
+    { id: "shadow", name: "Shadow", price: 250, blurb: "Dark purple smoke." },
+    { id: "toxic", name: "Toxic", price: 300, blurb: "Bright green fumes." },
+    { id: "candy", name: "Candy", price: 300, blurb: "Pink and white puffs." },
+    { id: "snow", name: "Snow", price: 350, blurb: "Flakes that drift down." },
+    { id: "hearts", name: "Hearts", price: 400, blurb: "Pink and red, with sparkles." },
+    { id: "lava", name: "Lava", price: 450, blurb: "Glowing drops that fall and pop." },
+    { id: "sparkle", name: "Sparkle", price: 500, blurb: "Gold glitter behind you." },
+    { id: "lightning", name: "Lightning", price: 550, blurb: "Blue sparks that crackle." },
+    { id: "confetti", name: "Confetti", price: 650, blurb: "A party every lap." },
+    { id: "galaxy", name: "Galaxy", price: 750, blurb: "Purple space dust and stars." },
+  ],
+  glow: [
+    { id: "none", name: "No glow", price: 0, blurb: "" },
+    { id: "#6ff6ff", name: "Cyan", price: 200, blurb: "" },
+    { id: "#ff5d8f", name: "Pink", price: 200, blurb: "" },
+    { id: "#a3e635", name: "Lime", price: 200, blurb: "" },
+    { id: "#8b5cf6", name: "Violet", price: 250, blurb: "" },
+    { id: "#ff8a1f", name: "Orange", price: 250, blurb: "" },
+    { id: "#ff3b3b", name: "Red", price: 250, blurb: "" },
+    { id: "#ffffff", name: "White", price: 250, blurb: "" },
+    { id: "#ffd400", name: "Gold", price: 300, blurb: "" },
+    { id: "rainbow", name: "Rainbow", price: 700, blurb: "Cycles through every colour." },
   ],
 };
 
-export const ITEM_KINDS: ItemKind[] = ["character", "body", "color", "wheels", "hat", "decal", "trail"];
+export const ITEM_KINDS: ItemKind[] = ["character", "body", "color", "accent", "wheels", "hat", "decal", "trail", "glow"];
 
-export const KIND_LABELS: Record<ItemKind, string> = { character: "Characters", body: "Karts", color: "Paint", wheels: "Wheels", hat: "Hats", decal: "Decals", trail: "Trails" };
+export const KIND_LABELS: Record<ItemKind, string> = {
+  character: "Characters",
+  body: "Karts",
+  color: "Paint",
+  accent: "Trim",
+  wheels: "Wheels",
+  hat: "Hats",
+  decal: "Decals",
+  trail: "Trails",
+  glow: "Underglow",
+};
 
-export const DEFAULT_LOADOUT: Loadout = { character: "kid", body: "classic", color: "#ff5d3a", wheels: "standard", hat: "cap", decal: "plain", trail: "smoke" };
+export const DEFAULT_LOADOUT: Loadout = { character: "kid", body: "classic", color: "#ff5d3a", wheels: "standard", hat: "cap", decal: "plain", trail: "smoke", accent: "auto", glow: "none" };
+
+/**
+ * A loadout with every slot filled with something that exists: whatever an
+ * older save, an older tab in the lobby, or a newer one sends, the kart
+ * builds. Unknown ids fall back to the default.
+ */
+export function completeLoadout(lo: Partial<Record<ItemKind, unknown>> | null | undefined): Loadout {
+  const out = { ...DEFAULT_LOADOUT };
+  for (const kind of ITEM_KINDS) {
+    const id = lo?.[kind];
+    if (typeof id === "string" && CATALOG[kind].some((i) => i.id === id)) (out as Record<ItemKind, string>)[kind] = id;
+  }
+  return out;
+}
+
+/** The trails every tab in the field knows, from before the trail pack. */
+const LEGACY_TRAILS: Record<TrailId, TrailId> = {
+  smoke: "smoke",
+  fire: "fire",
+  rainbow: "rainbow",
+  bubbles: "bubbles",
+  sparkle: "fire",
+  hearts: "rainbow",
+  lightning: "bubbles",
+  snow: "bubbles",
+  toxic: "smoke",
+  shadow: "smoke",
+  candy: "rainbow",
+  galaxy: "rainbow",
+  confetti: "rainbow",
+  lava: "fire",
+};
+
+/** A loadout as it goes out to the lobby: an older tab crashes on a trail it has never heard of, so `trail` carries the nearest old one and `trailX` the real one. */
+export function wireLoadout(lo: Loadout): Loadout & { trailX: TrailId } {
+  return { ...lo, trail: LEGACY_TRAILS[lo.trail] ?? "smoke", trailX: lo.trail };
+}
+
+/** A loadout as it comes in from the lobby, from a tab of any age. */
+export function unwireLoadout(raw: unknown): Loadout {
+  const r = (raw ?? {}) as Partial<Record<ItemKind | "trailX", unknown>>;
+  return completeLoadout({ ...r, trail: typeof r.trailX === "string" ? r.trailX : r.trail });
+}
 
 export interface ProfileStats {
   matches: number;

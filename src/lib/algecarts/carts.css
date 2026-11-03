@@ -1434,6 +1434,28 @@
   box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.25);
 }
 
+/* Underglow: a lit ring on a dark floor; "No glow" is an empty dashed ring. */
+.algecarts .g-swatch.glow {
+  border-radius: 50%;
+  background: radial-gradient(circle, #1b1b24 0 38%, transparent 40%), var(--c);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+.algecarts .g-swatch.none {
+  border-radius: 50%;
+  background: transparent;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+/* Trails: a round puff in the trail's colours. */
+.algecarts .g-swatch.trail {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+}
+
 .algecarts .g-buy {
   display: flex;
   align-items: center;

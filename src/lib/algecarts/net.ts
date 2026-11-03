@@ -2,6 +2,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { GameHandle, InputState, Loadout, NetRole, NetSnap, PlayerSetup, RosterEntry, WeaponId } from "./engine/types";
+import { unwireLoadout, wireLoadout } from "./engine/profile";
 import { namesForLobby } from "./engine/Game";
 
 /**
@@ -139,7 +140,7 @@ export class CartsNet {
   join(p: PlayerSetup): void {
     this.wanted = { name: p.name, loadout: { ...p.loadout } };
     this.joined = true;
-    if (this.role === "guest") this.sendPlayer({ k: "join", pid: this.opts.pid, name: p.name, loadout: p.loadout });
+    if (this.role === "guest") this.sendPlayer({ k: "join", pid: this.opts.pid, name: p.name, loadout: wireLoadout(p.loadout) });
   }
 
   leave(): void {
@@ -287,7 +288,7 @@ export class CartsNet {
     await this.registry?.untrack();
     this.lastSnapAt = Date.now();
     this.sendPlayer({ k: "hello", pid: this.opts.pid });
-    if (this.joined && this.wanted) this.sendPlayer({ k: "join", pid: this.opts.pid, name: this.wanted.name, loadout: this.wanted.loadout });
+    if (this.joined && this.wanted) this.sendPlayer({ k: "join", pid: this.opts.pid, name: this.wanted.name, loadout: wireLoadout(this.wanted.loadout) });
     if (!this.watchTimer) this.watchTimer = setInterval(() => this.watchHost(), 1000);
     this.announce();
   }
@@ -408,7 +409,7 @@ export class CartsNet {
   }
 
   private sendRoster(): void {
-    this.sendHost({ k: "roster", r: this.game.roster(), host: this.opts.pid });
+    this.sendHost({ k: "roster", r: this.game.roster().map((e) => ({ ...e, loadout: wireLoadout(e.loadout) })), host: this.opts.pid });
   }
 
   private tick(): void {
@@ -438,7 +439,7 @@ export class CartsNet {
         this.game.applySnap(m.s);
         return;
       case "roster":
-        this.game.applyRoster(m.r);
+        this.game.applyRoster(m.r.map((e) => ({ ...e, loadout: unwireLoadout(e.loadout) })));
         this.announce();
         return;
       case "seat":
@@ -451,7 +452,7 @@ export class CartsNet {
           if (this.seatRetries++ < 3) {
             const w = this.wanted;
             setTimeout(() => {
-              if (this.joined && this.role === "guest" && !this.closed) this.sendPlayer({ k: "join", pid: this.opts.pid, name: w.name, loadout: w.loadout });
+              if (this.joined && this.role === "guest" && !this.closed) this.sendPlayer({ k: "join", pid: this.opts.pid, name: w.name, loadout: wireLoadout(w.loadout) });
             }, 2000);
           } else {
             this.seatRetries = 0;
@@ -471,7 +472,7 @@ export class CartsNet {
         this.sendRoster();
         return;
       case "join": {
-        const i = this.game.seatRemote(m.pid, m.name, m.loadout);
+        const i = this.game.seatRemote(m.pid, m.name, unwireLoadout(m.loadout));
         this.sendRoster();
         this.sendHost({ k: "seat", pid: m.pid, i });
         void this.trackRegistry();

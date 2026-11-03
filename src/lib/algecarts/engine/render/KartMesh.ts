@@ -1,6 +1,7 @@
 import * as THREE from "three";
-import type { BodyId, CharacterId, DecalId, HatId, Loadout, TrailId, WheelId } from "../profile";
+import { completeLoadout, type BodyId, type CharacterId, type DecalId, type HatId, type Loadout, type WheelId } from "../profile";
 import type { Palette } from "./Materials";
+import { trailLook } from "./Trails";
 import { shadeHex } from "../util";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
@@ -30,33 +31,15 @@ export interface KartView {
   arms: [THREE.Group, THREE.Group];
   /** Exhaust tips in kart space, where puffs come from. */
   exhaust: { x: number; y: number; z: number }[];
+  /** The underglow disc's paint, null with no underglow; `glowRainbow` cycles it. */
+  glowMat: THREE.MeshBasicMaterial | null;
+  glowRainbow: boolean;
   tag: THREE.Sprite | null;
   setTag(name: string, hp: number): void;
   dispose(): void;
 }
 
-export interface TrailLook {
-  puff: [string, string];
-  boost: [string, string];
-  flame: [string, string];
-  /** How fast puffs rise. */
-  rise: number;
-  rainbow?: boolean;
-}
-
-export const TRAILS: Record<TrailId, TrailLook> = {
-  smoke: { puff: ["#d8d8e0", "#9a9aa6"], boost: ["#ffb347", "#5a5a66"], flame: ["#ff8a1f", "#fff2a0"], rise: 1.2 },
-  fire: { puff: ["#ffb060", "#6b2a1a"], boost: ["#ffd23c", "#ff3d1f"], flame: ["#ff3d1f", "#ffe066"], rise: 1.6 },
-  bubbles: { puff: ["#e6f8ff", "#8fd8ff"], boost: ["#ffffff", "#6fc8ff"], flame: ["#6ff6ff", "#ffffff"], rise: 2.6 },
-  rainbow: { puff: ["#ff5d8f", "#3d5aff"], boost: ["#ffd400", "#8b5cf6"], flame: ["#ff5d8f", "#ffe066"], rise: 1.8, rainbow: true },
-};
-
-/** The rainbow trail's colours at a moment. */
-export function rainbowColors(t: number): [string, string] {
-  const c0 = new THREE.Color().setHSL((t * 0.25) % 1, 0.95, 0.6);
-  const c1 = new THREE.Color().setHSL((t * 0.25 + 0.3) % 1, 0.95, 0.55);
-  return [`#${c0.getHexString()}`, `#${c1.getHexString()}`];
-}
+export { TRAILS, rainbowColors, trailLook, type TrailLook } from "./Trails";
 
 const SKINS = ["#f7d1b0", "#e8b990", "#c98a5c", "#8d5a3b", "#5c3a26", "#f3c9a6"];
 
@@ -76,6 +59,24 @@ function blobMat(): THREE.MeshBasicMaterial {
   blobTexture = new THREE.CanvasTexture(c);
   blobMaterial = new THREE.MeshBasicMaterial({ map: blobTexture, transparent: true, depthWrite: false, opacity: 0.6, color: "#000000" });
   return blobMaterial;
+}
+
+let glowTexture: THREE.CanvasTexture | null = null;
+/** A soft ring of light, bright at the rim under the kart and fading out past it. */
+function glowTex(): THREE.CanvasTexture {
+  if (glowTexture) return glowTexture;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,0.35)");
+  g.addColorStop(0.55, "rgba(255,255,255,0.95)");
+  g.addColorStop(0.75, "rgba(255,255,255,0.45)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  glowTexture = new THREE.CanvasTexture(c);
+  return glowTexture;
 }
 
 interface Style {
@@ -111,7 +112,11 @@ interface Kit {
  * spheres; no asset files. Glow parts use over-bright unlit paint so the
  * bloom pass picks them up.
  */
-export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boolean, quality: "high" | "low"): KartView {
+export function buildKart(pal: Palette, given: Loadout, name: string, isPlayer: boolean, quality: "high" | "low"): KartView {
+  const lo = completeLoadout(given);
+  // Trim: a colour of its own, or (auto) a darker shade of the paint, as karts always had.
+  const ownTrim = lo.accent !== "auto";
+  const trimHex = ownTrim ? lo.accent : shadeHex(lo.color, -0.35);
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -131,7 +136,7 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
   own.push(chassis);
   let hood: THREE.Material = chassis;
   if (lo.decal !== "plain") {
-    const tex = decalTexture(lo.decal, lo.color, name);
+    const tex = decalTexture(lo.decal, lo.color, name, ownTrim ? lo.accent : null, trimHex);
     textures.push(tex);
     const m = new THREE.MeshToonMaterial({ map: tex, gradientMap: pal.gradient });
     own.push(m);
@@ -143,7 +148,7 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
     mesh,
     chassis,
     hood,
-    trim: pal.toon(shadeHex(lo.color, -0.35)),
+    trim: pal.toon(trimHex),
     light: pal.toon(shadeHex(lo.color, 0.35)),
     dark: pal.toon("#262a33"),
     steel: pal.toon("#d9dde6"),
@@ -161,14 +166,14 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
   for (const [x, z] of style.wheelAt) {
     const steer = new THREE.Group();
     steer.position.set(x, style.wheelR, z);
-    const spin = buildWheel(lo.wheels, pal, style.wheelR, style.wheelW, lo.color, shadow);
+    const spin = buildWheel(lo.wheels, pal, style.wheelR, style.wheelW, ownTrim ? lo.accent : shadeHex(lo.color, -0.1), shadow);
     steer.add(spin);
     body.add(steer);
     wheels.push(spin);
     if (z >= frontZ - 0.01) frontPivots.push(steer);
   }
 
-  const driver = buildCharacter(kit, style, lo, name, shadow);
+  const driver = buildCharacter(kit, style, lo, name, shadow, ownTrim ? lo.accent : null);
 
   // Shield bubble.
   const shieldMat = new THREE.MeshBasicMaterial({ color: "#6ff6ff", transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
@@ -179,7 +184,7 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
   root.add(shield);
 
   // Boost flames at the exhausts.
-  const look = TRAILS[lo.trail];
+  const look = trailLook(lo.trail);
   const flameOuter = new THREE.MeshBasicMaterial({ color: look.flame[0], toneMapped: false });
   const flameInner = new THREE.MeshBasicMaterial({ color: look.flame[1], toneMapped: false });
   flameOuter.color.multiplyScalar(1.4);
@@ -218,6 +223,23 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
   blob.position.y = 0.03;
   blob.renderOrder = -1;
   root.add(blob);
+
+  // Underglow: neon light on the ground around the kart.
+  let glowMat: THREE.MeshBasicMaterial | null = null;
+  if (lo.glow !== "none") {
+    glowMat = new THREE.MeshBasicMaterial({ map: glowTex(), color: lo.glow === "rainbow" ? "#ff5d8f" : lo.glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    glowMat.color.multiplyScalar(1.6);
+    own.push(glowMat);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.0, 32), glowMat);
+    glow.rotation.x = -Math.PI / 2;
+    // Half-widths: a little past the wheels on every side.
+    const halfX = Math.max(...style.wheelAt.map(([x]) => Math.abs(x))) + 0.75;
+    const halfZ = Math.max(...style.wheelAt.map(([, z]) => Math.abs(z))) + 1.05;
+    glow.scale.set(halfX, halfZ, 1);
+    glow.position.set(0, 0.05, 0);
+    glow.renderOrder = -1;
+    root.add(glow);
+  }
 
   // Name tag with health bar, for everyone but the player (the HUD has theirs).
   let tag: THREE.Sprite | null = null;
@@ -281,6 +303,8 @@ export function buildKart(pal: Palette, lo: Loadout, name: string, isPlayer: boo
     headY: driver.headY,
     arms: driver.arms,
     exhaust,
+    glowMat,
+    glowRainbow: lo.glow === "rainbow",
     tag,
     setTag,
     dispose() {
@@ -445,7 +469,8 @@ const BODIES: Record<BodyId, (k: Kit) => Style> = {
 
 // ----- wheels -----
 
-function buildWheel(style: WheelId, pal: Palette, r: number, w: number, color: string, shadow: boolean): THREE.Group {
+/** `rim` is the hub colour a wheel takes from the kart: the trim, or a shade of the paint. */
+function buildWheel(style: WheelId, pal: Palette, r: number, w: number, rim: string, shadow: boolean): THREE.Group {
   const spin = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x = 0) => {
     const m = new THREE.Mesh(geo, mat);
@@ -489,10 +514,57 @@ function buildWheel(style: WheelId, pal: Palette, r: number, w: number, color: s
       spoke.rotation.x = (i / 5) * Math.PI;
       spin.add(spoke);
     }
+  } else if (style === "painted") {
+    add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
+    add(new THREE.CylinderGeometry(r * 0.66, r * 0.66, w + 0.03, 14), pal.toon(rim));
+    add(new THREE.CylinderGeometry(0.09, 0.09, w + 0.07, 6), pal.toon("#262a33"));
+  } else if (style === "chrome") {
+    add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
+    add(new THREE.CylinderGeometry(r * 0.74, r * 0.74, w + 0.03, 16), pal.toon("#eef2f8", "#7a8698", 0.35));
+    add(new THREE.CylinderGeometry(r * 0.32, r * 0.4, w + 0.09, 10), pal.toon("#c4ccd8"));
+  } else if (style === "candy") {
+    add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
+    add(new THREE.CylinderGeometry(r * 0.68, r * 0.68, w + 0.03, 14), pal.toon("#ff5d8f"));
+    for (let i = 0; i < 4; i++) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(w + 0.05, 0.08, r * 1.3), pal.toon("#ffffff"));
+      bar.rotation.x = (i / 4) * Math.PI;
+      spin.add(bar);
+    }
+    add(new THREE.CylinderGeometry(0.08, 0.08, w + 0.08, 6), pal.toon("#ffffff"));
+  } else if (style === "flame") {
+    add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
+    const glow = pal.glow("#ff8a1f", 1.8);
+    for (const s of [-1, 1]) {
+      for (const [rr, t] of [[r - 0.1, 0.05], [r - 0.24, 0.035]] as const) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, t, 6, 18), rr === r - 0.1 ? glow : pal.glow("#ffe066", 1.6));
+        ring.rotation.y = Math.PI / 2;
+        ring.position.x = s * (w / 2 + 0.01);
+        spin.add(ring);
+      }
+    }
+    add(new THREE.CylinderGeometry(0.16, 0.16, w + 0.04, 8), pal.toon("#3a1a0a"));
+  } else if (style === "spiked") {
+    add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
+    const steel = pal.toon("#c4ccd8");
+    add(new THREE.CylinderGeometry(0.22, 0.22, w + 0.04, 8), pal.toon("#3a3f4a"));
+    for (const s of [-1, 1]) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.38, 8), steel);
+      spike.rotation.z = -s * Math.PI / 2;
+      spike.position.x = s * (w / 2 + 0.2);
+      spike.castShadow = shadow;
+      spin.add(spike);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const stud = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 6), steel);
+        stud.rotation.z = -s * Math.PI / 2;
+        stud.position.set(s * (w / 2 + 0.05), Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62);
+        spin.add(stud);
+      }
+    }
   } else {
     add(new THREE.CylinderGeometry(r, r, w, 14), rubber);
     add(new THREE.CylinderGeometry(0.2, 0.2, w + 0.02, 8), pal.toon("#d9dde6"));
-    add(new THREE.CylinderGeometry(0.08, 0.08, w + 0.06, 6), pal.toon(shadeHex(color, -0.1)));
+    add(new THREE.CylinderGeometry(0.08, 0.08, w + 0.06, 6), pal.toon(rim));
   }
   return spin;
 }
@@ -510,8 +582,10 @@ interface Face {
   rig: THREE.Group;
   add: AddFn;
   name: string;
-  /** The kart's paint, for cuffs and shirts. */
+  /** The kart's paint, for shirts. */
   kart: string;
+  /** The glove cuffs: the trim colour, or the paint when trim follows it. */
+  cuff: string;
   shadow: boolean;
 }
 
@@ -1217,7 +1291,7 @@ const CHARACTERS: Record<CharacterId, CharacterDef> = {
 };
 
 /** The driver: torso, arms (pivoting at the shoulders), the character's head, then the hat. */
-function buildCharacter(k: Kit, s: Style, lo: Loadout, name: string, shadow: boolean): { rig: THREE.Group; head: THREE.Group; headY: number; arms: [THREE.Group, THREE.Group] } {
+function buildCharacter(k: Kit, s: Style, lo: Loadout, name: string, shadow: boolean, trim: string | null): { rig: THREE.Group; head: THREE.Group; headY: number; arms: [THREE.Group, THREE.Group] } {
   const rig = new THREE.Group();
   rig.position.set(0, s.driverY, s.driverZ);
   k.body.add(rig);
@@ -1229,7 +1303,7 @@ function buildCharacter(k: Kit, s: Style, lo: Loadout, name: string, shadow: boo
     return m;
   };
   const head = new THREE.Group();
-  const f: Face = { k, head, rig, add, name, kart: lo.color, shadow };
+  const f: Face = { k, head, rig, add, name, kart: lo.color, cuff: trim ?? lo.color, shadow };
   const ch = CHARACTERS[lo.character];
   const body = ch.body(f);
   if (ch.torso) ch.torso(f, body);
@@ -1250,7 +1324,7 @@ function buildCharacter(k: Kit, s: Style, lo: Loadout, name: string, shadow: boo
   hat.position.set(0, parts.top, 0);
   hat.scale.setScalar(1.3);
   head.add(hat);
-  buildHat(lo.hat, k, hat, lo.color, shadow, H / 1.3, parts.top / 1.3);
+  buildHat(lo.hat, k, hat, trim ?? shadeHex(lo.color, 0.2), shadow, H / 1.3, parts.top / 1.3);
   return { rig, head, headY, arms };
 }
 
@@ -1258,7 +1332,7 @@ function buildCharacter(k: Kit, s: Style, lo: Loadout, name: string, shadow: boo
 function buildArms(f: Face, body: THREE.Material, style: HandStyle): [THREE.Group, THREE.Group] {
   const out: THREE.Group[] = [];
   const dark = mat(f, "#2a2f3f");
-  const cuff = mat(f, f.kart);
+  const cuff = mat(f, f.cuff);
   for (const side of [1, -1]) {
     const pivot = new THREE.Group();
     pivot.position.set(side * 0.33, 0.22, 0.05);
@@ -1311,7 +1385,8 @@ function limb(parent: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3, r: num
 }
 
 /** Hats are built around the head top (y = 0) in a group scaled to the head. */
-function buildHat(hat: HatId, k: Kit, g: THREE.Group, color: string, shadow: boolean, headR: number, headTop: number): void {
+/** `tint` is the colour a hat takes from the kart: the trim, or a light shade of the paint. */
+function buildHat(hat: HatId, k: Kit, g: THREE.Group, tint: string, shadow: boolean, headR: number, headTop: number): void {
   const { pal } = k;
   const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(geo, mat);
@@ -1324,8 +1399,8 @@ function buildHat(hat: HatId, k: Kit, g: THREE.Group, color: string, shadow: boo
     case "none":
       return;
     case "cap": {
-      mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.18, 12), pal.toon(shadeHex(color, 0.2)), 0, 0.05, 0);
-      mesh(new THREE.BoxGeometry(0.5, 0.05, 0.34), pal.toon(shadeHex(color, 0.2)), 0, 0, 0.4);
+      mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.18, 12), pal.toon(tint), 0, 0.05, 0);
+      mesh(new THREE.BoxGeometry(0.5, 0.05, 0.34), pal.toon(tint), 0, 0, 0.4);
       return;
     }
     case "helmet": {
@@ -1410,20 +1485,207 @@ function buildHat(hat: HatId, k: Kit, g: THREE.Group, color: string, shadow: boo
       mesh(new THREE.SphereGeometry(0.04, 6, 5), pal.toon("#1b1b24"), -0.09, 0.48, 0.22);
       return;
     }
+    case "party": {
+      const c = mesh(new THREE.ConeGeometry(0.22, 0.6, 12), pal.toon(tint), 0.03, 0.28, 0);
+      c.rotation.z = -0.12;
+      mesh(new THREE.TorusGeometry(0.2, 0.035, 6, 14), pal.toon("#ffd400"), 0, 0.06, 0).rotation.x = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.08, 8, 6), pal.toon("#ffffff"), 0.07, 0.6, 0);
+      return;
+    }
+    case "gradcap": {
+      const black = pal.toon("#1b1b24");
+      mesh(new THREE.CylinderGeometry(0.27, 0.3, 0.16, 12), black, 0, 0.02, 0);
+      mesh(new THREE.BoxGeometry(0.66, 0.04, 0.66), black, 0, 0.12, 0).rotation.y = Math.PI / 4;
+      const gold = pal.toon("#ffcc33", "#5a4200", 0.25);
+      mesh(new THREE.SphereGeometry(0.05, 6, 5), gold, 0, 0.16, 0);
+      mesh(new THREE.BoxGeometry(0.22, 0.02, 0.02), gold, 0.13, 0.15, 0.13).rotation.y = -Math.PI / 4;
+      mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.22, 6), gold, 0.24, 0.03, 0.24);
+      return;
+    }
+    case "propeller": {
+      mesh(new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), pal.toon(tint), 0, -0.12, 0);
+      mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.18, 6), pal.toon("#d9dde6"), 0, 0.27, 0);
+      mesh(new THREE.BoxGeometry(0.62, 0.025, 0.1), pal.toon("#e11d48"), 0, 0.37, 0).rotation.y = 0.5;
+      mesh(new THREE.BoxGeometry(0.62, 0.025, 0.1), pal.toon("#ffd400"), 0, 0.375, 0).rotation.y = 0.5 + Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.05, 6, 5), pal.toon("#3d5aff"), 0, 0.39, 0);
+      return;
+    }
+    case "chef": {
+      const white = pal.toon("#ffffff");
+      mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.2, 14), white, 0, 0.06, 0);
+      for (const [x, z] of [[0, 0], [0.13, 0.08], [-0.13, 0.08], [0, -0.13]]) mesh(new THREE.SphereGeometry(0.2, 10, 8), white, x, 0.3, z);
+      return;
+    }
+    case "headphones": {
+      const r = headR + 0.05;
+      const band = mesh(new THREE.TorusGeometry(r, 0.04, 6, 18, Math.PI), pal.toon("#262a33"), 0, -headTop, 0);
+      band.rotation.z = 0;
+      for (const side of [1, -1]) {
+        const cup = mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 14), pal.toon(tint), side * r, -headTop, 0);
+        cup.rotation.z = Math.PI / 2;
+        const pad = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.13, 12), pal.toon("#262a33"), side * (r - 0.02), -headTop, 0);
+        pad.rotation.z = Math.PI / 2;
+      }
+      return;
+    }
+    case "pirate": {
+      const black = pal.toon("#1b1b24");
+      const brim = mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.05, 3), black, 0, 0, 0.02);
+      brim.rotation.y = Math.PI;
+      mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.28, 12), black, 0, 0.15, 0);
+      mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.05, 12), pal.toon("#ffcc33"), 0, 0.04, 0);
+      mesh(new THREE.SphereGeometry(0.07, 8, 6), pal.toon("#ffffff"), 0, 0.17, 0.27);
+      return;
+    }
+    case "flowers": {
+      mesh(new THREE.TorusGeometry(0.3, 0.035, 6, 20), pal.toon("#3f7d2c"), 0, 0.02, 0).rotation.x = Math.PI / 2;
+      const petals = ["#ff5d8f", "#ffd400", "#ffffff", "#c4b5fd", "#ff8a1f", "#ff5d8f", "#ffffff"];
+      petals.forEach((hex, i) => {
+        const a = (i / petals.length) * Math.PI * 2;
+        mesh(new THREE.SphereGeometry(0.08, 8, 6), pal.toon(hex), Math.cos(a) * 0.3, 0.06, Math.sin(a) * 0.3);
+        mesh(new THREE.SphereGeometry(0.035, 6, 5), pal.toon("#ffcc33"), Math.cos(a) * 0.33, 0.08, Math.sin(a) * 0.33);
+      });
+      return;
+    }
+    case "santa": {
+      const red = pal.toon("#e11d48");
+      const c = mesh(new THREE.ConeGeometry(0.29, 0.62, 12), red, 0, 0.3, 0);
+      c.rotation.z = 0.5;
+      mesh(new THREE.TorusGeometry(0.28, 0.07, 8, 16), pal.toon("#ffffff"), 0, 0.02, 0).rotation.x = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.09, 8, 6), pal.toon("#ffffff"), -0.16, 0.58, 0);
+      return;
+    }
   }
 }
 
 // ----- decals -----
 
-/** A hood texture: the paint colour with a pattern over it. */
-function decalTexture(decal: DecalId, color: string, name: string): THREE.CanvasTexture {
+/**
+ * A hood texture: the paint colour with a pattern over it. `own` is the trim
+ * colour when the player picked one (the pattern is drawn in it); without one
+ * patterns are white, as they always were. `trim` is the trim as it shows on
+ * the kart, for the two-tone split.
+ */
+function decalTexture(decal: DecalId, color: string, name: string, own: string | null, trim: string): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
   const ctx = c.getContext("2d")!;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, 256, 256);
-  const ink = "rgba(255,255,255,0.92)";
+  const ink = own ?? "rgba(255,255,255,0.92)";
+  let seed = hashName(name) || 1;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
   switch (decal) {
+    case "twotone":
+      ctx.fillStyle = trim;
+      ctx.fillRect(128, 0, 128, 256);
+      ctx.fillStyle = own ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.75)";
+      ctx.fillRect(122, 0, 12, 256);
+      break;
+    case "dots":
+      ctx.fillStyle = ink;
+      for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 6; col++) {
+          ctx.beginPath();
+          ctx.arc(col * 48 + (row % 2) * 24 + 8, row * 46 + 12, 13, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      break;
+    case "waves":
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = 14;
+      ctx.lineCap = "round";
+      for (const y0 of [70, 128, 186]) {
+        ctx.beginPath();
+        for (let x = -10; x <= 266; x += 4) {
+          const y = y0 + Math.sin(x / 22) * 14;
+          if (x === -10) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      break;
+    case "stars":
+      ctx.fillStyle = ink;
+      for (const [x, y, r] of [[128, 128, 46], [52, 60, 22], [205, 70, 26], [60, 200, 20], [200, 196, 22], [128, 30, 14], [128, 228, 14]]) star(ctx, x, y, r);
+      break;
+    case "hearts":
+      ctx.fillStyle = own ?? "#ff5d8f";
+      for (const [x, y, r] of [[128, 132, 40], [54, 64, 20], [204, 64, 22], [56, 204, 18], [200, 200, 20]]) heart(ctx, x, y, r);
+      if (!own) {
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        heart(ctx, 128, 126, 16);
+      }
+      break;
+    case "bolt": {
+      ctx.fillStyle = own ?? "#ffd400";
+      ctx.strokeStyle = "#1b1b24";
+      ctx.lineWidth = 8;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(150, 10);
+      ctx.lineTo(70, 140);
+      ctx.lineTo(122, 140);
+      ctx.lineTo(96, 246);
+      ctx.lineTo(188, 104);
+      ctx.lineTo(136, 104);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+      break;
+    }
+    case "camo": {
+      const shades = [shadeHex(color, -0.35), shadeHex(color, 0.25), own ?? shadeHex(color, -0.6)];
+      for (let i = 0; i < 26; i++) {
+        ctx.fillStyle = shades[i % 3];
+        const x = rnd() * 256;
+        const y = rnd() * 256;
+        ctx.beginPath();
+        for (let k = 0; k < 7; k++) {
+          const a = (k / 7) * Math.PI * 2;
+          const r = 16 + rnd() * 20;
+          const px = x + Math.cos(a) * r * 1.3;
+          const py = y + Math.sin(a) * r;
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+    }
+    case "tiger": {
+      ctx.fillStyle = own ?? "#1b1b24";
+      for (let i = 0; i < 7; i++) {
+        const y = 18 + i * 36;
+        for (const side of [0, 1]) {
+          const len = 60 + rnd() * 50;
+          const x0 = side ? 256 : 0;
+          const dir = side ? -1 : 1;
+          ctx.beginPath();
+          ctx.moveTo(x0, y - 9);
+          ctx.quadraticCurveTo(x0 + dir * len * 0.6, y - 4, x0 + dir * len, y + 6);
+          ctx.quadraticCurveTo(x0 + dir * len * 0.55, y + 8, x0, y + 11);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case "pi": {
+      ctx.fillStyle = ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 150px Georgia, 'Times New Roman', serif";
+      ctx.fillText("π", 128, 112);
+      ctx.font = "800 34px 'Baloo 2', 'Nunito', system-ui, sans-serif";
+      ctx.fillText("3.14159", 128, 212);
+      break;
+    }
     case "stripes":
       ctx.fillStyle = ink;
       ctx.fillRect(94, 0, 22, 256);
@@ -1475,6 +1737,26 @@ function decalTexture(decal: DecalId, color: string, name: string): THREE.Canvas
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   return tex;
+}
+
+function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function heart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x, y + r);
+  ctx.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.7, y - r * 1.3, x, y - r * 0.45);
+  ctx.bezierCurveTo(x + r * 0.7, y - r * 1.3, x + r * 1.6, y - r * 0.2, x, y + r);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {

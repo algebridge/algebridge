@@ -2,6 +2,8 @@ import type { ArenaId } from "../engine/types";
 import { ARENAS, ARENA_ORDER } from "../engine/world/arenas";
 import { buy, CATALOG, equip, ITEM_KINDS, itemOf, KIND_LABELS, levelOf, owns, type ItemKind, type Loadout, type Profile, type ProfileStore } from "../engine/profile";
 import { KartPreview } from "./preview";
+import { TRAILS } from "../engine/render/Trails";
+import { shadeHex } from "../engine/util";
 import { esc } from "./hud";
 import { ICON_COIN } from "./icons";
 
@@ -239,14 +241,14 @@ export class Garage {
     this.q.tabs.querySelectorAll<HTMLElement>(".g-tab").forEach((b) => b.classList.toggle("on", b.dataset.k === this.tab));
     const kind = this.tab;
     const equipped = p.loadout[kind];
-    this.q.grid.className = `g-grid kind-${kind}`;
+    this.q.grid.className = `g-grid kind-${kind}${kind === "accent" || kind === "glow" ? " kind-color" : ""}`;
     this.q.grid.innerHTML = CATALOG[kind]
       .map((it) => {
         const own = owns(p, kind, it.id);
         const on = it.id === equipped;
         const trying = this.trying?.kind === kind && this.trying.id === it.id;
         const cls = `g-item${on ? " on" : ""}${trying ? " trying" : ""}${own ? " owned" : " locked"}`;
-        const swatch = kind === "color" ? `<span class="g-swatch" style="--c:${it.id}"></span>` : "";
+        const swatch = this.swatch(kind, it.id);
         const price = own ? (on ? `<span class="g-state">Equipped</span>` : `<span class="g-state">Owned</span>`) : `<span class="g-price">${ICON_COIN}${it.price}</span>`;
         const tier = it.price >= 800 ? `<span class="g-tier epic">Epic</span>` : it.price >= 400 ? `<span class="g-tier rare">Rare</span>` : "";
         return `<button class="${cls}" data-id="${it.id}" title="${esc(it.blurb)}">${tier}${swatch}<span class="g-item-name">${esc(it.name)}</span>${price}</button>`;
@@ -266,6 +268,30 @@ export class Garage {
   /** The chosen topic ids; none means the mix. */
   private practiceIds(): string[] {
     return this.choice.practice === "mix" ? [] : this.choice.practice.split(",").filter(Boolean);
+  }
+
+  /** The little colour chip on a Paint, Trim, Underglow or Trail tile; empty for the rest. */
+  private swatch(kind: ItemKind, id: string): string {
+    const chip = (bg: string, cls = "") => `<span class="g-swatch${cls}" style="--c:${esc(bg)}"></span>`;
+    if (kind === "color") return chip(id);
+    if (kind === "accent") {
+      // "Match paint" shows the paint beside the shade it gives.
+      const paint = this.previewLoadout().color;
+      return id === "auto" ? chip(`linear-gradient(135deg, ${paint} 50%, ${shadeHex(paint, -0.35)} 50%)`) : chip(id);
+    }
+    if (kind === "glow") {
+      if (id === "none") return chip("transparent", " none");
+      if (id === "rainbow") return chip("conic-gradient(#ff5d8f, #ffd400, #22c55e, #6ff6ff, #3d5aff, #8b5cf6, #ff5d8f)", " glow");
+      return chip(id, " glow");
+    }
+    if (kind === "trail") {
+      const t = TRAILS[id as keyof typeof TRAILS];
+      if (!t) return "";
+      if (t.rainbow) return chip("conic-gradient(#ff5d8f, #ffd400, #22c55e, #6ff6ff, #3d5aff, #8b5cf6, #ff5d8f)", " trail");
+      if (t.palette) return chip(`conic-gradient(${t.palette.join(", ")}, ${t.palette[0]})`, " trail");
+      return chip(`radial-gradient(circle at 35% 35%, ${t.puff[0]} 0 40%, ${t.puff[1]} 75%)`, " trail");
+    }
+    return "";
   }
 
   private renderFoot(): void {

@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import type { InputState, KartSetup, WeaponId } from "../types";
-import type { Loadout } from "../profile";
+import { completeLoadout, type Loadout } from "../profile";
 import { EMPTY_INPUT } from "../types";
 import type { KartView } from "../render/KartMesh";
+import { rainbowColors } from "../render/Trails";
 import { KART } from "../physics/KartPhysics";
 import { damp } from "../util";
 
@@ -78,8 +79,8 @@ export class Kart {
   constructor(s: KartSetup) {
     this.id = s.id;
     this.name = s.name;
-    this.loadout = s.loadout;
-    this.color = s.loadout.color;
+    this.loadout = completeLoadout(s.loadout);
+    this.color = this.loadout.color;
     this.bot = s.bot;
     this.remote = !!s.remote;
     this.pid = s.pid ?? null;
@@ -155,6 +156,7 @@ export class Kart {
     if (!v) return;
     v.root.visible = this.alive;
     if (!this.alive) return;
+    if (v.glowRainbow && v.glowMat) v.glowMat.color.set(rainbowColors(now * 0.8)[0]).multiplyScalar(1.6);
     v.root.position.copy(this.pos);
     v.root.rotation.y = this.yaw;
 
