@@ -960,9 +960,29 @@
   left: 16px;
 }
 
+/* Fire sits above Gas, never beside the steering pads: on a phone a row of
+   three here reached across the stage and covered the right-turn pad. */
 .algecarts .touch-right {
   right: 16px;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    ". fire"
+    "brake gas";
+  align-items: end;
+  justify-items: end;
+}
+
+.algecarts .pad-fire {
+  grid-area: fire;
+}
+
+.algecarts .pad-brake {
+  grid-area: brake;
+}
+
+.algecarts .pad-gas {
+  grid-area: gas;
 }
 
 .algecarts .pad {
@@ -999,6 +1019,35 @@
   border-color: rgba(255, 93, 143, 0.75);
 }
 
+/* Narrow stages (phones): smaller pads, and clear of the booster panel. */
+@container (max-width: 520px) {
+  .algecarts .touch-left,
+  .algecarts .touch-right {
+    gap: 10px;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+  .algecarts .touch-left {
+    left: 12px;
+  }
+  .algecarts .touch-right {
+    right: 12px;
+  }
+  .algecarts .pad {
+    width: 62px;
+    height: 62px;
+    font-size: 14px;
+  }
+  .algecarts .pad-gas {
+    width: 80px;
+    height: 80px;
+  }
+  .algecarts .pad-brake {
+    width: 54px;
+    height: 54px;
+    font-size: 11px;
+  }
+}
+
 /* ---------- Sound and full screen buttons ---------- */
 
 .algecarts .sound,
@@ -1029,7 +1078,7 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.algecarts /* ---------- Small screens ---------- */
+/* ---------- Small screens ---------- */
 
 @container (max-width: 720px) {
   .algecarts .hud-top {
@@ -1042,9 +1091,28 @@
   .algecarts .hint {
     display: none;
   }
+  /* One row at the very bottom: a compact HP pill beside the booster panel,
+     so nothing stacks up under the touch pads. */
   .algecarts .hud-bottom {
-    grid-template-columns: 1fr;
-    justify-items: center;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
+  }
+  .algecarts .hp {
+    width: auto;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .algecarts .hp-bar {
+    flex: none;
+    width: 52px;
+    height: 12px;
+  }
+  .algecarts .hp-text {
+    font-size: 16px;
+  }
+  .algecarts .active {
+    grid-column: 1 / -1;
   }
   .algecarts .weapon {
     min-width: 0;

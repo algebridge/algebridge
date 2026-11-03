@@ -176,21 +176,28 @@ export class GameAudio {
 
   /**
    * The player's engine: revs climb through four gears and drop at each shift,
-   * the pulse follows the revs, and the intake breathes with speed.
+   * the pulse follows the revs, and the intake breathes with speed. `gas` is
+   * the throttle (0 to 1): on the gas the engine revs up at once, hardest from
+   * a standstill, and settles onto the speed as the kart catches up; off the
+   * gas the revs sag while it coasts.
    */
-  engine(speedFrac: number, boosting: boolean, active: boolean): void {
+  engine(speedFrac: number, boosting: boolean, active: boolean, gas = 0): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     const gears = [0, 0.2, 0.4, 0.62, 0.82, 1.01];
     let g = 0;
     while (g < gears.length - 2 && speedFrac >= gears[g + 1]) g++;
     const within = Math.min(1, Math.max(0, (speedFrac - gears[g]) / (gears[g + 1] - gears[g])));
-    const rpm = Math.min(1.1, 0.18 + 0.72 * within + g * 0.02 + (boosting ? 0.12 : 0));
+    const rev = gas * (0.34 - speedFrac * 0.22);
+    const coast = gas <= 0 && speedFrac > 0.05 ? 0.08 : 0;
+    const rpm = Math.min(1.1, 0.18 + 0.72 * within + g * 0.02 + (boosting ? 0.12 : 0) + rev - coast);
     const base = 34 + rpm * 78;
-    for (let i = 0; i < this.engineOsc.length; i++) this.engineOsc[i].frequency.setTargetAtTime(base * this.engineMul[i], t, 0.045);
-    this.engineLfo.frequency.setTargetAtTime(base * 0.5, t, 0.05);
-    this.engineFilter.frequency.setTargetAtTime(380 + rpm * 1500 + speedFrac * 500 + (boosting ? 700 : 0), t, 0.07);
-    this.engineGain.gain.setTargetAtTime(active ? 0.05 + rpm * 0.05 : 0, t, 0.1);
+    // The climb is quick and the drop is lazy, like a throttle blip.
+    const tau = gas > 0 ? 0.045 : 0.11;
+    for (let i = 0; i < this.engineOsc.length; i++) this.engineOsc[i].frequency.setTargetAtTime(base * this.engineMul[i], t, tau);
+    this.engineLfo.frequency.setTargetAtTime(base * 0.5, t, tau);
+    this.engineFilter.frequency.setTargetAtTime(380 + rpm * 1500 + speedFrac * 500 + gas * 500 + (boosting ? 700 : 0), t, 0.07);
+    this.engineGain.gain.setTargetAtTime(active ? 0.05 + rpm * 0.05 + gas * 0.025 : 0, t, 0.1);
     this.intakeBand.frequency.setTargetAtTime(500 + speedFrac * 1400, t, 0.1);
     this.intakeGain.gain.setTargetAtTime(active ? 0.006 + speedFrac * 0.05 + (boosting ? 0.03 : 0) : 0, t, 0.12);
   }

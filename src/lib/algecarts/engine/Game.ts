@@ -1236,7 +1236,7 @@ class Game implements GameHandle, CombatCtx {
     else this.camera.spectate(dt, this.arena);
     const c = this.camera.cam.position;
     this.audio.setListener(c.x, c.y, c.z);
-    if (p && p.alive) this.audio.engine(clamp(Math.abs(p.speed) / KART.maxSpeed, 0, 1), p.isBoosting(now), true);
+    if (p && p.alive) this.audio.engine(clamp(Math.abs(p.speed) / KART.maxSpeed, 0, 1), p.isBoosting(now), true, clamp(p.input.throttle, 0, 1));
     else this.audio.engine(0, false, false);
     this.damageFlash = Math.max(0, this.damageFlash - dt * 2.5);
 
