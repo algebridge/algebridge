@@ -1439,7 +1439,7 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     ok("school mode: on with \"1\"", SM.SCHOOL_MODE === true && SM.schoolModeFrom("1") && SM.schoolModeFrom(" 1 "));
     ok("school mode: off by default and for anything else", !SM.schoolModeFrom(undefined) && !SM.schoolModeFrom("") && !SM.schoolModeFrom("true") && !SM.schoolModeFrom("0") && !SM.schoolModeFrom(1));
     ok("school mode: no preview outside development", process.env.NODE_ENV !== "development" ? SM.schoolModePreview() === false : true);
-    for (const [path, feature] of [["/messages", "messages"], ["/messages/abc", "messages"], ["/groups/1", "groups"], ["/room/a--b", "calls"], ["/tutors", "tutors"], ["/tutor-hub", "tutors"], ["/calendar", "booking"], ["/leaderboard", "leaderboard"], ["/games", "games"]] as const) {
+    for (const [path, feature] of [["/messages", "messages"], ["/messages/abc", "messages"], ["/groups/1", "groups"], ["/room/a--b", "calls"], ["/tutors", "tutors"], ["/tutor-hub", "tutors"], ["/calendar", "booking"], ["/leaderboard", "leaderboard"], ["/games", "games"], ["/games/carts", "games"]] as const) {
       ok(`school mode: ${path} is off`, SM.featureForPath(path) === feature, String(SM.featureForPath(path)));
     }
     for (const path of ["/", "/learn/unit-1/one-step", "/review", "/notebook", "/house", "/achievements", "/classes", "/teacher", "/schools", "/messagesx", "/feedback"]) {
@@ -1488,8 +1488,8 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
       ok(`school mode on: /${dir} shows the panel, not the page`, PANEL.test(html) && html.includes(name) && !html.includes("THE REAL PAGE"), html.slice(0, 160));
     }
     const P = await import("../../components/SchoolModePanel.tsx");
-    const games = await import("../../components/GamesBanner.tsx");
-    ok("school mode on: no games banner on the course page", renderToStaticMarkup(h(games.GamesBanner)) === "");
+    const carts = await import("../../components/CartsBanner.tsx");
+    ok("school mode on: no Alge Carts banner on the course page", renderToStaticMarkup(h(carts.CartsBanner)) === "");
     const panel = renderToStaticMarkup(h(P.SchoolModePanel, { feature: "messages" }));
     ok("school mode: the panel says what to do instead", /ask your teacher/.test(panel) && /Back to the course/.test(panel) && /href="\/schools#school-mode"/.test(panel) && !/[—–]/.test(panel));
     const side = await import("../../components/SideNav.tsx");
@@ -1499,10 +1499,11 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
     // The real menu, most used first, and what school mode leaves of it.
     const NV = await import("../nav.ts");
     const visitor = NV.buildNav({ signedIn: false, role: "student", isAdmin: false, reviewCount: 0, unreadCount: 0 });
-    ok("menu: most used first", hrefs(visitor) === "/ /games /arena /review /house /leaderboard /achievements /classes /tutors /notebook /feedback /?tour=1", hrefs(visitor));
+    ok("menu: most used first", hrefs(visitor) === "/ /games /arena /review /games/carts /house /leaderboard /achievements /classes /tutors /notebook /feedback /?tour=1", hrefs(visitor));
     const a2 = NV.buildNav({ signedIn: false, role: "student", isAdmin: false, reviewCount: 0, unreadCount: 0, course: "algebra-2" });
     ok("menu: in AlgeBridge 2, Course goes to its home and AlgeBridge 1 is not listed", hrefs(a2).startsWith("/algebra-2 /games") && !hrefs(a2).startsWith("/ "), hrefs(a2));
-    ok("menu: grouped Learn, Rewards, Classroom, More", visitor.map((x) => x.title).join() === "Learn,Rewards,Classroom,More");
+    ok("menu: grouped Learn, Play, Rewards, Classroom, More", visitor.map((x) => x.title).join() === "Learn,Play,Rewards,Classroom,More");
+    ok("menu: Alge Carts has a section of its own and is marked new", visitor.some((x) => x.title === "Play" && x.items.length === 1 && x.items[0].href === "/games/carts" && x.items[0].tag === "New"));
     const student = NV.buildNav({ signedIn: true, role: "student", isAdmin: false, reviewCount: 2, unreadCount: 1 });
     ok("menu: a signed-in student has messages and no tour link", hrefs(student).includes("/messages") && !hrefs(student).includes("tour"), hrefs(student));
     ok("menu: For schools joins More, at the end", hrefs(side.withSchoolsLink(visitor, false)).endsWith("/feedback /?tour=1 /schools"), hrefs(side.withSchoolsLink(visitor, false)));
@@ -2022,8 +2023,8 @@ ok("practice event name is stable", S.PRACTICE_EVENT === "algebridge:practice");
   const card = repo("src/components/helper/CrisisCard.tsx");
   ok("crisis card: the 988 web chat (checked on 988lifeline.org, 3 Oct) and 'from any phone'", H.CRISIS_CHAT.href === "https://chat.988lifeline.org/" && /href=\{CRISIS_CHAT\.href\}/.test(card) && /from any phone/.test(card) && /from any phone/.test(H.CRISIS_REPLY));
   ok("crisis card: the plain voice says why this page is not where help comes from", /note = "A report is not read right away/.test(card) && /\{note\}/.test(card));
-  const banner = repo("src/components/GamesBanner.tsx");
-  ok("games banner: text at white/90 or white", !/text-white\/(?:[1-8]\d)\b/.test(banner));
+  const banner = repo("src/components/CartsBanner.tsx");
+  ok("carts banner: text at white/90 or white", !/text-white\/(?:[1-8]\d)\b/.test(banner));
   const groupsPage = repo("src/app/groups/page.tsx");
   ok("groups: New AlgeGroup is a real dialog with a focus trap and Escape", /role="dialog"/.test(groupsPage) && /aria-modal="true"/.test(groupsPage) && /useDialogFocus\(dialogRef, creating, \(\) => setCreating\(false\)\)/.test(groupsPage) && /htmlFor="new-group-name"/.test(groupsPage) && /aria-pressed=\{picked\.has\(s\.id\)\}/.test(groupsPage));
   const board = repo("src/app/leaderboard/page.tsx");

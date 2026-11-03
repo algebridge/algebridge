@@ -38,6 +38,7 @@ export type IconName =
   | "close"
   | "grip"
   | "helper"
+  | "kart"
   | "flame"
   | "coin"
   | "play"
@@ -446,6 +447,16 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M20 12a7 7 0 0 1-7 7H8l-4 3v-4.6A7 7 0 0 1 11 5h2a7 7 0 0 1 7 7Z" />
       <path d="M10 10.2a2 2 0 1 1 2.9 1.8c-.6.3-.9.8-.9 1.4" />
       <path d="M12 15.6h.01" />
+    </>
+  ),
+  kart: (
+    <>
+      <circle cx="6.5" cy="17" r="2.3" />
+      <circle cx="17.5" cy="17" r="2.3" />
+      <path d="M8.8 17h6.4" />
+      <path d="M3 14.6h5.2l1.6-3.6h4.4l2.4 3.6H21" />
+      <circle cx="12" cy="7.3" r="1.9" />
+      <path d="M12 9.2V11M14.4 11l1.6-2.1" />
     </>
   ),
   "eye-off": (

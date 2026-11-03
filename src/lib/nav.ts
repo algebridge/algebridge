@@ -7,6 +7,8 @@ export interface NavItem {
   label: string;
   icon: IconName;
   badge?: number;
+  /** A short word beside the label, "New" while something is new. */
+  tag?: string;
 }
 
 export interface NavSection {
@@ -50,6 +52,11 @@ export function buildNav({
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
   ];
 
+  // The kart arena, in a section of its own since it opened to everyone
+  // (Nov 2026). It sits under /games, so school mode and a teacher's class
+  // controls turn it off with the team games.
+  const play: NavItem[] = [{ href: "/games/carts", label: "Alge Carts", icon: "kart", tag: "New" }];
+
   const rewards: NavItem[] = [
     { href: "/house", label: "Bridgey House", icon: "house" },
     { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
@@ -77,6 +84,7 @@ export function buildNav({
 
   const sections: NavSection[] = [
     { title: "Learn", items: learn },
+    { title: "Play", items: play },
     { title: "Rewards", items: rewards },
     { title: "Classroom", items: classroom },
     { title: "More", items: more },

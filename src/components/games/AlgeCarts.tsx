@@ -243,7 +243,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           if (coarse && stage.clientWidth < 640 && !isFull()) void enterFull();
         },
         {
-          footNote: "Demo for the testers. The Bridgeys are your AlgeBridge Bridgeys: a right answer on the track pays like the other games, and the shop spends them.",
+          footNote: "The Bridgeys are your AlgeBridge Bridgeys: a right answer on the track pays like the other games, and the shop spends them.",
           onBack: () => exitRef.current(),
           topics: practiceTopics(getProgress()).map((t) => ({ id: t.id, label: t.label })),
         },

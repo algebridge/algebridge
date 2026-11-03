@@ -362,6 +362,11 @@ export function Header() {
                             className={active ? "text-bridge-600" : "text-slate-400"}
                           />
                           <span className="truncate">{item.label}</span>
+                          {item.tag && (
+                            <span className="ml-auto rounded-full bg-amber-400 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-slate-900">
+                              {item.tag}
+                            </span>
+                          )}
                           {!!item.badge && item.badge > 0 && (
                             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-bridge-600 px-1.5 text-[10px] font-bold text-white">
                               {item.badge}

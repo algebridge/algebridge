@@ -5,7 +5,7 @@ import { CourseHeader } from "@/components/CourseHeader";
 import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
-import { GamesBanner } from "@/components/GamesBanner";
+import { CartsBanner } from "@/components/CartsBanner";
 import { VisualizeIt } from "@/components/VisualizeIt";
 
 export const metadata: Metadata = { title: "AlgeBridge 2" };
@@ -58,7 +58,7 @@ export default function Algebra2Page() {
         <ProgressOverview course="algebra-2" />
       </CourseGate>
 
-      <GamesBanner />
+      <CartsBanner />
 
       <VisualizeIt />
 

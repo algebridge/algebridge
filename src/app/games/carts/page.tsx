@@ -6,13 +6,12 @@ import { useEffect, useState } from "react";
 import { AlgeCarts } from "@/components/games/AlgeCarts";
 import { CartsLeaderboard } from "@/components/games/CartsLeaderboard";
 import { useAuth } from "@/lib/auth";
-import { isCartsTester, racerNameOf } from "@/lib/algecarts/testers";
+import { racerNameOf } from "@/lib/algecarts/names";
 
 /**
- * /games/carts: the kart arena, as a demo for a few testers, on a stage in
- * the page like the other games. Anyone else gets a short note and the way
- * back. A local-only deployment, with no accounts to check, opens it for
- * whoever is there.
+ * /games/carts: the kart arena, on a stage in the page like the other games,
+ * open to every signed-in student. A local-only deployment, with no accounts
+ * to check, opens it for whoever is there.
  *
  * In development, `?guest=1` opens it for a signed-out tab as a guest with a
  * made-up name, so two local tabs can share a lobby. Read after mount, so the
@@ -52,19 +51,6 @@ export default function CartsPage() {
     );
   }
 
-  const allowed = !configured || !!devGuest || isCartsTester(profile?.displayName);
-  if (!allowed) {
-    return (
-      <Note title="Alge Carts is a demo for a few testers right now">
-        It opens for everyone once it is ready.{" "}
-        <Link href="/games" className="font-semibold text-indigo-700 underline">
-          Back to the games
-        </Link>
-        .
-      </Note>
-    );
-  }
-
   const guest = !user && devGuest ? devGuest : null;
   const name = racerNameOf(profile?.displayName) || (guest ? `Guest ${guest.slice(-4)}` : "You");
   return (
@@ -73,7 +59,7 @@ export default function CartsPage() {
         <h1 className="page-title">Alge Carts</h1>
         <p className="page-subtitle">
           Eight karts, one arena, three minutes. Drive into a question box and answer it to load the booster. The button at the top right of the
-          track, or F, takes it full screen; Esc brings the page back. A demo for the testers.
+          track, or F, takes it full screen; Esc brings the page back.
         </p>
       </header>
       <AlgeCarts
