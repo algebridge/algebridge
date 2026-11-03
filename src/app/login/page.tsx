@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { fetchEnabledProviders } from "@/lib/auth-providers";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { OAUTH_PENDING_KEY, useAuth } from "@/lib/auth";
+import { safeNext } from "@/lib/safe-next";
 import { exportProgressForSync, importProgressFromSync } from "@/lib/progress";
 import { checkFullName, checkNameParts, formatName, isRealName } from "@/lib/name";
 import { Icon } from "@/components/Icon";
@@ -31,7 +32,7 @@ function LoginPageInner() {
   } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next");
+  const next = safeNext(params.get("next"));
   // School mode turns messages, group chats and tutors off (src/lib/school-mode.ts),
   // so their links and the tutor role are not offered.
   const school = useSchoolMode();
@@ -98,7 +99,8 @@ function LoginPageInner() {
 
       await syncProgress();
 
-      if (pending) router.push(pending);
+      const dest = safeNext(pending);
+      if (dest) router.push(dest);
       else setMessage("Signed in with Google. Your progress is synced.");
     })();
   }, [loading, user, profile, router, saveRealName, syncProgress]);
@@ -115,7 +117,7 @@ function LoginPageInner() {
         return;
       }
       if (!agreed) {
-        setError("To create an account, agree to the Terms of Use and Privacy Policy.");
+        setError("To create an account, agree to the Terms of Service and Privacy Policy.");
         return;
       }
       // Show the tidied name back, so "maria" reads "Maria" before they go on.
@@ -602,7 +604,7 @@ function LoginPageInner() {
                 <span>
                   I agree to the{" "}
                   <Link href="/terms" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">
-                    Terms of Use<span className="sr-only"> (opens in a new tab)</span>
+                    Terms of Service<span className="sr-only"> (opens in a new tab)</span>
                   </Link>{" "}
                   and{" "}
                   <Link href="/privacy" target="_blank" className="font-medium text-bridge-700 underline underline-offset-2">
@@ -646,7 +648,7 @@ function LoginPageInner() {
             } />
           <p className="mt-2 text-center text-xs text-slate-500">
             By continuing with Google, you agree to the{" "}
-            <Link href="/terms" target="_blank" className="underline underline-offset-2">Terms of Use</Link> and{" "}
+            <Link href="/terms" target="_blank" className="underline underline-offset-2">Terms of Service</Link> and{" "}
             <Link href="/privacy" target="_blank" className="underline underline-offset-2">Privacy Policy</Link>,
             including being shown on the leaderboard unless you turn it off.
           </p>

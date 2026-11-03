@@ -21,7 +21,18 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
-        headers: [{ key: "Content-Security-Policy", value: `frame-ancestors ${ancestors}` }],
+        headers: [
+          { key: "Content-Security-Policy", value: `frame-ancestors ${ancestors}` },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Camera and microphone are for tutor calls on this site only; the
+          // lesson videos (YouTube iframes) keep fullscreen and autoplay.
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()",
+          },
+        ],
       },
     ];
   },

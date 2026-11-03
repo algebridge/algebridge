@@ -536,6 +536,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: { data: { full_name: nameCheck.formatted } },
     });
+    // Supabase's own words ("User already registered") read like a server
+    // error and confirm the address to anyone typing it in.
+    if (error && /already (been )?registered/i.test(error.message)) {
+      return "That email can't start a new account. If it's yours, sign in instead or use Forgot password.";
+    }
     if (error) return error.message;
     if (!data.user) return "Sign-up succeeded, but no session was returned. Try signing in.";
 
