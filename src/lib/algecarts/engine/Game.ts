@@ -1090,10 +1090,11 @@ class Game implements GameHandle, CombatCtx {
     }
     for (let i = 0; i < this.karts.length; i++) {
       const a = this.karts[i];
-      if (!a.alive) continue;
+      // A kart answering a question is off the track: nothing to drive into.
+      if (!a.alive || a.hidden) continue;
       for (let j = i + 1; j < this.karts.length; j++) {
         const b = this.karts[j];
-        if (!b.alive) continue;
+        if (!b.alive || b.hidden) continue;
         const closing = collideKarts(a, b);
         if (closing > STATS.bump.minClosing) {
           const mx = (a.pos.x + b.pos.x) / 2;
@@ -1165,7 +1166,7 @@ class Game implements GameHandle, CombatCtx {
         stepKart(k, dt, this.arena, now);
         if (wasAir && k.onGround && k.landed > 0.4) this.particles.dust(k.pos.x, k.pos.y, k.pos.z, Math.min(1, k.landed));
         collideKartWithArena(k, this.arena);
-        for (const o of this.karts) if (o !== k && o.alive) collideKarts(k, o);
+        for (const o of this.karts) if (o !== k && o.alive && !o.hidden) collideKarts(k, o);
         const f = Math.min(1, 6 * dt);
         const mx = this.corr.x * f;
         const mz = this.corr.z * f;
@@ -1184,14 +1185,31 @@ class Game implements GameHandle, CombatCtx {
     this.weapons.drift(dt);
     for (const b of this.boxes) if (b.active) b.update(dt, now);
     for (const k of this.karts) {
-      if (k.alive) this.exhaust(k, dt, now);
+      if (k.alive && !this.cloaked(k)) this.exhaust(k, dt, now);
       this.syncKartView(k, dt, now);
     }
     this.finishFrame(dt, now);
   }
 
+  /** Hidden from this tab: answering a question, and not the kart this tab drives. */
+  private cloaked(k: Kart): boolean {
+    return k.hidden && k !== this.player;
+  }
+
   private syncKartView(k: Kart, dt: number, now: number): void {
     k.syncView(dt, now);
+    if (k.view) {
+      // Whoever is answering a question vanishes for everyone else, with a
+      // puff on the way out and back so it reads as the game, not a glitch.
+      const cloaked = this.cloaked(k);
+      const shown = k.alive && !cloaked;
+      const ud = k.view.root.userData as { cloaked?: boolean };
+      if (k.view.root.visible !== shown) {
+        if (k.alive && (cloaked || ud.cloaked)) this.particles.puff(k.pos.x, k.pos.y + 0.7, k.pos.z, 0, 1.2, 0, "#ffe9a8", 1.3, 0.45, "#ffffff");
+        k.view.root.visible = shown;
+      }
+      ud.cloaked = cloaked;
+    }
     if (k.view && k.view.tag && k.alive) {
       const shown = Math.round(k.hp);
       if (k.view.tag.userData.hp !== shown) {

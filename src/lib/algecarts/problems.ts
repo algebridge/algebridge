@@ -270,7 +270,12 @@ const FORMS: Form[] = [
 const SKILL_HOME = new Map<string, { unitId: string; unitNumber: number; title: string }>();
 for (const u of units) for (const s of u.skills) SKILL_HOME.set(s.id, { unitId: u.id, unitNumber: u.number, title: s.title });
 
-/** What a student can choose to practice on the track. "mix" is every form up to their unit. */
+/**
+ * What a student can choose to practice on the track. "mix" is every form up
+ * to their unit; chosen topics are every form in them, whatever unit they are
+ * on: the pick is theirs, and every form is bare numbers and symbols either
+ * way.
+ */
 export interface PracticeTopic {
   id: string;
   label: string;
@@ -293,27 +298,36 @@ export const MIX_TOPIC = "mix";
 /** The topic a skill belongs to, for the card's label. */
 export const topicOfSkill = (skill: string): PracticeTopic | undefined => TOPICS.find((t) => t.skills.includes(skill));
 
-/** The topics a student has reached: a topic shows once any of its forms is at or below their unit. */
-export function practiceTopics(progress: UserProgress): PracticeTopic[] {
-  const n = Math.max(2, currentUnit(progress).number);
-  return TOPICS.filter((t) => FORMS.some((f) => t.skills.includes(f.skill) && f.unit <= n));
+/** Every topic a student can pick, in curriculum order. */
+export function practiceTopics(): PracticeTopic[] {
+  return TOPICS.map((t) => ({ ...t, skills: [...t.skills] }));
 }
 
 /**
- * A fresh bare problem for the unit the student is on; `avoid` holds prompts
- * already asked. A chosen `topic` limits it to that topic's forms (every form
- * the student has reached, never ahead of their unit).
+ * A practice choice as it is stored: "mix", or topic ids joined by commas.
+ * Unknown ids drop out; nothing left means the mix.
  */
-export function pickCartsProblem(progress: UserProgress, avoid = new Set<string>(), topic: string = MIX_TOPIC): RinkProblem | null {
+export function parsePractice(choice: string | null | undefined): string[] {
+  if (!choice || choice === MIX_TOPIC) return [];
+  const ids = choice.split(",").map((s) => s.trim());
+  return TOPICS.map((t) => t.id).filter((id) => ids.includes(id));
+}
+
+/** The stored form of a pick: "mix" for none. */
+export const joinPractice = (ids: string[]): string => (ids.length ? ids.join(",") : MIX_TOPIC);
+
+/**
+ * A fresh bare problem; `avoid` holds prompts already asked. With the mix it
+ * comes from the unit the student is on or below (never ahead of them); with
+ * chosen topics it comes from those topics' forms, whatever unit they are on.
+ */
+export function pickCartsProblem(progress: UserProgress, avoid = new Set<string>(), practice: string = MIX_TOPIC): RinkProblem | null {
   const n = Math.max(2, currentUnit(progress).number);
-  let eligible = FORMS.filter((f) => f.unit <= n && SKILL_HOME.has(f.skill));
-  const chosen = TOPICS.find((t) => t.id === topic);
-  if (chosen) {
-    const narrowed = eligible.filter((f) => chosen.skills.includes(f.skill));
-    if (narrowed.length) eligible = narrowed;
-  }
+  const chosen = parsePractice(practice);
+  const wanted = new Set(chosen.flatMap((id) => TOPICS.find((t) => t.id === id)?.skills ?? []));
+  const eligible = chosen.length ? FORMS.filter((f) => wanted.has(f.skill) && SKILL_HOME.has(f.skill)) : FORMS.filter((f) => f.unit <= n && SKILL_HOME.has(f.skill));
   if (!eligible.length) return null;
-  const here = chosen ? [] : eligible.filter((f) => f.unit === n);
+  const here = chosen.length ? [] : eligible.filter((f) => f.unit === n);
   const pool = here.length && Math.random() < 0.6 ? here : eligible;
   let form = pick(pool);
   let made = form.make();

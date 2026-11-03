@@ -170,7 +170,8 @@ export interface GameHooks {
   /**
    * The local player drove into an item box. Resolve with the weapon to hand
    * out, or null for nothing (the box is still used up). While the promise is
-   * open the kart is parked and protected, and HudState.pending is true.
+   * open the kart is parked, protected and hidden from every other kart
+   * (nobody sees it, drives into it or hits it), and HudState.pending is true.
    * Leave it out to get the standard instant roll.
    */
   requestBooster?(req: BoosterRequest): Promise<WeaponId | null>;

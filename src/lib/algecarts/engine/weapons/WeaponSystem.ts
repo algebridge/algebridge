@@ -206,7 +206,7 @@ export class WeaponSystem {
     let hit: Kart | null = null;
     let hitD: number = reach;
     for (const o of karts) {
-      if (o === k || !o.alive) continue;
+      if (o === k || !o.alive || o.hidden) continue;
       const dx = o.pos.x - ox;
       const dz = o.pos.z - oz;
       const along = dx * fx + dz * fz;
@@ -307,7 +307,8 @@ export class WeaponSystem {
         p.pos.z += p.vel.z * sdt;
         // Karts.
         for (const k of karts) {
-          if (k === p.owner || !k.alive) continue;
+          // A kart answering a question is off the track: shots fly through where it stands.
+          if (k === p.owner || !k.alive || k.hidden) continue;
           if (!pointHitsKart(k, p.pos.x, p.pos.y, p.pos.z, p.kind === "bullet" ? 0.25 : 0.55)) continue;
           if (p.kind === "seeker") {
             this.ctx.explode(p.pos.x, p.pos.y, p.pos.z, STATS.seeker.radius, STATS.seeker.damage, STATS.seeker.edge, STATS.seeker.knock, p.owner, "seeker", 1);
@@ -419,7 +420,7 @@ export class WeaponSystem {
         m.dead = true;
       } else if (m.armed(now)) {
         for (const k of karts) {
-          if (k === m.owner || !k.alive) continue;
+          if (k === m.owner || !k.alive || k.hidden) continue;
           const dx = k.pos.x - m.pos.x;
           const dz = k.pos.z - m.pos.z;
           if (dx * dx + dz * dz > STATS.mine.trigger * STATS.mine.trigger || Math.abs(k.pos.y - m.pos.y) > 1.6) continue;

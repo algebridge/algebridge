@@ -96,6 +96,14 @@ export class Kart {
   isProtected(now: number): boolean {
     return this.protectUntil > now || this.pendingBooster;
   }
+  /**
+   * Answering a question: off the track for everyone else. Nobody sees the
+   * kart, drives into it, or hits it until the card closes. Its own tab
+   * still draws it (the card sits over the game there).
+   */
+  get hidden(): boolean {
+    return this.pendingBooster;
+  }
   isShielded(now: number): boolean {
     return this.shieldUntil > now;
   }

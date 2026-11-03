@@ -1130,9 +1130,14 @@
 }
 
 .algecarts .g-practice .pills {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.algecarts .g-practice .pill {
+  white-space: nowrap;
+  padding: 6px 12px;
+  font-size: 13px;
 }
 
 .algecarts .g-practice-label {

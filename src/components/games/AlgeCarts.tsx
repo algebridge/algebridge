@@ -245,7 +245,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         {
           footNote: "The Bridgeys are your AlgeBridge Bridgeys: a right answer on the track pays like the other games, and the shop spends them.",
           onBack: () => exitRef.current(),
-          topics: practiceTopics(getProgress()).map((t) => ({ id: t.id, label: t.label })),
+          topics: practiceTopics().map((t) => ({ id: t.id, label: t.label })),
         },
       );
       garageRef.current = garage;
@@ -437,7 +437,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           onCheck={check}
           onContinue={carryOn}
           continueLabel="Back to the race"
-          note="Get it right and the booster is yours."
+          note="Your kart is hidden from the others until you answer. Get it right and the booster is yours."
           label={`Booster question${open ? ` · ${topicOfSkill(open.skillId)?.label ?? ""}` : ""}`}
         />
       )}

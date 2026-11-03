@@ -8,9 +8,12 @@ import { ICON_COIN } from "./icons";
 export interface GarageChoice {
   arena: ArenaId | "random";
   gate: boolean;
-  /** The topic the ? boxes ask about: "mix" or a topic id. */
+  /** The topics the ? boxes ask about: "mix", or topic ids joined by commas. */
   practice: string;
 }
+
+/** The stored form of a topic pick: "mix" for none. */
+const joinPractice = (ids: string[]): string => (ids.length ? ids.join(",") : "mix");
 
 export interface GarageTopic {
   id: string;
@@ -90,13 +93,19 @@ export class Garage {
     // Names are never typed: the racer wears the account's own, set by the host page.
     this.q.name.textContent = profile.name;
 
-    const topics = [{ id: "mix", label: "Mix" }, ...(this.opts.topics ?? [])];
-    if (!topics.some((t) => t.id === this.choice.practice)) this.choice.practice = "mix";
-    this.q.topics.innerHTML = topics.map((t) => `<button class="pill" data-t="${esc(t.id)}">${esc(t.label)}</button>`).join("");
+    // Pick as many topics as you like; Mix is everything up to your unit.
+    const topics = this.opts.topics ?? [];
+    this.choice.practice = joinPractice(this.practiceIds().filter((id) => topics.some((t) => t.id === id)));
+    this.q.topics.innerHTML =
+      `<button class="pill" data-t="mix" title="Everything up to the unit you are on">Mix</button>` +
+      topics.map((t) => `<button class="pill" data-t="${esc(t.id)}" title="Pick as many topics as you like">${esc(t.label)}</button>`).join("");
     this.q.topics.addEventListener("click", (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>(".pill");
       if (!b) return;
-      this.choice.practice = b.dataset.t!;
+      const id = b.dataset.t!;
+      const ids = this.practiceIds();
+      const next = id === "mix" ? [] : ids.includes(id) ? ids.filter((x) => x !== id) : topics.filter((t) => t.id === id || ids.includes(t.id)).map((t) => t.id);
+      this.choice.practice = joinPractice(next);
       this.renderFoot();
     });
 
@@ -254,9 +263,19 @@ export class Garage {
     }
   }
 
+  /** The chosen topic ids; none means the mix. */
+  private practiceIds(): string[] {
+    return this.choice.practice === "mix" ? [] : this.choice.practice.split(",").filter(Boolean);
+  }
+
   private renderFoot(): void {
     this.q.arenas.querySelectorAll<HTMLElement>("[data-a]").forEach((b) => b.classList.toggle("on", b.dataset.a === this.choice.arena));
-    this.q.topics.querySelectorAll<HTMLElement>("[data-t]").forEach((b) => b.classList.toggle("on", b.dataset.t === this.choice.practice));
+    const ids = this.practiceIds();
+    this.q.topics.querySelectorAll<HTMLElement>("[data-t]").forEach((b) => {
+      const on = b.dataset.t === "mix" ? !ids.length : ids.includes(b.dataset.t!);
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
   }
 
   dispose(): void {
