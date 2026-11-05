@@ -384,6 +384,8 @@ export interface StudentDirectoryEntry {
   displayName: string | null;
   email: string | null;
   avatarUrl: string | null;
+  /** May the signed-in tutor message or ring this student now? Tutors see every student but reach only those who asked them for help or wrote first. */
+  reachable: boolean;
 }
 
 export interface DirectMessage {

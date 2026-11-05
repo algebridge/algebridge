@@ -279,11 +279,19 @@ export async function listTutors(): Promise<TutorDirectoryEntry[]> {
 export async function listAllStudents(): Promise<StudentDirectoryEntry[]> {
   const supabase = createClient();
   if (!supabase) return [];
-  const viewed = await supabase
+  // `reachable` comes with schema-2026-11-04-tutors-see-students.sql; before it,
+  // the view lists only students the tutor can reach, so every row is reachable.
+  let viewed = await supabase
     .from("student_directory")
-    .select("id, display_name, avatar_url")
+    .select("id, display_name, avatar_url, reachable")
     .order("display_name", { ascending: true });
-  let rows: { id: string; display_name: string | null; email?: string | null; avatar_url: string | null }[];
+  if (viewed.error) {
+    viewed = (await supabase
+      .from("student_directory")
+      .select("id, display_name, avatar_url")
+      .order("display_name", { ascending: true })) as typeof viewed;
+  }
+  let rows: { id: string; display_name: string | null; email?: string | null; avatar_url: string | null; reachable?: boolean | null }[];
   if (!viewed.error) rows = viewed.data ?? [];
   else {
     const { data } = await supabase
@@ -299,6 +307,7 @@ export async function listAllStudents(): Promise<StudentDirectoryEntry[]> {
     displayName: r.display_name,
     email: r.email ?? null,
     avatarUrl: photos[i],
+    reachable: r.reachable ?? true,
   }));
 }
 

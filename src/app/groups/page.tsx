@@ -40,7 +40,8 @@ export default function GroupsPage() {
   async function openCreate() {
     setCreating(true);
     setErr("");
-    if (students.length === 0) setStudents(await listAllStudents());
+    // Only students this tutor can reach can be put in a group (the database checks too).
+    if (students.length === 0) setStudents((await listAllStudents()).filter((s) => s.reachable));
   }
 
   function toggle(id: string) {

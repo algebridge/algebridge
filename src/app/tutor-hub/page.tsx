@@ -58,7 +58,7 @@ export default function TutorHubPage() {
 
   const rows = useMemo(() => {
     const q = query.toLowerCase();
-    const list = who === "students" ? students.map((s) => ({ id: s.id, name: s.displayName ?? "Student", sub: s.email ?? "", avatar: s.avatarUrl })) : tutors.map((t) => ({ id: t.id, name: t.displayName ?? "Tutor", sub: t.bio ?? "", avatar: t.avatarUrl }));
+    const list = who === "students" ? students.map((s) => ({ id: s.id, name: s.displayName ?? "Student", sub: s.email ?? "", avatar: s.avatarUrl, reachable: s.reachable })) : tutors.map((t) => ({ id: t.id, name: t.displayName ?? "Tutor", sub: t.bio ?? "", avatar: t.avatarUrl, reachable: true }));
     return list.filter((r) => r.name.toLowerCase().includes(q) || r.sub.toLowerCase().includes(q));
   }, [who, students, tutors, query]);
 
@@ -153,7 +153,7 @@ export default function TutorHubPage() {
                 <input
                   type="checkbox"
                   checked={on}
-                  disabled={!on && roomFull}
+                  disabled={!r.reachable || (!on && roomFull)}
                   onChange={() => togglePick(r.id, r.name)}
                   aria-label={`Add ${r.name} to a group call`}
                   className="h-4 w-4 shrink-0 accent-bridge-600"
@@ -162,13 +162,18 @@ export default function TutorHubPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-slate-900">{r.name}</p>
                   {r.sub && <p className="truncate text-xs text-slate-500">{r.sub}</p>}
+                  {!r.reachable && <p className="text-xs text-slate-500">You can message them once they ask you for help or write to you.</p>}
                 </div>
-                <Link href={`/messages/${r.id}`} className="btn-secondary text-sm" title="Message" aria-label={`Message ${r.name}`}>
-                  <Icon name="messages" size={17} />
-                </Link>
-                <button type="button" onClick={() => call([r.id])} className="btn-secondary text-sm" title="Start a video call" aria-label={`Start a video call with ${r.name}`}>
-                  <Icon name="video" size={17} />
-                </button>
+                {r.reachable && (
+                  <>
+                    <Link href={`/messages/${r.id}`} className="btn-secondary text-sm" title="Message" aria-label={`Message ${r.name}`}>
+                      <Icon name="messages" size={17} />
+                    </Link>
+                    <button type="button" onClick={() => call([r.id])} className="btn-secondary text-sm" title="Start a video call" aria-label={`Start a video call with ${r.name}`}>
+                      <Icon name="video" size={17} />
+                    </button>
+                  </>
+                )}
               </li>
             );
           })}
