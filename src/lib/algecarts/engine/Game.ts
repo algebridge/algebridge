@@ -881,7 +881,8 @@ class Game implements GameHandle, CombatCtx {
       this.hooks.requestBooster({ kartId: k.id, options: [...WEAPON_IDS], suggested }).then(
         (w) => {
           me.pendingBooster = false;
-          if (this.disposed || me !== this.player || !me.alive) return;
+          // The match ended with the question up: the card was taken down, nothing to say.
+          if (this.disposed || me !== this.player || !me.alive || this.phase === "over") return;
           if (w) this.grant(me, w);
           else {
             this.say("No booster this time", "Drive on", 1.4, "bad");

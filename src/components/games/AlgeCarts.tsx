@@ -87,6 +87,18 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
   const matchEndRef = useRef(onMatchEnd);
   matchEndRef.current = onMatchEnd;
 
+  /** The match ended (or you left) with a question up: take the card down, no booster. */
+  const dropQuestion = useRef(() => {});
+  dropQuestion.current = () => {
+    const p = pending.current;
+    if (!p && !open) return;
+    pending.current = null;
+    setOpen(null);
+    setVerdict(null);
+    setAnswer("");
+    p?.resolve(null);
+  };
+
   useEffect(() => {
     const root = rootRef.current;
     const stage = stageRef.current;
@@ -135,6 +147,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         sound: profile.settings.sound,
         hooks: {
           onHud: (s: HudState) => {
+            if (s.phase === "over" && pending.current) dropQuestion.current();
             hud.update(s);
             scoreboard.update(s);
           },
@@ -171,6 +184,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
           onLeaveRequest: () => net?.leave(),
           onSeatChange: () => net?.seatChanged(),
           onMatchEnd: (r) => {
+            dropQuestion.current();
             if (!joined) return;
             const before = levelOf(profile.xp);
             // XP and stats here; Bridgeys come from right answers only.
@@ -203,6 +217,7 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
       const toGarage = () => {
         if (!joined) return;
         joined = false;
+        dropQuestion.current();
         game.leave();
         hud.hide();
         touch?.hide();
