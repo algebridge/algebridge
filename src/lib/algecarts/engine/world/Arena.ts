@@ -113,6 +113,32 @@ export interface Hit {
   depth: number;
 }
 
+/** A round solid: a prop inside the walls (a rock, a barrel, a lamp post). */
+interface PostCol {
+  x: number;
+  z: number;
+  r: number;
+  bottom: number;
+  top: number;
+}
+
+/** How big each prop is to drive into, at scale 1: radius and height. Kinds not listed are flat, out of reach, or (flags) stand on item spots. */
+const PROP_BODY: Partial<Record<string, [number, number]>> = {
+  rock: [1.25, 1.2],
+  boulder: [1.7, 2.2],
+  cactus: [0.55, 3.4],
+  barrel: [0.8, 1.5],
+  tires: [1.0, 1.7],
+  cone: [0.45, 1.2],
+  crate: [1.0, 1.6],
+  lamp: [0.3, 5.2],
+  sign: [0.25, 3.6],
+  pine: [0.45, 5],
+  palm: [0.45, 5],
+  buoy: [1.0, 1.2],
+  crane: [1.3, 22],
+};
+
 /** A kart rolls up onto anything this far above it; higher is a wall. */
 export const STEP = 0.6;
 export const WALL_HEIGHT = 3.6;
@@ -120,6 +146,7 @@ export const WALL_HEIGHT = 3.6;
 export class Arena {
   readonly boxes: BoxCol[] = [];
   readonly ramps: RampCol[] = [];
+  readonly posts: PostCol[] = [];
   /** Visual blocks, including the supports added under free-standing ramp ends. */
   readonly blocks: Block[];
 
@@ -163,6 +190,14 @@ export class Arena {
         this.ramps.push({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2, h0: b.h0, h1: b.h1, dir: b.dir });
       }
     }
+    // Props inside the walls are solid: you can hit a barrel, not drive through it.
+    for (const p of def.props) {
+      const body = PROP_BODY[p.kind];
+      if (!body || Math.abs(p.x) > half || Math.abs(p.z) > half) continue;
+      const s = p.s ?? 1;
+      const bottom = p.y ?? 0;
+      this.posts.push({ x: p.x, z: p.z, r: body[0] * s, bottom, top: bottom + body[1] * s });
+    }
   }
 
   get half(): number {
@@ -203,6 +238,20 @@ export class Arena {
       if (rampHeight(rp, cx, cz) <= lim) continue;
       if (circleVsRect(x, z, r, rp.minX, rp.maxX, rp.minZ, rp.maxZ, out, n)) n++;
     }
+    for (const p of this.posts) {
+      if (p.top <= lim || p.bottom >= y + height) continue;
+      const dx = x - p.x;
+      const dz = z - p.z;
+      const rr = r + p.r;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= rr * rr) continue;
+      const d = Math.sqrt(d2);
+      const hit = (out[n] ??= { nx: 0, nz: 0, depth: 0 });
+      if (d > 1e-4) (hit.nx = dx / d), (hit.nz = dz / d);
+      else (hit.nx = 1), (hit.nz = 0);
+      hit.depth = rr - d;
+      n++;
+    }
     return n;
   }
 
@@ -217,6 +266,10 @@ export class Arena {
       if (x < r.minX || x > r.maxX || z < r.minZ || z > r.maxZ) continue;
       if (rampHeight(r, x, z) > lim) return true;
     }
+    for (const p of this.posts) {
+      if (p.top <= lim || p.bottom >= y + 1) continue;
+      if ((x - p.x) ** 2 + (z - p.z) ** 2 <= (p.r + 0.3) ** 2) return true;
+    }
     return false;
   }
 
@@ -229,6 +282,9 @@ export class Arena {
     }
     for (const r of this.ramps) {
       if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ && y <= rampHeight(r, x, z)) return true;
+    }
+    for (const p of this.posts) {
+      if (y >= p.bottom && y <= p.top && (x - p.x) ** 2 + (z - p.z) ** 2 <= p.r * p.r) return true;
     }
     return false;
   }

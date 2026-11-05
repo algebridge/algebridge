@@ -22,7 +22,7 @@ export type PropKind =
   | "mark"
   | "boulder";
 
-/** Scenery that never collides: inside the walls as dressing, outside as the world beyond. */
+/** Scenery. Inside the walls most kinds are solid (Arena PROP_BODY); outside they are the world beyond. */
 export interface Prop {
   kind: PropKind;
   x: number;
