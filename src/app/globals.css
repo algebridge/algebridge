@@ -1877,6 +1877,10 @@ html[data-game-dialog] [data-calc-launch] {
 html[data-game-dialog] [data-calc-panel] {
   z-index: 660;
 }
+/* Alge Carts full screen pins the stage at z-500: an open panel stays above it. */
+html:has(.algecarts-stage.full) [data-calc-panel] {
+  z-index: 660;
+}
 
 /* The activity ticker (components/ActivityTicker.tsx): one running line
    under the header. A line is a name in bold, the moment, and a dot before

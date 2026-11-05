@@ -63,8 +63,8 @@ interface FullscreenEl extends HTMLElement {
  * student's kart until the answer is in.
  *
  * Full screen (the button at the top right of the stage, or F) sends the
- * stage itself full screen, so the question card, which lives inside it,
- * stays visible; Esc gives the page back. Where the Fullscreen API is
+ * page full screen with the stage pinned over it, so the question card and
+ * the calculator panel both stay visible; Esc gives the page back. Where the Fullscreen API is
  * missing (iPhones) the stage pins itself over the page instead.
  */
 export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { userId: string; name: string; displayName: string; onExit: () => void; onMatchEnd?: () => void }) {
@@ -260,8 +260,11 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
       // has no Fullscreen API for a div (iPhones), or refuses, the stage pins
       // itself over the page with the .full class instead.
       const doc = document as FullscreenDoc;
-      const el = stage as FullscreenEl;
-      const nativeFull = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null) === stage;
+      // The whole page goes full screen and the stage pins itself over it
+      // (.full). Sending only the stage would hide everything outside it,
+      // and the calculator panel lives outside it.
+      const page = document.documentElement as FullscreenEl;
+      const nativeFull = () => (doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null) === page;
       const isFull = () => nativeFull() || stage.classList.contains("full");
       const fullBtn = document.createElement("button");
       fullBtn.className = "full-btn";
@@ -277,18 +280,20 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         paintFull();
       };
       const enterFull = async () => {
-        if (el.requestFullscreen) {
+        stage.classList.add("full");
+        if (page.requestFullscreen) {
           try {
             // A request the browser's host never answers (an embedded web
             // view) stays pending for good: give it a moment, then pin.
-            await Promise.race([el.requestFullscreen(), new Promise<void>((_, reject) => setTimeout(() => reject(new Error("slow")), 800))]);
+            await Promise.race([page.requestFullscreen(), new Promise<void>((_, reject) => setTimeout(() => reject(new Error("slow")), 800))]);
             return;
           } catch {
             /* Refused (an iframe without allowfullscreen, say) or silent: pin the stage. */
           }
           if (nativeFull()) return;
-        } else if (el.webkitRequestFullscreen) {
-          el.webkitRequestFullscreen();
+        } else if (page.webkitRequestFullscreen) {
+          page.webkitRequestFullscreen();
+          paintFull();
           return;
         }
         pinFull();
@@ -307,8 +312,16 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         canvas.focus();
       };
       fullBtn.addEventListener("click", toggleFull);
-      document.addEventListener("fullscreenchange", paintFull);
-      document.addEventListener("webkitfullscreenchange", paintFull);
+      // Esc leaves native full screen: unpin the stage with it.
+      let wasNative = false;
+      const onFullChange = () => {
+        const now = nativeFull();
+        if (wasNative && !now) stage.classList.remove("full");
+        wasNative = now;
+        paintFull();
+      };
+      document.addEventListener("fullscreenchange", onFullChange);
+      document.addEventListener("webkitfullscreenchange", onFullChange);
       paintFull();
       root.appendChild(fullBtn);
 
@@ -368,8 +381,8 @@ export function AlgeCarts({ userId, name, displayName, onExit, onMatchEnd }: { u
         window.removeEventListener("keydown", onKey);
         window.removeEventListener("pointerdown", unlockOnce);
         window.removeEventListener("keydown", unlockOnce);
-        document.removeEventListener("fullscreenchange", paintFull);
-        document.removeEventListener("webkitfullscreenchange", paintFull);
+        document.removeEventListener("fullscreenchange", onFullChange);
+        document.removeEventListener("webkitfullscreenchange", onFullChange);
         if (isFull()) exitFull();
         if (saveTimer) clearTimeout(saveTimer);
         pending.current?.resolve(null);
