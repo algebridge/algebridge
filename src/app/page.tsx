@@ -6,6 +6,7 @@ import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { CartsBanner } from "@/components/CartsBanner";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { VisualizeIt } from "@/components/VisualizeIt";
 import { QuoteCard } from "@/components/QuoteCard";
 import { HOME_QUOTES } from "@/data/quotes";
@@ -19,6 +20,8 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <CourseHeader />
+
+      <AnnouncementBanner />
 
       {/* In October: the award, the titles and the shelf, one tap each (lib/season.ts). */}
       <SeasonBanner />

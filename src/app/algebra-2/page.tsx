@@ -6,6 +6,7 @@ import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { CartsBanner } from "@/components/CartsBanner";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { VisualizeIt } from "@/components/VisualizeIt";
 
 export const metadata: Metadata = { title: "AlgeBridge 2" };
@@ -22,6 +23,8 @@ export default function Algebra2Page() {
   return (
     <div className="space-y-6">
       <CourseHeader course="algebra-2" />
+
+      <AnnouncementBanner />
 
       <section id="units">
         <div className="flex flex-wrap items-end justify-between gap-2">

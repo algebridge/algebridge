@@ -10,6 +10,7 @@ import { listAllStudents, listTutors, ringUser } from "@/lib/social";
 import { MAX_CALL_MEMBERS, roomIdFor } from "@/lib/call-utils";
 import type { StudentDirectoryEntry, TutorDirectoryEntry } from "@/types";
 import { Icon } from "@/components/Icon";
+import { AnnouncementComposer } from "@/components/AnnouncementComposer";
 
 type Who = "students" | "tutors";
 
@@ -105,6 +106,8 @@ export default function TutorHubPage() {
       </div>
 
       <NotificationsCard who="a student" />
+
+      <AnnouncementComposer myId={user.id} isAdmin={profile?.isAdmin ?? false} />
 
       <div className="flex flex-wrap items-center gap-2">
         <div role="tablist" aria-label="Who to show" className="inline-flex rounded-xl bg-slate-100 p-1">
