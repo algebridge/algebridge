@@ -22,6 +22,19 @@ Otherwise transcribe, following these rules:
 Return only the transcript.`;
 
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.8-27b";
+/**
+ * When Groq last said "not until": until then every page goes straight to the
+ * backup reader instead of spending a request (and the student's time) on a
+ * refusal. Per server process, which is all a dev server or one instance needs.
+ */
+let groqRestUntil = 0;
+/** Seconds until Groq takes a page again (0 when it is ready). */
+export function groqRestSeconds(now = Date.now()): number {
+  return Math.max(0, Math.ceil((groqRestUntil - now) / 1000));
+}
+function restGroq(seconds: number) {
+  groqRestUntil = Math.max(groqRestUntil, Date.now() + seconds * 1000);
+}
 /** Under the free tier's 1,000-output-tokens-a-minute cap, which refuses any call that could pass it. */
 const GROQ_MAX_TOKENS = 900;
 /** Reasoning models sometimes wrap their thinking in <think> tags: never show it. */
@@ -66,7 +79,9 @@ export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<str
           continue;
         }
         // A wait of minutes means the free daily allowance is spent, not a busy minute.
-        throw Object.assign(new Error(wait > 120000 ? "rate-day" : "rate"), { retryAfter: Math.ceil(wait / 1000) || 30 });
+        const retryAfter = Math.ceil(wait / 1000) || 30;
+        restGroq(retryAfter);
+        throw Object.assign(new Error(wait > 120000 ? "rate-day" : "rate"), { retryAfter });
       }
       if (res.status === 401) throw new Error("auth");
       // 503 "over capacity" is Groq being busy, not a bad photo: back off and try again.
@@ -76,6 +91,7 @@ export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<str
           await new Promise((r) => setTimeout(r, wait));
           continue;
         }
+        restGroq(20);
         throw Object.assign(new Error("rate"), { retryAfter: 20 });
       }
       if (!res.ok) return null;
@@ -91,3 +107,69 @@ export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<str
   return real.length ? real.join("\n\n") : pages[0];
 }
 
+
+const OLLAMA = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_VISION_MODEL ?? "qwen2.5vl:3b";
+
+/** When Ollama last said the model is installed: busy loading, it can be slow to answer, which is not "gone". */
+let ollamaSeenAt = 0;
+/** Is the local vision model there? (Ollama runs as a login service on the dev Mac.) */
+export async function ollamaUp(): Promise<boolean> {
+  if (Date.now() - ollamaSeenAt < 2 * 60 * 1000) return true;
+  try {
+    const res = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { models?: { name: string }[] };
+    const up = (data.models ?? []).some((m) => m.name === OLLAMA_MODEL || m.name.startsWith(`${OLLAMA_MODEL}:`));
+    if (up) ollamaSeenAt = Date.now();
+    return up;
+  } catch {
+    return false;
+  }
+}
+
+/** One page at a time through the local model, across every request: two at once on an 8 GB Mac only swap. */
+let ollamaQueue: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(job: () => Promise<T>): Promise<T> {
+  const next = ollamaQueue.then(job, job);
+  ollamaQueue = next.catch(() => undefined);
+  return next;
+}
+
+/**
+ * The backup reader: a vision model on this computer. No key, no account, no
+ * daily cap; it is slower (about 20 s to a minute a page once loaded, a few
+ * minutes for the first page while the model loads) and reads messy writing a
+ * little worse, which the student's check step catches. The model is let go 5
+ * minutes after the last page so it does not hold memory.
+ */
+export async function readWithOllama(images: Img[]): Promise<string | null> {
+  const pages: string[] = [];
+  // One page per call: the small model loses track with several pictures.
+  for (const img of images) {
+    const text = await oneAtATime(async () => {
+      // A timeout here is also "busy": the model did not load in time.
+      const res = await fetch(`${OLLAMA}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          stream: false,
+          keep_alive: "5m",
+          options: { temperature: 0, num_predict: 1500 },
+          messages: [{ role: "user", content: READ_INSTRUCTIONS, images: [img.data] }],
+        }),
+        // A cold load on a busy 8 GB Mac took 2 to 3 minutes: wait for it rather than fail.
+        signal: AbortSignal.timeout(10 * 60 * 1000),
+      });
+      // Ollama could not load the model (the Mac is short of memory) or errored: busy, not a bad photo.
+      if (!res.ok) throw Object.assign(new Error("local-busy"), { retryAfter: 120 });
+      const data = (await res.json()) as { message?: { content?: string } };
+      return withoutThinking(data.message?.content ?? "") || null;
+    });
+    if (text) pages.push(text);
+  }
+  if (!pages.length) return null;
+  const real = pages.filter((p) => !/^(NOT_A_TEST|UNREADABLE)$/.test(p.trim()));
+  return real.length ? real.join("\n\n") : pages[0];
+}

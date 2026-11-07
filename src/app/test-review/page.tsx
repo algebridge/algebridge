@@ -111,6 +111,12 @@ function TestReview() {
   const [opening, setOpening] = useState(false);
   /** The pages being read right now, shown under the scan line. */
   const [readingPages, setReadingPages] = useState<Pending[]>([]);
+  /** Which page of this batch is being read, for "Page 2 of 3". */
+  const [progress, setProgress] = useState<{ page: number; of: number } | null>(null);
+  /** Pages read by the backup reader on this computer, which misreads more: the check step says so. */
+  const [backupPages, setBackupPages] = useState(0);
+  /** This page has taken over 20 seconds: say it keeps going by itself. */
+  const [slow, setSlow] = useState(false);
   /** The free reader said "wait": seconds left of how many. */
   const [wait, setWait] = useState<{ left: number; total: number } | null>(null);
   const [holes, setHoles] = useState(0);
@@ -233,54 +239,102 @@ function TestReview() {
           return;
         }
       }
-      // The free reader allows a few pages a minute for all of AlgeBridge. When it
-      // says "wait", wait where the student can see it and try again, instead of
-      // failing: the photo stays here, and typing is always one tap away.
+      // One page per request: each page shows its own progress, a page that
+      // fails does not lose the others, and a long batch never sits in one
+      // request. The free cloud reader allows a few pages a minute for all of
+      // AlgeBridge; when it says "wait", the page waits where the student can
+      // see it and tries again by itself, however long that is. Typing is
+      // always one tap away.
       stopWaitingRef.current = false;
-      let res: Response;
-      let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number };
-      for (let attempt = 0; ; attempt++) {
-        res = await fetch("/api/test-review/read", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(await authHeader()) },
-          body: JSON.stringify({ images: encoded }),
-        });
-        data = await res.json().catch(() => ({}));
-        const wait = Number(data.retryAfter) || 0;
-        if (res.status !== 429 || !wait || wait > MAX_AUTO_WAIT_S || attempt >= 4) break;
-        for (let left = wait; left > 0; left--) {
-          if (stopped()) return;
-          setWait({ left, total: wait });
-          await new Promise((r) => setTimeout(r, 1000));
-        }
-        if (stopped()) return;
-        setWait(null);
+      const texts: string[] = [];
+      let holesFound = 0;
+      let backupRead = 0;
+      const failed: { page: number; error: string }[] = [];
+      for (let i = 0; i < encoded.length; i++) {
+        setProgress({ page: i + 1, of: encoded.length });
+        const got = await readOnePage(encoded[i], stopped);
+        if (got === "stopped") return;
+        if ("text" in got) {
+          texts.push(got.text);
+          holesFound += got.holes;
+          if (got.backup) backupRead++;
+        } else failed.push({ page: i + 1, error: got.error });
       }
       if (stopped()) return;
-      if (!res.ok) {
-        const wait = Number(data.retryAfter) || 0;
-        const when = wait > 0 ? new Date(Date.now() + wait * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
-        setError(
-          res.status === 429 && when
-            ? `The free photo reader has read all it can for now. It should be back around ${when}. Type your answers instead, or try the photo again then.`
-            : data.error ?? "That photo could not be read. Type the questions in instead."
-        );
+      if (!texts.length) {
+        setError(failed[0]?.error ?? "That photo could not be read. Type the questions in instead.");
         go(fallback);
         return;
       }
       // One line per question: the check screen edits lines, so blank lines between pages go.
       setText((prev) =>
-        [prev, data.text ?? ""].join("\n").split("\n").filter((l) => l.trim()).join("\n").slice(0, MAX_TEXT)
+        [prev, ...texts].join("\n").split("\n").filter((l) => l.trim()).join("\n").slice(0, MAX_TEXT)
       );
-      setHoles(Number(data.unreadableParts) || 0);
+      setHoles(holesFound);
+      setBackupPages((n) => n + backupRead);
       setReview(null);
+      if (failed.length) {
+        const which = failed.map((f) => f.page).join(" and ");
+        setError(`Page ${which} of ${encoded.length} could not be read: ${failed[0].error} The other pages are below.`);
+      }
       go("check");
     } catch {
       if (stopped()) return;
       setError("Could not reach AlgeBridge. Check your connection and try again.");
       go(fallback);
     } finally {
-      if (runRef.current === run) setWait(null);
+      if (runRef.current === run) {
+        setWait(null);
+        setProgress(null);
+        setSlow(false);
+      }
+    }
+  }
+
+  /**
+   * Reads one page, waiting out the reader's "not yet" by itself. A 429 waits
+   * as long as the server says, with no cap on tries; a server or network
+   * failure is retried a few times with longer gaps; "not a test" and
+   * "too blurry" are answers, not failures, so they come back at once.
+   */
+  async function readOnePage(image: string, stopped: () => boolean): Promise<{ text: string; holes: number; backup: boolean } | { error: string } | "stopped"> {
+    let failures = 0;
+    for (;;) {
+      let res: Response | null = null;
+      let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number; provider?: string } = {};
+      setSlow(false);
+      const slowTimer = setTimeout(() => setSlow(true), 20000);
+      try {
+        res = await fetch("/api/test-review/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeader()) },
+          body: JSON.stringify({ images: [image] }),
+        });
+        data = await res.json().catch(() => ({}));
+      } catch {
+        res = null;
+      } finally {
+        clearTimeout(slowTimer);
+        setSlow(false);
+      }
+      if (stopped()) return "stopped";
+      if (res?.ok) return { text: data.text ?? "", holes: Number(data.unreadableParts) || 0, backup: data.provider === "local" };
+      let wait = 0;
+      if (res?.status === 429) wait = Math.max(5, Number(data.retryAfter) || 60);
+      else if (!res || res.status >= 500) {
+        if (res?.status === 503 && /key/i.test(data.error ?? "")) return { error: data.error ?? "Photo reading is not set up here." };
+        if (failures >= 3) {
+          return { error: res ? data.error ?? "That photo could not be read." : "Could not reach AlgeBridge. Check your connection and try again." };
+        }
+        wait = [10, 30, 60][failures++];
+      } else return { error: data.error ?? "That photo could not be read. Type the questions in instead." };
+      for (let left = wait; left > 0; left--) {
+        if (stopped()) return "stopped";
+        setWait({ left, total: wait });
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      setWait(null);
+      if (stopped()) return "stopped";
     }
   }
 
@@ -335,6 +389,7 @@ function TestReview() {
     setReadingPages([]);
     setText("");
     setScore("");
+    setBackupPages(0);
     setReview(null);
     setError(null);
     setHoles(0);
@@ -449,7 +504,7 @@ function TestReview() {
             )}
 
             {stage === "reading" && (
-              <ReadingScreen pages={readingPages} wait={wait} titleRef={titleRef} onStop={stopWaiting} />
+              <ReadingScreen pages={readingPages} progress={progress} slow={slow} wait={wait} titleRef={titleRef} onStop={stopWaiting} />
             )}
 
             {stage === "check" && (
@@ -457,6 +512,7 @@ function TestReview() {
                 text={text}
                 score={score}
                 holes={holes}
+                backupPages={backupPages}
                 error={error}
                 titleRef={titleRef}
                 hasPhotos={pages.length > 0}
@@ -549,7 +605,6 @@ async function shrink(file: File, crop: { top: number; bottom: number } = { top:
 }
 
 /** Waits longer than this are not waited out on screen: the student is told when to come back. */
-const MAX_AUTO_WAIT_S = 180;
 
 /**
  * Chrome and Firefox cannot open an iPhone's HEIC photo. It is turned into a
@@ -714,11 +769,30 @@ async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
 }
 
 /** The photo being read, its covered parts striped, under a moving scan line. */
-function ReadingScreen({ pages, wait, titleRef, onStop }: { pages: Pending[]; wait: { left: number; total: number } | null; titleRef: Ref<HTMLHeadingElement>; onStop: () => void }) {
-  const first = pages[0];
+function ReadingScreen({
+  pages,
+  progress,
+  slow,
+  wait,
+  titleRef,
+  onStop,
+}: {
+  pages: Pending[];
+  progress: { page: number; of: number } | null;
+  slow: boolean;
+  wait: { left: number; total: number } | null;
+  titleRef: Ref<HTMLHeadingElement>;
+  onStop: () => void;
+}) {
+  const first = pages[Math.max(0, (progress?.page ?? 1) - 1)] ?? pages[0];
+  const many = pages.length > 1 && progress;
   return (
     <>
-      <ScreenHead titleRef={titleRef} title="Reading your test" sub={wait ? "This can take a minute." : "About 10 seconds."} />
+      <ScreenHead
+        titleRef={titleRef}
+        title="Reading your test"
+        sub={many ? `Page ${progress.page} of ${progress.of}. It keeps going by itself.` : "It keeps going by itself. You can wait here."}
+      />
       {first && (
         <div className={`relative mt-3.5 max-h-56 overflow-hidden rounded-lg border border-slate-200 ${wait ? "" : "tr-scan"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -744,13 +818,19 @@ function ReadingScreen({ pages, wait, titleRef, onStop }: { pages: Pending[]; wa
           </li>
           <li className="flex items-center gap-2.5 font-semibold text-slate-900">
             <span className="h-[22px] w-[22px] flex-none animate-spin rounded-full border-2 border-bridge-600 border-t-transparent" aria-hidden />
-            {pages.length > 1 ? `Reading ${pages.length} pages` : "Reading the handwriting"}
+            {many ? `Reading page ${progress.page} of ${progress.of}` : "Reading the handwriting"}
           </li>
+          {slow && <li className="text-slate-600">Still reading. At busy times a page can take a minute or two. It keeps going without you.</li>}
           <li className="flex items-center gap-2.5 text-slate-500">
             <span className="h-[22px] w-[22px] flex-none rounded-full border-2 border-slate-300" aria-hidden />
             You check what we read
           </li>
         </ul>
+      )}
+      {slow && !wait && (
+        <button type="button" className="btn-secondary mt-3 w-full" onClick={onStop}>
+          Stop and type it instead
+        </button>
       )}
     </>
   );
@@ -772,11 +852,13 @@ function WaitNotice({ left, total }: { left: number; total: number }) {
             strokeDashoffset={c * (1 - left / Math.max(1, total))}
           />
         </svg>
-        <b className="absolute inset-0 grid place-items-center text-[15px] font-bold tabular-nums">{left}</b>
+        <b className="absolute inset-0 grid place-items-center text-[15px] font-bold tabular-nums">{left > 99 ? `${Math.ceil(left / 60)}m` : left}</b>
       </div>
       <div aria-hidden>
         <b className="block">The free reader is busy</b>
-        Trying again in {left} s. Your photo is safe.
+        {left > 120
+          ? `It tries again by itself at ${new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Keep this tab open. Your photo is safe.`
+          : `Trying again in ${left} s. Your photo is safe.`}
       </div>
     </div>
   );
@@ -793,11 +875,12 @@ function lineHint(line: string, n: number): string {
 
 /** What was read, one question per line, each its own box: easier to fix on a phone than one big text box. */
 function CheckScreen({
-  text, score, holes, error, hasPhotos, hasReview, titleRef, onText, onScore, onGrade, onRetake, onBack,
+  text, score, holes, backupPages, error, hasPhotos, hasReview, titleRef, onText, onScore, onGrade, onRetake, onBack,
 }: {
   text: string;
   score: string;
   holes: number;
+  backupPages: number;
   error: string | null;
   hasPhotos: boolean;
   hasReview: boolean;
@@ -844,6 +927,12 @@ function CheckScreen({
         <p className="notice-warn mt-3.5 text-sm">
           {holes} {holes === 1 ? "part was" : "parts were"} too hard to read and {holes === 1 ? "is" : "are"} marked [unreadable].
           Fill {holes === 1 ? "it" : "them"} in from your paper before you grade.
+        </p>
+      )}
+      {backupPages > 0 && (
+        <p className="notice-warn mt-3.5 text-sm" role="status">
+          The online reader was busy, so {backupPages === 1 ? "a page was" : `${backupPages} pages were`} read by the backup reader, which makes more mistakes.
+          Check every line against your paper, especially the steps you wrote under each question.
         </p>
       )}
       <div className="mt-3.5 grid gap-2">
