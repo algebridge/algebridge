@@ -35,6 +35,7 @@ function withoutThinking(text: string): string {
  */
 export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<string | null> {
   const started = Date.now();
+  let busyTries = 0;
   const pages: string[] = [];
   for (const img of images) {
     for (;;) {
@@ -68,6 +69,15 @@ export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<str
         throw new Error(wait > 120000 ? "rate-day" : "rate");
       }
       if (res.status === 401) throw new Error("auth");
+      // 503 "over capacity" is Groq being busy, not a bad photo: back off and try again.
+      if (res.status === 503 || res.status === 502) {
+        const wait = Math.min(8000, 1000 * 2 ** busyTries++);
+        if (Date.now() - started + wait < budgetMs) {
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        throw new Error("rate");
+      }
       if (!res.ok) return null;
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const text = withoutThinking(data.choices?.[0]?.message?.content ?? "");
