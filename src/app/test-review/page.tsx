@@ -602,18 +602,37 @@ function Results({ review }: { review: Review }) {
               </div>
               {q.studentAnswer && <p className="text-sm">Your answer: <span className="font-mono">{q.studentAnswer}</span></p>}
               {q.status !== "correct" && q.correctAnswer && <p className="text-sm">Right answer: <span className="font-mono">{q.correctAnswer}</span></p>}
-              {q.mistake && q.status !== "unclear" && <p className="text-sm"><span className="font-semibold">Where it slipped:</span> {q.mistake}</p>}
+              {q.mistake && q.status !== "unclear" && <p className="text-sm"><span className="font-semibold">What you did:</span> <MathText text={q.mistake} /></p>}
+              {q.why && q.status !== "unclear" && q.status !== "correct" && <p className="text-sm"><span className="font-semibold">Why that does not work:</span> <MathText text={q.why} /></p>}
               {q.status === "unclear" && (
                 <p className="text-sm text-slate-600">
                   {q.mistake ? `${q.mistake} ` : ""}This one may have been misread. Fix it in the text box above and review again.
                 </p>
               )}
-              {q.fix && q.status !== "correct" && q.status !== "unclear" && (
+              {q.steps && q.steps.length > 0 && q.status !== "correct" && q.status !== "unclear" ? (
                 <div className="text-sm">
-                  <p className="font-semibold">The right way through it:</p>
-                  <WorkedSteps text={q.fix} className="mt-1" />
+                  <p className="font-semibold">The right way, step by step:</p>
+                  <ol className="mt-1 space-y-1.5">
+                    {q.steps.map((st, k) => (
+                      <li key={k} className="flex gap-2">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{k + 1}</span>
+                        <span>
+                          <span className="font-mono"><MathText text={st.math} /></span>
+                          {st.why && <span className="block text-slate-600"><MathText text={st.why} /></span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
+              ) : (
+                q.fix && q.status !== "correct" && q.status !== "unclear" && (
+                  <div className="text-sm">
+                    <p className="font-semibold">The right way through it:</p>
+                    <WorkedSteps text={q.fix} className="mt-1" />
+                  </div>
+                )
               )}
+              {q.check && q.status !== "correct" && q.status !== "unclear" && <p className="text-sm"><span className="font-semibold">Check it:</span> <MathText text={q.check} /></p>}
               {q.skill && (
                 <SkillLink id={q.skill} />
               )}

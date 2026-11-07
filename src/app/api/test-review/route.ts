@@ -46,13 +46,21 @@ Return ONLY JSON:
    {"number": "1", "problem": "the problem, cleaned up", "studentAnswer": "what they wrote, or null",
     "status": "correct" | "wrong" | "partial" | "unclear",
     "correctAnswer": "the right answer",
-    "mistake": "for wrong/partial: the exact step where it went wrong, in one sentence. null when correct",
-    "fix": "the right way through that step, as short steps separated by → (for example: 2(x - 3) = 10 → 2x - 6 = 10 → 2x = 16 → x = 8). null when correct",
+    "mistake": "for wrong/partial: what the student actually did, in plain words, naming the move (for example: You wrote the two 1s side by side, which makes 11). null when correct",
+    "why": "for wrong/partial: why that move does not work, in 1 to 2 short sentences a 12-year-old gets, with a concrete picture or a quick counterexample (for example: Adding puts amounts together. 1 apple and 1 more apple is 2 apples, not 11 apples). null when correct",
+    "steps": "for wrong/partial: the right way through, 2 to 5 steps, each {\"math\": \"the line after this move\", \"why\": \"what you did and why, in a few words\"}. Start from the problem. Show every move, never skip to the answer. [] when correct",
+    "check": "for wrong/partial: one sentence on how the student can check the answer themselves (plug it back in, count, estimate, undo the operation). null when correct",
     "skill": "the one skill id from the list this question practices, or null"}
  ],
  "strengths": ["up to 3 short things they did well"],
  "skills": [{"id": "skill id from the list", "why": "one sentence: which mistake this fixes"}]
 }
+How to explain (this matters most):
+- Find the misconception behind the wrong answer, not only the arithmetic slip. Name it when it is a common one: writing digits side by side instead of adding (1 + 1 = 11), adding when it says subtract, dropping a negative sign, distributing to only the first term, doing the same thing to only one side, squaring a sum term by term.
+- Explain at the level of the problem. Basic arithmetic gets counting or objects; algebra gets the balance idea (do the same to both sides) or the meaning of the symbols.
+- If the wrong answer is what a different operation gives, say so plainly (3 - 1 = 4 is what 3 + 1 gives: you added instead of taking away).
+- Steps always teach the move, at least 2 of them, even for a one-operation problem. For 1 + 1: {"math": "1", "why": "start with one"}, {"math": "1 + 1", "why": "add one more: count up one from 1"}, {"math": "2", "why": "you land on 2"}. For 2(x - 4) = 10: {"math": "2x - 8 = 10", "why": "multiply 2 into both terms in the brackets"}, {"math": "2x = 18", "why": "add 8 to both sides"}, {"math": "x = 9", "why": "divide both sides by 2"}.
+- Short sentences, everyday words, no jargon without saying what it means. Never just restate the answer.
 Rules: "skills" holds up to 3 ids, only from the list, only for questions that were wrong or partial (empty if everything was correct). Plain text math (x^2, sqrt(), fractions as a/b). Talk to the student as "you". Be kind and direct, no flattery. Never mention or repeat a person's name.
 
 Skill list (id: title):
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
     system: SYSTEM,
     user: `${score ? `Score the student says they got: ${score}\n\n` : ""}Test text:\n"""\n${text}\n"""`,
     groqModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
-    maxTokens: 2500,
+    maxTokens: 3500,
     temperature: 0.2,
     timeoutMs: 45000,
     // A second review in the same minute waits for the large model.
@@ -112,6 +120,12 @@ export async function POST(request: Request) {
       status: STATUSES.has(q?.status as QuestionStatus) ? (q.status as QuestionStatus) : "unclear",
       correctAnswer: str(q?.correctAnswer, 200),
       mistake: str(q?.mistake),
+      why: str(q?.why, 400),
+      steps: (Array.isArray(q?.steps) ? q.steps : [])
+        .slice(0, 6)
+        .map((st: { math?: unknown; why?: unknown }) => ({ math: str(st?.math, 160) ?? "", why: str(st?.why, 200) ?? "" }))
+        .filter((st: { math: string }) => st.math),
+      check: str(q?.check, 300),
       fix: str(q?.fix, 800),
       skill: SKILL_BY_ID.has(String(q?.skill)) ? String(q?.skill) : null,
     }))

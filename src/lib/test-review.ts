@@ -128,7 +128,15 @@ export interface ReviewedQuestion {
   studentAnswer: string | null;
   status: QuestionStatus;
   correctAnswer: string | null;
+  /** What the student did, in plain words. */
   mistake: string | null;
+  /** Why that does not work, with a concrete picture at the student's level. */
+  why?: string | null;
+  /** The right way through, one move per step, each with the reason for it. */
+  steps?: { math: string; why: string }[];
+  /** A quick way to check the answer yourself. */
+  check?: string | null;
+  /** Older reviews: the right way as "a → b → c". */
   fix: string | null;
   /** A curriculum skill id, when the model named a valid one. */
   skill: string | null;
