@@ -75,7 +75,10 @@ export type IconName =
   | "monitor"
   | "pumpkin"
   | "ghost"
-  | "shapes";
+  | "shapes"
+  | "camera"
+  | "info"
+  | "chevrons-up-down";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   course: (
@@ -222,6 +225,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   "chevron-up": <path d="m6 14.5 6-6 6 6" />,
   "chevron-down": <path d="m6 9.5 6 6 6-6" />,
+  "chevrons-up-down": <path d="m7 9 5-5 5 5M7 15l5 5 5-5" />,
+  camera: (
+    <>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.6-2.3h5.8L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z" />
+      <circle cx="12" cy="12.8" r="3.6" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
   trash: (
     <>
       <path d="M4.5 7h15M9.5 7V5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V7" />

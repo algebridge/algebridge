@@ -1926,3 +1926,36 @@ html:has(.algecarts-stage.full) [data-calc-panel] {
 html[data-bare] .ab-ticker {
   display: none !important;
 }
+
+/* ---- Test review --------------------------------------------------
+   The covered part of a test photo. Stripes read as "blocked" better
+   than flat black, and they stay dark in both themes on purpose. */
+.tr-shade {
+  background: repeating-linear-gradient(135deg, rgb(15 23 42 / 0.82) 0 10px, rgb(15 23 42 / 0.74) 10px 20px);
+}
+/* A scan line moving down the photo while it is read. */
+.tr-scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -38%;
+  height: 38%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgb(59 130 246 / 0.28) 80%, rgb(59 130 246 / 0.75));
+  border-bottom: 2px solid theme("colors.bridge.500");
+  animation: tr-scan 2.2s ease-in-out infinite;
+}
+@keyframes tr-scan {
+  to {
+    top: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-scan::after {
+    display: none;
+  }
+}
+html[data-motion="reduce"] .tr-scan::after {
+  display: none;
+}

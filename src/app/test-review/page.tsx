@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type Ref } from "react";
 import { PracticeGate } from "@/components/PracticeGate";
 import { ClassGate } from "@/components/SchoolModePanel";
 import { PracticePanel } from "@/components/PracticePanel";
@@ -16,6 +16,10 @@ import type { Skill } from "@/types";
 /**
  * Test review: a photo of a graded test in, every lost point explained,
  * then practice on exactly those skills.
+ *
+ * One screen at a time (photo, cover your name, reading, check, grading,
+ * results, practice), each with one big button, because the student is on a
+ * phone with a bad test in hand and should never have to wonder what to do.
  *
  * Nothing here is stored on a server. The photos are shrunk in the browser,
  * read once by /api/test-review/read and dropped; the transcript and the
@@ -43,16 +47,23 @@ interface Review {
 const MAX_TEXT = 6000;
 const SAVED_KEY = "algebridge:test-review";
 
+type Stage = "photo" | "crop" | "reading" | "check" | "grading" | "results" | "practice";
+const STEPS = ["Photo", "Check", "Results", "Practice"] as const;
+const STEP_OF: Record<Stage, number> = { photo: 0, crop: 0, reading: 1, check: 1, grading: 1, results: 2, practice: 3 };
+
+/** The one big button on each screen. */
+const PRIMARY = "btn-primary w-full min-h-[52px] rounded-[0.9rem] text-base";
+
+/** Right answers per skill that fill the practice bar. */
+const PRACTICE_GOAL = 5;
+
 export default function TestReviewPage() {
   return (
     <div className="space-y-6">
       <header>
         <p className="eyebrow">Learn from it</p>
         <h1 className="page-title">Test review</h1>
-        <p className="page-subtitle">
-          Got a test back? Take a photo of it. AlgeBridge reads it, shows where each point went and why,
-          then gives you practice on exactly what you missed, and it counts like any other practice.
-        </p>
+        <p className="page-subtitle">Photo in, every lost point explained, practice on what you missed.</p>
       </header>
       {/* The same switch as Archie: a teacher who turned off AI help turned this off too. */}
       <ClassGate feature="archie">
@@ -87,28 +98,35 @@ function loadSaved(): Saved | null {
 }
 
 function TestReview() {
-  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
+  const [stage, setStage] = useState<Stage>("photo");
+  /** Every photo URL made this visit, so they can be freed when the page goes. */
+  const [pages, setPages] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [score, setScore] = useState("");
   const [reader, setReader] = useState<"claude" | "openai" | "groq" | "local" | null | "unknown">("unknown");
-  /** Photos waiting for the student to cut off their name and the header (legal review M8). */
+  /** Photos waiting for the student to cover their name and the header (legal review M8). */
   const [pending, setPending] = useState<Pending[]>([]);
-  const [reading, setReading] = useState<string | null>(null);
-  const [readNote, setReadNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  /** How many pages of this batch are already cropped, for "Page 2 of 3". */
+  const [croppedCount, setCroppedCount] = useState(0);
+  const [opening, setOpening] = useState(false);
+  /** The pages being read right now, shown under the scan line. */
+  const [readingPages, setReadingPages] = useState<Pending[]>([]);
+  /** The free reader said "wait": seconds left of how many. */
+  const [wait, setWait] = useState<{ left: number; total: number } | null>(null);
+  const [holes, setHoles] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [restored, setRestored] = useState(false);
+  const [practiceSkill, setPracticeSkill] = useState<string | null>(null);
+  const [rightBySkill, setRightBySkill] = useState<Record<string, number>>({});
   const croppedRef = useRef<Pending[]>([]);
   const stopWaitingRef = useRef(false);
+  const runRef = useRef(0);
   const cameraRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
-  // Fixed ids: there is one form on the page, and useId gave the server and the
-  // browser different ids here (a hydration warning).
-  const textId = "tr-transcript";
-  const scoreId = "tr-score";
-  const misread = misreadLines(text);
+  const topRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const moveFocusRef = useRef(false);
 
   // What this tab had before a trip to a skill page, and which reader the server has.
   useEffect(() => {
@@ -118,6 +136,8 @@ function TestReview() {
       setScore(saved.score ?? "");
       setReview(saved.review ?? null);
       setRestored(Boolean(saved.review));
+      if (saved.review) setStage("results");
+      else if (saved.text?.trim()) setStage("check");
     }
     fetch("/api/test-review/read")
       .then((r) => (r.ok ? r.json() : null))
@@ -135,21 +155,33 @@ function TestReview() {
 
   // Photo previews are freed when the page goes, not each time the list changes (a kept page would go blank).
   const urlsRef = useRef<string[]>([]);
-  urlsRef.current = [...previews.map((p) => p.url), ...pending.map((p) => p.url)];
+  urlsRef.current = [...pages, ...pending.map((p) => p.url)];
   useEffect(() => () => urlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
-  /** New photos wait for a crop first: nothing is read until the student has cut off the header. */
+  // A new screen: its title gets focus (screen readers hear where they are) and the top comes into view.
+  useEffect(() => {
+    if (!moveFocusRef.current) return;
+    moveFocusRef.current = false;
+    if ((topRef.current?.getBoundingClientRect().top ?? 0) < 0) topRef.current?.scrollIntoView({ block: "start" });
+    titleRef.current?.focus({ preventScroll: true });
+  }, [stage]);
+
+  function go(next: Stage) {
+    moveFocusRef.current = true;
+    setStage(next);
+  }
+
+  /** New photos wait for a crop first: nothing is read until the student has covered the header. */
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
-    setReadNote(null);
-    const room = MAX_IMAGES - previews.length - pending.length;
+    const room = MAX_IMAGES - croppedRef.current.length - pending.length;
     if (room <= 0) {
       setError(`Up to ${MAX_IMAGES} pages per review. Review a longer test in two parts.`);
       return;
     }
     const list = Array.from(files).slice(0, room);
-    setReading("Opening your photo. ");
+    setOpening(true);
     const ready: File[] = [];
     for (const f of list) {
       try {
@@ -158,8 +190,10 @@ function TestReview() {
         setError("That photo could not be opened here. Save it as a JPEG or PNG, or take a screenshot of it, and try again.");
       }
     }
-    setReading(null);
+    setOpening(false);
+    if (!ready.length) return;
     setPending((prev) => [...prev, ...ready.map((file) => ({ file, url: URL.createObjectURL(file), top: DEFAULT_TOP, bottom: 0 }))]);
+    go("crop");
   }
 
   function cropDone(keep: boolean) {
@@ -170,14 +204,24 @@ function TestReview() {
     if (!keep) URL.revokeObjectURL(first.url);
     if (rest.length) {
       croppedRef.current = done;
+      setCroppedCount(done.length);
       return;
     }
     croppedRef.current = [];
+    setCroppedCount(0);
     if (done.length) void readPages(done);
+    else go(text.trim() ? "check" : "photo");
   }
 
   async function readPages(list: Pending[]) {
-    setReading(list.length > 1 ? `Reading ${list.length} pages. ` : "Reading your test. ");
+    const run = ++runRef.current;
+    const stopped = () => stopWaitingRef.current || runRef.current !== run;
+    const fallback: Stage = text.trim() ? "check" : "photo";
+    setError(null);
+    setHoles(0);
+    setReadingPages(list);
+    setPages((prev) => [...prev, ...list.map((p) => p.url)]);
+    go("reading");
     try {
       const encoded: string[] = [];
       for (const p of list) {
@@ -185,10 +229,10 @@ function TestReview() {
           encoded.push(await shrink(p.file, p));
         } catch {
           setError("That photo format could not be opened here. Save it as a JPEG or PNG, or take a screenshot of it, and try again.");
+          go("photo");
           return;
         }
       }
-      setPreviews((prev) => [...prev, ...list.map((p) => ({ url: p.url, name: p.file.name }))].slice(0, MAX_IMAGES));
       // The free reader allows a few pages a minute for all of AlgeBridge. When it
       // says "wait", wait where the student can see it and try again, instead of
       // failing: the photo stays here, and typing is always one tap away.
@@ -205,207 +249,279 @@ function TestReview() {
         const wait = Number(data.retryAfter) || 0;
         if (res.status !== 429 || !wait || wait > MAX_AUTO_WAIT_S || attempt >= 4) break;
         for (let left = wait; left > 0; left--) {
-          if (stopWaitingRef.current) return;
-          setReading(`The free photo reader is busy. Trying again in ${left} s, this can take a minute. `);
+          if (stopped()) return;
+          setWait({ left, total: wait });
           await new Promise((r) => setTimeout(r, 1000));
         }
-        if (stopWaitingRef.current) return;
-        setReading("Reading your test. ");
+        if (stopped()) return;
+        setWait(null);
       }
+      if (stopped()) return;
       if (!res.ok) {
         const wait = Number(data.retryAfter) || 0;
         const when = wait > 0 ? new Date(Date.now() + wait * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
         setError(
           res.status === 429 && when
-            ? `The free photo reader has read all it can for now. It should be back around ${when}. Type the questions and your answers in below, or try the photo again then.`
+            ? `The free photo reader has read all it can for now. It should be back around ${when}. Type your answers instead, or try the photo again then.`
             : data.error ?? "That photo could not be read. Type the questions in instead."
         );
+        go(fallback);
         return;
       }
-      setText((prev) => [prev.trim(), data.text].filter(Boolean).join("\n\n").slice(0, MAX_TEXT));
-      const holes = Number(data.unreadableParts) || 0;
-      setReadNote(
-        holes > 0
-          ? `${holes} ${holes === 1 ? "part was" : "parts were"} too hard to read and ${holes === 1 ? "is" : "are"} marked [unreadable]. Fill those in from your paper before you review.`
-          : "Read. Check it against your paper, handwriting is easy to misread, then review."
+      // One line per question: the check screen edits lines, so blank lines between pages go.
+      setText((prev) =>
+        [prev, data.text ?? ""].join("\n").split("\n").filter((l) => l.trim()).join("\n").slice(0, MAX_TEXT)
       );
+      setHoles(Number(data.unreadableParts) || 0);
       setReview(null);
+      go("check");
     } catch {
+      if (stopped()) return;
       setError("Could not reach AlgeBridge. Check your connection and try again.");
+      go(fallback);
     } finally {
-      setReading(null);
+      if (runRef.current === run) setWait(null);
     }
   }
 
-  function removePreview(url: string) {
-    setPreviews((prev) => prev.filter((p) => p.url !== url));
-    URL.revokeObjectURL(url);
+  /** "Stop and type it instead": the wait ends here and the student types. */
+  function stopWaiting() {
+    stopWaitingRef.current = true;
+    setWait(null);
+    setError(null);
+    go("check");
+  }
+
+  function typeInstead() {
+    setError(null);
+    go("check");
   }
 
   async function analyze() {
-    setBusy(true);
+    const sendText = text.split("\n").filter((l) => l.trim()).join("\n");
     setError(null);
     setReview(null);
     setRestored(false);
+    go("grading");
     try {
       const res = await fetch("/api/test-review", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ text, score }),
+        body: JSON.stringify({ text: sendText, score }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) setError(data.error ?? "Something went wrong. Try again in a minute.");
-      else {
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Try again in a minute.");
+        go("check");
+      } else {
         setReview(data);
-        requestAnimationFrame(() => resultsRef.current?.focus());
+        setPracticeSkill(null);
+        go("results");
       }
     } catch {
       setError("Could not reach AlgeBridge. Check your connection and try again.");
-    } finally {
-      setBusy(false);
+      go("check");
     }
   }
 
   function startOver() {
-    previews.forEach((p) => URL.revokeObjectURL(p.url));
-    setPreviews([]);
+    stopWaitingRef.current = true;
+    pages.forEach((u) => URL.revokeObjectURL(u));
+    pending.forEach((p) => URL.revokeObjectURL(p.url));
+    croppedRef.current = [];
+    setCroppedCount(0);
+    setPages([]);
+    setPending([]);
+    setReadingPages([]);
     setText("");
     setScore("");
     setReview(null);
     setError(null);
-    setReadNote(null);
+    setHoles(0);
     setRestored(false);
+    setRightBySkill({});
+    setPracticeSkill(null);
     try {
       sessionStorage.removeItem(SAVED_KEY);
     } catch {
       /* nothing saved */
     }
+    go("photo");
+  }
+
+  function practice(skillId: string | null) {
+    setPracticeSkill(skillId);
+    go("practice");
   }
 
   const canRead = reader !== null;
-  const working = busy || !!reading || pending.length > 0;
+  const roomLeft = MAX_IMAGES - croppedCount - pending.length;
+  // Practice: the review's skills, plus the one a "Practice this" asked for if it was not among them.
+  const practiceIds = review ? review.practice.map((s) => s.id) : [];
+  if (practiceSkill && !practiceIds.includes(practiceSkill)) practiceIds.push(practiceSkill);
 
   return (
-    <div className="space-y-6">
-      <section className="panel space-y-4 p-5" aria-labelledby="tr-step-1">
-        <div>
-          <h2 id="tr-step-1" className="text-base font-semibold">1. Add your test</h2>
-          <p className="text-sm text-slate-600">
-            {canRead
-              ? "A photo of each graded page, flat and in good light. Phone photos are fine, they are shrunk before they are sent."
-              : "Type each question and the answer you wrote, one per line."}
-          </p>
-        </div>
-        {reader === null && (
-          <p className="notice-info text-sm">Photo reading is not set up on this server, so this page works from typed text here.</p>
-        )}
-        {canRead && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn-primary" onClick={() => cameraRef.current?.click()} disabled={working}>
-              <Icon name="pen" size={16} />
-              {previews.length ? "Add a page" : "Take a photo"}
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => filesRef.current?.click()} disabled={working}>
-              Choose from photos
-            </button>
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" aria-label="Take a photo of your test"
-              onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
-            <input ref={filesRef} type="file" accept="image/*" multiple className="hidden" aria-label="Choose photos of your test"
-              onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
-          </div>
-        )}
-        {pending[0] && (
-          <CropStep
-            key={pending[0].url}
-            item={pending[0]}
-            left={pending.length}
-            onChange={(top, bottom) => setPending((prev) => prev.map((p, i) => (i === 0 ? { ...p, top, bottom } : p)))}
-            onDone={cropDone}
-          />
-        )}
-        {previews.length > 0 && (
-          <ul className="flex gap-2 overflow-x-auto py-1" aria-label="Pages added">
-            {previews.map((p, i) => (
-              <li key={p.url} className="relative shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt={`Test page ${i + 1}`} className="h-28 w-20 rounded-lg border border-slate-200 object-cover" />
-                <button type="button" onClick={() => removePreview(p.url)} aria-label={`Remove page ${i + 1}`}
-                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-surface text-slate-600 shadow ring-1 ring-slate-200 hover:text-slate-900">
-                  <Icon name="close" size={12} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div role="status" aria-live="polite" className="min-h-[1.25rem] text-sm text-slate-600">
-          {reading && (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-bridge-600" aria-hidden />
-              {reading}{reading.startsWith("The free photo reader is busy") ? "" : "This takes a few seconds. The reader can misread handwriting, so you get to check the text before anything is graded."}
-              {reading.startsWith("The free photo reader is busy") && (
-                <button type="button" className="btn-secondary btn-sm ml-2" onClick={() => { stopWaitingRef.current = true; setReading(null); }}>
-                  Type it in instead
-                </button>
-              )}
-            </span>
-          )}
-          {!reading && readNote}
-        </div>
+    <div ref={topRef} className="max-w-2xl scroll-mt-20">
+      <Stepper stage={stage} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" aria-label="Take a photo of your test"
+        onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      <input ref={filesRef} type="file" accept="image/*" multiple className="hidden" aria-label="Choose photos of your test"
+        onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
 
-        <div className="space-y-1">
-          <label htmlFor={textId} className="block text-sm font-semibold">
-            {canRead ? "2. What we read from your test" : "Your test, typed in"}
-          </label>
-          <p className="text-xs text-slate-500">
-            {canRead ? "Fix anything that looks off, or type questions in yourself. " : ""}
-            Leave your name out. Only this text is sent for review.
-          </p>
-          <textarea
-            id={textId}
-            className="field min-h-[180px] w-full font-mono text-sm"
-            value={text}
-            onChange={(e) => { setText(e.target.value.slice(0, MAX_TEXT)); setRestored(false); }}
-            maxLength={MAX_TEXT}
-            disabled={!!reading}
-            placeholder={"1) Solve 2x + 5 = 17   student wrote: x = 11   [marked wrong]\n2) ..."}
-          />
-          {text.length > 5000 && <p className="text-right text-xs text-slate-500">{text.length} / {MAX_TEXT} characters. Review a long test in two parts.</p>}
-        </div>
-        {misread.length > 0 && !reading && (
-          <p className="notice-warn text-sm">
-            {misread.length === 1 ? "Line" : "Lines"} {misread.join(", ")} may be misread (stray symbols like ==, # or |).
-            Fix {misread.length === 1 ? "it" : "them"} first so the review judges what you really wrote.
-          </p>
-        )}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <label htmlFor={scoreId} className="block text-sm font-semibold">Your score (optional)</label>
-            <input id={scoreId} className="field w-32" value={score} onChange={(e) => setScore(e.target.value)} placeholder="14/20" maxLength={40} inputMode="text" />
+      {stage === "results" && review ? (
+        <Results
+          review={review}
+          restored={restored}
+          titleRef={titleRef}
+          onPractice={practice}
+          onFix={() => go("check")}
+          onStartOver={startOver}
+        />
+      ) : stage === "practice" && review ? (
+        <PracticeRun
+          key={practiceSkill ?? "all"}
+          ids={practiceIds}
+          initial={practiceSkill}
+          right={rightBySkill}
+          onRight={(id) => setRightBySkill((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }))}
+          onBack={() => go("results")}
+          titleRef={titleRef}
+        />
+      ) : (
+        <section className="panel">
+          <div className="p-5" aria-busy={stage === "grading" || stage === "reading" ? true : undefined}>
+            {stage === "photo" && (
+              <>
+                <ScreenHead
+                  titleRef={titleRef}
+                  title="Snap your graded test"
+                  sub="We find every lost point, show you why, and give you practice on just those skills."
+                />
+                {error && <p className="notice-error mt-3.5" role="alert">{error}</p>}
+                <div className="mt-[18px] grid gap-2.5">
+                  {canRead ? (
+                    <>
+                      <button type="button" className={PRIMARY} onClick={() => cameraRef.current?.click()} disabled={opening}>
+                        <Icon name="camera" size={20} />
+                        Take a photo
+                      </button>
+                      <button type="button" className="btn-secondary w-full" onClick={() => filesRef.current?.click()} disabled={opening}>
+                        Choose from photos
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className={PRIMARY} onClick={typeInstead}>
+                      <Icon name="keyboard" size={20} />
+                      Type my answers
+                    </button>
+                  )}
+                </div>
+                {opening && (
+                  <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-bridge-600 border-t-transparent" aria-hidden />
+                    Opening your photo
+                  </p>
+                )}
+                {canRead ? (
+                  <p className="mt-3.5 flex gap-2.5 text-[13px] text-slate-600">
+                    <Icon name="info" size={16} className="mt-px shrink-0 text-bridge-600" />
+                    <span>Lay it flat in good light. Next you will hide your name, so it never leaves your phone.</span>
+                  </p>
+                ) : (
+                  <p className="notice-info mt-3.5 text-sm">Photo reading is not set up here, so you type your answers in.</p>
+                )}
+              </>
+            )}
+
+            {stage === "crop" && pending[0] && (
+              <CropStep
+                key={pending[0].url}
+                item={pending[0]}
+                page={croppedCount + 1}
+                of={croppedCount + pending.length}
+                canAdd={roomLeft > 0}
+                titleRef={titleRef}
+                error={error}
+                onChange={(top, bottom) => setPending((prev) => prev.map((p, i) => (i === 0 ? { ...p, top, bottom } : p)))}
+                onDone={cropDone}
+                onAdd={() => filesRef.current?.click()}
+              />
+            )}
+
+            {stage === "reading" && (
+              <ReadingScreen pages={readingPages} wait={wait} titleRef={titleRef} onStop={stopWaiting} />
+            )}
+
+            {stage === "check" && (
+              <CheckScreen
+                text={text}
+                score={score}
+                holes={holes}
+                error={error}
+                titleRef={titleRef}
+                hasPhotos={pages.length > 0}
+                hasReview={Boolean(review)}
+                onText={(t) => { setText(t); setRestored(false); }}
+                onScore={setScore}
+                onGrade={analyze}
+                onRetake={startOver}
+                onBack={() => go("results")}
+              />
+            )}
+
+            {stage === "grading" && (
+              <GradingScreen count={text.split("\n").filter((l) => l.trim()).length} titleRef={titleRef} />
+            )}
           </div>
-          <button type="button" className="btn-primary" onClick={analyze} disabled={working || text.trim().length < 10}>
-            {busy ? "Looking it over..." : "Review my test"}
-          </button>
-          {(text || previews.length > 0 || review) && !working && (
-            <button type="button" className="btn-ghost" onClick={startOver}>Start over</button>
-          )}
-        </div>
-        {busy && (
-          <p role="status" className="text-sm text-slate-600">
-            Working every question through. About half a minute. The explanations come from an AI reading your text, so if one looks off, your teacher&apos;s version wins.
-          </p>
-        )}
-        <p className="text-xs text-slate-500">
+        </section>
+      )}
+
+      {(stage === "photo" || stage === "check") && (
+        <p className="mt-3 px-1 text-xs text-slate-500">
           Photos are read once and not kept anywhere. The text and this review stay in this tab until you close it.
         </p>
-        {error && <p className="notice-error" role="alert">{error}</p>}
-      </section>
-
-      {review && (
-        <div ref={resultsRef} tabIndex={-1} className="outline-none">
-          {restored && <p className="notice-info mb-3 text-sm">Your last review, from earlier in this tab.</p>}
-          <Results review={review} />
-        </div>
       )}
+      {stage === "photo" && canRead && (
+        <p className="mt-2 px-1 text-[13px] text-slate-600">
+          No photo?{" "}
+          <button type="button" className="font-semibold text-bridge-700 hover:underline" onClick={typeInstead}>
+            Type your answers instead
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Stepper({ stage }: { stage: Stage }) {
+  const now = STEP_OF[stage];
+  return (
+    <ol className="mb-3.5 grid grid-cols-4 gap-1.5" aria-label={`Step ${now + 1} of 4: ${STEPS[now]}`}>
+      {STEPS.map((s, i) => (
+        <li
+          key={s}
+          aria-current={i === now ? "step" : undefined}
+          className={`flex flex-col gap-1.5 text-[11.5px] font-semibold ${i < now ? "text-bridge-700" : i === now ? "text-slate-900" : "text-slate-500"}`}
+        >
+          <span
+            aria-hidden
+            className={`h-1.5 rounded-full ${i < now ? "bg-bridge-600" : i === now ? "bg-bridge-600 ring-[3px] ring-bridge-100" : "bg-slate-200"}`}
+          />
+          {s}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ScreenHead({ title, sub, eyebrow, titleRef }: { title: string; sub?: string; eyebrow?: string; titleRef: Ref<HTMLHeadingElement> }) {
+  return (
+    <div>
+      {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
+      <h2 ref={titleRef} tabIndex={-1} className="text-[22px] font-bold leading-tight tracking-tight text-slate-900 focus:!outline-none">
+        {title}
+      </h2>
+      {sub && <p className="mt-1.5 text-[14.5px] text-slate-600">{sub}</p>}
     </div>
   );
 }
@@ -418,7 +534,7 @@ function TestReview() {
  */
 async function shrink(file: File, crop: { top: number; bottom: number } = { top: 0, bottom: 0 }): Promise<string> {
   const source = await decode(file);
-  // Only the part the student kept is drawn, so the cut-off name and header never leave the device.
+  // Only the part the student kept is drawn, so the covered name and header never leave the device.
   const sy = Math.round((source.height * crop.top) / 100);
   const sh = Math.max(1, Math.round((source.height * (100 - crop.top - crop.bottom)) / 100));
   const scale = Math.min(1, 1600 / Math.max(source.width, sh));
@@ -453,61 +569,131 @@ async function asBrowserImage(file: File): Promise<File> {
 interface Pending {
   file: File;
   url: string;
-  /** Percent of the photo cut off at the top and at the bottom. */
+  /** Percent of the photo covered at the top and at the bottom. */
   top: number;
   bottom: number;
 }
 
-/** Names usually sit in the top strip of a test, so the first guess cuts some of it. */
-const DEFAULT_TOP = 10;
+/** Names usually sit in the top strip of a test, so the first guess covers it. */
+const DEFAULT_TOP = 18;
+const MAX_TOP = 70;
+const MAX_BOTTOM = 50;
+/** The two covers never meet: at least a tenth of the page stays clear. */
+const MAX_COVERED = 90;
 
 /**
- * Before a photo is read, the student cuts their name and the test's header
- * off (legal review M8). The dark parts stay on the device; only the light
- * part is shrunk and sent.
+ * Before a photo is read, the student covers their name and the test's
+ * header (legal review M8) by dragging two bars. The striped parts stay on
+ * the device; only the clear strip is shrunk and sent.
  */
-function CropStep({ item, left, onChange, onDone }: { item: Pending; left: number; onChange: (top: number, bottom: number) => void; onDone: (keep: boolean) => void }) {
-  const topId = "tr-crop-top";
-  const bottomId = "tr-crop-bottom";
+function CropStep({
+  item, page, of, canAdd, error, titleRef, onChange, onDone, onAdd,
+}: {
+  item: Pending;
+  page: number;
+  of: number;
+  canAdd: boolean;
+  error: string | null;
+  titleRef: Ref<HTMLHeadingElement>;
+  onChange: (top: number, bottom: number) => void;
+  onDone: (keep: boolean) => void;
+  onAdd: () => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
   const tooMuch = item.top + item.bottom > 85;
+  const last = page >= of;
+
+  function set(edge: "top" | "bottom", value: number) {
+    const max = edge === "top" ? MAX_TOP : MAX_BOTTOM;
+    const other = edge === "top" ? item.bottom : item.top;
+    const v = Math.round(Math.max(0, Math.min(max, MAX_COVERED - other, value)));
+    if (edge === "top") onChange(v, item.bottom);
+    else onChange(item.top, v);
+  }
+
+  function handle(edge: "top" | "bottom") {
+    const value = item[edge];
+    return {
+      role: "slider",
+      tabIndex: 0,
+      "aria-label": edge === "top" ? "Top cover" : "Bottom cover",
+      "aria-orientation": "vertical" as const,
+      "aria-valuemin": 0,
+      "aria-valuemax": edge === "top" ? MAX_TOP : MAX_BOTTOM,
+      "aria-valuenow": value,
+      "aria-valuetext": `${value} percent covered`,
+      onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        e.currentTarget.focus({ preventScroll: true });
+        e.preventDefault();
+      },
+      onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        const r = boxRef.current?.getBoundingClientRect();
+        if (!r?.height) return;
+        const p = ((e.clientY - r.top) / r.height) * 100;
+        set(edge, edge === "top" ? p : 100 - p);
+      },
+      onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+        const d = e.key === "ArrowDown" ? 2 : e.key === "ArrowUp" ? -2 : 0;
+        if (!d) return;
+        e.preventDefault();
+        set(edge, value + (edge === "top" ? d : -d));
+      },
+    };
+  }
+
+  const pill = (
+    <span className="relative inline-flex items-center gap-1.5 rounded-full bg-bridge-600 px-3 py-2 text-xs font-semibold text-white shadow-raised ring-bridge-300 group-focus-visible:ring-[3px]">
+      <Icon name="chevrons-up-down" size={12} />
+      Drag
+    </span>
+  );
+
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 p-3" role="group" aria-labelledby={`${topId}-title`}>
-      <div>
-        <h3 id={`${topId}-title`} className="text-sm font-semibold">
-          Cut off your name{left > 1 ? ` (${left} photos to go)` : ""}
-        </h3>
-        <p className="text-xs text-slate-600">
-          Slide until your name, your teacher&apos;s name, the class and the school are in the dark part. Only the light part is sent, and it is not kept.
-        </p>
+    <>
+      <ScreenHead
+        titleRef={titleRef}
+        eyebrow={of > 1 ? `Page ${page} of ${of}` : undefined}
+        title="Cover your name"
+        sub="Drag the top bar down past your name. Only the clear part is sent."
+      />
+      <div ref={boxRef} className="relative mx-auto mb-7 mt-6 w-full max-w-sm select-none">
+        <div className="relative overflow-hidden rounded-lg border border-slate-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={item.url} alt="Your test photo" draggable={false} className="block h-auto w-full" />
+          <div className="tr-shade pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center text-xs font-semibold text-ink-200" style={{ height: `${item.top}%` }} aria-hidden>
+            {item.top >= 6 && "Hidden, not sent"}
+          </div>
+          <div className="tr-shade pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center text-xs font-semibold text-ink-200" style={{ height: `${item.bottom}%` }} aria-hidden>
+            {item.bottom >= 6 && "Hidden, not sent"}
+          </div>
+        </div>
+        <div {...handle("top")} className="group absolute inset-x-0 flex h-11 -translate-y-1/2 cursor-ns-resize touch-none items-center justify-center focus:!outline-none" style={{ top: `${item.top}%` }}>
+          <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-bridge-500" aria-hidden />
+          {pill}
+        </div>
+        <div {...handle("bottom")} className="group absolute inset-x-0 flex h-11 translate-y-1/2 cursor-ns-resize touch-none items-center justify-center focus:!outline-none" style={{ bottom: `${item.bottom}%` }}>
+          <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-bridge-500" aria-hidden />
+          {pill}
+        </div>
       </div>
-      <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.url} alt="Your test photo" className="block h-auto w-full" />
-        <div className="absolute inset-x-0 top-0 bg-black/70" style={{ height: `${item.top}%` }} aria-hidden />
-        <div className="absolute inset-x-0 bottom-0 bg-black/70" style={{ height: `${item.bottom}%` }} aria-hidden />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label htmlFor={topId} className="text-xs font-medium">
-          Cut from the top: {item.top}%
-          <input id={topId} type="range" min={0} max={70} step={1} value={item.top} className="mt-1 block w-full"
-            onChange={(e) => onChange(Number(e.target.value), item.bottom)} />
-        </label>
-        <label htmlFor={bottomId} className="text-xs font-medium">
-          Cut from the bottom: {item.bottom}%
-          <input id={bottomId} type="range" min={0} max={50} step={1} value={item.bottom} className="mt-1 block w-full"
-            onChange={(e) => onChange(item.top, Number(e.target.value))} />
-        </label>
-      </div>
-      {tooMuch && <p className="notice-warn text-xs">That cuts off almost everything. Leave the questions and your answers in the light part.</p>}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-primary btn-sm" disabled={tooMuch} onClick={() => onDone(true)}>
-          {left > 1 ? "Use this part, next photo" : "Use this part and read it"}
+      {tooMuch && <p className="notice-warn text-sm">That covers almost everything. Leave the questions and your answers in the clear part.</p>}
+      {error && <p className="notice-error mt-3" role="alert">{error}</p>}
+      <div className="mt-[18px] grid gap-2.5">
+        <button type="button" className={PRIMARY} disabled={tooMuch} onClick={() => onDone(true)}>
+          {last ? "Name is covered, read it" : "Name is covered, next page"}
         </button>
-        <button type="button" className="btn-secondary btn-sm" onClick={() => onDone(false)}>
-          Skip this photo
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className="btn-ghost w-full" onClick={onAdd} disabled={!canAdd}>
+            Add another page
+          </button>
+          <button type="button" className="btn-ghost w-full" onClick={() => onDone(false)}>
+            Skip this photo
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -527,123 +713,510 @@ async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
   }
 }
 
-const STATUS_STYLE: Record<ReviewedQuestion["status"], { label: string; cls: string }> = {
-  correct: { label: "Correct", cls: "badge-success" },
-  wrong: { label: "Missed", cls: "badge-warn" },
-  partial: { label: "Partial", cls: "badge-warn" },
-  unclear: { label: "Hard to read", cls: "badge-neutral" },
-};
+/** The photo being read, its covered parts striped, under a moving scan line. */
+function ReadingScreen({ pages, wait, titleRef, onStop }: { pages: Pending[]; wait: { left: number; total: number } | null; titleRef: Ref<HTMLHeadingElement>; onStop: () => void }) {
+  const first = pages[0];
+  return (
+    <>
+      <ScreenHead titleRef={titleRef} title="Reading your test" sub={wait ? "This can take a minute." : "About 10 seconds."} />
+      {first && (
+        <div className={`relative mt-3.5 max-h-56 overflow-hidden rounded-lg border border-slate-200 ${wait ? "" : "tr-scan"}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={first.url} alt="" className="block h-auto w-full" />
+          <div className="tr-shade absolute inset-x-0 top-0" style={{ height: `${first.top}%` }} aria-hidden />
+          <div className="tr-shade absolute inset-x-0 bottom-0" style={{ height: `${first.bottom}%` }} aria-hidden />
+        </div>
+      )}
+      {wait ? (
+        <>
+          <WaitNotice left={wait.left} total={wait.total} />
+          <button type="button" className="btn-secondary mt-3 w-full" onClick={onStop}>
+            Stop and type it instead
+          </button>
+        </>
+      ) : (
+        <ul role="status" aria-live="polite" className="mt-4 grid gap-2.5 text-sm">
+          <li className="flex items-center gap-2.5 text-slate-900">
+            <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full bg-bridge-600 text-white" aria-hidden>
+              <Icon name="check" size={13} />
+            </span>
+            Name covered
+          </li>
+          <li className="flex items-center gap-2.5 font-semibold text-slate-900">
+            <span className="h-[22px] w-[22px] flex-none animate-spin rounded-full border-2 border-bridge-600 border-t-transparent" aria-hidden />
+            {pages.length > 1 ? `Reading ${pages.length} pages` : "Reading the handwriting"}
+          </li>
+          <li className="flex items-center gap-2.5 text-slate-500">
+            <span className="h-[22px] w-[22px] flex-none rounded-full border-2 border-slate-300" aria-hidden />
+            You check what we read
+          </li>
+        </ul>
+      )}
+    </>
+  );
+}
 
-function Results({ review }: { review: Review }) {
-  const [practicing, setPracticing] = useState(false);
-  if (review.crisis) return <section className="notice-error p-4">{review.message}</section>;
-  const missed = review.questions.filter((q) => q.status === "wrong" || q.status === "partial");
-  const unclear = review.questions.filter((q) => q.status === "unclear");
-  const clean = missed.length === 0 && unclear.length === 0;
-  const skills = review.practice;
+/** "The free reader is busy": a countdown ring until the next try. */
+function WaitNotice({ left, total }: { left: number; total: number }) {
+  const c = 2 * Math.PI * 22;
+  return (
+    <div className="notice-warn mt-3.5 flex items-center gap-3.5" role="status">
+      <span className="sr-only">The free reader is busy. Trying again soon. Your photo is safe.</span>
+      <div className="relative h-[52px] w-[52px] flex-none" aria-hidden>
+        <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
+          <circle cx="26" cy="26" r="22" fill="none" strokeWidth="5" className="stroke-amber-500/30" />
+          <circle
+            cx="26" cy="26" r="22" fill="none" strokeWidth="5" strokeLinecap="round"
+            className="stroke-amber-600 transition-[stroke-dashoffset] duration-1000 ease-linear"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - left / Math.max(1, total))}
+          />
+        </svg>
+        <b className="absolute inset-0 grid place-items-center text-[15px] font-bold tabular-nums">{left}</b>
+      </div>
+      <div aria-hidden>
+        <b className="block">The free reader is busy</b>
+        Trying again in {left} s. Your photo is safe.
+      </div>
+    </div>
+  );
+}
+
+/** One plain question about a line the reader probably got wrong. */
+function lineHint(line: string, n: number): string {
+  if (/\[unreadable\]/i.test(line)) return `We could not read part of line ${n}. Type what your paper says.`;
+  if (line.includes("==")) return `Line ${n} has "==". Is it one equals sign?`;
+  if (line.includes("|")) return `Line ${n} has a "|". Is it a 1 or a slash?`;
+  if (line.includes("#")) return `Line ${n} has a "#". What is it on your paper?`;
+  return `Line ${n} was hard to read. Does it match your paper?`;
+}
+
+/** What was read, one question per line, each its own box: easier to fix on a phone than one big text box. */
+function CheckScreen({
+  text, score, holes, error, hasPhotos, hasReview, titleRef, onText, onScore, onGrade, onRetake, onBack,
+}: {
+  text: string;
+  score: string;
+  holes: number;
+  error: string | null;
+  hasPhotos: boolean;
+  hasReview: boolean;
+  titleRef: Ref<HTMLHeadingElement>;
+  onText: (t: string) => void;
+  onScore: (s: string) => void;
+  onGrade: () => void;
+  onRetake: () => void;
+  onBack: () => void;
+}) {
+  const lines = text.split("\n");
+  const flagged = new Set([...misreadLines(text), ...lines.flatMap((l, i) => (/\[unreadable\]/i.test(l) ? [i + 1] : []))]);
+  const filled = lines.filter((l) => l.trim()).join("\n");
+
+  function setLines(next: string[]) {
+    onText(next.join("\n").slice(0, MAX_TEXT));
+  }
+  // A new or removed line moves the caret right after React commits, before the next key lands.
+  const focusNextRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (focusNextRef.current === null) return;
+    document.getElementById(`tr-line-${focusNextRef.current}`)?.focus();
+    focusNextRef.current = null;
+  });
+  function focusLine(i: number) {
+    focusNextRef.current = i;
+  }
+  function onKey(e: KeyboardEvent<HTMLInputElement>, i: number) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setLines([...lines.slice(0, i + 1), "", ...lines.slice(i + 1)]);
+      focusLine(i + 1);
+    } else if (e.key === "Backspace" && !lines[i] && lines.length > 1) {
+      e.preventDefault();
+      setLines(lines.filter((_, k) => k !== i));
+      focusLine(Math.max(0, i - 1));
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <section className="panel space-y-3 p-5" aria-labelledby="tr-summary">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="tr-summary" className="text-xl font-bold">{review.subject ?? "Your test"}</h2>
-          {review.score && <span className="text-lg font-semibold">{review.score}</span>}
-        </div>
-        <p className="text-sm text-slate-600">
-          {review.questions.length} {review.questions.length === 1 ? "question" : "questions"} read,{" "}
-          {missed.length === 0 ? "no lost points found" : `${missed.length} with lost points`}
-          {unclear.length > 0 ? `, ${unclear.length} hard to read` : ""}.
+    <>
+      <ScreenHead titleRef={titleRef} title="Does this match your paper?" sub="Fix anything we got wrong. Tap a line to edit." />
+      {holes > 0 && (
+        <p className="notice-warn mt-3.5 text-sm">
+          {holes} {holes === 1 ? "part was" : "parts were"} too hard to read and {holes === 1 ? "is" : "are"} marked [unreadable].
+          Fill {holes === 1 ? "it" : "them"} in from your paper before you grade.
         </p>
-        {clean && (
-          <p className="notice-success text-sm">
-            Nothing missed in what was read. Nice work. A quick round on the same skills keeps it that way.
-          </p>
-        )}
-        {review.summary && (
-          <div>
-            <h3 className="font-semibold">Why you got this score</h3>
-            <p className="leading-relaxed">{review.summary}</p>
-          </div>
-        )}
-        {review.strengths.length > 0 && (
-          <div>
-            <h3 className="font-semibold">What you did well</h3>
-            <ul className="list-disc pl-5">{review.strengths.map((s) => <li key={s}>{s}</li>)}</ul>
-          </div>
-        )}
-        {skills.length > 0 && !practicing && (
-          <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
-            <button type="button" className="btn-primary" onClick={() => { setPracticing(true); requestAnimationFrame(() => document.getElementById("tr-practice")?.scrollIntoView({ block: "start" })); }}>
-              {missed.length > 0 ? "Practice these" : "Practice the same skills"}
-              <Icon name="arrow-right" size={16} />
-            </button>
-            <p className="text-sm text-slate-600">
-              {skills.length === 1 ? "1 skill" : `${skills.length} skills`}: {skills.map((s) => s.title).join(", ")}
-            </p>
-          </div>
-        )}
-        {skills.length === 0 && (
-          <p className="text-sm text-slate-600">
-            These questions did not match a skill in the course, so there is no practice set for them. The question notes below still show what went wrong.
-          </p>
-        )}
-      </section>
-
-      {practicing && skills.length > 0 && <PracticeRun skills={skills} />}
-
-      <section className="panel p-5" aria-labelledby="tr-questions">
-        <h2 id="tr-questions" className="mb-3 text-lg font-bold">Question by question</h2>
-        <ol className="space-y-3">
-          {review.questions.map((q, i) => (
-            <li key={i} className="card space-y-1.5 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-medium">{q.number && `${q.number}. `}<MathText text={q.problem} /></p>
-                <span className={`${STATUS_STYLE[q.status].cls} shrink-0`}>{STATUS_STYLE[q.status].label}</span>
+      )}
+      <div className="mt-3.5 grid gap-2">
+        {lines.map((line, i) => {
+          const flag = flagged.has(i + 1);
+          return (
+            <Fragment key={i}>
+              <div className="grid grid-cols-[28px_1fr] items-center gap-2">
+                <label htmlFor={`tr-line-${i}`} className="text-right text-xs font-semibold text-slate-500">
+                  <span className="sr-only">Line </span>
+                  {i + 1}
+                </label>
+                <input
+                  id={`tr-line-${i}`}
+                  className={`field font-mono text-[15px] ${flag ? "border-amber-200 bg-amber-50" : ""}`}
+                  value={line}
+                  onChange={(e) => setLines(lines.map((l, k) => (k === i ? e.target.value : l)))}
+                  onKeyDown={(e) => onKey(e, i)}
+                  placeholder={i === 0 && lines.length === 1 ? "1) 2x + 5 = 17   I wrote x = 11" : undefined}
+                  aria-describedby={flag ? `tr-line-${i}-hint` : undefined}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
+                />
               </div>
-              {q.studentAnswer && <p className="text-sm">Your answer: <span className="font-mono">{q.studentAnswer}</span></p>}
-              {q.status !== "correct" && q.correctAnswer && <p className="text-sm">Right answer: <span className="font-mono">{q.correctAnswer}</span></p>}
-              {q.mistake && q.status !== "unclear" && <p className="text-sm"><span className="font-semibold">What you did:</span> <MathText text={q.mistake} /></p>}
-              {q.why && q.status !== "unclear" && q.status !== "correct" && <p className="text-sm"><span className="font-semibold">Why that does not work:</span> <MathText text={q.why} /></p>}
-              {q.status === "unclear" && (
-                <p className="text-sm text-slate-600">
-                  {q.mistake ? `${q.mistake} ` : ""}This one may have been misread. Fix it in the text box above and review again.
+              {flag && (
+                <p id={`tr-line-${i}-hint`} className="notice-warn ml-9 px-2.5 py-2 text-[12.5px]">
+                  {lineHint(line, i + 1)}
                 </p>
               )}
-              {q.steps && q.steps.length > 0 && q.status !== "correct" && q.status !== "unclear" ? (
-                <div className="text-sm">
-                  <p className="font-semibold">The right way, step by step:</p>
-                  <ol className="mt-1 space-y-1.5">
-                    {q.steps.map((st, k) => (
-                      <li key={k} className="flex gap-2">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{k + 1}</span>
-                        <span>
-                          <span className="font-mono"><MathText text={st.math} /></span>
-                          {st.why && <span className="block text-slate-600"><MathText text={st.why} /></span>}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : (
-                q.fix && q.status !== "correct" && q.status !== "unclear" && (
-                  <div className="text-sm">
-                    <p className="font-semibold">The right way through it:</p>
-                    <WorkedSteps text={q.fix} className="mt-1" />
-                  </div>
-                )
-              )}
-              {q.check && q.status !== "correct" && q.status !== "unclear" && <p className="text-sm"><span className="font-semibold">Check it:</span> <MathText text={q.check} /></p>}
-              {q.skill && (
-                <SkillLink id={q.skill} />
-              )}
-            </li>
-          ))}
-        </ol>
-        <p className="mt-3 text-xs text-slate-500">
-          The notes come from an AI reading the text above and can be wrong. When a note and your teacher disagree, ask your teacher.
-        </p>
-      </section>
+            </Fragment>
+          );
+        })}
+        <button
+          type="button"
+          className="justify-self-start py-2 text-[13px] font-semibold text-bridge-700 hover:underline"
+          onClick={() => { setLines([...lines, ""]); focusLine(lines.length); }}
+        >
+          + Add a question
+        </button>
+      </div>
+      {text.length > 5000 && (
+        <p className="text-right text-xs text-slate-500">{text.length} / {MAX_TEXT} characters. Review a long test in two parts.</p>
+      )}
+      <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
+        <label htmlFor="tr-score" className="text-[13px] font-semibold leading-tight text-slate-900">
+          Score on the paper
+          <span className="block font-normal text-slate-500">optional</span>
+        </label>
+        <input id="tr-score" className="field w-24" value={score} onChange={(e) => onScore(e.target.value)} placeholder="14/20" maxLength={40} inputMode="text" />
+      </div>
+      {error && <p className="notice-error mt-3.5" role="alert">{error}</p>}
+      <div className="mt-[18px] grid gap-2.5">
+        <button type="button" className={PRIMARY} onClick={onGrade} disabled={filled.trim().length < 10}>
+          Grade my test
+        </button>
+        {hasReview && (
+          <button type="button" className="btn-ghost w-full" onClick={onBack}>
+            Back to my results
+          </button>
+        )}
+        <button type="button" className="btn-ghost w-full" onClick={onRetake}>
+          {hasPhotos ? "Retake photo" : "Start over"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function GradingScreen({ count, titleRef }: { count: number; titleRef: Ref<HTMLHeadingElement> }) {
+  return (
+    <div role="status">
+      <h2 ref={titleRef} tabIndex={-1} className="flex items-center gap-2 font-semibold text-slate-900 focus:!outline-none">
+        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-bridge-600 border-t-transparent" aria-hidden />
+        Grading {count} {count === 1 ? "question" : "questions"}
+      </h2>
+      <div className="mt-3 grid gap-2.5" aria-hidden>
+        <div className="h-3 w-[70%] animate-pulse rounded-md bg-slate-100" />
+        <div className="h-3 w-full animate-pulse rounded-md bg-slate-100" />
+        <div className="h-3 w-[85%] animate-pulse rounded-md bg-slate-100" />
+      </div>
+      <p className="mt-3.5 text-[13px] text-slate-600">
+        About half a minute. The notes come from an AI reading your text, so if one looks off, your teacher&apos;s version wins.
+      </p>
     </div>
+  );
+}
+
+const STATUS_STYLE: Record<ReviewedQuestion["status"], { label: string; cls: string; dot: string }> = {
+  correct: { label: "Correct", cls: "badge-success", dot: "bg-emerald-400" },
+  wrong: { label: "Missed", cls: "badge-warn", dot: "bg-red-400" },
+  partial: { label: "Partial", cls: "badge-warn", dot: "bg-amber-400" },
+  unclear: { label: "Hard to read", cls: "badge-neutral", dot: "bg-slate-300" },
+};
+
+const isMissed = (q: ReviewedQuestion) => q.status === "wrong" || q.status === "partial";
+
+function Results({
+  review, restored, titleRef, onPractice, onFix, onStartOver,
+}: {
+  review: Review;
+  restored: boolean;
+  titleRef: Ref<HTMLHeadingElement>;
+  onPractice: (skillId: string | null) => void;
+  onFix: () => void;
+  onStartOver: () => void;
+}) {
+  if (review.crisis) {
+    return (
+      <div className="space-y-3">
+        <h2 ref={titleRef} tabIndex={-1} className="sr-only">Your review</h2>
+        <section className="notice-error p-4">{review.message}</section>
+        <button type="button" className="btn-ghost" onClick={onStartOver}>Start over</button>
+      </div>
+    );
+  }
+  const qs = review.questions;
+  const missed = qs.filter(isMissed);
+  const unclear = qs.filter((q) => q.status === "unclear");
+  const right = qs.filter((q) => q.status === "correct");
+  const clean = missed.length === 0 && unclear.length === 0;
+  const skills = review.practice;
+  const firstMissed = qs.findIndex(isMissed);
+  const total = qs.length;
+  const nQ = `${total} ${total === 1 ? "question" : "questions"}`;
+  const headline =
+    missed.length > 0 ? `${nQ}, ${missed.length} to fix`
+    : unclear.length > 0 ? `${nQ}, ${unclear.length} hard to read`
+    : `${nQ}, all correct`;
+  const grade = review.score?.trim() || `${right.length}/${total}`;
+  const share = total ? missed.length / total : 0;
+  const tone =
+    share > 0.5 ? "border-red-200 bg-red-50 text-red-700"
+    : share === 0 || right.length / Math.max(1, total) >= 0.8 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-200 bg-amber-50 text-amber-800";
+  const gradeSize = grade.length <= 2 ? "text-[38px]" : grade.length <= 4 ? "text-[26px]" : "text-lg";
+  const ctaLabel = missed.length > 0 ? "Practice what I missed" : "Practice the same skills";
+  const cta = (
+    <button type="button" className={PRIMARY} onClick={() => onPractice(null)}>
+      {ctaLabel}
+      <Icon name="arrow-right" size={18} />
+    </button>
+  );
+
+  return (
+    <div>
+      <section className="panel" aria-labelledby="tr-results-title">
+        <div className="p-5">
+          {restored && <p className="notice-info mb-4 text-sm">Your last review, from earlier in this tab.</p>}
+          <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+            <div
+              role="img"
+              aria-label={review.score ? `Score ${grade}` : `${right.length} of ${total} right`}
+              className={`grid h-[72px] w-[72px] place-items-center overflow-hidden rounded-[20px] border px-1 text-center font-display leading-none ${gradeSize} ${tone}`}
+            >
+              {grade}
+            </div>
+            <div className="min-w-0">
+              {review.subject && <p className="eyebrow mb-1 truncate">{review.subject}</p>}
+              <h2 id="tr-results-title" ref={titleRef} tabIndex={-1} className="text-[19px] font-bold leading-tight tracking-tight text-slate-900 focus:!outline-none">
+                {headline}
+              </h2>
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-hidden>
+                {qs.map((q, i) => (
+                  <span key={i} className={`h-2 w-[22px] rounded-full ${STATUS_STYLE[q.status].dot}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+          {clean && (
+            <p className="notice-success mt-4 text-sm">
+              Nothing missed in what was read. Nice work. A quick round on the same skills keeps it that way.
+            </p>
+          )}
+          {review.summary && (
+            <div className="notice-info mt-4">
+              <b className="mb-0.5 block">{missed.length > 0 ? "What cost you points" : "How it went"}</b>
+              {review.summary}
+            </div>
+          )}
+          {review.strengths.length > 0 && (
+            <div className="notice-success mt-3">
+              <b className="mb-0.5 block">What you did well</b>
+              <ul className="list-disc pl-5">{review.strengths.map((s) => <li key={s}>{s}</li>)}</ul>
+            </div>
+          )}
+          {skills.length === 0 && (
+            <p className="mt-4 text-sm text-slate-600">
+              These questions did not match a skill in the course, so there is no practice set for them. The notes below still show what went wrong.
+            </p>
+          )}
+          {skills.length > 0 && <div className="mt-[18px] hidden sm:block">{cta}</div>}
+        </div>
+      </section>
+
+      <ol className="mt-3.5 grid gap-3" aria-label="Question by question">
+        {qs.map((q, i) => (
+          <QuestionCard key={i} q={q} n={i + 1} startOpen={i === firstMissed} onPractice={onPractice} onFix={onFix} />
+        ))}
+      </ol>
+      <p className="mt-3 px-1 text-xs text-slate-500">
+        The notes come from an AI reading your text and can be wrong. When a note and your teacher disagree, ask your teacher.
+      </p>
+
+      {skills.length > 0 && <div className="mt-4 hidden sm:block">{cta}</div>}
+      {skills.length > 0 && (
+        <div className="sticky bottom-0 z-10 -mx-4 mt-3.5 bg-gradient-to-b from-transparent to-slate-50 to-30% px-4 pb-4 pt-3 sm:hidden">
+          {cta}
+        </div>
+      )}
+      <div className="mt-2 flex justify-center">
+        <button type="button" className="btn-ghost" onClick={onStartOver}>Start over</button>
+      </div>
+    </div>
+  );
+}
+
+/** Big mono for a short answer, normal text for a long one so it never spills out of its tile. */
+const answerSize = (s: string) => (s.length <= 8 ? "font-mono text-2xl" : s.length <= 20 ? "font-mono text-lg" : "text-[15px]");
+
+/**
+ * One question, taught: what the problem was, what you wrote next to the
+ * right answer, what you did, why it does not work, the right way with a
+ * reason for each move, and a way to check. Empty parts are skipped.
+ */
+function QuestionCard({
+  q, n, startOpen, onPractice, onFix,
+}: {
+  q: ReviewedQuestion;
+  n: number;
+  startOpen: boolean;
+  onPractice: (skillId: string | null) => void;
+  onFix: () => void;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  const style = STATUS_STYLE[q.status];
+  const missed = isMissed(q);
+  const hit = q.skill ? SKILLS.get(q.skill) : undefined;
+  const label = `Question ${q.number || n}`;
+  const bodyId = `tr-q-${n}-more`;
+  const shortProblem = q.problem.length <= 28;
+  const hasSteps = Boolean(q.steps && q.steps.length > 0);
+
+  return (
+    <li>
+      <article className="overflow-hidden rounded-2xl border border-slate-200 bg-surface" aria-label={label}>
+        <header className="flex items-center justify-between gap-2.5 px-4 pt-3.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+          <span className={style.cls}>{style.label}</span>
+        </header>
+        <p className={`break-words px-4 pt-2 text-slate-900 ${shortProblem ? "font-mono text-[22px] font-semibold leading-snug" : "text-base font-medium leading-snug"}`}>
+          <MathText text={q.problem} />
+        </p>
+
+        {q.status === "correct" && (
+          <p className="mx-4 mb-4 mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[15px] text-emerald-800">
+            {q.studentAnswer ? (
+              <>You wrote <strong className="font-mono"><MathText text={q.studentAnswer} /></strong>. Correct.</>
+            ) : (
+              "Correct."
+            )}
+          </p>
+        )}
+
+        {q.status === "unclear" && (
+          <div className="notice-info mx-4 mb-4 mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p>{q.mistake ? `${q.mistake} ` : ""}We could not read this one. Fix it on the Check step and grade again.</p>
+            <button type="button" className="btn-secondary btn-sm" onClick={onFix}>Fix it</button>
+          </div>
+        )}
+
+        {missed && (
+          <>
+            {(q.studentAnswer || q.correctAnswer) && (
+              <div className={`grid gap-2 px-4 pt-3 ${q.studentAnswer && q.correctAnswer ? "grid-cols-2" : "grid-cols-1"}`}>
+                {q.studentAnswer && (
+                  <div className={`min-w-0 rounded-xl border px-3 py-2.5 ${q.status === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>
+                    <small className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider">You wrote</small>
+                    <strong className={`block break-words leading-tight ${answerSize(q.studentAnswer)}`}><MathText text={q.studentAnswer} /></strong>
+                  </div>
+                )}
+                {q.correctAnswer && (
+                  <div className="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-emerald-800">
+                    <small className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider">Right answer</small>
+                    <strong className={`block break-words leading-tight ${answerSize(q.correctAnswer)}`}><MathText text={q.correctAnswer} /></strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!open && q.mistake && (
+              <p className="line-clamp-2 px-4 pt-3 text-[15px] leading-relaxed text-slate-700"><MathText text={q.mistake} /></p>
+            )}
+
+            {open && (
+              <div id={bodyId}>
+                {q.mistake && (
+                  <section className="px-4 pt-3.5">
+                    <h3 className="mb-1 text-[13px] font-bold text-slate-900">What you did</h3>
+                    <p className="text-[15px] leading-relaxed text-slate-700"><MathText text={q.mistake} /></p>
+                  </section>
+                )}
+                {q.why && (
+                  <section className="mx-4 mt-3.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-amber-900">
+                    <h3 className="mb-1 text-[13px] font-bold">Why that does not work</h3>
+                    <p className="text-[15px] leading-relaxed"><MathText text={q.why} /></p>
+                  </section>
+                )}
+                {hasSteps ? (
+                  <section className="px-4 pt-3.5">
+                    <h3 className="text-[13px] font-bold text-slate-900">The right way</h3>
+                    <ol className="mt-2 grid gap-2.5">
+                      {q.steps!.map((st, k) => (
+                        <li key={k} className="grid grid-cols-[26px_1fr] gap-2.5">
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-bridge-50 text-xs font-bold text-bridge-700 ring-1 ring-inset ring-bridge-100" aria-hidden>
+                            {k + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="block break-words font-mono text-base font-semibold text-slate-900"><MathText text={st.math} /></span>
+                            {st.why && <span className="mt-0.5 block text-[13.5px] text-slate-600"><MathText text={st.why} /></span>}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ) : (
+                  q.fix && (
+                    <section className="px-4 pt-3.5">
+                      <h3 className="text-[13px] font-bold text-slate-900">The right way</h3>
+                      <WorkedSteps text={q.fix} className="mt-2" />
+                    </section>
+                  )
+                )}
+                {q.check && (
+                  <section className="mx-4 mt-3.5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-emerald-800">
+                    <Icon name="check" size={18} className="mt-px shrink-0" />
+                    <div>
+                      <h3 className="text-[13px] font-bold">Check it</h3>
+                      <p className="text-[14.5px] leading-relaxed"><MathText text={q.check} /></p>
+                    </div>
+                  </section>
+                )}
+                {hit && (
+                  <footer className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3">
+                    <Link href={`/learn/${hit.unitId}/${hit.skill.id}`} className="text-[13px] font-semibold text-bridge-700 hover:underline">
+                      Lesson: {hit.skill.title}
+                    </Link>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => onPractice(hit.skill.id)}>
+                      Practice this
+                    </button>
+                  </footer>
+                )}
+                {!hit && <div className="h-4" />}
+              </div>
+            )}
+
+            {!startOpen && (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={open ? bodyId : undefined}
+                onClick={() => setOpen(!open)}
+                className="mt-3.5 flex w-full items-center justify-between border-t border-slate-100 px-4 py-3 text-[13px] font-semibold text-bridge-700 hover:bg-slate-50"
+              >
+                {open ? "Hide how to fix it" : "Show how to fix it"}
+                <Icon name={open ? "chevron-up" : "plus"} size={16} />
+              </button>
+            )}
+          </>
+        )}
+      </article>
+    </li>
   );
 }
 
@@ -651,62 +1224,94 @@ const SKILLS = new Map<string, { skill: Skill; unitId: string }>(
   allUnits().flatMap((u) => u.skills.map((s) => [s.id, { skill: s, unitId: u.id }] as const))
 );
 
-function SkillLink({ id }: { id: string }) {
-  const hit = SKILLS.get(id);
-  if (!hit) return null;
-  return (
-    <p className="text-xs">
-      <Link href={`/learn/${hit.unitId}/${id}`} className="font-semibold text-bridge-700 hover:underline">
-        Lesson: {hit.skill.title}
-      </Link>
-    </p>
-  );
-}
-
 /**
  * Practice on the review's skills, one skill at a time, with the course's
  * own practice panel: the same problems, grading, Bridgeys and streak as a
  * skill page, so this work counts everywhere practice counts.
  */
-function PracticeRun({ skills }: { skills: SkillRef[] }) {
-  const [idx, setIdx] = useState(0);
-  const refs = skills.map((s) => SKILLS.get(s.id)).filter((s): s is NonNullable<typeof s> => Boolean(s));
-  if (refs.length === 0) return null;
+function PracticeRun({
+  ids, initial, right, onRight, onBack, titleRef,
+}: {
+  ids: string[];
+  initial: string | null;
+  right: Record<string, number>;
+  onRight: (skillId: string) => void;
+  onBack: () => void;
+  titleRef: Ref<HTMLHeadingElement>;
+}) {
+  const refs = ids.map((id) => SKILLS.get(id)).filter((s): s is NonNullable<typeof s> => Boolean(s));
+  const [idx, setIdx] = useState(() => Math.max(0, refs.findIndex((r) => r.skill.id === initial)));
+  if (refs.length === 0) {
+    return (
+      <section className="panel">
+        <div className="p-5">
+          <ScreenHead titleRef={titleRef} title="Nothing to practice" sub="These questions did not match a skill in the course." />
+          <div className="mt-[18px] grid">
+            <button type="button" className="btn-ghost w-full" onClick={onBack}>Back to my results</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
   const current = refs[Math.min(idx, refs.length - 1)];
   const nextRef = refs[idx + 1];
+  const done = Math.min(PRACTICE_GOAL, right[current.skill.id] ?? 0);
   return (
-    <section id="tr-practice" className="panel p-5 scroll-mt-20" aria-labelledby="tr-practice-title">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="tr-practice-title" className="text-lg font-bold">Practice: {current.skill.title}</h2>
-        <Link href={`/learn/${current.unitId}/${current.skill.id}`} className="text-sm font-semibold text-bridge-700 hover:underline">
-          Open the lesson
-        </Link>
-      </div>
-      {refs.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Skills to practice">
-          {refs.map((r, i) => (
-            <button
-              key={r.skill.id}
-              type="button"
-              role="tab"
-              aria-selected={i === idx}
-              onClick={() => setIdx(i)}
-              className={`rounded-full px-3 py-1 text-sm font-medium ring-1 ${i === idx ? "bg-bridge-600 text-white ring-bridge-600" : "bg-surface text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
-            >
-              {i + 1}. {r.skill.title}
-            </button>
-          ))}
+    <section className="panel" aria-labelledby="tr-practice-title">
+      <div className="p-5">
+        <p className="eyebrow">From your test</p>
+        <h2 id="tr-practice-title" ref={titleRef} tabIndex={-1} className="mt-1.5 text-[22px] font-bold leading-tight tracking-tight text-slate-900 focus:!outline-none">
+          Practice: {current.skill.title}
+        </h2>
+        {refs.length > 1 && (
+          <div className="-mx-5 mt-3 flex gap-1.5 overflow-x-auto px-5 pb-0.5" role="tablist" aria-label="Skills to practice">
+            {refs.map((r, i) => (
+              <button
+                key={r.skill.id}
+                type="button"
+                role="tab"
+                aria-selected={i === idx}
+                onClick={() => setIdx(i)}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-semibold ${i === idx ? "border-bridge-600 bg-bridge-600 text-white" : "border-slate-200 bg-surface text-slate-700 hover:bg-slate-50"}`}
+              >
+                {r.skill.title}
+              </button>
+            ))}
+          </div>
+        )}
+        <div
+          className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"
+          role="progressbar"
+          aria-label="Right answers on this skill"
+          aria-valuemin={0}
+          aria-valuemax={PRACTICE_GOAL}
+          aria-valuenow={done}
+        >
+          <div className="h-full rounded-full bg-bridge-600 transition-[width] duration-300" style={{ width: `${(done / PRACTICE_GOAL) * 100}%` }} />
         </div>
-      )}
-      <PracticePanel key={current.skill.id} skill={current.skill} />
-      {nextRef && (
-        <div className="mt-4 flex justify-end">
-          <button type="button" className="btn-secondary" onClick={() => setIdx(idx + 1)}>
-            Next skill: {nextRef.skill.title}
-            <Icon name="arrow-right" size={16} />
+        <p className="mt-1.5 text-[12.5px] text-slate-600">
+          {done} of {PRACTICE_GOAL} done. Counts like any other practice.{" "}
+          <Link href={`/learn/${current.unitId}/${current.skill.id}`} className="font-semibold text-bridge-700 hover:underline">
+            Open the lesson
+          </Link>
+        </p>
+        <div className="mt-3.5">
+          <PracticePanel key={current.skill.id} skill={current.skill} onMasteryChange={() => onRight(current.skill.id)} />
+        </div>
+        {nextRef && (
+          <div className="mt-4 flex justify-end">
+            <button type="button" className="btn-secondary" onClick={() => setIdx(idx + 1)}>
+              Next skill: {nextRef.skill.title}
+              <Icon name="arrow-right" size={16} />
+            </button>
+          </div>
+        )}
+        <div className="mt-[18px] grid">
+          <button type="button" className="btn-ghost w-full" onClick={onBack}>
+            Back to my results
           </button>
         </div>
-      )}
+      </div>
     </section>
   );
 }
