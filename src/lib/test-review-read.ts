@@ -64,7 +64,8 @@ export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<str
           await new Promise((r) => setTimeout(r, wait));
           continue;
         }
-        throw new Error("rate");
+        // A wait of minutes means the free daily allowance is spent, not a busy minute.
+        throw new Error(wait > 120000 ? "rate-day" : "rate");
       }
       if (res.status === 401) throw new Error("auth");
       if (!res.ok) return null;

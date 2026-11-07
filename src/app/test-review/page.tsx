@@ -90,13 +90,16 @@ function TestReview() {
   const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
   const [text, setText] = useState("");
   const [score, setScore] = useState("");
-  const [reader, setReader] = useState<"claude" | "openai" | "local" | null | "unknown">("unknown");
+  const [reader, setReader] = useState<"claude" | "openai" | "groq" | "local" | null | "unknown">("unknown");
+  /** Photos waiting for the student to cut off their name and the header (legal review M8). */
+  const [pending, setPending] = useState<Pending[]>([]);
   const [reading, setReading] = useState<string | null>(null);
   const [readNote, setReadNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [restored, setRestored] = useState(false);
+  const croppedRef = useRef<Pending[]>([]);
   const cameraRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -127,30 +130,52 @@ function TestReview() {
     }
   }, [text, score, review]);
 
-  useEffect(() => () => previews.forEach((p) => URL.revokeObjectURL(p.url)), [previews]);
+  // Photo previews are freed when the page goes, not each time the list changes (a kept page would go blank).
+  const urlsRef = useRef<string[]>([]);
+  urlsRef.current = [...previews.map((p) => p.url), ...pending.map((p) => p.url)];
+  useEffect(() => () => urlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
-  async function onFiles(files: FileList | null) {
+  /** New photos wait for a crop first: nothing is read until the student has cut off the header. */
+  function onFiles(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
     setReadNote(null);
-    const room = MAX_IMAGES - previews.length;
-    const list = Array.from(files).slice(0, Math.max(0, room));
+    const room = MAX_IMAGES - previews.length - pending.length;
     if (room <= 0) {
       setError(`Up to ${MAX_IMAGES} pages per review. Review a longer test in two parts.`);
       return;
     }
+    const list = Array.from(files).slice(0, room);
+    setPending((prev) => [...prev, ...list.map((file) => ({ file, url: URL.createObjectURL(file), top: DEFAULT_TOP, bottom: 0 }))]);
+  }
+
+  function cropDone(keep: boolean) {
+    const [first, ...rest] = pending;
+    if (!first) return;
+    setPending(rest);
+    const done = keep ? [...croppedRef.current, first] : croppedRef.current;
+    if (!keep) URL.revokeObjectURL(first.url);
+    if (rest.length) {
+      croppedRef.current = done;
+      return;
+    }
+    croppedRef.current = [];
+    if (done.length) void readPages(done);
+  }
+
+  async function readPages(list: Pending[]) {
     setReading(list.length > 1 ? `Reading ${list.length} pages. ` : "Reading your test. ");
     try {
       const encoded: string[] = [];
-      for (const f of list) {
+      for (const p of list) {
         try {
-          encoded.push(await shrink(f));
+          encoded.push(await shrink(p.file, p));
         } catch {
           setError("That photo format could not be opened here. Save it as a JPEG or PNG, or take a screenshot of it, and try again.");
           return;
         }
       }
-      setPreviews((prev) => [...prev, ...list.map((f) => ({ url: URL.createObjectURL(f), name: f.name }))].slice(0, MAX_IMAGES));
+      setPreviews((prev) => [...prev, ...list.map((p) => ({ url: p.url, name: p.file.name }))].slice(0, MAX_IMAGES));
       const res = await fetch("/api/test-review/read", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeader()) },
@@ -222,7 +247,7 @@ function TestReview() {
   }
 
   const canRead = reader !== null;
-  const working = busy || !!reading;
+  const working = busy || !!reading || pending.length > 0;
 
   return (
     <div className="space-y-6">
@@ -252,6 +277,15 @@ function TestReview() {
             <input ref={filesRef} type="file" accept="image/*" multiple className="hidden" aria-label="Choose photos of your test"
               onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
           </div>
+        )}
+        {pending[0] && (
+          <CropStep
+            key={pending[0].url}
+            item={pending[0]}
+            left={pending.length}
+            onChange={(top, bottom) => setPending((prev) => prev.map((p, i) => (i === 0 ? { ...p, top, bottom } : p)))}
+            onDone={cropDone}
+          />
         )}
         {previews.length > 0 && (
           <ul className="flex gap-2 overflow-x-auto py-1" aria-label="Pages added">
@@ -341,17 +375,81 @@ function TestReview() {
  * portrait shot stays upright. HEIC is decoded where the browser can (Safari);
  * elsewhere the <img> fallback throws and the page says what to do.
  */
-async function shrink(file: File): Promise<string> {
+async function shrink(file: File, crop: { top: number; bottom: number } = { top: 0, bottom: 0 }): Promise<string> {
   const source = await decode(file);
-  const scale = Math.min(1, 1600 / Math.max(source.width, source.height));
+  // Only the part the student kept is drawn, so the cut-off name and header never leave the device.
+  const sy = Math.round((source.height * crop.top) / 100);
+  const sh = Math.max(1, Math.round((source.height * (100 - crop.top - crop.bottom)) / 100));
+  const scale = Math.min(1, 1600 / Math.max(source.width, sh));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(source.width * scale);
-  canvas.height = Math.round(source.height * scale);
+  canvas.height = Math.round(sh * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("no canvas");
-  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, sy, source.width, sh, 0, 0, canvas.width, canvas.height);
   if ("close" in source) source.close();
   return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+interface Pending {
+  file: File;
+  url: string;
+  /** Percent of the photo cut off at the top and at the bottom. */
+  top: number;
+  bottom: number;
+}
+
+/** Names usually sit in the top strip of a test, so the first guess cuts some of it. */
+const DEFAULT_TOP = 15;
+
+/**
+ * Before a photo is read, the student cuts their name and the test's header
+ * off (legal review M8). The dark parts stay on the device; only the light
+ * part is shrunk and sent.
+ */
+function CropStep({ item, left, onChange, onDone }: { item: Pending; left: number; onChange: (top: number, bottom: number) => void; onDone: (keep: boolean) => void }) {
+  const topId = useId();
+  const bottomId = useId();
+  const tooMuch = item.top + item.bottom > 85;
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 p-3" role="group" aria-labelledby={`${topId}-title`}>
+      <div>
+        <h3 id={`${topId}-title`} className="text-sm font-semibold">
+          Cut off your name{left > 1 ? ` (${left} photos to go)` : ""}
+        </h3>
+        <p className="text-xs text-slate-600">
+          Slide until your name, your teacher&apos;s name, the class and the school are in the dark part. Only the light part is sent, and it is not kept.
+        </p>
+      </div>
+      <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={item.url} alt="Your test photo" className="block h-auto w-full" />
+        <div className="absolute inset-x-0 top-0 bg-black/70" style={{ height: `${item.top}%` }} aria-hidden />
+        <div className="absolute inset-x-0 bottom-0 bg-black/70" style={{ height: `${item.bottom}%` }} aria-hidden />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label htmlFor={topId} className="text-xs font-medium">
+          Cut from the top: {item.top}%
+          <input id={topId} type="range" min={0} max={70} step={1} value={item.top} className="mt-1 block w-full"
+            onChange={(e) => onChange(Number(e.target.value), item.bottom)} />
+        </label>
+        <label htmlFor={bottomId} className="text-xs font-medium">
+          Cut from the bottom: {item.bottom}%
+          <input id={bottomId} type="range" min={0} max={50} step={1} value={item.bottom} className="mt-1 block w-full"
+            onChange={(e) => onChange(item.top, Number(e.target.value))} />
+        </label>
+      </div>
+      {tooMuch && <p className="notice-warn text-xs">That cuts off almost everything. Leave the questions and your answers in the light part.</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-primary btn-sm" disabled={tooMuch} onClick={() => onDone(true)}>
+          {left > 1 ? "Use this part, next photo" : "Use this part and read it"}
+        </button>
+        <button type="button" className="btn-secondary btn-sm" onClick={() => onDone(false)}>
+          Skip this photo
+        </button>
+      </div>
+    </div>
+  );
 }
 
 async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {

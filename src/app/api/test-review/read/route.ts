@@ -176,6 +176,7 @@ export async function POST(request: Request) {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
+    if (msg === "rate-day") return NextResponse.json({ error: "The photo reader has read all it can for now. Type the questions and your answers in, or try the photo again in an hour or two." }, { status: 429 });
     if (e instanceof Anthropic.RateLimitError || msg === "rate") return NextResponse.json({ error: "The photo reader is busy. Try again in a minute." }, { status: 429 });
     if (e instanceof Anthropic.AuthenticationError || msg === "auth") return NextResponse.json({ error: "The photo reader's key is not valid." }, { status: 503 });
     return NextResponse.json({ error: "The photo could not be read right now. Type the questions in instead." }, { status: 502 });
