@@ -103,6 +103,17 @@ html[data-theme="dark"] :where(input, textarea, select):not(.sr-only):focus-visi
   color: rgb(var(--sl-900));
 }
 
+/* Notices and badges are built with @apply, so the remapped tint classes in
+   theme-accents.css never reach them and they stayed light on charcoal.
+   Same formulas as the generator: tint 9%, border 25 to 35%, light text. */
+html[data-theme="dark"] .notice-info { background-color: color-mix(in srgb, #3b82f6 9%, rgb(var(--surface))); border-color: color-mix(in srgb, #3b82f6 25%, rgb(var(--surface))); color: #bfdbfe; }
+html[data-theme="dark"] .notice-warn { background-color: color-mix(in srgb, #f59e0b 9%, rgb(var(--surface))); border-color: color-mix(in srgb, #f59e0b 35%, rgb(var(--surface))); color: #fde68a; }
+html[data-theme="dark"] .notice-error { background-color: color-mix(in srgb, #ef4444 9%, rgb(var(--surface))); border-color: color-mix(in srgb, #ef4444 35%, rgb(var(--surface))); color: #fca5a5; }
+html[data-theme="dark"] .notice-success { background-color: color-mix(in srgb, #10b981 9%, rgb(var(--surface))); border-color: color-mix(in srgb, #10b981 35%, rgb(var(--surface))); color: #6ee7b7; }
+html[data-theme="dark"] .badge-brand { background-color: color-mix(in srgb, #3b82f6 9%, rgb(var(--surface))); --tw-ring-color: color-mix(in srgb, #3b82f6 25%, rgb(var(--surface))); color: #93c5fd; }
+html[data-theme="dark"] .badge-success { background-color: color-mix(in srgb, #10b981 9%, rgb(var(--surface))); --tw-ring-color: color-mix(in srgb, #10b981 25%, rgb(var(--surface))); color: #6ee7b7; }
+html[data-theme="dark"] .badge-warn { background-color: color-mix(in srgb, #f59e0b 9%, rgb(var(--surface))); --tw-ring-color: color-mix(in srgb, #f59e0b 25%, rgb(var(--surface))); color: #fcd34d; }
+
 /* Printing (certificates, worksheets) always uses the light colors. */
 @media print {
   html[data-theme="dark"] {
