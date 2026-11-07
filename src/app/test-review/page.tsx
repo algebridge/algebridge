@@ -575,7 +575,7 @@ interface Pending {
 }
 
 /** Names usually sit in the top strip of a test, so the first guess covers it. */
-const DEFAULT_TOP = 18;
+const DEFAULT_TOP = 10;
 const MAX_TOP = 70;
 const MAX_BOTTOM = 50;
 /** The two covers never meet: at least a tenth of the page stays clear. */
