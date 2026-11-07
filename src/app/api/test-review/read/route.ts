@@ -3,18 +3,24 @@ import Anthropic from "@anthropic-ai/sdk";
 import { clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { callerOf } from "@/lib/server-auth";
 import { parseImages, readerVerdict, type TestImage as Img } from "@/lib/test-review";
+import { READ_INSTRUCTIONS as INSTRUCTIONS, readWithGroq } from "@/lib/test-review-read";
 
 /**
  * Turns photos of a graded test into text the student can check.
  *
  * Plain OCR (tesseract) cannot read math: "1 + 1 = 11" came out as "+111".
- * A model that looks at the picture is the only thing that works, so this
- * route reads with Claude when ANTHROPIC_API_KEY is set (Anthropic allows
- * products for under-18s under its minors guidelines, which the rest of
- * Archie already meets: AI disclosure, school-safe content), otherwise with
- * OpenAI when OPENAI_API_KEY is set (already the app's backup provider),
- * otherwise with a vision model on a local Ollama (qwen2.5vl), which is the
- * dev-only path: free, and the photo never leaves the machine.
+ * A model that looks at the picture is the only thing that works. Readers, in
+ * order:
+ *   1. Claude, when ANTHROPIC_API_KEY is set (an optional upgrade).
+ *   2. OpenAI, when OPENAI_API_KEY is set (an optional upgrade).
+ *   3. Groq's Qwen 3.8 27B, which takes images, on the GROQ_API_KEY Archie
+ *      already uses. This is the default: no new key, no new account. Its free
+ *      tier caps output at about 1,000 tokens a minute and 200,000 tokens a day
+ *      for the whole organization (shared with the story pipeline), so pages
+ *      are read one call each, with a short wait when Groq says to retry.
+ *   4. A vision model on a local Ollama (qwen2.5vl), dev only.
+ * No name is ever put in a prompt; the student crops the name and header off
+ * in the browser before anything is sent (src/app/test-review/page.tsx).
  *
  * What is kept, and where: nothing. The photos arrive as data URLs in the
  * request body, go to the reader in that same request, and are gone when the
@@ -34,20 +40,7 @@ const byAddress = makeRateLimiter(120, 10 * 60 * 1000);
 const OLLAMA = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_VISION_MODEL ?? "qwen2.5vl:3b";
 
-const INSTRUCTIONS = `These are photos of a student's graded math test. Transcribe them into plain text so a teacher can review the work.
 
-First decide what you are looking at:
-- If the photos show no math work at all (not a test, quiz, worksheet or homework), reply with exactly: NOT_A_TEST
-- If they show math but are too blurry, dark or cut off to read even one complete question, reply with exactly: UNREADABLE
-Otherwise transcribe, following these rules:
-- One question per line, numbered as on the page: "1) <problem>   student wrote: <answer>".
-- Copy the student's answer exactly, even when it is wrong. Never correct it.
-- Keep the teacher's marks: write "[marked wrong]", "[marked right]", "[-2 points]" where you see them. If a score is written anywhere (like 14/20 or 70%), put "Score: ..." on the first line.
-- Math in plain text: x^2, sqrt(), fractions as a/b, use - for minus. Keep every sign.
-- Include the student's work lines when there are any, indented under the question.
-- Replace any person's name with [name]. Skip class, date and teacher lines.
-- If a part is unreadable, write [unreadable] there instead of guessing.
-Return only the transcript.`;
 
 async function readWithClaude(images: Img[]): Promise<string | null> {
   const client = new Anthropic();
@@ -135,7 +128,15 @@ async function readWithOllama(images: Img[]): Promise<string | null> {
 
 /** Which reader this server has, so the page can say so before a photo is taken. */
 export async function GET() {
-  const reader = process.env.ANTHROPIC_API_KEY ? "claude" : process.env.OPENAI_API_KEY ? "openai" : (await ollamaUp()) ? "local" : null;
+  const reader = process.env.ANTHROPIC_API_KEY
+    ? "claude"
+    : process.env.OPENAI_API_KEY
+      ? "openai"
+      : process.env.GROQ_API_KEY
+        ? "groq"
+        : (await ollamaUp())
+          ? "local"
+          : null;
   return NextResponse.json({ reader });
 }
 
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
   }
 
   let raw: string | null = null;
-  let provider: "claude" | "openai" | "local" | null = null;
+  let provider: "claude" | "openai" | "groq" | "local" | null = null;
   try {
     if (process.env.ANTHROPIC_API_KEY) {
       provider = "claude";
@@ -166,6 +167,9 @@ export async function POST(request: Request) {
     } else if (process.env.OPENAI_API_KEY) {
       provider = "openai";
       raw = await readWithOpenAI(images);
+    } else if (process.env.GROQ_API_KEY) {
+      provider = "groq";
+      raw = await readWithGroq(images);
     } else if (await ollamaUp()) {
       provider = "local";
       raw = await readWithOllama(images);
