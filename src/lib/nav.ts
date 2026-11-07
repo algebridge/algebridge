@@ -50,6 +50,7 @@ export function buildNav({
     { href: "/games", label: "Games", icon: "play" },
     { href: "/arena", label: "Live Arena", icon: "versus" },
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
+    { href: "/test-review", label: "Test review", icon: "check", tag: "New" },
   ];
 
   // The kart arena, in a section of its own since it opened to everyone

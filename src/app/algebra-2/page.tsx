@@ -3,6 +3,7 @@ import Link from "next/link";
 import { COURSES, units as algebra1Units } from "@/data/curriculum";
 import { CourseHeader } from "@/components/CourseHeader";
 import { CourseGate } from "@/components/CourseGate";
+import { TestReviewCard } from "@/components/TestReviewCard";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { CartsBanner } from "@/components/CartsBanner";
@@ -60,6 +61,8 @@ export default function Algebra2Page() {
       <CourseGate>
         <ProgressOverview course="algebra-2" />
       </CourseGate>
+
+      <TestReviewCard />
 
       <CartsBanner />
 

@@ -11,6 +11,7 @@ import { VisualizeIt } from "@/components/VisualizeIt";
 import { QuoteCard } from "@/components/QuoteCard";
 import { HOME_QUOTES } from "@/data/quotes";
 import { SeasonBanner } from "@/components/SeasonBanner";
+import { TestReviewCard } from "@/components/TestReviewCard";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
 const ALGEBRA_2 = COURSES.find((c) => c.id === "algebra-2")!;
@@ -30,6 +31,9 @@ export default function HomePage() {
       <CourseGate quiet>
         <AssignedWork />
       </CourseGate>
+
+      {/* After a test is the moment a student looks for help: the way in sits right here. */}
+      <TestReviewCard />
 
       {/* The outline is open to everyone, the same list the For schools
           page shows, so a visitor sees what the course is. Each unit's path

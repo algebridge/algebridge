@@ -73,7 +73,8 @@ export function featureForPath(pathname: string | null | undefined): SchoolFeatu
 export type ClassFeature = SchoolFeature | "house" | "archie";
 
 /** Pages a teacher's class controls can turn off. */
-const CLASS_OFF_PATHS: Record<string, ClassFeature> = { ...SCHOOL_OFF_PATHS, "/house": "house" };
+// Test review explains a test with the same AI as Archie, so his switch covers it.
+const CLASS_OFF_PATHS: Record<string, ClassFeature> = { ...SCHOOL_OFF_PATHS, "/house": "house", "/test-review": "archie" };
 
 export function classFeatureForPath(pathname: string | null | undefined): ClassFeature | null {
   if (!pathname) return null;

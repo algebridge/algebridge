@@ -9,6 +9,7 @@ import { getSkillsDueForReview, type ReviewItem } from "@/lib/spaced-repetition"
 import { PracticeGate } from "@/components/PracticeGate";
 import { Icon } from "@/components/Icon";
 import { useProgress } from "@/hooks/useProgress";
+import { TestReviewCard } from "@/components/TestReviewCard";
 
 export default function ReviewPage() {
   return (
@@ -26,6 +27,8 @@ export default function ReviewPage() {
       <PracticeGate activity="use review">
         <ReviewQueue />
       </PracticeGate>
+
+      <TestReviewCard />
     </div>
   );
 }
