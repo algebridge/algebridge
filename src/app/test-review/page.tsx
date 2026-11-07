@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PracticeGate } from "@/components/PracticeGate";
 import { ClassGate } from "@/components/SchoolModePanel";
 import { PracticePanel } from "@/components/PracticePanel";
@@ -100,11 +100,14 @@ function TestReview() {
   const [review, setReview] = useState<Review | null>(null);
   const [restored, setRestored] = useState(false);
   const croppedRef = useRef<Pending[]>([]);
+  const stopWaitingRef = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const textId = useId();
-  const scoreId = useId();
+  // Fixed ids: there is one form on the page, and useId gave the server and the
+  // browser different ids here (a hydration warning).
+  const textId = "tr-transcript";
+  const scoreId = "tr-score";
   const misread = misreadLines(text);
 
   // What this tab had before a trip to a skill page, and which reader the server has.
@@ -136,7 +139,7 @@ function TestReview() {
   useEffect(() => () => urlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   /** New photos wait for a crop first: nothing is read until the student has cut off the header. */
-  function onFiles(files: FileList | null) {
+  async function onFiles(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
     setReadNote(null);
@@ -146,7 +149,17 @@ function TestReview() {
       return;
     }
     const list = Array.from(files).slice(0, room);
-    setPending((prev) => [...prev, ...list.map((file) => ({ file, url: URL.createObjectURL(file), top: DEFAULT_TOP, bottom: 0 }))]);
+    setReading("Opening your photo. ");
+    const ready: File[] = [];
+    for (const f of list) {
+      try {
+        ready.push(await asBrowserImage(f));
+      } catch {
+        setError("That photo could not be opened here. Save it as a JPEG or PNG, or take a screenshot of it, and try again.");
+      }
+    }
+    setReading(null);
+    setPending((prev) => [...prev, ...ready.map((file) => ({ file, url: URL.createObjectURL(file), top: DEFAULT_TOP, bottom: 0 }))]);
   }
 
   function cropDone(keep: boolean) {
@@ -176,14 +189,37 @@ function TestReview() {
         }
       }
       setPreviews((prev) => [...prev, ...list.map((p) => ({ url: p.url, name: p.file.name }))].slice(0, MAX_IMAGES));
-      const res = await fetch("/api/test-review/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ images: encoded }),
-      });
-      const data = await res.json().catch(() => ({}));
+      // The free reader allows a few pages a minute for all of AlgeBridge. When it
+      // says "wait", wait where the student can see it and try again, instead of
+      // failing: the photo stays here, and typing is always one tap away.
+      stopWaitingRef.current = false;
+      let res: Response;
+      let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number };
+      for (let attempt = 0; ; attempt++) {
+        res = await fetch("/api/test-review/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeader()) },
+          body: JSON.stringify({ images: encoded }),
+        });
+        data = await res.json().catch(() => ({}));
+        const wait = Number(data.retryAfter) || 0;
+        if (res.status !== 429 || !wait || wait > MAX_AUTO_WAIT_S || attempt >= 4) break;
+        for (let left = wait; left > 0; left--) {
+          if (stopWaitingRef.current) return;
+          setReading(`The free photo reader is busy. Trying again in ${left} s, this can take a minute. `);
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        if (stopWaitingRef.current) return;
+        setReading("Reading your test. ");
+      }
       if (!res.ok) {
-        setError(data.error ?? "That photo could not be read. Type the questions in instead.");
+        const wait = Number(data.retryAfter) || 0;
+        const when = wait > 0 ? new Date(Date.now() + wait * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+        setError(
+          res.status === 429 && when
+            ? `The free photo reader has read all it can for now. It should be back around ${when}. Type the questions and your answers in below, or try the photo again then.`
+            : data.error ?? "That photo could not be read. Type the questions in instead."
+        );
         return;
       }
       setText((prev) => [prev.trim(), data.text].filter(Boolean).join("\n\n").slice(0, MAX_TEXT));
@@ -305,7 +341,12 @@ function TestReview() {
           {reading && (
             <span className="inline-flex items-center gap-2">
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-bridge-600" aria-hidden />
-              {reading}This takes a few seconds. The reader can misread handwriting, so you get to check the text before anything is graded.
+              {reading}{reading.startsWith("The free photo reader is busy") ? "" : "This takes a few seconds. The reader can misread handwriting, so you get to check the text before anything is graded."}
+              {reading.startsWith("The free photo reader is busy") && (
+                <button type="button" className="btn-secondary btn-sm ml-2" onClick={() => { stopWaitingRef.current = true; setReading(null); }}>
+                  Type it in instead
+                </button>
+              )}
             </span>
           )}
           {!reading && readNote}
@@ -391,6 +432,24 @@ async function shrink(file: File, crop: { top: number; bottom: number } = { top:
   return canvas.toDataURL("image/jpeg", 0.85);
 }
 
+/** Waits longer than this are not waited out on screen: the student is told when to come back. */
+const MAX_AUTO_WAIT_S = 180;
+
+/**
+ * Chrome and Firefox cannot open an iPhone's HEIC photo. It is turned into a
+ * JPEG here, in the browser (heic2any, loaded only when needed), before the
+ * crop step, so the preview and the reader both get a normal image. The
+ * photo's own rotation is kept.
+ */
+async function asBrowserImage(file: File): Promise<File> {
+  const heic = /image\/hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+  if (!heic) return file;
+  const { default: heic2any } = await import("heic2any");
+  const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const blob = Array.isArray(out) ? out[0] : out;
+  return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 interface Pending {
   file: File;
   url: string;
@@ -400,7 +459,7 @@ interface Pending {
 }
 
 /** Names usually sit in the top strip of a test, so the first guess cuts some of it. */
-const DEFAULT_TOP = 15;
+const DEFAULT_TOP = 10;
 
 /**
  * Before a photo is read, the student cuts their name and the test's header
@@ -408,8 +467,8 @@ const DEFAULT_TOP = 15;
  * part is shrunk and sent.
  */
 function CropStep({ item, left, onChange, onDone }: { item: Pending; left: number; onChange: (top: number, bottom: number) => void; onDone: (keep: boolean) => void }) {
-  const topId = useId();
-  const bottomId = useId();
+  const topId = "tr-crop-top";
+  const bottomId = "tr-crop-bottom";
   const tooMuch = item.top + item.bottom > 85;
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 p-3" role="group" aria-labelledby={`${topId}-title`}>

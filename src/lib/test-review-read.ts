@@ -33,7 +33,7 @@ function withoutThinking(text: string): string {
  * One page per call, so each answer stays under Groq's per-minute output cap.
  * A 429 that says when to retry is waited out, up to `budgetMs` in all.
  */
-export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<string | null> {
+export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<string | null> {
   const started = Date.now();
   let busyTries = 0;
   const pages: string[] = [];
@@ -66,7 +66,7 @@ export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<str
           continue;
         }
         // A wait of minutes means the free daily allowance is spent, not a busy minute.
-        throw new Error(wait > 120000 ? "rate-day" : "rate");
+        throw Object.assign(new Error(wait > 120000 ? "rate-day" : "rate"), { retryAfter: Math.ceil(wait / 1000) || 30 });
       }
       if (res.status === 401) throw new Error("auth");
       // 503 "over capacity" is Groq being busy, not a bad photo: back off and try again.
@@ -76,7 +76,7 @@ export async function readWithGroq(images: Img[], budgetMs = 55000): Promise<str
           await new Promise((r) => setTimeout(r, wait));
           continue;
         }
-        throw new Error("rate");
+        throw Object.assign(new Error("rate"), { retryAfter: 20 });
       }
       if (!res.ok) return null;
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
