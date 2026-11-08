@@ -4,7 +4,7 @@ import { parseModelJson } from "@/lib/personalize";
 import { detectCrisis, CRISIS_REPLY } from "@/lib/helper";
 import { allUnits } from "@/data/curriculum";
 import { callerOf } from "@/lib/server-auth";
-import { checkAnswer, lineForQuestion, looksMisread, skillsToPractice, type QuestionStatus, type ReviewedQuestion } from "@/lib/test-review";
+import { checkAnswer, lineForQuestion, looksMisread, plainMath, skillsToPractice, type QuestionStatus, type ReviewedQuestion } from "@/lib/test-review";
 
 /**
  * Reads a student's graded test and explains it: what went wrong on each
@@ -66,8 +66,16 @@ Rules: "skills" holds up to 3 ids, only from the list, only for questions that w
 Skill list (id: title):
 ${SKILLS.map((s) => `${s.id}: ${s.title}`).join("\n")}`;
 
-const str = (v: unknown, max = 600): string | null =>
-  typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+/** A model string, trimmed, capped, and in plain math: the grader writes \\cdot and x^{6} now and then. */
+const str = (v: unknown, max = 600): string | null => {
+  const s = typeof v === "string" ? plainMath(v).trim() : "";
+  return s ? s.slice(0, max) : null;
+};
+/** What the student wrote, unless it is only a teacher's mark or a reader tag ("√", "[marked right]"). */
+const answerOf = (v: unknown): string | null => {
+  const s = str(v, 200);
+  return s && !/^(?:\[[^\]]*\]|[√✓✔×✗✘xX])$/.test(s) ? s : null;
+};
 const STATUSES = new Set<QuestionStatus>(["correct", "wrong", "partial", "unclear"]);
 
 export async function POST(request: Request) {
@@ -88,11 +96,11 @@ export async function POST(request: Request) {
   if (!aiConfigured()) return NextResponse.json({ error: "Test review needs the AI service, which is not set up here." }, { status: 503 });
   const who = caller.id ?? clientKey(request);
   if (!byAddress(clientKey(request)) || !byAccount(who)) {
-    return NextResponse.json({ error: "That is a lot of reviews in a row. Try again in a few minutes." }, { status: 429 });
+    return NextResponse.json({ error: "That is a lot of reviews in a row. It grades again by itself in a few minutes.", retryAfter: 120 }, { status: 429 });
   }
 
   const score = str(body.score, 40);
-  const result = await callJson({
+  const ask = () => callJson({
     system: SYSTEM,
     user: `${score ? `Score the student says they got: ${score}\n\n` : ""}Test text:\n"""\n${text}\n"""`,
     groqModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
@@ -103,12 +111,19 @@ export async function POST(request: Request) {
     retryWithinMs: 30000,
     reasoningEffort: "medium",
   });
-  const parsed = result ? parseModelJson(result.text) : null;
+  let result = await ask();
+  let parsed = result ? parseModelJson(result.text) : null;
+  // A reply cut off or not JSON is a fluke more often than not: one more go before telling the student.
+  if (result && !parsed) {
+    result = await ask();
+    parsed = result ? parseModelJson(result.text) : null;
+  }
+  if (!result) {
+    // Every model is out of its free minute: the page waits and grades again by itself.
+    return NextResponse.json({ error: "The grader is busy. It tries again by itself.", retryAfter: 30 }, { status: 429 });
+  }
   if (!parsed) {
-    return NextResponse.json(
-      { error: result ? "The review came back incomplete. Try again, or review a long test in two parts." : "The review service is busy right now. Try again in a minute." },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: "The review came back incomplete. Try again, or review a long test in two parts." }, { status: 502 });
   }
 
   const questions: ReviewedQuestion[] = (Array.isArray(parsed.questions) ? parsed.questions : [])
@@ -116,7 +131,7 @@ export async function POST(request: Request) {
     .map((q: Record<string, unknown>): ReviewedQuestion => ({
       number: str(q?.number, 10) ?? "",
       problem: str(q?.problem) ?? "",
-      studentAnswer: str(q?.studentAnswer, 200),
+      studentAnswer: answerOf(q?.studentAnswer),
       status: STATUSES.has(q?.status as QuestionStatus) ? (q.status as QuestionStatus) : "unclear",
       correctAnswer: str(q?.correctAnswer, 200),
       mistake: str(q?.mistake),

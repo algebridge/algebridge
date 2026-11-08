@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
+import { isFocusRoute } from "@/lib/focus-routes";
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -38,7 +39,7 @@ export function WelcomeModal() {
   const { user, configured, loading } = useAuth();
   const pathname = usePathname();
   useEffect(() => {
-    if (loading || (configured && !user) || isBareRoute(pathname)) return;
+    if (loading || (configured && !user) || isBareRoute(pathname) || isFocusRoute(pathname)) return;
     if (!getProgress().onboarded) setVisible(true);
   }, [user, configured, loading, pathname]);
 

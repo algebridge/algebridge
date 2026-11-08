@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type Ref } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type Ref, type TextareaHTMLAttributes } from "react";
 import { PracticeGate } from "@/components/PracticeGate";
 import { ClassGate } from "@/components/SchoolModePanel";
 import { PracticePanel } from "@/components/PracticePanel";
@@ -10,7 +10,7 @@ import { MathText } from "@/components/PromptText";
 import { Icon } from "@/components/Icon";
 import { allUnits } from "@/data/curriculum";
 import { createClient } from "@/lib/supabase/client";
-import { MAX_IMAGES, misreadLines, type ReviewedQuestion } from "@/lib/test-review";
+import { MAX_IMAGES, misreadLines, takeScore, type ReviewedQuestion } from "@/lib/test-review";
 import type { Skill } from "@/types";
 
 /**
@@ -119,8 +119,9 @@ function TestReview() {
   const [slow, setSlow] = useState(false);
   /** The free reader said "wait": seconds left of how many. */
   const [wait, setWait] = useState<{ left: number; total: number } | null>(null);
-  const [holes, setHoles] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /** A plain note for the Check step (not an error): how far a stopped read got. */
+  const [note, setNote] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [restored, setRestored] = useState(false);
   const [practiceSkill, setPracticeSkill] = useState<string | null>(null);
@@ -128,6 +129,8 @@ function TestReview() {
   const croppedRef = useRef<Pending[]>([]);
   const stopWaitingRef = useRef(false);
   const runRef = useRef(0);
+  /** The page read in flight, so Stop can cancel it. */
+  const abortRef = useRef<AbortController | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -181,6 +184,7 @@ function TestReview() {
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
     setError(null);
+    setNote(null);
     const room = MAX_IMAGES - croppedRef.current.length - pending.length;
     if (room <= 0) {
       setError(`Up to ${MAX_IMAGES} pages per review. Review a longer test in two parts.`);
@@ -224,7 +228,6 @@ function TestReview() {
     const stopped = () => stopWaitingRef.current || runRef.current !== run;
     const fallback: Stage = text.trim() ? "check" : "photo";
     setError(null);
-    setHoles(0);
     setReadingPages(list);
     setPages((prev) => [...prev, ...list.map((p) => p.url)]);
     go("reading");
@@ -247,16 +250,31 @@ function TestReview() {
       // always one tap away.
       stopWaitingRef.current = false;
       const texts: string[] = [];
-      let holesFound = 0;
       let backupRead = 0;
       const failed: { page: number; error: string }[] = [];
+      /** Puts what was read into the check screen: the score line into the score box, nothing past the limit unsaid. */
+      const keep = () => {
+        const { text: read, score: found } = takeScore(texts.join("\n"));
+        const joined = [text, read].join("\n").split("\n").filter((l) => l.trim()).join("\n");
+        setText(joined.slice(0, MAX_TEXT));
+        if (found && !score.trim()) setScore(found);
+        setBackupPages((n) => n + backupRead);
+        setReview(null);
+        return joined.length > MAX_TEXT;
+      };
       for (let i = 0; i < encoded.length; i++) {
         setProgress({ page: i + 1, of: encoded.length });
         const got = await readOnePage(encoded[i], stopped);
-        if (got === "stopped") return;
+        if (got === "stopped") {
+          // "Stop and type it instead" keeps every page already read; a newer read replaces this one entirely.
+          if (runRef.current === run && texts.length) {
+            keep();
+            setNote(`Stopped after ${texts.length} of ${encoded.length} pages. Type the rest from your paper, or add those pages again.`);
+          }
+          return;
+        }
         if ("text" in got) {
           texts.push(got.text);
-          holesFound += got.holes;
           if (got.backup) backupRead++;
         } else failed.push({ page: i + 1, error: got.error });
       }
@@ -266,16 +284,12 @@ function TestReview() {
         go(fallback);
         return;
       }
-      // One line per question: the check screen edits lines, so blank lines between pages go.
-      setText((prev) =>
-        [prev, ...texts].join("\n").split("\n").filter((l) => l.trim()).join("\n").slice(0, MAX_TEXT)
-      );
-      setHoles(holesFound);
-      setBackupPages((n) => n + backupRead);
-      setReview(null);
+      const cut = keep();
       if (failed.length) {
         const which = failed.map((f) => f.page).join(" and ");
-        setError(`Page ${which} of ${encoded.length} could not be read: ${failed[0].error} The other pages are below.`);
+        setError(`Page ${which} of ${encoded.length} could not be read: ${failed[0].error} The other pages are below. Add ${failed.length === 1 ? "that page" : "those pages"} again, or type ${failed.length === 1 ? "it" : "them"} in.`);
+      } else if (cut) {
+        setError("That is more than one review can take, so the last part was left off. Grade this part, then start a new review for the rest.");
       }
       go("check");
     } catch {
@@ -304,11 +318,15 @@ function TestReview() {
       let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number; provider?: string } = {};
       setSlow(false);
       const slowTimer = setTimeout(() => setSlow(true), 20000);
+      // "Stop" cancels the page being read, so the pages before it come back at once.
+      const abort = new AbortController();
+      abortRef.current = abort;
       try {
         res = await fetch("/api/test-review/read", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeader()) },
           body: JSON.stringify({ images: [image] }),
+          signal: abort.signal,
         });
         data = await res.json().catch(() => ({}));
       } catch {
@@ -316,6 +334,7 @@ function TestReview() {
       } finally {
         clearTimeout(slowTimer);
         setSlow(false);
+        if (abortRef.current === abort) abortRef.current = null;
       }
       if (stopped()) return "stopped";
       if (res?.ok) return { text: data.text ?? "", holes: Number(data.unreadableParts) || 0, backup: data.provider === "local" };
@@ -328,19 +347,14 @@ function TestReview() {
         }
         wait = [10, 30, 60][failures++];
       } else return { error: data.error ?? "That photo could not be read. Type the questions in instead." };
-      for (let left = wait; left > 0; left--) {
-        if (stopped()) return "stopped";
-        setWait({ left, total: wait });
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-      setWait(null);
-      if (stopped()) return "stopped";
+      if (!(await waitOut(wait, stopped, setWait))) return "stopped";
     }
   }
 
-  /** "Stop and type it instead": the wait ends here and the student types. */
+  /** "Stop and type it instead": the wait ends here and the student types, keeping any page already read. */
   function stopWaiting() {
     stopWaitingRef.current = true;
+    abortRef.current?.abort();
     setWait(null);
     setError(null);
     go("check");
@@ -351,35 +365,76 @@ function TestReview() {
     go("check");
   }
 
+  /**
+   * Grades the checked text. When the grader is busy (the free models are out
+   * of their minute) the page waits where the student can see it and grades
+   * again by itself; a dropped connection is retried a few times too.
+   */
   async function analyze() {
+    const run = ++runRef.current;
+    const stopped = () => stopWaitingRef.current || runRef.current !== run;
+    stopWaitingRef.current = false;
     const sendText = text.split("\n").filter((l) => l.trim()).join("\n");
     setError(null);
+    setNote(null);
     setReview(null);
     setRestored(false);
     go("grading");
+    let failures = 0;
     try {
-      const res = await fetch("/api/test-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeader()) },
-        body: JSON.stringify({ text: sendText, score }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Something went wrong. Try again in a minute.");
-        go("check");
-      } else {
-        setReview(data);
-        setPracticeSkill(null);
-        go("results");
+      for (;;) {
+        let res: Response | null = null;
+        let data: { error?: string; retryAfter?: number } & Partial<Review> = {};
+        try {
+          res = await fetch("/api/test-review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(await authHeader()) },
+            body: JSON.stringify({ text: sendText, score }),
+          });
+          data = await res.json().catch(() => ({}));
+        } catch {
+          res = null;
+        }
+        if (stopped()) return;
+        if (res?.ok) {
+          setReview(data as Review);
+          setPracticeSkill(null);
+          go("results");
+          return;
+        }
+        let wait = 0;
+        if (res?.status === 429 && Number(data.retryAfter) > 0) wait = Math.max(5, Number(data.retryAfter));
+        else if (!res && failures < 3) wait = [5, 15, 30][failures++];
+        else {
+          setError(res ? data.error ?? "Something went wrong. Try again in a minute." : "Could not reach AlgeBridge. Check your connection and try again.");
+          go("check");
+          return;
+        }
+        if (!(await waitOut(wait, stopped, setWait))) return;
       }
-    } catch {
-      setError("Could not reach AlgeBridge. Check your connection and try again.");
-      go("check");
+    } finally {
+      if (runRef.current === run) setWait(null);
     }
+  }
+
+  /** "Stop" while the grader is busy: back to the text, nothing lost. */
+  function stopGrading() {
+    stopWaitingRef.current = true;
+    setWait(null);
+    go("check");
+  }
+
+  /** Back to the Check step to add a page that failed, or more of the test. */
+  function addPage() {
+    setError(null);
+    setNote(null);
+    filesRef.current?.click();
   }
 
   function startOver() {
     stopWaitingRef.current = true;
+    abortRef.current?.abort();
+    setNote(null);
     pages.forEach((u) => URL.revokeObjectURL(u));
     pending.forEach((p) => URL.revokeObjectURL(p.url));
     croppedRef.current = [];
@@ -392,7 +447,6 @@ function TestReview() {
     setBackupPages(0);
     setReview(null);
     setError(null);
-    setHoles(0);
     setRestored(false);
     setRightBySkill({});
     setPracticeSkill(null);
@@ -511,9 +565,11 @@ function TestReview() {
               <CheckScreen
                 text={text}
                 score={score}
-                holes={holes}
                 backupPages={backupPages}
                 error={error}
+                note={note}
+                canAdd={canRead}
+                onAddPage={addPage}
                 titleRef={titleRef}
                 hasPhotos={pages.length > 0}
                 hasReview={Boolean(review)}
@@ -526,7 +582,7 @@ function TestReview() {
             )}
 
             {stage === "grading" && (
-              <GradingScreen count={text.split("\n").filter((l) => l.trim()).length} titleRef={titleRef} />
+              <GradingScreen count={text.split("\n").filter((l) => l.trim()).length} wait={wait} titleRef={titleRef} onStop={stopGrading} />
             )}
           </div>
         </section>
@@ -604,7 +660,27 @@ async function shrink(file: File, crop: { top: number; bottom: number } = { top:
   return canvas.toDataURL("image/jpeg", 0.85);
 }
 
-/** Waits longer than this are not waited out on screen: the student is told when to come back. */
+/**
+ * Counts a wait down on screen against the clock, not by counting ticks: a
+ * hidden tab or a phone that slept fires timers late, and the next try should
+ * still come when the wait is over. false when the student stopped it.
+ */
+async function waitOut(
+  seconds: number,
+  stopped: () => boolean,
+  show: (w: { left: number; total: number } | null) => void
+): Promise<boolean> {
+  const end = Date.now() + seconds * 1000;
+  for (;;) {
+    if (stopped()) return false;
+    const ms = end - Date.now();
+    if (ms <= 0) break;
+    show({ left: Math.ceil(ms / 1000), total: seconds });
+    await new Promise((r) => setTimeout(r, Math.min(1000, ms)));
+  }
+  show(null);
+  return !stopped();
+}
 
 /**
  * Chrome and Firefox cannot open an iPhone's HEIC photo. It is turned into a
@@ -837,11 +913,12 @@ function ReadingScreen({
 }
 
 /** "The free reader is busy": a countdown ring until the next try. */
-function WaitNotice({ left, total }: { left: number; total: number }) {
+function WaitNotice({ left, total, who = "reader" }: { left: number; total: number; who?: "reader" | "grader" }) {
+  const safe = who === "reader" ? "Your photo is safe." : "Your text is safe.";
   const c = 2 * Math.PI * 22;
   return (
     <div className="notice-warn mt-3.5 flex items-center gap-3.5" role="status">
-      <span className="sr-only">The free reader is busy. Trying again soon. Your photo is safe.</span>
+      <span className="sr-only">The free {who} is busy. Trying again soon. {safe}</span>
       <div className="relative h-[52px] w-[52px] flex-none" aria-hidden>
         <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
           <circle cx="26" cy="26" r="22" fill="none" strokeWidth="5" className="stroke-amber-500/30" />
@@ -855,13 +932,31 @@ function WaitNotice({ left, total }: { left: number; total: number }) {
         <b className="absolute inset-0 grid place-items-center text-[15px] font-bold tabular-nums">{left > 99 ? `${Math.ceil(left / 60)}m` : left}</b>
       </div>
       <div aria-hidden>
-        <b className="block">The free reader is busy</b>
+        <b className="block">The free {who} is busy</b>
         {left > 120
-          ? `It tries again by itself at ${new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Keep this tab open. Your photo is safe.`
-          : `Trying again in ${left} s. Your photo is safe.`}
+          ? `It tries again by itself at ${new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Keep this tab open. ${safe}`
+          : `Trying again in ${left} s. ${safe}`}
       </div>
     </div>
   );
+}
+
+/**
+ * One line of the transcript: wraps instead of cutting off on a phone and
+ * grows with its text. Enter is handled by the screen (a new line below);
+ * pasted lines split into lines of their own.
+ */
+function LineField({
+  value, onChange, ...rest
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "value"> & { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [value]);
+  return <textarea ref={ref} rows={1} value={value} onChange={(e) => onChange(e.target.value)} {...rest} className={`resize-none overflow-hidden ${rest.className ?? ""}`} />;
 }
 
 /** One plain question about a line the reader probably got wrong. */
@@ -875,13 +970,15 @@ function lineHint(line: string, n: number): string {
 
 /** What was read, one question per line, each its own box: easier to fix on a phone than one big text box. */
 function CheckScreen({
-  text, score, holes, backupPages, error, hasPhotos, hasReview, titleRef, onText, onScore, onGrade, onRetake, onBack,
+  text, score, backupPages, error, note, canAdd, hasPhotos, hasReview, titleRef, onText, onScore, onGrade, onRetake, onBack, onAddPage,
 }: {
   text: string;
   score: string;
-  holes: number;
   backupPages: number;
   error: string | null;
+  note: string | null;
+  canAdd: boolean;
+  onAddPage: () => void;
   hasPhotos: boolean;
   hasReview: boolean;
   titleRef: Ref<HTMLHeadingElement>;
@@ -894,6 +991,8 @@ function CheckScreen({
   const lines = text.split("\n");
   const flagged = new Set([...misreadLines(text), ...lines.flatMap((l, i) => (/\[unreadable\]/i.test(l) ? [i + 1] : []))]);
   const filled = lines.filter((l) => l.trim()).join("\n");
+  // Counted from the text, so the notice goes as the student fills the holes in.
+  const holes = (text.match(/\[unreadable\]/gi) ?? []).length;
 
   function setLines(next: string[]) {
     onText(next.join("\n").slice(0, MAX_TEXT));
@@ -908,12 +1007,13 @@ function CheckScreen({
   function focusLine(i: number) {
     focusNextRef.current = i;
   }
-  function onKey(e: KeyboardEvent<HTMLInputElement>, i: number) {
+  function onKey(e: KeyboardEvent<HTMLTextAreaElement>, i: number) {
     if (e.key === "Enter") {
       e.preventDefault();
-      setLines([...lines.slice(0, i + 1), "", ...lines.slice(i + 1)]);
+      // A new line under a work line is a work line too.
+      setLines([...lines.slice(0, i + 1), lines[i].match(/^\s*/)?.[0] ?? "", ...lines.slice(i + 1)]);
       focusLine(i + 1);
-    } else if (e.key === "Backspace" && !lines[i] && lines.length > 1) {
+    } else if (e.key === "Backspace" && !lines[i].trim() && lines.length > 1) {
       e.preventDefault();
       setLines(lines.filter((_, k) => k !== i));
       focusLine(Math.max(0, i - 1));
@@ -923,9 +1023,10 @@ function CheckScreen({
   return (
     <>
       <ScreenHead titleRef={titleRef} title="Does this match your paper?" sub="Fix anything we got wrong. Tap a line to edit." />
+      {note && <p className="notice-info mt-3.5 text-sm" role="status">{note}</p>}
       {holes > 0 && (
         <p className="notice-warn mt-3.5 text-sm">
-          {holes} {holes === 1 ? "part was" : "parts were"} too hard to read and {holes === 1 ? "is" : "are"} marked [unreadable].
+          {holes} {holes === 1 ? "part is" : "parts are"} marked [unreadable]: too hard to read in the photo.
           Fill {holes === 1 ? "it" : "them"} in from your paper before you grade.
         </p>
       )}
@@ -938,18 +1039,22 @@ function CheckScreen({
       <div className="mt-3.5 grid gap-2">
         {lines.map((line, i) => {
           const flag = flagged.has(i + 1);
+          // The reader indents the work under a question. On a phone those spaces
+          // would eat the field, so they become a visual indent; the text keeps them.
+          const lead = line.match(/^\s*/)?.[0] ?? "";
+          const work = lead.length > 0;
           return (
             <Fragment key={i}>
-              <div className="grid grid-cols-[28px_1fr] items-center gap-2">
-                <label htmlFor={`tr-line-${i}`} className="text-right text-xs font-semibold text-slate-500">
+              <div className="grid grid-cols-[28px_1fr] items-start gap-2">
+                <label htmlFor={`tr-line-${i}`} className="pt-3 text-right text-xs font-semibold text-slate-500">
                   <span className="sr-only">Line </span>
                   {i + 1}
                 </label>
-                <input
+                <LineField
                   id={`tr-line-${i}`}
-                  className={`field font-mono text-[15px] ${flag ? "border-amber-200 bg-amber-50" : ""}`}
-                  value={line}
-                  onChange={(e) => setLines(lines.map((l, k) => (k === i ? e.target.value : l)))}
+                  className={`field font-mono text-[15px] leading-snug ${work ? "ml-4 w-[calc(100%-1rem)]" : ""} ${flag ? "border-amber-200 bg-amber-50" : ""}`}
+                  value={line.slice(lead.length)}
+                  onChange={(v) => setLines([...lines.slice(0, i), ...v.split("\n").map((part, k) => (k === 0 ? lead + part : part)), ...lines.slice(i + 1)])}
                   onKeyDown={(e) => onKey(e, i)}
                   placeholder={i === 0 && lines.length === 1 ? "1) 2x + 5 = 17   I wrote x = 11" : undefined}
                   aria-describedby={flag ? `tr-line-${i}-hint` : undefined}
@@ -967,13 +1072,20 @@ function CheckScreen({
             </Fragment>
           );
         })}
-        <button
-          type="button"
-          className="justify-self-start py-2 text-[13px] font-semibold text-bridge-700 hover:underline"
-          onClick={() => { setLines([...lines, ""]); focusLine(lines.length); }}
-        >
-          + Add a question
-        </button>
+        <div className="flex flex-wrap gap-x-5">
+          <button
+            type="button"
+            className="py-2 text-[13px] font-semibold text-bridge-700 hover:underline"
+            onClick={() => { setLines([...lines, ""]); focusLine(lines.length); }}
+          >
+            + Add a question
+          </button>
+          {canAdd && (
+            <button type="button" className="py-2 text-[13px] font-semibold text-bridge-700 hover:underline" onClick={onAddPage}>
+              + Add a page
+            </button>
+          )}
+        </div>
       </div>
       {text.length > 5000 && (
         <p className="text-right text-xs text-slate-500">{text.length} / {MAX_TEXT} characters. Review a long test in two parts.</p>
@@ -1003,7 +1115,25 @@ function CheckScreen({
   );
 }
 
-function GradingScreen({ count, titleRef }: { count: number; titleRef: Ref<HTMLHeadingElement> }) {
+function GradingScreen({
+  count, wait, titleRef, onStop,
+}: {
+  count: number;
+  wait: { left: number; total: number } | null;
+  titleRef: Ref<HTMLHeadingElement>;
+  onStop: () => void;
+}) {
+  if (wait) {
+    return (
+      <>
+        <ScreenHead titleRef={titleRef} title={`Grading ${count} ${count === 1 ? "question" : "questions"}`} sub="It keeps going by itself. You can wait here." />
+        <WaitNotice left={wait.left} total={wait.total} who="grader" />
+        <button type="button" className="btn-secondary mt-3 w-full" onClick={onStop}>
+          Stop and go back to my text
+        </button>
+      </>
+    );
+  }
   return (
     <div role="status">
       <h2 ref={titleRef} tabIndex={-1} className="flex items-center gap-2 font-semibold text-slate-900 focus:!outline-none">
@@ -1016,7 +1146,7 @@ function GradingScreen({ count, titleRef }: { count: number; titleRef: Ref<HTMLH
         <div className="h-3 w-[85%] animate-pulse rounded-md bg-slate-100" />
       </div>
       <p className="mt-3.5 text-[13px] text-slate-600">
-        About half a minute. The notes come from an AI reading your text, so if one looks off, your teacher&apos;s version wins.
+        Usually a few seconds. The notes come from an AI reading your text, so if one looks off, your teacher&apos;s version wins.
       </p>
     </div>
   );
@@ -1140,11 +1270,14 @@ function Results({
 
       {skills.length > 0 && <div className="mt-4 hidden sm:block">{cta}</div>}
       {skills.length > 0 && (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-3.5 bg-gradient-to-b from-transparent to-slate-50 to-30% px-4 pb-4 pt-3 sm:hidden">
+        // On a phone, Archie's and the calculator's round buttons sit at the bottom right: the bar stops short of them.
+        <div className="sticky bottom-0 z-10 -mx-4 mt-3.5 bg-gradient-to-b from-transparent to-slate-50 to-30% pb-4 pl-4 pr-[76px] pt-3 sm:hidden">
           {cta}
         </div>
       )}
-      <div className="mt-2 flex justify-center">
+      <div className="mt-2 flex flex-wrap justify-center gap-x-2">
+        {/* A line the photo reader got wrong is fixed on the Check step, then graded again. */}
+        <button type="button" className="btn-ghost" onClick={onFix}>Fix the text and grade again</button>
         <button type="button" className="btn-ghost" onClick={onStartOver}>Start over</button>
       </div>
     </div>

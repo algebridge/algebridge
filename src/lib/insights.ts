@@ -156,7 +156,7 @@ export function moodContext(pathname: string): string {
 /** Pages where a popup would be in the way: a live call, a teacher's console, signing in. */
 export function moodAllowedOn(pathname: string): boolean {
   const p = pathname.split(/[?#]/)[0];
-  return !/^\/(room\/|login|admin|teacher|classes|schools|certificate|privacy|terms|safety|guidelines)/.test(p);
+  return !/^\/(room\/|login|admin|teacher|classes|schools|certificate|privacy|terms|safety|guidelines|test-review)/.test(p);
 }
 
 export const MOOD_KEY = "ab-mood-asked";

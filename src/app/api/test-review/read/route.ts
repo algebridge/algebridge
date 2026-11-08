@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { callerOf } from "@/lib/server-auth";
-import { parseImages, readerVerdict, type TestImage as Img } from "@/lib/test-review";
-import { READ_INSTRUCTIONS as INSTRUCTIONS, groqRestSeconds, ollamaUp, readWithGroq, readWithOllama } from "@/lib/test-review-read";
+import { cleanTranscript, parseImages, readerVerdict, type TestImage as Img } from "@/lib/test-review";
+import { READ_INSTRUCTIONS as INSTRUCTIONS, groqRefusingSeconds, groqRestSeconds, ollamaUp, readWithGroq, readWithOllama } from "@/lib/test-review-read";
 
 /**
  * Turns photos of a graded test into text the student can check.
@@ -124,21 +124,26 @@ export async function POST(request: Request) {
   const images = parseImages(body.images);
   if (!images) return NextResponse.json({ error: "Send 1 to 6 photos (JPEG, PNG or WebP, under 4 MB each)." }, { status: 400 });
 
+  const local = await ollamaUp();
+  // Groq reads better and faster than the local model: a short "wait" from it
+  // is waited out (the page counts it down and tries again by itself); a long
+  // one, or short ones that keep coming for over a minute (Groq out of its
+  // per-minute allowance to other traffic, or over capacity), send the page to
+  // the local reader instead. Checked before the limits below, so a page
+  // waiting its turn does not use up the student's allowance.
+  const SHORT_WAIT_S = 60;
+  const GIVE_UP_S = 60;
+  const groqRest = groqRestSeconds();
+  const waitForGroq = (wait: number) => !local || (wait <= SHORT_WAIT_S && groqRefusingSeconds() < GIVE_UP_S);
+  if (process.env.GROQ_API_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && groqRest > 0 && waitForGroq(groqRest)) {
+    return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: groqRest }, { status: 429 });
+  }
+
   const who = caller.id ?? clientKey(request);
   // The limits protect the shared free cloud quota. Past them, the local reader still reads.
   const cloudAllowed = byAddress(clientKey(request)) && byAccount(who) && byAccountDay(who);
-  const local = await ollamaUp();
   if (!cloudAllowed && !local) {
-    return NextResponse.json({ error: "That is a lot of photos in a row. Try again in a few minutes.", retryAfter: 120 }, { status: 429 });
-  }
-
-  // Groq reads better and faster than the local model: a short "wait" from it
-  // is waited out (the page counts it down and tries again by itself); only a
-  // long one sends the page to the local reader.
-  const SHORT_WAIT_S = 60;
-  const groqRest = groqRestSeconds();
-  if (cloudAllowed && process.env.GROQ_API_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && groqRest > 0 && (groqRest <= SHORT_WAIT_S || !local)) {
-    return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: groqRest }, { status: 429 });
+    return NextResponse.json({ error: "That is a lot of photos in a row. It tries again by itself in a few minutes.", retryAfter: 120 }, { status: 429 });
   }
 
   let raw: string | null = null;
@@ -158,7 +163,7 @@ export async function POST(request: Request) {
   } catch (e) {
     cloudError = e;
     const wait = Number((e as { retryAfter?: number }).retryAfter) || 0;
-    if (e instanceof Error && e.message === "rate" && wait <= SHORT_WAIT_S) {
+    if (e instanceof Error && e.message === "rate" && local && waitForGroq(wait)) {
       return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: wait || 30 }, { status: 429 });
     }
   }
@@ -199,5 +204,6 @@ export async function POST(request: Request) {
   if (verdict.kind === "unreadable") {
     return NextResponse.json({ error: "The writing is too blurry or dark to read. Try again in better light, flat on a table, with the whole page in the frame." }, { status: 422 });
   }
-  return NextResponse.json({ text: verdict.text, unreadableParts: verdict.unreadableParts, provider });
+  // Plain math, no LaTeX, ticks as "[marked right]": what the student checks line by line.
+  return NextResponse.json({ text: cleanTranscript(verdict.text), unreadableParts: verdict.unreadableParts, provider });
 }

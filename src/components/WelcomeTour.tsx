@@ -9,6 +9,7 @@ import { countClick } from "@/components/Analytics";
 import { useSchoolMode } from "@/components/SchoolModePanel";
 import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
+import { isFocusRoute } from "@/lib/focus-routes";
 import { placeCard, tourMayStartOn, tourSteps, TOUR_DONE_KEY, TOUR_STEP_KEY, type Box } from "@/lib/tour";
 import { prefersReducedMotion } from "@/lib/display";
 import { useDialogFocus } from "@/components/useDialogFocus";
@@ -87,7 +88,7 @@ export function WelcomeTour() {
   // A signed-out first visit starts it, a moment after the page is up; a
   // reload in the middle of a tour picks it up where it was.
   useEffect(() => {
-    if (loading || !configured || user || step !== null || isBareRoute(pathname)) return;
+    if (loading || !configured || user || step !== null || isBareRoute(pathname) || isFocusRoute(pathname)) return;
     const saved = Number(stored(TOUR_STEP_KEY, true));
     if (Number.isInteger(saved) && saved > 0 && saved < steps.length) {
       setStep(saved);

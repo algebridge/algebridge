@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { checkAnswer, looksMisread, misreadLines, lineForQuestion, parseImages, readerVerdict, skillsToPractice } from "@/lib/test-review";
+import { checkAnswer, cleanTranscript, plainMath, takeScore, looksMisread, misreadLines, lineForQuestion, parseImages, readerVerdict, skillsToPractice } from "@/lib/test-review";
 
 let checks = 0;
 const ok = (cond: boolean, msg: string) => { assert.ok(cond, msg); checks++; };
@@ -37,6 +37,28 @@ eq(readerVerdict("  not a test.\n"), { kind: "not-a-test" }, "not a test, loosel
 eq(readerVerdict("UNREADABLE"), { kind: "unreadable" }, "unreadable");
 eq(readerVerdict("[unreadable]\n[unreadable]"), { kind: "unreadable" }, "all holes is unreadable");
 eq(readerVerdict("Score: 14/20\n1) 3x + 7 = 22   student wrote: x = 5\n2) [unreadable]   student wrote: 4"), { kind: "text", text: "Score: 14/20\n1) 3x + 7 = 22   student wrote: x = 5\n2) [unreadable]   student wrote: 4", unreadableParts: 1 }, "transcript with one hole");
+
+// Reader output, made plain for the check screen.
+eq(plainMath("1) \\(\\frac{x}{3} + 2 = 5\\)"), "1) x/3 + 2 = 5", "inline fraction");
+eq(plainMath("\\frac{x+1}{2} = \\dfrac{3}{4}"), "(x+1)/2 = 3/4", "compound numerator keeps brackets");
+eq(plainMath("x = \\frac{-b \\pm \\sqrt{b^{2}-4ac}}{2a}"), "x = (-b ± sqrt(b^2-4ac))/(2a)", "nested root in a fraction");
+eq(plainMath("2^{n+1} \\cdot 3 \\times 4 \\div 2"), "2^(n+1) * 3 * 4 / 2", "powers and operators");
+eq(plainMath("x \\leq 4 \\text{ and } x \\neq 2"), "x ≤ 4 and x ≠ 2", "relations and text");
+eq(plainMath("   &x = 9 \\\\"), "   x = 9", "alignment and line breaks go");
+eq(plainMath("\\left( x \\right)"), "( x )", "left and right go");
+eq(plainMath("\\frac{2}{3}x = \\frac{4}{5}"), "(2/3)x = 4/5", "a fraction times x keeps its brackets");
+eq(plainMath("2\\*3 = 6, 8 \\cdot x^{6}"), "2*3 = 6, 8 * x^6", "escaped star and a grader's LaTeX");
+eq(plainMath("2x + 3 = 11"), "2x + 3 = 11", "plain math is untouched");
+eq(cleanTranscript("1) \\(\\frac{x}{3} + 2 = 5\\)\n   student wrote: \n   \\[\n   \\begin{aligned}\n   &\\frac{x}{3} = 3 \\\\\n   &x = 9\n   \\end{aligned}\n   \\]\n   [marked right]"),
+  "1) x/3 + 2 = 5\n   student wrote:\n   x/3 = 3\n   x = 9\n   [marked right]", "a LaTeX block becomes plain lines");
+eq(cleanTranscript("1) x^3 * x^4 = x^7\n   student wrote: √\n2) (2x^2)^3 = 6x^6\n   student wrote: ×"),
+  "1) x^3 * x^4 = x^7\n   student wrote: [marked right]\n2) (2x^2)^3 = 6x^6\n   student wrote: [marked wrong]", "a lone tick or cross is the teacher's mark");
+eq(cleanTranscript("3) 2 × 4 = 9"), "3) 2 × 4 = 9", "a times sign inside math stays");
+ok(misreadLines(cleanTranscript("\\(\\frac{2}{3}x = \\frac{4}{5}\\)")).length === 0, "cleaned LaTeX is not flagged as garbled");
+eq(takeScore("Score: 14/20\n1) a"), { text: "1) a", score: "14/20" }, "score line moves to the score box");
+eq(takeScore("1) a\nScore:"), { text: "1) a", score: null }, "an empty score line goes");
+eq(takeScore("Score: 3/4\n1) a\nScore: 2/4"), { text: "1) a\nScore: 2/4", score: "3/4" }, "only the first score is taken");
+eq(takeScore("1) Find the score: 3x"), { text: "1) Find the score: 3x", score: null }, "a question that says score stays");
 
 // Photo limits.
 const jpeg = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";

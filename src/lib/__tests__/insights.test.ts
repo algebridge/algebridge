@@ -40,6 +40,7 @@ ok("messages are social", moodContext("/messages/123") === "social" && moodConte
 ok("home", moodContext("/") === "home");
 ok("other", moodContext("/profile") === "other");
 ok("no card on a call or the console", !moodAllowedOn("/room/abc") && !moodAllowedOn("/admin") && !moodAllowedOn("/login") && !moodAllowedOn("/teacher/classes"));
+ok("no card over a test review", !moodAllowedOn("/test-review"));
 ok("card allowed on a skill page", moodAllowedOn("/learn/linear-equations/solving-one-step") && moodAllowedOn("/games"));
 
 // --- when the card is due --------------------------------------------------------

@@ -9,7 +9,7 @@ import { evaluate, parseExpr, variablesOf, constValue, close } from "@/lib/mathe
  * as "hard to read" instead of "missed".
  */
 
-const MISREAD = /==|#|\||[{}[\]~@$%&\\]|\?\?|[^\x00-\x7F×÷−–√π²³·°≤≥≠]/;
+const MISREAD = /==|#|\||[{}[\]~@$%&\\]|\?\?|[^\x00-\x7F×÷−–√π²³·°≤≥≠±✓]/;
 
 /** The reader's own bracket tags ("[marked wrong]", "[-2 points]", "[unreadable]", "[name]") are not garbling. */
 const TAGS = /\[[^\]\n]{1,40}\]/g;
@@ -51,6 +51,91 @@ export function readerVerdict(raw: string): ReaderVerdict {
   const lines = text.split("\n").filter((l) => l.trim()).length;
   if (lines > 0 && unreadableParts >= lines) return { kind: "unreadable" };
   return { kind: "text", text, unreadableParts };
+}
+
+/**
+ * LaTeX the readers sometimes write ("\frac{x}{3}", "\begin{aligned}") turned
+ * into the plain math the check screen shows and the grader reads: "x/3",
+ * "sqrt(x)", "x^(n+1)". A student fixing lines on a phone should never see a
+ * backslash.
+ */
+export function plainMath(line: string): string {
+  let s = line
+    .replace(/\\left\s*|\\right\s*/g, "")
+    .replace(/\\[()[\]]|\$\$?/g, "")
+    .replace(/\\(?:text|mathrm|mathbf|textbf)\s*\{([^{}]*)\}/g, (_, t: string) => t.trim())
+    .replace(/\\(?:checkmark|surd)(?![a-z])/gi, "✓")
+    .replace(/\\(?:cdot|times)(?![a-z])/gi, "*")
+    .replace(/\\div(?![a-z])/gi, "/")
+    .replace(/\\(?:leq|le)(?![a-z])/gi, "≤")
+    .replace(/\\(?:geq|ge)(?![a-z])/gi, "≥")
+    .replace(/\\(?:neq|ne)(?![a-z])/gi, "≠")
+    .replace(/\\pm(?![a-z])/gi, "±")
+    .replace(/\\pi(?![a-z])/gi, "π")
+    .replace(/\\(?:qquad|quad)(?![a-z])|\\[,;:! ]/gi, " ")
+    .replace(/\\([*_^%#])/g, "$1");
+  // Innermost first, so a fraction inside a root (or a root inside a fraction) comes out whole.
+  for (let i = 0; i < 6; i++) {
+    const next = s
+      .replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (m: string, a: string, b: string, at: number, all: string) => {
+        // \frac{2}{3}x is (2/3)x: bare, 2/3x would read as 2/(3x).
+        const f = `${group(a)}/${group(b)}`;
+        return /^\s*[a-z(\\]/i.test(all.slice(at + m.length)) ? `(${f})` : f;
+      })
+      .replace(/\\sqrt\s*\{([^{}]*)\}/g, "sqrt($1)")
+      .replace(/\^\s*\{([^{}]*)\}/g, (_, e: string) => `^${group(e)}`)
+      .replace(/_\s*\{([^{}]*)\}/g, "_$1");
+    if (next === s) break;
+    s = next;
+  }
+  return s
+    .replace(/\\(?:begin|end)\s*\{[a-z*]*\}/gi, "")
+    .replace(/\s*\\\\\s*$/, "")
+    .replace(/\s*\\\\\s*/g, "   ")
+    .replace(/&/g, "")
+    .replace(/[ \t]+$/, "");
+}
+
+/** a/b keeps its meaning only when a compound part is bracketed: (x+1)/(2a), not x+1/2a. */
+function group(part: string): string {
+  const p = part.trim();
+  return /^(?:\d+(?:\.\d+)?|[a-z])$/i.test(p) || /^\([^()]*\)$/.test(p) ? p : `(${p})`;
+}
+
+/** A teacher's tick or cross the reader wrote as the student's answer. */
+const TICK = /^(\s*(?:student wrote:\s*)?)(?:✓|✔|√)\s*$/i;
+const CROSS = /^(\s*(?:student wrote:\s*)?)(?:✗|✘|×|✕)\s*$/i;
+
+/**
+ * The reader's transcript, ready for the student to check: plain math, ticks
+ * and crosses as the "[marked right]" / "[marked wrong]" tags the grader
+ * knows, no blank lines and no lines that held only LaTeX scaffolding.
+ */
+export function cleanTranscript(raw: string): string {
+  return raw
+    .split("\n")
+    .map((l) => plainMath(l).replace(TICK, "$1[marked right]").replace(CROSS, "$1[marked wrong]"))
+    .filter((l) => l.trim())
+    .join("\n");
+}
+
+/**
+ * The score line the reader puts first ("Score: 14/20") belongs in the score
+ * box, not among the questions. Returns the text without it and the first
+ * score found, or null. An empty "Score:" line just goes.
+ */
+export function takeScore(text: string): { text: string; score: string | null } {
+  let score: string | null = null;
+  const kept = text.split("\n").filter((l) => {
+    const m = l.match(/^\s*(?:score|grade|total)\s*:\s*(.*)$/i);
+    if (!m) return true;
+    const v = m[1].trim();
+    if (!v) return false;
+    if (score || v.length > 40) return true;
+    score = v;
+    return false;
+  });
+  return { text: kept.join("\n"), score };
 }
 
 /** Photo limits: the page shrinks to 1600 px JPEG, so a page is ~300 KB; 4 MB is a safety stop. */

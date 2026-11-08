@@ -28,12 +28,19 @@ const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.8-27b";
  * refusal. Per server process, which is all a dev server or one instance needs.
  */
 let groqRestUntil = 0;
+/** When Groq started refusing (0 while it answers): a streak of short "wait"s is an outage, not a busy minute. */
+let groqRefusingSince = 0;
 /** Seconds until Groq takes a page again (0 when it is ready). */
 export function groqRestSeconds(now = Date.now()): number {
   return Math.max(0, Math.ceil((groqRestUntil - now) / 1000));
 }
+/** How long Groq has refused every page in a row, in seconds (0 when its last answer was a read). */
+export function groqRefusingSeconds(now = Date.now()): number {
+  return groqRefusingSince ? Math.floor((now - groqRefusingSince) / 1000) : 0;
+}
 function restGroq(seconds: number) {
   groqRestUntil = Math.max(groqRestUntil, Date.now() + seconds * 1000);
+  if (!groqRefusingSince) groqRefusingSince = Date.now();
 }
 /** Under the free tier's 1,000-output-tokens-a-minute cap, which refuses any call that could pass it. */
 const GROQ_MAX_TOKENS = 900;
@@ -95,6 +102,7 @@ export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<str
         throw Object.assign(new Error("rate"), { retryAfter: 20 });
       }
       if (!res.ok) return null;
+      groqRefusingSince = 0;
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const text = withoutThinking(data.choices?.[0]?.message?.content ?? "");
       if (text) pages.push(text);
