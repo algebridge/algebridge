@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { callerOf } from "@/lib/server-auth";
 import { cleanTranscript, parseImages, readerVerdict, type TestImage as Img } from "@/lib/test-review";
-import { READ_INSTRUCTIONS as INSTRUCTIONS, extraReaders, groqRefusingSeconds, groqRestSeconds, ollamaUp, readerRestSeconds, readWithGroq, readWithOllama, readWithReader } from "@/lib/test-review-read";
+import { PAIR_INSTRUCTIONS, READ_INSTRUCTIONS as INSTRUCTIONS, extraReaders, groqRefusingSeconds, groqRestSeconds, ollamaUp, readerRestSeconds, readWithGroq, readWithOllama, readWithReader } from "@/lib/test-review-read";
 
 /**
  * Turns photos of a graded test into text the student can check.
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
   const caller = await callerOf(request);
   if (!caller.ok) return NextResponse.json({ error: caller.error }, { status: caller.status });
 
-  let body: { images?: unknown };
+  let body: { images?: unknown; layout?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -121,6 +122,15 @@ export async function POST(request: Request) {
   }
   const images = parseImages(body.images);
   if (!images) return NextResponse.json({ error: "Send 1 to 6 photos (JPEG, PNG or WebP, under 4 MB each)." }, { status: 400 });
+
+  // The same page again (a retry after a lost reply, a re-upload) costs nothing:
+  // the transcript, never the photo, is kept in this server's memory for an hour.
+  // "pair": the page sent two test pages side by side in one image (half the cost per page).
+  const pair = body.layout === "pair" && images.length === 1;
+  const instructions = pair ? PAIR_INSTRUCTIONS : INSTRUCTIONS;
+  const key = createHash("sha256").update((pair ? "pair|" : "") + images.map((i) => i.data).join("|")).digest("hex");
+  const seen = recentReads.get(key);
+  if (seen && seen.until > Date.now()) return NextResponse.json(seen.body);
 
   const local = await ollamaUp();
   // The extra free readers from VISION_FALLBACKS that are not resting right now.
@@ -160,7 +170,7 @@ export async function POST(request: Request) {
       raw = await readWithOpenAI(images);
     } else if (cloudAllowed && process.env.GROQ_API_KEY && groqRest === 0) {
       provider = "groq";
-      raw = await readWithGroq(images);
+      raw = await readWithGroq(images, 15000, instructions);
     }
   } catch (e) {
     cloudError = e;
@@ -174,7 +184,7 @@ export async function POST(request: Request) {
     for (const reader of extras()) {
       provider ??= reader.name;
       try {
-        raw = await readWithReader(reader, images);
+        raw = await readWithReader(reader, images, instructions);
         if (raw) {
           provider = reader.name;
           cloudError = null;
@@ -188,7 +198,7 @@ export async function POST(request: Request) {
   // Then the reader on this computer, where there is one (never on the deployed site).
   if (!raw && local) {
     try {
-      raw = await readWithOllama(images);
+      raw = await readWithOllama(images, instructions);
       provider = "local";
       cloudError = null;
     } catch {
@@ -222,8 +232,14 @@ export async function POST(request: Request) {
   // Plain math, no LaTeX, ticks as "[marked right]": what the student checks line by line.
   // `backup`: a reader other than the main one, which misreads more; the Check step says so.
   const backup = provider !== "groq" && provider !== "claude" && provider !== "openai";
-  return NextResponse.json({ text: cleanTranscript(verdict.text), unreadableParts: verdict.unreadableParts, provider, backup });
+  const answer = { text: cleanTranscript(verdict.text), unreadableParts: verdict.unreadableParts, provider, backup };
+  if (recentReads.size >= 300) recentReads.delete(recentReads.keys().next().value as string);
+  recentReads.set(key, { body: answer, until: Date.now() + 60 * 60 * 1000 });
+  return NextResponse.json(answer);
 }
+
+/** Transcripts by photo fingerprint, an hour each, at most 300: no photo is kept, only what was read from it. */
+const recentReads = new Map<string, { body: Record<string, unknown>; until: number }>();
 
 /** Seconds until the first resting reader (Groq or an extra) takes a page again; 0 when none is resting. */
 function soonestFree(): number {

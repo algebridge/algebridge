@@ -112,7 +112,8 @@ function TestReview() {
   /** The pages being read right now, shown under the scan line. */
   const [readingPages, setReadingPages] = useState<Pending[]>([]);
   /** Which page of this batch is being read, for "Page 2 of 3". */
-  const [progress, setProgress] = useState<{ page: number; of: number } | null>(null);
+  /** Which page of this batch is being read ("Page 2 of 3"), or which two ("Pages 1 and 2 of 3"). */
+  const [progress, setProgress] = useState<{ page: number; to?: number; of: number } | null>(null);
   /** Pages read by the backup reader on this computer, which misreads more: the check step says so. */
   const [backupPages, setBackupPages] = useState(0);
   /** This page has taken over 20 seconds: say it keeps going by itself. */
@@ -129,6 +130,8 @@ function TestReview() {
   const croppedRef = useRef<Pending[]>([]);
   const stopWaitingRef = useRef(false);
   const runRef = useRef(0);
+  /** Fingerprints of the pages already in this review, so adding the same photo again costs nothing. */
+  const readHashesRef = useRef<Set<string>>(new Set());
   /** The page read in flight, so Stop can cancel it. */
   const abortRef = useRef<AbortController | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -232,10 +235,11 @@ function TestReview() {
     setPages((prev) => [...prev, ...list.map((p) => p.url)]);
     go("reading");
     try {
-      const encoded: string[] = [];
+      const encoded: { url: string; ink: number; hash: string | null }[] = [];
       for (const p of list) {
         try {
-          encoded.push(await shrink(p.file, p));
+          const page = await shrink(p.file, p);
+          encoded.push({ ...page, hash: await fingerprint(page.url) });
         } catch {
           setError("That photo format could not be opened here. Save it as a JPEG or PNG, or take a screenshot of it, and try again.");
           go("photo");
@@ -262,25 +266,66 @@ function TestReview() {
         setReview(null);
         return joined.length > MAX_TEXT;
       };
-      for (let i = 0; i < encoded.length; i++) {
-        setProgress({ page: i + 1, of: encoded.length });
-        const got = await readOnePage(encoded[i], stopped);
+      // Pages that cost nothing: a blank sheet is not sent, the same photo twice is read once,
+      // and a page this tab already read (a retake, a second try) comes from the tab's own memory.
+      const skipped: string[] = [];
+      const todo: number[] = [];
+      encoded.forEach((page, i) => {
+        if (page.ink < BLANK_INK) skipped.push(`page ${i + 1} looks blank`);
+        else if (page.hash && readHashesRef.current.has(page.hash)) skipped.push(`page ${i + 1} was already read`);
+        else todo.push(i);
+      });
+      // Two pages to a picture: the free reader counts every picture the same
+      // whatever it shows, so a pair costs half as much per page (eval: same
+      // accuracy). A lone last page goes by itself; a pair that fails is read
+      // again one page at a time.
+      let pagesRead = 0;
+      for (let k = 0; k < todo.length; ) {
+        const i = todo[k];
+        const page = encoded[i];
+        const next = todo[k + 1] === undefined ? null : encoded[todo[k + 1]];
+        const cached = cachedRead(page.hash);
+        let got: Awaited<ReturnType<typeof readOnePage>> | null = cached;
+        let covered = [i];
+        if (!got && next && !cachedRead(next.hash)) {
+          const both = await pairImage(page.url, next.url).catch(() => null);
+          if (both) {
+            setProgress({ page: i + 1, to: todo[k + 1] + 1, of: encoded.length });
+            const pairRead = await readOnePage(both, stopped, "pair");
+            if (pairRead === "stopped" || "text" in pairRead) {
+              got = pairRead;
+              covered = [i, todo[k + 1]];
+            }
+          }
+        }
+        if (!got) {
+          setProgress({ page: i + 1, of: encoded.length });
+          got = await readOnePage(page.url, stopped);
+          if (got !== "stopped" && "text" in got && covered.length === 1) saveRead(page.hash, got);
+        }
         if (got === "stopped") {
           // "Stop and type it instead" keeps every page already read; a newer read replaces this one entirely.
           if (runRef.current === run && texts.length) {
             keep();
-            setNote(`Stopped after ${texts.length} of ${encoded.length} pages. Type the rest from your paper, or add those pages again.`);
+            setNote(`Stopped after ${pagesRead} of ${encoded.length} pages. Type the rest from your paper, or add those pages again.`);
           }
           return;
         }
         if ("text" in got) {
           texts.push(got.text);
+          pagesRead += covered.length;
           if (got.backup) backupRead++;
+          for (const c of covered) if (encoded[c].hash) readHashesRef.current.add(encoded[c].hash as string);
         } else failed.push({ page: i + 1, error: got.error });
+        k += covered.length;
       }
       if (stopped()) return;
+      if (skipped.length) setNote(`Skipped: ${skipped.join(", ")}.`);
       if (!texts.length) {
-        setError(failed[0]?.error ?? "That photo could not be read. Type the questions in instead.");
+        setError(
+          failed[0]?.error ??
+            (skipped.length ? "Nothing new to read: add a page with your work on it." : "That photo could not be read. Type the questions in instead.")
+        );
         go(fallback);
         return;
       }
@@ -311,7 +356,7 @@ function TestReview() {
    * failure is retried a few times with longer gaps; "not a test" and
    * "too blurry" are answers, not failures, so they come back at once.
    */
-  async function readOnePage(image: string, stopped: () => boolean): Promise<{ text: string; holes: number; backup: boolean } | { error: string } | "stopped"> {
+  async function readOnePage(image: string, stopped: () => boolean, layout?: "pair"): Promise<{ text: string; holes: number; backup: boolean } | { error: string } | "stopped"> {
     let failures = 0;
     for (;;) {
       let res: Response | null = null;
@@ -325,7 +370,7 @@ function TestReview() {
         res = await fetch("/api/test-review/read", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(await authHeader()) },
-          body: JSON.stringify({ images: [image] }),
+          body: JSON.stringify({ images: [image], layout }),
           signal: abort.signal,
         });
         data = await res.json().catch(() => ({}));
@@ -433,6 +478,7 @@ function TestReview() {
 
   function startOver() {
     stopWaitingRef.current = true;
+    readHashesRef.current = new Set();
     abortRef.current?.abort();
     setNote(null);
     pages.forEach((u) => URL.revokeObjectURL(u));
@@ -644,7 +690,7 @@ function ScreenHead({ title, sub, eyebrow, titleRef }: { title: string; sub?: st
  * portrait shot stays upright. HEIC is decoded where the browser can (Safari);
  * elsewhere the <img> fallback throws and the page says what to do.
  */
-async function shrink(file: File, crop: { top: number; bottom: number } = { top: 0, bottom: 0 }): Promise<string> {
+async function shrink(file: File, crop: { top: number; bottom: number } = { top: 0, bottom: 0 }): Promise<{ url: string; ink: number }> {
   const source = await decode(file);
   // Only the part the student kept is drawn, so the covered name and header never leave the device.
   const sy = Math.round((source.height * crop.top) / 100);
@@ -657,7 +703,86 @@ async function shrink(file: File, crop: { top: number; bottom: number } = { top:
   if (!ctx) throw new Error("no canvas");
   ctx.drawImage(source, 0, sy, source.width, sh, 0, 0, canvas.width, canvas.height);
   if ("close" in source) source.close();
+  return { url: canvas.toDataURL("image/jpeg", 0.85), ink: inkShare(canvas) };
+}
+
+/**
+ * Percent of the page that is ink: pixels much darker than the page's own
+ * median, on a 256 px grey copy. Test pages measured 1.1 to 14 percent; a
+ * blank sheet under uneven light, 0. Below BLANK_INK a page is not sent.
+ */
+function inkShare(canvas: HTMLCanvasElement): number {
+  const scale = Math.min(1, 256 / Math.max(canvas.width, canvas.height));
+  const small = document.createElement("canvas");
+  small.width = Math.max(1, Math.round(canvas.width * scale));
+  small.height = Math.max(1, Math.round(canvas.height * scale));
+  const ctx = small.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return 100;
+  ctx.drawImage(canvas, 0, 0, small.width, small.height);
+  const px = ctx.getImageData(0, 0, small.width, small.height).data;
+  const grey = new Uint8Array(px.length / 4);
+  for (let i = 0; i < grey.length; i++) grey[i] = (px[i * 4] * 299 + px[i * 4 + 1] * 587 + px[i * 4 + 2] * 114) / 1000;
+  const median = [...grey].sort((a, b) => a - b)[grey.length >> 1];
+  let ink = 0;
+  for (const g of grey) if (g < median - 60) ink++;
+  return (100 * ink) / grey.length;
+}
+const BLANK_INK = 0.05;
+
+/** A short fingerprint of the exact bytes sent, so the same page is never read (or paid for) twice. Null where the browser has no crypto. */
+/** Two shrunk pages side by side on white, the longest side 1600 px like a single page. */
+async function pairImage(a: string, b: string): Promise<string> {
+  const load = (src: string) =>
+    new Promise<HTMLImageElement>((ok, fail) => {
+      const img = new Image();
+      img.onload = () => ok(img);
+      img.onerror = fail;
+      img.src = src;
+    });
+  const [ia, ib] = await Promise.all([load(a), load(b)]);
+  const h = Math.max(ia.height, ib.height);
+  const wa = (ia.width * h) / ia.height;
+  const wb = (ib.width * h) / ib.height;
+  const gap = Math.round(h * 0.015);
+  const scale = Math.min(1, 1600 / Math.max(wa + gap + wb, h));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round((wa + gap + wb) * scale);
+  canvas.height = Math.round(h * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(ia, 0, 0, wa * scale, h * scale);
+  ctx.drawImage(ib, (wa + gap) * scale, 0, wb * scale, h * scale);
   return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+async function fingerprint(dataUrl: string): Promise<string | null> {
+  try {
+    const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(dataUrl));
+    return Array.from(new Uint8Array(d).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+const READ_CACHE = "algebridge:tr-read:";
+type PageRead = { text: string; holes: number; backup: boolean };
+function cachedRead(hash: string | null): PageRead | null {
+  if (!hash) return null;
+  try {
+    const raw = sessionStorage.getItem(READ_CACHE + hash);
+    return raw ? (JSON.parse(raw) as PageRead) : null;
+  } catch {
+    return null;
+  }
+}
+function saveRead(hash: string | null, read: PageRead) {
+  if (!hash) return;
+  try {
+    sessionStorage.setItem(READ_CACHE + hash, JSON.stringify(read));
+  } catch {
+    /* full or blocked: the page is just read again next time */
+  }
 }
 
 /**
@@ -854,7 +979,7 @@ function ReadingScreen({
   onStop,
 }: {
   pages: Pending[];
-  progress: { page: number; of: number } | null;
+  progress: { page: number; to?: number; of: number } | null;
   slow: boolean;
   wait: { left: number; total: number } | null;
   titleRef: Ref<HTMLHeadingElement>;
@@ -867,7 +992,7 @@ function ReadingScreen({
       <ScreenHead
         titleRef={titleRef}
         title="Reading your test"
-        sub={many ? `Page ${progress.page} of ${progress.of}. It keeps going by itself.` : "It keeps going by itself. You can wait here."}
+        sub={many ? `${pagesLabel(progress)}. It keeps going by itself.` : "It keeps going by itself. You can wait here."}
       />
       {first && (
         <div className={`relative mt-3.5 max-h-56 overflow-hidden rounded-lg border border-slate-200 ${wait ? "" : "tr-scan"}`}>
@@ -894,7 +1019,7 @@ function ReadingScreen({
           </li>
           <li className="flex items-center gap-2.5 font-semibold text-slate-900">
             <span className="h-[22px] w-[22px] flex-none animate-spin rounded-full border-2 border-bridge-600 border-t-transparent" aria-hidden />
-            {many ? `Reading page ${progress.page} of ${progress.of}` : "Reading the handwriting"}
+            {many ? `Reading ${pagesLabel(progress).toLowerCase()}` : "Reading the handwriting"}
           </li>
           {slow && <li className="text-slate-600">Still reading. At busy times a page can take a minute or two. It keeps going without you.</li>}
           <li className="flex items-center gap-2.5 text-slate-500">
@@ -912,13 +1037,18 @@ function ReadingScreen({
   );
 }
 
+/** "Page 2 of 3", or "Pages 1 and 2 of 3" when two are read together. */
+function pagesLabel(p: { page: number; to?: number; of: number }): string {
+  return p.to ? `Pages ${p.page} and ${p.to} of ${p.of}` : `Page ${p.page} of ${p.of}`;
+}
+
 /** "The free reader is busy": a countdown ring until the next try. */
 function WaitNotice({ left, total, who = "reader" }: { left: number; total: number; who?: "reader" | "grader" }) {
   const safe = who === "reader" ? "Your photo is safe." : "Your text is safe.";
   const c = 2 * Math.PI * 22;
   return (
     <div className="notice-warn mt-3.5 flex items-center gap-3.5" role="status">
-      <span className="sr-only">The free {who} is busy. Trying again soon. {safe}</span>
+      <span className="sr-only">In line for the free {who}. It goes by itself. {safe}</span>
       <div className="relative h-[52px] w-[52px] flex-none" aria-hidden>
         <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
           <circle cx="26" cy="26" r="22" fill="none" strokeWidth="5" className="stroke-amber-500/30" />
@@ -932,10 +1062,10 @@ function WaitNotice({ left, total, who = "reader" }: { left: number; total: numb
         <b className="absolute inset-0 grid place-items-center text-[15px] font-bold tabular-nums">{left > 99 ? `${Math.ceil(left / 60)}m` : left}</b>
       </div>
       <div aria-hidden>
-        <b className="block">The free {who} is busy</b>
+        <b className="block">In line for the free {who}</b>
         {left > 120
-          ? `It tries again by itself at ${new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Keep this tab open. ${safe}`
-          : `Trying again in ${left} s. ${safe}`}
+          ? `About ${Math.ceil(left / 60)} min. It goes by itself at ${new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}; keep this tab open. ${safe}`
+          : `Your turn in ${left} s. It goes by itself. ${safe}`}
       </div>
     </div>
   );

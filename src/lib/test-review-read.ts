@@ -6,20 +6,30 @@
  */
 import type { TestImage as Img } from "@/lib/test-review";
 
-export const READ_INSTRUCTIONS = `These are photos of a student's graded math test. Transcribe them into plain text so a teacher can review the work.
-
-First decide what you are looking at:
-- If the photos show no math work at all (not a test, quiz, worksheet or homework), reply with exactly: NOT_A_TEST
-- If they show math but are too blurry, dark or cut off to read even one complete question, reply with exactly: UNREADABLE
-Otherwise transcribe, following these rules:
-- One question per line, numbered as on the page: "1) <problem>   student wrote: <answer>".
-- Copy the student's answer exactly, even when it is wrong. Never correct it.
-- Keep the teacher's marks: write "[marked wrong]", "[marked right]", "[-2 points]" where you see them. If a score is written anywhere (like 14/20 or 70%), put "Score: ..." on the first line.
-- Math in plain text: x^2, sqrt(), fractions as a/b, use - for minus. Keep every sign.
-- Include the student's work lines when there are any, indented under the question.
-- Replace any person's name with [name]. Skip class, date and teacher lines.
-- If a part is unreadable, write [unreadable] there instead of guessing.
+/**
+ * The reader's instructions: the short wording that scored 66 of 66 lines on
+ * the 9-page eval (scratchpad eval/, Nov 7 2026), 126 prompt tokens a page
+ * cheaper than the long one. Change it only with the eval run again.
+ */
+export const READ_INSTRUCTIONS = `Photos of a student's graded math test. No math work at all: reply only NOT_A_TEST. Too blurry to read one question: reply only UNREADABLE.
+Otherwise transcribe:
+- One question per line, numbered as on the page: "1) <problem>   student wrote: <answer>". The student's work lines indented under it.
+- Copy answers exactly, even wrong ones. Keep every sign. Plain text math: x^2, sqrt(), a/b, - for minus.
+- Teacher marks as [marked right], [marked wrong], [-2 points]. A written score goes first: "Score: ...".
+- Any name becomes [name]. Skip class, date and teacher lines. Write [unreadable] where you cannot read.
 Return only the transcript.`;
+
+/**
+ * Two pages side by side in one picture. Groq counts every image as 2,048
+ * tokens whatever it shows, so a pair costs about half as much per page
+ * (measured on the 9-page eval: 1,124 tokens a page against 2,233 alone, 66 of
+ * 66 lines exact either way) and the free daily
+ * allowance reads nearly twice the pages.
+ */
+export const PAIR_INSTRUCTIONS = `The image shows two separate test pages side by side. Transcribe the LEFT page completely, then the RIGHT page, each with its own numbering.
+
+${READ_INSTRUCTIONS}`;
+
 
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.8-27b";
 /**
@@ -53,7 +63,7 @@ function withoutThinking(text: string): string {
  * One page per call, so each answer stays under Groq's per-minute output cap.
  * A 429 that says when to retry is waited out, up to `budgetMs` in all.
  */
-export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<string | null> {
+export async function readWithGroq(images: Img[], budgetMs = 15000, instructions = READ_INSTRUCTIONS): Promise<string | null> {
   const started = Date.now();
   let busyTries = 0;
   const pages: string[] = [];
@@ -71,7 +81,7 @@ export async function readWithGroq(images: Img[], budgetMs = 15000): Promise<str
             {
               role: "user",
               content: [
-                { type: "text", text: READ_INSTRUCTIONS },
+                { type: "text", text: instructions },
                 { type: "image_url", image_url: { url: `data:${img.media};base64,${img.data}` } },
               ],
             },
@@ -151,7 +161,7 @@ function oneAtATime<T>(job: () => Promise<T>): Promise<T> {
  * little worse, which the student's check step catches. The model is let go 5
  * minutes after the last page so it does not hold memory.
  */
-export async function readWithOllama(images: Img[]): Promise<string | null> {
+export async function readWithOllama(images: Img[], instructions = READ_INSTRUCTIONS): Promise<string | null> {
   const pages: string[] = [];
   // One page per call: the small model loses track with several pictures.
   for (const img of images) {
@@ -165,7 +175,7 @@ export async function readWithOllama(images: Img[]): Promise<string | null> {
           stream: false,
           keep_alive: "5m",
           options: { temperature: 0, num_predict: 1500 },
-          messages: [{ role: "user", content: READ_INSTRUCTIONS, images: [img.data] }],
+          messages: [{ role: "user", content: instructions, images: [img.data] }],
         }),
         // A cold load on a busy 8 GB Mac took 2 to 3 minutes: wait for it rather than fail.
         signal: AbortSignal.timeout(10 * 60 * 1000),
@@ -246,7 +256,7 @@ export function readerRestSeconds(name: string, now = Date.now()): number {
  * long as it says, five minutes when it does not, since a free daily cap often
  * gives no time) and throws "rate" with retryAfter, so the chain moves on.
  */
-export async function readWithReader(reader: VisionReader, images: Img[]): Promise<string | null> {
+export async function readWithReader(reader: VisionReader, images: Img[], instructions = READ_INSTRUCTIONS): Promise<string | null> {
   const pages: string[] = [];
   for (const img of images) {
     const res = await fetch(reader.url, {
@@ -263,7 +273,7 @@ export async function readWithReader(reader: VisionReader, images: Img[]): Promi
           {
             role: "user",
             content: [
-              { type: "text", text: READ_INSTRUCTIONS },
+              { type: "text", text: instructions },
               { type: "image_url", image_url: { url: `data:${img.media};base64,${img.data}` } },
             ],
           },
