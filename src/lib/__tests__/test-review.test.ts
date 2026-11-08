@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { checkAnswer, cleanTranscript, plainMath, takeScore, looksMisread, misreadLines, lineForQuestion, parseImages, readerVerdict, skillsToPractice } from "@/lib/test-review";
+import { parseReaders } from "@/lib/test-review-read";
 
 let checks = 0;
 const ok = (cond: boolean, msg: string) => { assert.ok(cond, msg); checks++; };
@@ -59,6 +60,19 @@ eq(takeScore("Score: 14/20\n1) a"), { text: "1) a", score: "14/20" }, "score lin
 eq(takeScore("1) a\nScore:"), { text: "1) a", score: null }, "an empty score line goes");
 eq(takeScore("Score: 3/4\n1) a\nScore: 2/4"), { text: "1) a\nScore: 2/4", score: "3/4" }, "only the first score is taken");
 eq(takeScore("1) Find the score: 3x"), { text: "1) Find the score: 3x", score: null }, "a question that says score stays");
+
+// Extra free readers from VISION_FALLBACKS: only well-formed ones, keys never inline.
+const cf = { name: "cloudflare", url: "https://api.cloudflare.com/client/v4/accounts/abc/ai/v1/chat/completions", keyEnv: "CLOUDFLARE_AI_TOKEN", model: "@cf/meta/llama-4-scout-17b-16e-instruct" };
+eq(parseReaders(JSON.stringify([cf])), [{ ...cf, maxTokens: undefined }], "a good reader is kept");
+eq(parseReaders(undefined), [], "nothing set, no readers");
+eq(parseReaders("not json"), [], "bad JSON, no readers");
+eq(parseReaders(JSON.stringify({ name: "x" })), [], "not a list, no readers");
+eq(parseReaders(JSON.stringify([{ ...cf, url: "http://evil.example/v1" }])), [], "plain http to another host is refused");
+eq(parseReaders(JSON.stringify([{ ...cf, url: "http://127.0.0.1:11434/v1/chat/completions", keyEnv: undefined }])).length, 1, "a reader on this machine is allowed for tests");
+eq(parseReaders(JSON.stringify([{ ...cf, keyEnv: "gsk_secret_value" }]))[0].keyEnv, undefined, "a key pasted in place of a variable name is not used");
+eq(parseReaders(JSON.stringify([{ ...cf, name: "groq" }])), [], "a reader cannot take a built-in name");
+eq(parseReaders(JSON.stringify([cf, cf])).length, 1, "the same name twice is kept once");
+eq(parseReaders(JSON.stringify([{ ...cf, maxTokens: 99999 }]))[0].maxTokens, 4000, "reply budget is capped");
 
 // Photo limits.
 const jpeg = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";

@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { callerOf } from "@/lib/server-auth";
 import { cleanTranscript, parseImages, readerVerdict, type TestImage as Img } from "@/lib/test-review";
-import { READ_INSTRUCTIONS as INSTRUCTIONS, groqRefusingSeconds, groqRestSeconds, ollamaUp, readWithGroq, readWithOllama } from "@/lib/test-review-read";
+import { READ_INSTRUCTIONS as INSTRUCTIONS, extraReaders, groqRefusingSeconds, groqRestSeconds, ollamaUp, readerRestSeconds, readWithGroq, readWithOllama, readWithReader } from "@/lib/test-review-read";
 
 /**
  * Turns photos of a graded test into text the student can check.
@@ -103,11 +103,9 @@ export async function GET() {
       ? "openai"
       : process.env.GROQ_API_KEY
         ? "groq"
-        : (await ollamaUp())
-          ? "local"
-          : null;
+        : extraReaders()[0]?.name ?? ((await ollamaUp()) ? "local" : null);
   // The backup that reads when the free cloud reader is out for the day.
-  const backup = reader !== "local" && (await ollamaUp());
+  const backup = reader !== "local" && (extraReaders().length > 0 || (await ollamaUp()));
   return NextResponse.json({ reader, backup });
 }
 
@@ -125,29 +123,33 @@ export async function POST(request: Request) {
   if (!images) return NextResponse.json({ error: "Send 1 to 6 photos (JPEG, PNG or WebP, under 4 MB each)." }, { status: 400 });
 
   const local = await ollamaUp();
-  // Groq reads better and faster than the local model: a short "wait" from it
-  // is waited out (the page counts it down and tries again by itself); a long
+  // The extra free readers from VISION_FALLBACKS that are not resting right now.
+  const extras = () => extraReaders().filter((r) => readerRestSeconds(r.name) === 0);
+  const hasOther = () => local || extras().length > 0;
+  // Groq reads better and faster than the others: a short "wait" from it is
+  // waited out (the page counts it down and tries again by itself); a long
   // one, or short ones that keep coming for over a minute (Groq out of its
-  // per-minute allowance to other traffic, or over capacity), send the page to
-  // the local reader instead. Checked before the limits below, so a page
+  // per-minute allowance to other traffic, or over capacity), send the page on
+  // down the chain instead. Checked before the limits below, so a page
   // waiting its turn does not use up the student's allowance.
   const SHORT_WAIT_S = 60;
   const GIVE_UP_S = 60;
   const groqRest = groqRestSeconds();
-  const waitForGroq = (wait: number) => !local || (wait <= SHORT_WAIT_S && groqRefusingSeconds() < GIVE_UP_S);
+  const waitForGroq = (wait: number) => !hasOther() || (wait <= SHORT_WAIT_S && groqRefusingSeconds() < GIVE_UP_S);
   if (process.env.GROQ_API_KEY && !process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && groqRest > 0 && waitForGroq(groqRest)) {
     return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: groqRest }, { status: 429 });
   }
 
   const who = caller.id ?? clientKey(request);
   // The limits protect the shared free cloud quota. Past them, the local reader still reads.
-  const cloudAllowed = byAddress(clientKey(request)) && byAccount(who) && byAccountDay(who);
+  // Admins (Ivan and his team) skip them: only the providers' own limits apply to them.
+  const cloudAllowed = caller.admin || (byAddress(clientKey(request)) && byAccount(who) && byAccountDay(who));
   if (!cloudAllowed && !local) {
     return NextResponse.json({ error: "That is a lot of photos in a row. It tries again by itself in a few minutes.", retryAfter: 120 }, { status: 429 });
   }
 
   let raw: string | null = null;
-  let provider: "claude" | "openai" | "groq" | "local" | null = null;
+  let provider: string | null = null;
   let cloudError: unknown = null;
   try {
     if (cloudAllowed && process.env.ANTHROPIC_API_KEY) {
@@ -163,33 +165,46 @@ export async function POST(request: Request) {
   } catch (e) {
     cloudError = e;
     const wait = Number((e as { retryAfter?: number }).retryAfter) || 0;
-    if (e instanceof Error && e.message === "rate" && local && waitForGroq(wait)) {
+    if (e instanceof Error && e.message === "rate" && hasOther() && waitForGroq(wait)) {
       return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: wait || 30 }, { status: 429 });
     }
   }
-  // Out of allowance, busy, or failed: the local reader takes the page, no wait and no typing.
+  // Groq out of allowance, busy or failed: the next free reader takes the page, in order.
+  if (!raw && cloudAllowed) {
+    for (const reader of extras()) {
+      provider ??= reader.name;
+      try {
+        raw = await readWithReader(reader, images);
+        if (raw) {
+          provider = reader.name;
+          cloudError = null;
+          break;
+        }
+      } catch (e) {
+        cloudError ??= e;
+      }
+    }
+  }
+  // Then the reader on this computer, where there is one (never on the deployed site).
   if (!raw && local) {
     try {
       raw = await readWithOllama(images);
       provider = "local";
       cloudError = null;
     } catch {
-      // Neither reader can take the page right now (cloud out of allowance, the
-      // local model could not load). That is a wait, not a failure: the page
-      // tries again by itself, every few minutes at most, until one answers.
-      const cloudWait = Number((cloudError as { retryAfter?: number } | null)?.retryAfter) || 0;
-      const retryAfter = Math.min(300, Math.max(60, cloudWait));
-      return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter }, { status: 429 });
+      // No reader can take the page right now. That is a wait, not a failure:
+      // the page tries again by itself, every few minutes at most, until one answers.
+      return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: Math.min(300, Math.max(60, soonestFree())) }, { status: 429 });
     }
   }
-  if (cloudError) {
+  if (cloudError && !raw) {
     const e = cloudError;
     const msg = e instanceof Error ? e.message : "";
-    // How long until the reader takes a photo again: the page waits it out on screen, then tries again by itself.
-    const retryAfter = Number((e as { retryAfter?: number }).retryAfter) || undefined;
-    if (msg === "rate-day") return NextResponse.json({ error: "The photo reader has read all it can for now. It tries again by itself, or type the questions and your answers in.", retryAfter }, { status: 429 });
-    if (msg === "rate") return NextResponse.json({ error: "The photo reader is busy. Try again in a minute.", retryAfter: retryAfter ?? 30 }, { status: 429 });
-    if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "The photo reader is busy. Try again in a minute.", retryAfter: 60 }, { status: 429 });
+    // Every reader is resting: the page waits for the first one back, then tries again by itself.
+    const retryAfter = Math.min(3600, Math.max(30, soonestFree() || Number((e as { retryAfter?: number }).retryAfter) || 30));
+    if (msg === "rate-day") return NextResponse.json({ error: "The free photo readers have read all they can for now. It tries again by itself.", retryAfter }, { status: 429 });
+    if (msg === "rate") return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter }, { status: 429 });
+    if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "The photo reader is busy. It tries again by itself.", retryAfter: 60 }, { status: 429 });
     if (e instanceof Anthropic.AuthenticationError || msg === "auth") return NextResponse.json({ error: "The photo reader's key is not valid." }, { status: 503 });
     return NextResponse.json({ error: "The photo could not be read right now. Type the questions in instead." }, { status: 502 });
   }
@@ -205,5 +220,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The writing is too blurry or dark to read. Try again in better light, flat on a table, with the whole page in the frame." }, { status: 422 });
   }
   // Plain math, no LaTeX, ticks as "[marked right]": what the student checks line by line.
-  return NextResponse.json({ text: cleanTranscript(verdict.text), unreadableParts: verdict.unreadableParts, provider });
+  // `backup`: a reader other than the main one, which misreads more; the Check step says so.
+  const backup = provider !== "groq" && provider !== "claude" && provider !== "openai";
+  return NextResponse.json({ text: cleanTranscript(verdict.text), unreadableParts: verdict.unreadableParts, provider, backup });
+}
+
+/** Seconds until the first resting reader (Groq or an extra) takes a page again; 0 when none is resting. */
+function soonestFree(): number {
+  const waits = [groqRestSeconds(), ...extraReaders().map((r) => readerRestSeconds(r.name))].filter((w) => w > 0);
+  return waits.length ? Math.min(...waits) : 0;
 }

@@ -181,3 +181,112 @@ export async function readWithOllama(images: Img[]): Promise<string | null> {
   const real = pages.filter((p) => !/^(NOT_A_TEST|UNREADABLE)$/.test(p.trim()));
   return real.length ? real.join("\n\n") : pages[0];
 }
+
+/**
+ * More free readers after Groq, added with environment variables and no code
+ * change. VISION_FALLBACKS is a JSON list, tried in order:
+ *
+ *   [{"name": "cloudflare",
+ *     "url": "https://api.cloudflare.com/client/v4/accounts/<account>/ai/v1/chat/completions",
+ *     "keyEnv": "CLOUDFLARE_AI_TOKEN",
+ *     "model": "@cf/meta/llama-4-scout-17b-16e-instruct"}]
+ *
+ * Any OpenAI-compatible chat endpoint that takes image_url parts works. The
+ * key itself lives in its own variable (keyEnv), never in the list. Only add
+ * providers whose terms allow a service used by teenagers and that do not
+ * train on API data: Gemini's terms forbid it outright.
+ */
+export interface VisionReader {
+  name: string;
+  url: string;
+  keyEnv?: string;
+  model: string;
+  maxTokens?: number;
+}
+
+/** The readers in a VISION_FALLBACKS value; anything malformed is left out, never guessed at. */
+export function parseReaders(raw: string | undefined): VisionReader[] {
+  if (!raw?.trim()) return [];
+  let list: unknown;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  const out: VisionReader[] = [];
+  for (const r of list as Record<string, unknown>[]) {
+    const name = typeof r?.name === "string" ? r.name.trim() : "";
+    const url = typeof r?.url === "string" ? r.url.trim() : "";
+    const model = typeof r?.model === "string" ? r.model.trim() : "";
+    const keyEnv = typeof r?.keyEnv === "string" && /^[A-Z][A-Z0-9_]*$/.test(r.keyEnv) ? r.keyEnv : undefined;
+    // https only, except a reader on this machine (a local test of the chain).
+    const safeUrl = /^https:\/\//.test(url) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url);
+    if (!/^[a-z0-9-]{1,30}$/.test(name) || !safeUrl || !model || ["groq", "local", "claude", "openai"].includes(name)) continue;
+    if (out.some((o) => o.name === name)) continue;
+    const maxTokens = Number(r?.maxTokens);
+    out.push({ name, url, model, keyEnv, maxTokens: Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(4000, maxTokens) : undefined });
+  }
+  return out;
+}
+
+/** The configured readers whose key is set. */
+export function extraReaders(): VisionReader[] {
+  return parseReaders(process.env.VISION_FALLBACKS).filter((r) => !r.keyEnv || Boolean(process.env[r.keyEnv]));
+}
+
+/** When each extra reader said "not until", by name, so a refusing reader is skipped instead of asked again. */
+const readerRestUntil = new Map<string, number>();
+export function readerRestSeconds(name: string, now = Date.now()): number {
+  return Math.max(0, Math.ceil(((readerRestUntil.get(name) ?? 0) - now) / 1000));
+}
+
+/**
+ * One page through an extra reader. A 429 or a 5xx rests that reader (for as
+ * long as it says, five minutes when it does not, since a free daily cap often
+ * gives no time) and throws "rate" with retryAfter, so the chain moves on.
+ */
+export async function readWithReader(reader: VisionReader, images: Img[]): Promise<string | null> {
+  const pages: string[] = [];
+  for (const img of images) {
+    const res = await fetch(reader.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(reader.keyEnv ? { Authorization: `Bearer ${process.env[reader.keyEnv]}` } : {}),
+      },
+      body: JSON.stringify({
+        model: reader.model,
+        max_tokens: reader.maxTokens ?? 1500,
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: READ_INSTRUCTIONS },
+              { type: "image_url", image_url: { url: `data:${img.media};base64,${img.data}` } },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (res.status === 429 || res.status >= 500) {
+      const retryAfter = Math.ceil(Number(res.headers.get("retry-after")) || 0) || 300;
+      readerRestUntil.set(reader.name, Date.now() + retryAfter * 1000);
+      throw Object.assign(new Error("rate"), { retryAfter });
+    }
+    if (res.status === 401 || res.status === 403) {
+      // A wrong or revoked key: rest the reader an hour rather than fail every page on it.
+      readerRestUntil.set(reader.name, Date.now() + 3600 * 1000);
+      throw Object.assign(new Error("rate"), { retryAfter: 3600 });
+    }
+    if (!res.ok) return null;
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const text = withoutThinking(data.choices?.[0]?.message?.content ?? "");
+    if (text) pages.push(text);
+  }
+  if (!pages.length) return null;
+  const real = pages.filter((p) => !/^(NOT_A_TEST|UNREADABLE)$/.test(p.trim()));
+  return real.length ? real.join("\n\n") : pages[0];
+}

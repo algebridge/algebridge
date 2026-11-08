@@ -103,7 +103,7 @@ function TestReview() {
   const [pages, setPages] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [score, setScore] = useState("");
-  const [reader, setReader] = useState<"claude" | "openai" | "groq" | "local" | null | "unknown">("unknown");
+  const [reader, setReader] = useState<string | null>("unknown");
   /** Photos waiting for the student to cover their name and the header (legal review M8). */
   const [pending, setPending] = useState<Pending[]>([]);
   /** How many pages of this batch are already cropped, for "Page 2 of 3". */
@@ -315,7 +315,7 @@ function TestReview() {
     let failures = 0;
     for (;;) {
       let res: Response | null = null;
-      let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number; provider?: string } = {};
+      let data: { error?: string; text?: string; unreadableParts?: number; retryAfter?: number; provider?: string; backup?: boolean } = {};
       setSlow(false);
       const slowTimer = setTimeout(() => setSlow(true), 20000);
       // "Stop" cancels the page being read, so the pages before it come back at once.
@@ -337,7 +337,7 @@ function TestReview() {
         if (abortRef.current === abort) abortRef.current = null;
       }
       if (stopped()) return "stopped";
-      if (res?.ok) return { text: data.text ?? "", holes: Number(data.unreadableParts) || 0, backup: data.provider === "local" };
+      if (res?.ok) return { text: data.text ?? "", holes: Number(data.unreadableParts) || 0, backup: data.backup ?? data.provider === "local" };
       let wait = 0;
       if (res?.status === 429) wait = Math.max(5, Number(data.retryAfter) || 60);
       else if (!res || res.status >= 500) {

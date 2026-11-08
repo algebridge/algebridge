@@ -95,7 +95,8 @@ export async function POST(request: Request) {
   if (detectCrisis(text)) return NextResponse.json({ crisis: true, message: CRISIS_REPLY });
   if (!aiConfigured()) return NextResponse.json({ error: "Test review needs the AI service, which is not set up here." }, { status: 503 });
   const who = caller.id ?? clientKey(request);
-  if (!byAddress(clientKey(request)) || !byAccount(who)) {
+  // Admins (Ivan and his team) are never held back by the app's own limits.
+  if (!caller.admin && (!byAddress(clientKey(request)) || !byAccount(who))) {
     return NextResponse.json({ error: "That is a lot of reviews in a row. It grades again by itself in a few minutes.", retryAfter: 120 }, { status: 429 });
   }
 

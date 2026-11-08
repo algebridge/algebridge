@@ -13,10 +13,15 @@
  * gate no-ops the same way PracticeGate does.
  */
 
-export type Caller = { ok: true; id: string | null } | { ok: false; status: 401 | 503; error: string };
+/**
+ * `admin` is true for AlgeBridge admins (is_admin() in the database, the same
+ * check the admin console uses). The test review lifts its own per-account
+ * limits for them, so Ivan and his team are never told to wait by the app.
+ */
+export type Caller = { ok: true; id: string | null; admin: boolean } | { ok: false; status: 401 | 503; error: string };
 
 const CACHE_MS = 5 * 60 * 1000;
-const cache = new Map<string, { id: string; until: number }>();
+const cache = new Map<string, { id: string; admin: boolean; until: number }>();
 
 export function tokenFrom(request: Request): string | null {
   const m = request.headers.get("authorization")?.match(/^Bearer\s+([\w.\-]+)$/i);
@@ -26,13 +31,13 @@ export function tokenFrom(request: Request): string | null {
 export async function callerOf(request: Request): Promise<Caller> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) return { ok: true, id: null };
+  if (!url || !anon) return { ok: true, id: null, admin: false };
 
   const token = tokenFrom(request);
   if (!token) return { ok: false, status: 401, error: "Sign in to review a test." };
 
   const hit = cache.get(token);
-  if (hit && hit.until > Date.now()) return { ok: true, id: hit.id };
+  if (hit && hit.until > Date.now()) return { ok: true, id: hit.id, admin: hit.admin };
 
   const res = await fetch(`${url}/auth/v1/user`, {
     headers: { apikey: anon, Authorization: `Bearer ${token}` },
@@ -44,7 +49,15 @@ export async function callerOf(request: Request): Promise<Caller> {
   if (!who || typeof who.id !== "string" || !who.id) {
     return { ok: false, status: 503, error: "Could not check your sign-in. Try again in a moment." };
   }
+  // Asked as the caller, so the database answers for this account only. Any failure means "not an admin".
+  const adminRes = await fetch(`${url}/rest/v1/rpc/is_admin`, {
+    method: "POST",
+    headers: { apikey: anon, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(6000),
+  }).catch(() => null);
+  const admin = adminRes?.ok ? (await adminRes.json().catch(() => false)) === true : false;
   if (cache.size > 2000) cache.clear();
-  cache.set(token, { id: who.id, until: Date.now() + CACHE_MS });
-  return { ok: true, id: who.id };
+  cache.set(token, { id: who.id, admin, until: Date.now() + CACHE_MS });
+  return { ok: true, id: who.id, admin };
 }
