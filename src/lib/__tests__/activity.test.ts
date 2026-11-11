@@ -132,5 +132,142 @@ ok("next: nothing to show", nextMoment({ fresh: [], pool: [], round: [], lastNam
   ok("next: the line after a new moment is another student", bad === 0, `${bad} of ${tries}`);
 }
 
+// --- Probe's extra checks on mixNames, seededRand, nameKey and nextMoment (11 Nov 2026) --------------
+{
+  type P = { id: number; name: string };
+  const pm = (names: string[]): P[] => names.map((name, i) => ({ id: i + 1, name }));
+  const viol = (seq: string[], after = "") => {
+    let v = 0, last = nameKey(after);
+    for (const n of seq) { const k = nameKey(n); if (last && k === last) v++; last = k; }
+    return v;
+  };
+  // the fewest same-name neighbours any order of these names can have, by trying every order
+  const minViol = (names: string[], after: string) => {
+    const counts = new Map<string, number>();
+    for (const n of names) counts.set(nameKey(n), (counts.get(nameKey(n)) ?? 0) + 1);
+    const keys = [...counts.keys()];
+    let best = 99;
+    const go = (left: number, last: string, v: number) => {
+      if (v >= best) return;
+      if (!left) { best = Math.min(best, v); return; }
+      for (const k of keys) {
+        if (counts.get(k)! > 0) {
+          counts.set(k, counts.get(k)! - 1);
+          go(left - 1, k, v + (last && k === last ? 1 : 0));
+          counts.set(k, counts.get(k)! + 1);
+        }
+      }
+    };
+    go(names.length, nameKey(after), 0);
+    return best;
+  };
+  const alpha = ["A", "B", "C"];
+  let optimalBad = 0, optimalRuns = 0;
+  const gen = (len: number, cur: string[]) => {
+    if (cur.length === len) {
+      for (const after of ["", "A", "Z"]) {
+        const want = minViol(cur, after);
+        for (let s = 1; s <= 2; s++) {
+          const items = pm(cur);
+          const out = mixNames(items, seededRand(s * 101 + len), after);
+          optimalRuns++;
+          const perm = out.length === items.length && items.every((x) => out.filter((y) => y === x).length === 1);
+          if (!perm || viol(out.map((x) => x.name), after) !== want) optimalBad++;
+        }
+      }
+      return;
+    }
+    for (const a of alpha) gen(len, [...cur, a]);
+  };
+  for (let len = 1; len <= 6; len++) gen(len, []);
+  ok("mixNames: a permutation with the fewest possible same-name neighbours, every small list", optimalBad === 0, `${optimalBad} of ${optimalRuns}`);
+
+  {
+    let bad = 0;
+    for (let t = 1; t <= 60; t++) {
+      const r = seededRand(t);
+      const k = 1 + Math.floor(r() * 15);
+      const names = Array.from({ length: 60 }, () => "n" + Math.floor(r() * r() * k));
+      const items = pm(names);
+      const out = mixNames(items, r, "n0");
+      if (out.length !== 60 || !items.every((x) => out.includes(x))) bad++;
+    }
+    ok("mixNames: 60 items of any shape come back as a permutation", bad === 0, String(bad));
+  }
+  {
+    const maj = [...Array(31).fill("Maj"), ...Array.from({ length: 29 }, (_, i) => "o" + i)];
+    ok("mixNames: a name holding 31 of 60 repeats only the one time it must", viol(mixNames(pm(maj), seededRand(3)).map((x) => x.name)) === 1);
+    const half = [...Array(30).fill("Maj"), ...Array.from({ length: 30 }, (_, i) => "o" + i)];
+    ok("mixNames: a name holding 30 of 60 never repeats", viol(mixNames(pm(half), seededRand(4)).map((x) => x.name)) === 0);
+  }
+  for (const [label, r] of [["0", () => 0], ["1", () => 1], ["NaN", () => NaN], ["-0.5", () => -0.5], ["2", () => 2]] as const) {
+    let okRun = true;
+    try { const out = mixNames(pm(["A", "B", "A", "C", "B", "A"]), r as () => number, "C"); okRun = out.length === 6 && out.every((x) => x !== undefined); } catch { okRun = false; }
+    ok(`mixNames: rand returning ${label} still returns every item`, okRun);
+  }
+  {
+    const input = pm(["A", "B", "C"]);
+    const before = JSON.stringify(input);
+    mixNames(input);
+    ok("mixNames: the input list is not changed", JSON.stringify(input) === before);
+    ok("mixNames: nothing in, nothing out", mixNames([]).length === 0);
+  }
+  for (const seed of [0, -1, 1.5, NaN, Infinity, -Infinity, 2 ** 53, 1e300]) {
+    const r = seededRand(seed);
+    let inRange = true;
+    for (let i = 0; i < 500; i++) { const v = r(); if (!(v >= 0 && v < 1)) inRange = false; }
+    ok(`seededRand(${seed}) stays in [0, 1)`, inRange);
+  }
+  ok("seededRand: the same seed gives the same numbers", [1, 2, 3].every((n) => { const a = seededRand(n), b = seededRand(n); return a() === b() && a() === b(); }));
+  ok("nameKey: Ana, ana, ANA and Aña are one student", ["ana", "ANA", "Aña"].every((n) => nameKey(n) === nameKey("Ana")));
+  ok("nameKey: José and Jose are one student, Ana and Anna are not", nameKey("José") === nameKey("Jose") && nameKey("Ana") !== nameKey("Anna"));
+  {
+    // every moment once per round, three rounds in a row, and no student twice in a row without new moments
+    const pool = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, at: "", name: "n" + (i % 9), kind: "solved" as const, amount: null, detail: null }));
+    const q = { fresh: [] as typeof pool, pool, round: [] as typeof pool, lastName: "" };
+    let onceEach = true, repeats = 0, prev = "";
+    for (let r = 0; r < 3; r++) {
+      const ids = new Set<number>();
+      for (let i = 0; i < 60; i++) {
+        const it = nextMoment(q, seededRand(r * 60 + i + 1))!;
+        ids.add(it.id);
+        if (prev && nameKey(it.name) === prev) repeats++;
+        prev = nameKey(it.name);
+      }
+      if (ids.size !== 60) onceEach = false;
+    }
+    ok("next: every moment once per round, 60 items, 3 rounds", onceEach);
+    ok("next: no student twice in a row across round seams (no new moments)", repeats === 0, String(repeats));
+  }
+  {
+    const q = { fresh: [] as ReturnType<typeof nextMoment>[] as never[], pool: [] as never[], round: [] as never[], lastName: "" };
+    ok("next: nothing to show gives null", nextMoment(q) === null);
+    const one = { id: 1, at: "", name: "A", kind: "solved" as const, amount: null, detail: null };
+    const same = [one, { ...one, id: 2 }, { ...one, id: 3 }];
+    const q2 = { fresh: [{ ...one, id: 9 }], pool: same, round: [...same], lastName: "" };
+    ok("next: a new moment from the only student on the strip does not crash or lose the round", nextMoment(q2)!.id === 9 && q2.round.length === 3);
+  }
+}
+// Known gap (reported 11 Nov 2026, not tested because it fails today): when a new moment has the same name as the
+// head of the round, nextMoment swaps the head with the first different name. That can put the old head next to
+// a same-name neighbour inside the round: round A,B,A and a new A gives B,A,A. Choose a swap target whose
+// neighbours differ from the old head, or move the target to the front instead of swapping.
+
+// --- a new moment must not bring two of the same name together inside the round ------------------
+{
+  const A1 = mk(1, "Ava"), B = mk(2, "Liam"), A2 = mk(3, "Ava"), C = mk(4, "Noor");
+  const pairs = (xs: { name: string }[]) => xs.filter((x, i) => i && nameKey(x.name) === nameKey(xs[i - 1].name)).length;
+  const q1 = { fresh: [mk(50, "Ava")], pool: [A1, B, A2, C], round: [A1, B, A2, C], lastName: "Zed" };
+  nextMoment(q1);
+  ok("arrival: Ava, Liam, Ava, Noor stays free of Ava, Ava", pairs(q1.round) === 0 && q1.round.length === 4, q1.round.map((m) => m.name).join());
+  ok("arrival: the round now starts with a different student", nameKey(q1.round[0].name) !== "ava");
+  const q2 = { fresh: [mk(51, "Ava")], pool: [A1, B, A2], round: [A1, B, A2], lastName: "Zed" };
+  nextMoment(q2);
+  ok("arrival: Ava, Liam, Ava has no good move, so the round is left alone", q2.round.map((m) => m.id).join() === "1,2,3");
+  const q3 = { fresh: [mk(52, "Ava")], pool: [A1], round: [A1], lastName: "" };
+  nextMoment(q3);
+  ok("arrival: a round of one student is kept", q3.round.length === 1);
+}
+
 console.log(`activity: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

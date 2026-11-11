@@ -192,9 +192,17 @@ export function nextMoment(q: TickerQueue, rand: () => number = Math.random): Ac
   if (f) {
     q.lastName = f.name;
     // The round was mixed before this arrived: keep its first line from being the same student.
-    if (q.round.length && nameKey(q.round[0].name) === nameKey(f.name)) {
-      const k = q.round.findIndex((m) => nameKey(m.name) !== nameKey(f.name));
-      if (k > 0) [q.round[0], q.round[k]] = [q.round[k], q.round[0]];
+    // Move up the first different student whose leaving does not bring two of the same name
+    // together; if there is none, leave the round as it is.
+    const fk = nameKey(f.name);
+    const r = q.round;
+    if (r.length && nameKey(r[0].name) === fk) {
+      for (let k = 1; k < r.length; k++) {
+        if (nameKey(r[k].name) === fk) continue;
+        if (k + 1 < r.length && nameKey(r[k - 1].name) === nameKey(r[k + 1].name)) continue;
+        q.round = [r[k], ...r.slice(0, k), ...r.slice(k + 1)];
+        break;
+      }
     }
     return f;
   }
