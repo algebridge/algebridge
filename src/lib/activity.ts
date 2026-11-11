@@ -137,28 +137,70 @@ export function seededRand(seed: number): () => number {
  * name twice in a row wherever the list allows it. Every moment stays in, once; nothing is made
  * up. `after` is the name just shown, so the first one here is not the same person again.
  */
+/** A first name as the strip compares it: "Ana", "ana" and "Aña" are the same student for spacing. */
+export function nameKey(name: string): string {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
 export function mixNames<T extends { name: string }>(
   items: readonly T[],
   rand: () => number = Math.random,
   after = "",
 ): T[] {
+  const afterKey = nameKey(after);
   const left = [...items];
   const out: T[] = [];
   while (left.length) {
-    const last = out.length ? out[out.length - 1].name : after;
+    const last = out.length ? nameKey(out[out.length - 1].name) : afterKey;
     const n = left.length;
     const counts = new Map<string, number>();
-    for (const it of left) counts.set(it.name, (counts.get(it.name) ?? 0) + 1);
+    for (const it of left) counts.set(nameKey(it.name), (counts.get(nameKey(it.name)) ?? 0) + 1);
     // A name holding more than half of what is left has to go next, or it ends up stranded
     // at the tail with nothing to separate it.
     let forced = "";
     for (const [name, c] of counts) if (c * 2 > n && name !== last) forced = name;
     const from: number[] = [];
     for (let i = 0; i < n; i++) {
-      if (forced ? left[i].name === forced : !last || left[i].name !== last) from.push(i);
+      const key = nameKey(left[i].name);
+      if (forced ? key === forced : !last || key !== last) from.push(i);
     }
     const choose = from.length ? from : left.map((_, i) => i);
     out.push(left.splice(choose[Math.floor(rand() * choose.length)], 1)[0]);
   }
   return out;
+}
+
+/** What the strip has to choose from. The component keeps one of these in refs and hands it to nextMoment. */
+export interface TickerQueue {
+  /** Moments not yet shown once, oldest first: these go by before the round continues. */
+  fresh: ActivityItem[];
+  /** Everything the strip may tell, newest first. */
+  pool: ActivityItem[];
+  /** The rest of the current round, going round the pool in mixed order. */
+  round: ActivityItem[];
+  /** The first name on the line shown last. */
+  lastName: string;
+}
+
+/**
+ * The next moment to show: something new first, else the next one of the mixed round (a new
+ * round is mixed when the last one runs out, against the name just shown, so the seam between
+ * rounds does not repeat a student). Used by the moving strip and the still one alike.
+ */
+export function nextMoment(q: TickerQueue, rand: () => number = Math.random): ActivityItem | null {
+  const f = q.fresh.shift();
+  if (f) {
+    q.lastName = f.name;
+    // The round was mixed before this arrived: keep its first line from being the same student.
+    if (q.round.length && nameKey(q.round[0].name) === nameKey(f.name)) {
+      const k = q.round.findIndex((m) => nameKey(m.name) !== nameKey(f.name));
+      if (k > 0) [q.round[0], q.round[k]] = [q.round[k], q.round[0]];
+    }
+    return f;
+  }
+  if (!q.pool.length) return null;
+  if (!q.round.length) q.round = mixNames(q.pool, rand, q.lastName);
+  const item = q.round.shift() ?? null;
+  if (item) q.lastName = item.name;
+  return item;
 }

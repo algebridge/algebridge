@@ -1,4 +1,4 @@
-import { activityLine, cleanDetail, firstNameOf, mixNames, parseActivityRow, sameMoment, seededRand, withArticle } from "../activity.ts";
+import { activityLine, cleanDetail, firstNameOf, mixNames, nameKey, nextMoment, parseActivityRow, sameMoment, seededRand, withArticle } from "../activity.ts";
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra = "") => {
@@ -83,6 +83,54 @@ ok("mixed: one student only still returns all", mixNames(oneStudent, seededRand(
 const busy = [mk(1, "Ava"), mk(2, "Ava"), mk(3, "Ava"), mk(4, "Ava"), mk(5, "Liam")];
 ok("mixed: a student with most moments keeps them all", mixNames(busy, seededRand(5)).filter((m) => m.name === "Ava").length === 4);
 ok("seeded random stays in 0..1", (() => { const r = seededRand(42); for (let i = 0; i < 1000; i++) { const v = r(); if (!(v >= 0 && v < 1)) return false; } return true; })());
+
+// --- names compared without case or accents ----------------------------------------------
+ok("name key", nameKey("José") === "jose" && nameKey("ANA") === "ana" && nameKey("Aña") === "ana");
+const cased = [mk(1, "Ana"), mk(2, "ana"), mk(3, "ANA"), mk(4, "Liam"), mk(5, "liam"), mk(6, "Noor")];
+let casedRepeats = 0;
+for (let seed = 1; seed <= 200; seed++) {
+  const m = mixNames(cased, seededRand(seed));
+  for (let i = 1; i < m.length; i++) if (nameKey(m[i].name) === nameKey(m[i - 1].name)) casedRepeats++;
+}
+ok("mixed: Ana, ana and ANA are one student", casedRepeats === 0, `${casedRepeats} repeats`);
+
+// --- the next moment: new ones first, then the mixed round, no repeats at the seams ------------
+const names = ["Ava", "Liam", "Noor", "Sam", "Ivy", "Max"];
+const mkPool = (n: number) => Array.from({ length: n }, (_, i) => mk(100 - i, names[(i * 7 + (i >> 1)) % names.length]));
+let calm = 0, calmSteps = 0;
+{
+  const q = { fresh: [] as ReturnType<typeof mk>[], pool: mkPool(40), round: [] as ReturnType<typeof mk>[], lastName: "" };
+  const r = seededRand(11);
+  let prev = "";
+  for (let i = 0; i < 5000; i++) {
+    const it = nextMoment(q, r)!;
+    if (prev && nameKey(it.name) === prev) calm++;
+    prev = nameKey(it.name); calmSteps++;
+  }
+}
+ok("next: no name twice in a row over 5000 steps, rounds included", calm === 0, `${calm} repeats in ${calmSteps}`);
+ok("next: nothing to show", nextMoment({ fresh: [], pool: [], round: [], lastName: "" }) === null);
+{
+  const q = { fresh: [mk(201, "Zed"), mk(202, "Yan")], pool: mkPool(10), round: [] as ReturnType<typeof mk>[], lastName: "" };
+  const a = nextMoment(q)!, b = nextMoment(q)!, c = nextMoment(q)!;
+  ok("next: new moments go first, in the order they came", a.id === 201 && b.id === 202 && c.id !== 201 && c.id !== 202);
+}
+{
+  // A moment arrives while a round is half done: the line after it is not the same student, over many tries.
+  let bad = 0, tries = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const r = seededRand(seed);
+    const q = { fresh: [] as ReturnType<typeof mk>[], pool: mkPool(20), round: [] as ReturnType<typeof mk>[], lastName: "" };
+    for (let i = 0; i < 5; i++) nextMoment(q, r);
+    const target = q.round[0].name; // the student about to come next in the round
+    q.fresh.push(mk(900 + seed, target));
+    const arrived = nextMoment(q, r)!;
+    const after = nextMoment(q, r)!;
+    tries++;
+    if (nameKey(after.name) === nameKey(arrived.name)) bad++;
+  }
+  ok("next: the line after a new moment is another student", bad === 0, `${bad} of ${tries}`);
+}
 
 console.log(`activity: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

@@ -25,7 +25,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
 import { ACTIVITY_EVENT, fetchActivity } from "@/lib/activity-client";
-import { activityLine, mixNames, POLL_MS, POOL_MAX, RECENT_LIMIT, sameMoment, seededRand, type ActivityItem } from "@/lib/activity";
+import { activityLine, nextMoment, POLL_MS, POOL_MAX, RECENT_LIMIT, sameMoment, type ActivityItem } from "@/lib/activity";
 
 /** Pixels per second. Slow enough to read, quick enough to feel alive. */
 const SPEED = 44;
@@ -71,14 +71,15 @@ export function ActivityTicker() {
   const pool = useRef<ActivityItem[]>([]);
   /** Moments not yet shown once, newest last; these go by before the pool repeats. */
   const fresh = useRef<ActivityItem[]>([]);
-  /** The rest of the current round round the pool, in mixed order. */
+  /** The rest of the current round, going round the pool in mixed order. */
   const round = useRef<ActivityItem[]>([]);
   /** The first name on the line most recently put on the strip. */
   const lastName = useRef("");
   const maxId = useRef(0);
   const [hasItems, setHasItems] = useState(false);
   const [still, setStill] = useState(false);
-  const [stillIndex, setStillIndex] = useState(0);
+  /** The line on screen under reduced motion. */
+  const [stillItem, setStillItem] = useState<ActivityItem | null>(null);
 
   const signedIn = !loading && !!user;
   const show = signedIn && !quietRoute(pathname);
@@ -117,6 +118,7 @@ export function ActivityTicker() {
       lastName.current = "";
       maxId.current = 0;
       setHasItems(false);
+      setStillItem(null);
       return;
     }
     let alive = true;
@@ -153,17 +155,12 @@ export function ActivityTicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** The next line to put on the track: something new first, else round the pool in a mixed order. */
+  /** The next line to show: something new first, else round the pool in a mixed order (nextMoment in lib/activity.ts). */
   function next(): ActivityItem | null {
-    const f = fresh.current.shift();
-    if (f) {
-      lastName.current = f.name;
-      return f;
-    }
-    if (!pool.current.length) return null;
-    if (!round.current.length) round.current = mixNames(pool.current, Math.random, lastName.current);
-    const item = round.current.shift() ?? null;
-    if (item) lastName.current = item.name;
+    const q = { fresh: fresh.current, pool: pool.current, round: round.current, lastName: lastName.current };
+    const item = nextMoment(q);
+    round.current = q.round;
+    lastName.current = q.lastName;
     return item;
   }
 
@@ -239,23 +236,23 @@ export function ActivityTicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, still]);
 
-  // Standing still: one line at a time.
+  // Standing still: one line at a time, a new one every few seconds. Same order as the moving strip,
+  // and new moments go first here too.
   useEffect(() => {
     if (!show || !still) return;
-    const timer = window.setInterval(() => setStillIndex((i) => i + 1), STILL_MS);
+    const advance = () => {
+      const item = next();
+      if (item) setStillItem(item);
+    };
+    advance();
+    const timer = window.setInterval(advance, STILL_MS);
     return () => window.clearInterval(timer);
-  }, [show, still]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, still, hasItems]);
 
   if (!show) return null;
 
-  let stillLine: { name: string; rest: string } | null = null;
-  if (still && pool.current.length) {
-    const f = fresh.current[0];
-    // The same mixed order on every render while the pool is unchanged (a fixed seed from it).
-    const seed = pool.current.reduce((n, it) => (n * 31 + it.id) | 0, pool.current.length);
-    const mixed = mixNames(pool.current, seededRand(seed));
-    stillLine = activityLine(f ?? mixed[stillIndex % mixed.length]);
-  }
+  const stillLine = still && stillItem ? activityLine(stillItem) : null;
 
   return (
     <div
