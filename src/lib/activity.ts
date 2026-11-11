@@ -119,3 +119,46 @@ export function sameMoment(a: ActivityItem, b: ActivityItem): boolean {
   if (!Number.isFinite(ta) || !Number.isFinite(tb)) return true;
   return Math.abs(ta - tb) < 90_000;
 }
+
+/** A small repeatable random source (mulberry32), so a list can be mixed the same way on every render. */
+export function seededRand(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The order to go round the strip in: shuffled, so names do not come in clumps, and no first
+ * name twice in a row wherever the list allows it. Every moment stays in, once; nothing is made
+ * up. `after` is the name just shown, so the first one here is not the same person again.
+ */
+export function mixNames<T extends { name: string }>(
+  items: readonly T[],
+  rand: () => number = Math.random,
+  after = "",
+): T[] {
+  const left = [...items];
+  const out: T[] = [];
+  while (left.length) {
+    const last = out.length ? out[out.length - 1].name : after;
+    const n = left.length;
+    const counts = new Map<string, number>();
+    for (const it of left) counts.set(it.name, (counts.get(it.name) ?? 0) + 1);
+    // A name holding more than half of what is left has to go next, or it ends up stranded
+    // at the tail with nothing to separate it.
+    let forced = "";
+    for (const [name, c] of counts) if (c * 2 > n && name !== last) forced = name;
+    const from: number[] = [];
+    for (let i = 0; i < n; i++) {
+      if (forced ? left[i].name === forced : !last || left[i].name !== last) from.push(i);
+    }
+    const choose = from.length ? from : left.map((_, i) => i);
+    out.push(left.splice(choose[Math.floor(rand() * choose.length)], 1)[0]);
+  }
+  return out;
+}

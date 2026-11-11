@@ -5,7 +5,9 @@
  * from right to left without a stop, telling what students across
  * AlgeBridge are doing ("Ava solved a problem", "Shaurya earned 25
  * Bridgeys"). The newest moments go by first; when there is nothing new the
- * strip goes round the latest forty again, so it never runs dry.
+ * strip goes round the latest forty again, so it never runs dry. Each round
+ * goes in a mixed order, so the names are spread out and the same student
+ * does not come twice in a row (mixNames in lib/activity.ts).
  *
  * The moving part is driven by hand (requestAnimationFrame moving one flex
  * track, items added at the right edge as the left edge empties), not by a
@@ -23,7 +25,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { isBareRoute } from "@/lib/bare-route";
 import { ACTIVITY_EVENT, fetchActivity } from "@/lib/activity-client";
-import { activityLine, POLL_MS, POOL_MAX, RECENT_LIMIT, sameMoment, type ActivityItem } from "@/lib/activity";
+import { activityLine, mixNames, POLL_MS, POOL_MAX, RECENT_LIMIT, sameMoment, seededRand, type ActivityItem } from "@/lib/activity";
 
 /** Pixels per second. Slow enough to read, quick enough to feel alive. */
 const SPEED = 44;
@@ -69,7 +71,10 @@ export function ActivityTicker() {
   const pool = useRef<ActivityItem[]>([]);
   /** Moments not yet shown once, newest last; these go by before the pool repeats. */
   const fresh = useRef<ActivityItem[]>([]);
-  const cursor = useRef(0);
+  /** The rest of the current round round the pool, in mixed order. */
+  const round = useRef<ActivityItem[]>([]);
+  /** The first name on the line most recently put on the strip. */
+  const lastName = useRef("");
   const maxId = useRef(0);
   const [hasItems, setHasItems] = useState(false);
   const [still, setStill] = useState(false);
@@ -108,6 +113,8 @@ export function ActivityTicker() {
     if (!signedIn) {
       pool.current = [];
       fresh.current = [];
+      round.current = [];
+      lastName.current = "";
       maxId.current = 0;
       setHasItems(false);
       return;
@@ -146,14 +153,17 @@ export function ActivityTicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** The next line to put on the track: something new first, else round the pool. */
+  /** The next line to put on the track: something new first, else round the pool in a mixed order. */
   function next(): ActivityItem | null {
     const f = fresh.current.shift();
-    if (f) return f;
-    const p = pool.current;
-    if (!p.length) return null;
-    const item = p[cursor.current % p.length];
-    cursor.current = (cursor.current + 1) % Math.max(1, p.length);
+    if (f) {
+      lastName.current = f.name;
+      return f;
+    }
+    if (!pool.current.length) return null;
+    if (!round.current.length) round.current = mixNames(pool.current, Math.random, lastName.current);
+    const item = round.current.shift() ?? null;
+    if (item) lastName.current = item.name;
     return item;
   }
 
@@ -241,7 +251,10 @@ export function ActivityTicker() {
   let stillLine: { name: string; rest: string } | null = null;
   if (still && pool.current.length) {
     const f = fresh.current[0];
-    stillLine = activityLine(f ?? pool.current[stillIndex % pool.current.length]);
+    // The same mixed order on every render while the pool is unchanged (a fixed seed from it).
+    const seed = pool.current.reduce((n, it) => (n * 31 + it.id) | 0, pool.current.length);
+    const mixed = mixNames(pool.current, seededRand(seed));
+    stillLine = activityLine(f ?? mixed[stillIndex % mixed.length]);
   }
 
   return (

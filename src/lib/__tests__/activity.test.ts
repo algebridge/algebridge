@@ -1,4 +1,4 @@
-import { activityLine, cleanDetail, firstNameOf, parseActivityRow, sameMoment, withArticle } from "../activity.ts";
+import { activityLine, cleanDetail, firstNameOf, mixNames, parseActivityRow, sameMoment, seededRand, withArticle } from "../activity.ts";
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra = "") => {
@@ -57,6 +57,32 @@ ok("echo and row match", sameMoment(echo, { ...echo, id: 40, at: "2026-11-02T15:
 ok("a minute and a half apart is another moment", !sameMoment(echo, { ...echo, id: 40, at: "2026-11-02T15:02:00Z" }));
 ok("another kind", !sameMoment(echo, { ...echo, id: 40, kind: "bridgeys", amount: 5 }));
 ok("another student", !sameMoment(echo, { ...echo, id: 40, name: "Liam" }));
+
+// --- names mixed up ---------------------------------------------------------------------
+const mk = (id: number, name: string) => ({ id, at: "2026-11-02T15:00:00Z", name, kind: "solved" as const, amount: null, detail: null });
+// Newest first, the way the pool holds them: runs of the same student.
+const clumped = [mk(1, "Ava"), mk(2, "Ava"), mk(3, "Ava"), mk(4, "Liam"), mk(5, "Liam"), mk(6, "Noor"), mk(7, "Noor"), mk(8, "Ava"), mk(9, "Sam"), mk(10, "Sam")];
+let sameNeighbours = 0, lostOrDuplicated = 0, changed = 0;
+for (let seed = 1; seed <= 200; seed++) {
+  const mixed = mixNames(clumped, seededRand(seed));
+  for (let i = 1; i < mixed.length; i++) if (mixed[i].name === mixed[i - 1].name) sameNeighbours++;
+  if (mixed.map((m) => m.id).sort((a, b) => a - b).join() !== clumped.map((m) => m.id).join()) lostOrDuplicated++;
+  if (mixed.map((m) => m.id).join() !== clumped.map((m) => m.id).join()) changed++;
+}
+ok("mixed: no name twice in a row (200 shuffles)", sameNeighbours === 0, `${sameNeighbours} repeats`);
+ok("mixed: every moment kept, once each", lostOrDuplicated === 0);
+ok("mixed: the order really changes", changed > 150, `${changed} of 200`);
+ok("mixed: same seed, same order", mixNames(clumped, seededRand(7)).map((m) => m.id).join() === mixNames(clumped, seededRand(7)).map((m) => m.id).join());
+ok("mixed: input list untouched", clumped.map((m) => m.id).join() === "1,2,3,4,5,6,7,8,9,10");
+ok("mixed: empty and single", mixNames([]).length === 0 && mixNames([mk(1, "Ava")]).length === 1);
+let startsWithAfter = 0;
+for (let seed = 1; seed <= 200; seed++) if (mixNames(clumped, seededRand(seed), "Ava")[0].name === "Ava") startsWithAfter++;
+ok("mixed: first one is not the name just shown", startsWithAfter === 0, `${startsWithAfter} of 200`);
+const oneStudent = [mk(1, "Ava"), mk(2, "Ava"), mk(3, "Ava")];
+ok("mixed: one student only still returns all", mixNames(oneStudent, seededRand(3)).length === 3);
+const busy = [mk(1, "Ava"), mk(2, "Ava"), mk(3, "Ava"), mk(4, "Ava"), mk(5, "Liam")];
+ok("mixed: a student with most moments keeps them all", mixNames(busy, seededRand(5)).filter((m) => m.name === "Ava").length === 4);
+ok("seeded random stays in 0..1", (() => { const r = seededRand(42); for (let i = 0; i < 1000; i++) { const v = r(); if (!(v >= 0 && v < 1)) return false; } return true; })());
 
 console.log(`activity: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
