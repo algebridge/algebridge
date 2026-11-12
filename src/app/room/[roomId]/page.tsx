@@ -1,5 +1,6 @@
 "use client";
 
+import { parseTextOp } from "@/lib/wb-text";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -384,6 +385,10 @@ export default function CallRoomPage() {
           wbRef.current?.applySegment(payload as WbSegment);
         })
         .on("broadcast", { event: "clear" }, () => wbRef.current?.applyClear())
+        .on("broadcast", { event: "text" }, ({ payload }) => {
+          const op = parseTextOp(payload);
+          if (op) wbRef.current?.applyText(op);
+        })
         .on("broadcast", { event: "transcript" }, ({ payload }) => {
           addTranscript(payload.name, payload.text);
         })
@@ -769,6 +774,7 @@ export default function CallRoomPage() {
                   ref={wbRef}
                   onSegment={(seg) => channelRef.current?.send({ type: "broadcast", event: "draw", payload: seg })}
                   onClear={() => channelRef.current?.send({ type: "broadcast", event: "clear", payload: {} })}
+                  onText={(op) => channelRef.current?.send({ type: "broadcast", event: "text", payload: op })}
                 />
               </div>
               <div className={tab === "notebook" ? "h-full" : "hidden"}>

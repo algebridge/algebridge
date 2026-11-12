@@ -23,7 +23,8 @@
     "test:insights": "node --no-warnings --experimental-strip-types src/lib/__tests__/insights.test.ts",
     "test:activity": "node --no-warnings --experimental-strip-types src/lib/__tests__/activity.test.ts",
     "test:test-review": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/test-review.test.ts",
-    "test:classroom": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/classroom.test.ts"
+    "test:classroom": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/classroom.test.ts",
+    "test:wb-text": "node --no-warnings --experimental-strip-types --import ./src/lib/__tests__/alias.mjs src/lib/__tests__/wb-text.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
