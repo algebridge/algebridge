@@ -87,6 +87,10 @@ export default function CallRoomPage() {
   const [tab, setTab] = useState<Tab>("whiteboard");
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  /** Sharing this screen in place of the camera. Never recorded or stored: the track goes straight to the other person. */
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices;
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -99,6 +103,7 @@ export default function CallRoomPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const peersRef = useRef(new Map<string, Peer>());
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const wbRef = useRef<WhiteboardHandle>(null);
   const transcriptRef = useRef<{ name: string; text: string }[]>([]);
@@ -207,6 +212,9 @@ export default function CallRoomPage() {
       recognitionRef.current = null;
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
+      // A shared screen ends with the call.
+      screenTrackRef.current?.stop();
+      screenTrackRef.current = null;
       for (const p of peersRef.current.values()) p.pc.close();
       peersRef.current.clear();
       if (channelRef.current) {
@@ -309,6 +317,11 @@ export default function CallRoomPage() {
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         const peer: Peer = { pc, stream: new MediaStream(), pending: [] };
         localStreamRef.current?.getTracks().forEach((t) => pc.addTrack(t, localStreamRef.current!));
+        // Someone who joins while a screen is shared sees the screen, not the camera.
+        if (screenTrackRef.current) {
+          const sender = pc.getSenders().find((x) => x.track?.kind === "video");
+          void sender?.replaceTrack(screenTrackRef.current);
+        }
         pc.ontrack = (e) => {
           e.streams[0]?.getTracks().forEach((t) => peer.stream.addTrack(t));
           refreshRemotes();
@@ -492,6 +505,44 @@ export default function CallRoomPage() {
       setMicOn(track.enabled);
     }
   }
+  /** Every video sender in the call, so a share swaps the camera for the screen without a new offer. */
+  function videoSenders(): RTCRtpSender[] {
+    return [...peersRef.current.values()].flatMap((p) => p.pc.getSenders().filter((x) => x.track?.kind === "video"));
+  }
+
+  async function startShare() {
+    setShareError(null);
+    const camera = localStreamRef.current?.getVideoTracks()[0];
+    if (!camera) {
+      setShareError("Screen sharing takes the place of your camera, and this call has no camera. Rejoin with the camera allowed.");
+      return;
+    }
+    let screen: MediaStream;
+    try {
+      screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    } catch {
+      return; // The student or tutor cancelled the browser's picker.
+    }
+    const track = screen.getVideoTracks()[0];
+    if (!track) return;
+    screenTrackRef.current = track;
+    // The browser's own "Stop sharing" button ends it too.
+    track.onended = () => void stopShare();
+    await Promise.all(videoSenders().map((x) => x.replaceTrack(track)));
+    if (localVideoRef.current) localVideoRef.current.srcObject = new MediaStream([track]);
+    setSharing(true);
+  }
+
+  async function stopShare() {
+    const track = screenTrackRef.current;
+    screenTrackRef.current = null;
+    track?.stop();
+    const camera = localStreamRef.current?.getVideoTracks()[0] ?? null;
+    await Promise.all(videoSenders().map((x) => x.replaceTrack(camera)));
+    if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+    setSharing(false);
+  }
+
   function toggleCam() {
     const track = localStreamRef.current?.getVideoTracks()[0];
     if (track) {
@@ -569,6 +620,18 @@ export default function CallRoomPage() {
       </div>
 
       {mediaError && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{mediaError}</div>}
+      {shareError && <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{shareError}</div>}
+      {sharing && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800">
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-red-600" />
+            You are sharing your screen. The other person sees it instead of your camera.
+          </span>
+          <button type="button" onClick={() => void stopShare()} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
+            Stop sharing
+          </button>
+        </div>
+      )}
 
       {status === "ended" ? (
         <div className="card space-y-3">
@@ -634,6 +697,16 @@ export default function CallRoomPage() {
                 <Icon name={camOn ? "video" : "video-off"} size={16} />
                 {camOn ? "Camera on" : "Camera off"}
               </button>
+              {canShare && (
+                <button
+                  type="button"
+                  onClick={() => void (sharing ? stopShare() : startShare())}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium ${sharing ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}
+                >
+                  <Icon name="monitor" size={16} />
+                  {sharing ? "Stop sharing" : "Share screen"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setCaptions((c) => !c)}
