@@ -4,7 +4,7 @@ A free, ad-free Algebra 1 course for students, built by students. The marketing 
 
 ## What students get
 
-- **Algebra 1**: 15 units and 52 skills, from working with units to modeling with functions. Each skill has a key idea, a video and practice with instant feedback, and the course tracks mastery skill by skill.
+- **Algebra 1**: 15 units and 55 skills, from working with units to modeling with functions. Each skill has a key idea, a video and practice with instant feedback, and the course tracks mastery skill by skill.
 - **Algebra 2**: a second course that builds on the first.
 - **Review**: finished skills come back for spaced review.
 - **Archie**: an AI study helper that gives hints. It tells students it is an AI.
