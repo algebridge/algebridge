@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COURSES, units } from "@/data/curriculum";
+import { COURSES, SHOW_ALGEBRA_2, units } from "@/data/curriculum";
 import { CourseHeader } from "@/components/CourseHeader";
 import { AssignedWork } from "@/components/AssignedWork";
 import { CourseGate } from "@/components/CourseGate";
@@ -59,7 +59,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* The next course, for a student who finished this one or is placed past it. */}
+      {/* The next course, for a student who finished this one or is placed past it. Hidden while SHOW_ALGEBRA_2 is off. */}
+      {SHOW_ALGEBRA_2 && (
       <section id="algebra-2" className="panel">
         <div className="panel-head">
           <h2 className="panel-title">AlgeBridge 2</h2>
@@ -74,6 +75,7 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      )}
 
       {/* A visitor gets the sign-up panel here, right under the outline. */}
       <CourseGate>

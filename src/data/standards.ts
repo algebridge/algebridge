@@ -516,9 +516,10 @@ export function levelLabel(level: StandardLevel): string {
   return level === "HS" ? "High school" : `Grade ${level}`;
 }
 
-/** Every code any skill cites, sorted high school first, then by grade. */
-export function citedStandards(): Standard[] {
-  const cited = new Set(Object.values(SKILL_STANDARDS).flat());
+/** Every code any skill cites (or only the given skills), sorted high school first, then by grade. */
+export function citedStandards(skillIds?: string[]): Standard[] {
+  const lists = skillIds ? skillIds.map((id) => SKILL_STANDARDS[sourceId(id)] ?? []) : Object.values(SKILL_STANDARDS);
+  const cited = new Set(lists.flat());
   return STANDARD_LIST.filter((s) => cited.has(s.code));
 }
 

@@ -4,15 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { COURSES, courseOfUnit, type CourseId } from "@/data/curriculum";
+import { COURSES, SHOW_ALGEBRA_2, courseOfUnit, type CourseId } from "@/data/curriculum";
 import { Icon } from "@/components/Icon";
 
 const KEY = "algebridge:course";
 
-const COURSE_LINKS: { id: CourseId; name: string; subject: string; href: string }[] = [
+const ALL_COURSE_LINKS: { id: CourseId; name: string; subject: string; href: string }[] = [
   { id: "algebra-1", name: "AlgeBridge 1", subject: "Algebra 1", href: "/" },
   { id: "algebra-2", name: "AlgeBridge 2", subject: "Algebra 2", href: "/algebra-2" },
 ];
+/** The courses the menu offers: Algebra 1 only while SHOW_ALGEBRA_2 is off. */
+const COURSE_LINKS = ALL_COURSE_LINKS.filter((c) => c.id !== "algebra-2" || SHOW_ALGEBRA_2);
 
 /** The course a page belongs to, or null for a page outside both (games, house). */
 function courseOfPath(pathname: string | null): CourseId | null {
@@ -42,7 +44,9 @@ export function useCurrentCourse(): CourseId {
     }
   }, [here]);
 
-  return here ?? last;
+  const course = here ?? last;
+  // A remembered Algebra 2 falls back to Algebra 1 while Algebra 2 is hidden.
+  return course === "algebra-2" && !SHOW_ALGEBRA_2 ? "algebra-1" : course;
 }
 
 /**

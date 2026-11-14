@@ -458,6 +458,103 @@ function addExponentsFor(prompt: string): Picture | null {
   };
 }
 
+/** The index a root sign stands for: √ 2, ∛ 3, ⁴√ 4, ⁵√ 5. */
+function rootIndex(sign: string): number {
+  return sign === "√" ? 2 : sign === "∛" ? 3 : "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(sign[0]);
+}
+function rootSign(q: number): string {
+  return q === 2 ? "√" : q === 3 ? "∛" : `${"⁰¹²³⁴⁵⁶⁷⁸⁹"[q]}√`;
+}
+
+/** ⁴√(x³) and x^(3/4) side by side: the unit-fraction row first, the asked form blank. */
+function rationalTableFor(prompt: string): Picture | null {
+  const toExp = prompt.match(/^Write (√|∛|[²³⁴⁵⁶⁷⁸⁹]√)\(x\^(\d)\) using a rational exponent\.$/);
+  const toRoot = prompt.match(/^Write x\^\((\d)\/(\d)\) as a radical\.$/);
+  if (!toExp && !toRoot) return null;
+  const q = toExp ? rootIndex(toExp[1]) : Number(toRoot![2]);
+  const p = toExp ? Number(toExp[2]) : Number(toRoot![1]);
+  if (!(q >= 2 && q <= 9)) return null;
+  const sign = rootSign(q);
+  return {
+    kind: "table",
+    title: "The index of the root is the bottom of the exponent, and the power under the root is the top.",
+    reveals: false,
+    corner: "",
+    cols: ["As a root", "As an exponent"],
+    rows: ["Power 1", `Power ${p}`],
+    cells: [
+      [`${sign}x`, `x^(1/${q})`],
+      [toRoot ? null : `${sign}(x^${p})`, toExp ? null : `x^(${p}/${q})`],
+    ],
+    totals: false,
+  };
+}
+
+/** Simplify x^(a/q) · x^(b/q): the exponents added on a number line, shown after a try. */
+function addRationalExponentsFor(prompt: string): Picture | null {
+  const m = prompt.match(/^Simplify x\^\((\d+)\/(\d)\) · x\^\((\d+)\/(\d)\)\.$/);
+  if (!m || m[2] !== m[4]) return null;
+  const a = Number(m[1]) / Number(m[2]);
+  const sum = a + Number(m[3]) / Number(m[4]);
+  return {
+    kind: "numberline",
+    title: "Multiplying powers of the same base adds the exponents: start at the first, step the second.",
+    reveals: true,
+    min: 0,
+    max: Math.max(2, Math.ceil(sum)),
+    marks: [
+      { x: a, label: `${m[1]}/${m[2]}`, tone: 0 },
+      { x: sum, label: `${Number(m[1]) + Number(m[3])}/${m[2]}`, tone: 2 },
+    ],
+    spans: [],
+    arcs: [{ from: a, to: sum, label: `+ ${m[3]}/${m[4]}` }],
+  };
+}
+
+/** ∛n between two whole numbers: n placed between the perfect cubes around it, shown after a try. */
+function cubeRootBetweenFor(prompt: string): Picture | null {
+  const m = prompt.match(/^∛(\d+) lies between two consecutive whole numbers\./);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const k = Math.floor(Math.cbrt(n) + 1e-9);
+  if (k < 1 || k ** 3 === n) return null;
+  const lo = k ** 3;
+  const hi = (k + 1) ** 3;
+  return {
+    kind: "numberline",
+    title: `${n} sits between two perfect cubes, so its cube root sits between their roots.`,
+    reveals: true,
+    min: lo - Math.ceil((hi - lo) / 10),
+    max: hi + Math.ceil((hi - lo) / 10),
+    marks: [
+      { x: lo, label: `${k}³ = ${lo}`, tone: 0 },
+      { x: n, label: String(n), tone: 2 },
+      { x: hi, label: `${k + 1}³ = ${hi}`, tone: 0 },
+    ],
+    spans: [],
+    arcs: [],
+  };
+}
+
+/** Two answers from squaring: a table to check each in both sides of the original equation. */
+function radicalCheckTableFor(prompt: string): Picture | null {
+  const m = prompt.match(/^Solving (√\([^)]+\)) = (.+?) by squaring gives x = (-?\d+) or x = (-?\d+)\. Which one checks/);
+  if (!m) return null;
+  return {
+    kind: "table",
+    title: "Put each value into both sides of the original equation. A square root is never negative.",
+    reveals: false,
+    corner: "",
+    cols: [`Left: ${m[1]}`, `Right: ${m[2]}`],
+    rows: [`x = ${m[3]}`, `x = ${m[4]}`],
+    cells: [
+      [null, null],
+      [null, null],
+    ],
+    totals: false,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Scientific notation
 // ---------------------------------------------------------------------------
@@ -1240,6 +1337,12 @@ export function morePictures(skillId: string, prompt: string): Picture | null {
       return factorsFor(prompt);
     case "negative-fractional-exponents":
       return ladderFor(prompt) ?? rootTableFor(prompt) ?? addExponentsFor(prompt) ?? factorsFor(prompt);
+    case "rational-exponents-evaluate":
+      return ladderFor(prompt) ?? rationalTableFor(prompt) ?? addRationalExponentsFor(prompt);
+    case "nth-roots":
+      return cubeRootBetweenFor(prompt);
+    case "radical-equations":
+      return radicalCheckTableFor(prompt);
     case "scientific-notation":
       return digitsFor(prompt);
     case "simplifying-radicals":

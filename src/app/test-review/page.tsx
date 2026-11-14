@@ -8,7 +8,7 @@ import { PracticePanel } from "@/components/PracticePanel";
 import { WorkedSteps } from "@/components/WorkedSteps";
 import { MathText } from "@/components/PromptText";
 import { Icon } from "@/components/Icon";
-import { allUnits } from "@/data/curriculum";
+import { visibleUnits } from "@/data/curriculum";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_IMAGES, misreadLines, takeScore, type ReviewedQuestion } from "@/lib/test-review";
 import type { Skill } from "@/types";
@@ -1573,7 +1573,7 @@ function QuestionCard({
 }
 
 const SKILLS = new Map<string, { skill: Skill; unitId: string }>(
-  allUnits().flatMap((u) => u.skills.map((s) => [s.id, { skill: s, unitId: u.id }] as const))
+  visibleUnits().flatMap((u) => u.skills.map((s) => [s.id, { skill: s, unitId: u.id }] as const))
 );
 
 /**

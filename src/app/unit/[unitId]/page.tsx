@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { allUnits, courseOfUnit, getUnit } from "@/data/curriculum";
+import { notFound, redirect } from "next/navigation";
+import { courseOfUnit, getUnit, isUnitVisible, visibleUnits } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { UnitPath } from "@/components/UnitPath";
 import { UnitArena } from "@/components/UnitArena";
@@ -12,7 +12,7 @@ import { hueVars, unitHue } from "@/lib/hues";
 import { Icon } from "@/components/Icon";
 
 export function generateStaticParams() {
-  return allUnits().map((unit) => ({ unitId: unit.id }));
+  return visibleUnits().map((unit) => ({ unitId: unit.id }));
 }
 
 /** The tab says which unit, for a teacher with many open. */
@@ -31,6 +31,7 @@ export default async function UnitPage({
   const { unitId } = await params;
   const unit = getUnit(unitId);
   if (!unit) notFound();
+  if (!isUnitVisible(unitId)) redirect("/");
   const course = courseOfUnit(unitId);
   const units = course?.units ?? [];
   const home = course?.id === "algebra-2" ? "/algebra-2" : "/";

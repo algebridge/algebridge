@@ -252,6 +252,28 @@ export const SKILL_VIDEOS: Record<string, Video> = {
     duration: "3:41",
     youtubeId: "u2Z1hoXSrXk",
   },
+  // From the Algebra 2 unit Radicals & Rational Exponents: same videos, same player ids.
+  "nth-roots": {
+    id: "a2v-nth-roots",
+    title: "Radical expressions with higher roots",
+    channel: "Khan Academy",
+    duration: "8:46",
+    youtubeId: "iX7ivCww2ws",
+  },
+  "rational-exponents-evaluate": {
+    id: "a2v-rational-exponents-evaluate",
+    title: "Fractional exponents with numerators other than 1",
+    channel: "Khan Academy",
+    duration: "5:53",
+    youtubeId: "S34NM0Po0eA",
+  },
+  "radical-equations": {
+    id: "a2v-radical-equations",
+    title: "Solving radical equations",
+    channel: "Khan Academy",
+    duration: "3:11",
+    youtubeId: "pFFoAGIEyJc",
+  },
 
   // Unit 10, Exponential Growth & Decay
   "exponential-functions": {

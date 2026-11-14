@@ -16,7 +16,7 @@
  * Nothing in the arena pays Bridgeys: points are the prize, as in a match.
  */
 
-import { allUnits } from "@/data/curriculum";
+import { visibleUnits } from "@/data/curriculum";
 import { getFreshProblemsForSkill } from "@/data/problem-banks";
 import { isHeadMath } from "@/lib/rink";
 import { stripVariantTag } from "@/lib/personalize";
@@ -101,7 +101,7 @@ function shuffle<T>(xs: readonly T[], rng: Rng): T[] {
 
 /** Units 1 to cap, the top one most often (its weight is its number). */
 export function weightedUnit(cap: number, rng: Rng = Math.random): number {
-  const top = Math.max(1, Math.min(cap, allUnits().length));
+  const top = Math.max(1, Math.min(cap, visibleUnits().length));
   const total = (top * (top + 1)) / 2;
   let r = rng() * total;
   for (let u = top; u >= 1; u -= 1) {
@@ -137,7 +137,7 @@ export function isQuickQuestion(prompt: string): boolean {
 export function pickQuestions(settings: ArenaSettings, rng: Rng = Math.random): ArenaQuestion[] {
   const out: ArenaQuestion[] = [];
   const seen = new Set<string>();
-  const units = allUnits();
+  const units = visibleUnits();
   let tries = 0;
   while (out.length < settings.count && tries < settings.count * 40) {
     tries += 1;

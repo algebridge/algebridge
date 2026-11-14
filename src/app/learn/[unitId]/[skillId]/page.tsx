@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { allUnits, getSkill, getUnit } from "@/data/curriculum";
+import { notFound, redirect } from "next/navigation";
+import { getSkill, getUnit, isUnitVisible, visibleUnits } from "@/data/curriculum";
 import { LearnContent } from "@/components/LearnContent";
 
 export function generateStaticParams() {
-  return allUnits().flatMap((unit) =>
+  return visibleUnits().flatMap((unit) =>
     unit.skills.map((skill) => ({
       unitId: unit.id,
       skillId: skill.id,
@@ -35,6 +35,7 @@ export default async function LearnPage({
   const skill = getSkill(unitId, skillId);
 
   if (!unit || !skill) notFound();
+  if (!isUnitVisible(unitId)) redirect("/");
 
   return <LearnContent unit={unit} skill={skill} unitId={unitId} skillId={skillId} />;
 }

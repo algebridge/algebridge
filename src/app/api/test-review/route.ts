@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiConfigured, callJson, clientKey, makeRateLimiter } from "@/lib/ai-provider";
 import { parseModelJson } from "@/lib/personalize";
 import { detectCrisis, CRISIS_REPLY } from "@/lib/helper";
-import { allUnits } from "@/data/curriculum";
+import { visibleUnits } from "@/data/curriculum";
 import { callerOf } from "@/lib/server-auth";
 import { checkAnswer, lineForQuestion, looksMisread, plainMath, skillsToPractice, type QuestionStatus, type ReviewedQuestion } from "@/lib/test-review";
 
@@ -28,7 +28,7 @@ const byAddress = makeRateLimiter(120, 10 * 60 * 1000);
 // so the large model answers instead of quietly falling back to the small one.
 const MAX_TEXT = 6000;
 
-const SKILLS = allUnits().flatMap((u) => u.skills.map((s) => ({ id: s.id, unitId: u.id, title: s.title })));
+const SKILLS = visibleUnits().flatMap((u) => u.skills.map((s) => ({ id: s.id, unitId: u.id, title: s.title })));
 const SKILL_BY_ID = new Map(SKILLS.map((s) => [s.id, s]));
 
 const SYSTEM = `You are a patient math teacher looking over a student's graded test (ages 12 to 16, Algebra 1 or 2).

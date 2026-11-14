@@ -138,28 +138,8 @@ export const A2_VIDEOS: Record<string, Video> = {
     youtubeId: "Yaeze9u6Cv8",
   },
 
-  // Radicals & Rational Exponents
-  "nth-roots": {
-    id: "a2v-nth-roots",
-    title: "Radical expressions with higher roots",
-    channel: "Khan Academy",
-    duration: "8:46",
-    youtubeId: "iX7ivCww2ws",
-  },
-  "rational-exponents-evaluate": {
-    id: "a2v-rational-exponents-evaluate",
-    title: "Fractional exponents with numerators other than 1",
-    channel: "Khan Academy",
-    duration: "5:53",
-    youtubeId: "S34NM0Po0eA",
-  },
-  "radical-equations": {
-    id: "a2v-radical-equations",
-    title: "Solving radical equations",
-    channel: "Khan Academy",
-    duration: "3:11",
-    youtubeId: "pFFoAGIEyJc",
-  },
+  // Radicals & Rational Exponents: its three skills moved to Algebra 1 Unit 9,
+  // so their videos are in src/data/videos.ts.
 
   // Exponential & Logarithmic Functions
   "log-basics": {

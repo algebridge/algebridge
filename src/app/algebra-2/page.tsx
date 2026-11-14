@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { COURSES, units as algebra1Units } from "@/data/curriculum";
+import { redirect } from "next/navigation";
+import { COURSES, SHOW_ALGEBRA_2, units as algebra1Units } from "@/data/curriculum";
 import { CourseHeader } from "@/components/CourseHeader";
 import { CourseGate } from "@/components/CourseGate";
 import { TestReviewCard } from "@/components/TestReviewCard";
@@ -21,6 +22,8 @@ const TOTAL_SKILLS = ALGEBRA_2.units.reduce((sum, u) => sum + u.skills.length, 0
  * The outline is open to everyone to read; the unit pages gate the work.
  */
 export default function Algebra2Page() {
+  // Algebra 2 is hidden for now (SHOW_ALGEBRA_2 in curriculum.ts): visitors go home.
+  if (!SHOW_ALGEBRA_2) redirect("/");
   return (
     <div className="space-y-6">
       <CourseHeader course="algebra-2" />

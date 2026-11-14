@@ -2,8 +2,29 @@ import type { Unit } from "@/types";
 import { SKILL_VIDEOS } from "@/data/videos";
 import { algebra2Units } from "@/data/algebra2";
 import { COPY_PREFIX } from "@/data/skill-source";
+import { unit as a2Radicals } from "@/data/algebra2/radicals-rational-exponents";
 
-// Each skill's lesson video lives in src/data/videos.ts, the one verified list.
+/**
+ * Whether students and visitors can see Algebra 2. Off for now: its pages
+ * send visitors home and nothing links to it. Its code and data stay, so
+ * turning this back on brings the whole course back.
+ */
+export const SHOW_ALGEBRA_2 = false;
+
+/**
+ * Skills written for Algebra 2's "Radicals & Rational Exponents" unit, taught
+ * in Algebra 1 Unit 9 now. They keep their ids, so their generators, worked
+ * examples, ideas, rules and standards (all keyed by skill id) work unchanged,
+ * and any progress already saved on them shows up here. Their videos moved to
+ * src/data/videos.ts with the other Algebra 1 lessons. Algebra 2 teaches them
+ * again as copies under its own ids (see algebra2Course below).
+ */
+const FROM_ALGEBRA_2 = new Set(["rational-exponents-evaluate", "nth-roots", "radical-equations"]);
+
+function fromAlgebra2Radicals(id: string): Unit["skills"][number] {
+  const skill = a2Radicals.skills.find((s) => s.id === id)!;
+  return { ...skill, video: SKILL_VIDEOS[id] };
+}
 
 export const units: Unit[] = [
   {
@@ -450,6 +471,7 @@ export const units: Unit[] = [
           { id: "ex2-p2", type: "multiple-choice", prompt: "Rewrite ³√x as an exponent.", hint: "x^(1/n)", answer: "x^(1/3)", choices: ["x^(1/3)", "x³", "x^(−3)", "3x"], explanation: "an nth root is the 1/n power → a cube root is n = 3, so ³√x = x^(1/3)" },
         ],
       },
+      fromAlgebra2Radicals("rational-exponents-evaluate"),
       {
         id: "scientific-notation",
         title: "Scientific Notation",
@@ -473,6 +495,8 @@ export const units: Unit[] = [
           { id: "ex4-p2", type: "numeric", prompt: "Simplify √49", hint: "What number squared equals 49?", answer: 7, explanation: "find the number whose square is 49 → 7 × 7 = 49, so √49 = 7" },
         ],
       },
+      fromAlgebra2Radicals("nth-roots"),
+      fromAlgebra2Radicals("radical-equations"),
     ],
   },
   {
@@ -798,6 +822,19 @@ function fromAlgebra1(unitId: string, skillIds: string[], title: string, descrip
   };
 }
 
+/** An Algebra 2 unit whose skills Algebra 1 now owns, with copied ids ("a2-" + id) for those skills. */
+function copySkillsFromAlgebra1(unit: Unit): Unit {
+  const a1 = units.flatMap((u) => u.skills);
+  return {
+    ...unit,
+    skills: unit.skills.map((s) => {
+      if (!FROM_ALGEBRA_2.has(s.id)) return s;
+      const own = a1.find((k) => k.id === s.id)!;
+      return { ...own, id: COPY_PREFIX + own.id, problems: own.problems.map((p) => ({ ...p, id: COPY_PREFIX + p.id })) };
+    }),
+  };
+}
+
 /**
  * Algebra 2 in teaching order: the Algebra 1 square root and exponent rules
  * first, then the course's own units. Units are numbered by their place here,
@@ -811,9 +848,27 @@ function algebra2Course(): Unit[] {
       "Square Roots & Exponent Rules",
       "From Algebra 1: simplify square roots and use the exponent rules, the base Algebra 2 builds on."
     ),
-    ...algebra2Units,
+    // The radicals unit's skills belong to Algebra 1 now; Algebra 2 keeps its
+    // unit, with those skills as copies under their own ids.
+    ...algebra2Units.map((u) => (u.skills.some((s) => FROM_ALGEBRA_2.has(s.id)) ? copySkillsFromAlgebra1(u) : u)),
   ];
   return order.map((u, i) => ({ ...u, number: i + 1 }));
+}
+
+/** The courses students and visitors can open: Algebra 2 only when SHOW_ALGEBRA_2 is on. */
+export function visibleCourses(): Course[] {
+  return COURSES.filter((c) => c.id !== "algebra-2" || SHOW_ALGEBRA_2);
+}
+
+/** Whether a unit's pages may open. An unknown unit counts as visible, so it still 404s. */
+export function isUnitVisible(unitId: string): boolean {
+  const course = courseOfUnit(unitId);
+  return !course || visibleCourses().includes(course);
+}
+
+/** Every unit of the courses students can open, for static pages. */
+export function visibleUnits(): Unit[] {
+  return visibleCourses().flatMap((c) => c.units);
 }
 
 export function allUnits(): Unit[] {

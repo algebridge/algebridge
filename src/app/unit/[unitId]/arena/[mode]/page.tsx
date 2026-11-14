@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { allUnits, getUnit } from "@/data/curriculum";
+import { notFound, redirect } from "next/navigation";
+import { getUnit, isUnitVisible, visibleUnits } from "@/data/curriculum";
 import { CourseGate } from "@/components/CourseGate";
 import { ArenaPlay } from "@/components/ArenaPlay";
 import { ARENA_MODES, type ArenaMode } from "@/lib/arena";
@@ -10,7 +10,7 @@ import { hueVars, unitHue } from "@/lib/hues";
 const MODES = Object.keys(ARENA_MODES) as ArenaMode[];
 
 export function generateStaticParams() {
-  return allUnits().flatMap((unit) => MODES.map((mode) => ({ unitId: unit.id, mode })));
+  return visibleUnits().flatMap((unit) => MODES.map((mode) => ({ unitId: unit.id, mode })));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ unitId: string; mode: string }> }): Promise<Metadata> {
@@ -25,6 +25,7 @@ export default async function ArenaPage({ params }: { params: Promise<{ unitId: 
   const { unitId, mode } = await params;
   const unit = getUnit(unitId);
   if (!unit || !MODES.includes(mode as ArenaMode)) notFound();
+  if (!isUnitVisible(unitId)) redirect("/");
   return (
     <div className="space-y-6" style={hueVars(unitHue(unit.id))}>
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">

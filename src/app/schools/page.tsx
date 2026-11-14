@@ -47,7 +47,8 @@ const PHONE = "302-401-6107";
 const PHONE_HREF = "tel:+13024016107";
 
 const TOTAL_SKILLS = units.reduce((sum, u) => sum + u.skills.length, 0);
-const CITED = citedStandards();
+// Only the codes Algebra 1's skills teach: this page is about Algebra 1.
+const CITED = citedStandards(units.flatMap((u) => u.skills.map((s) => s.id)));
 const HS_COUNT = CITED.filter((s) => s.level === "HS").length;
 const MS_COUNT = CITED.length - HS_COUNT;
 const MAPPED = units.flatMap((u) => u.skills).filter((s) => (SKILL_STANDARDS[s.id] ?? []).length > 0).length;
