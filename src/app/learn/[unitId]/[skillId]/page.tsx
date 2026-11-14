@@ -34,8 +34,9 @@ export default async function LearnPage({
   const unit = getUnit(unitId);
   const skill = getSkill(unitId, skillId);
 
+  // A hidden course's pages, and its old lesson links, go home.
+  if (unit && !isUnitVisible(unitId)) redirect("/");
   if (!unit || !skill) notFound();
-  if (!isUnitVisible(unitId)) redirect("/");
 
   return <LearnContent unit={unit} skill={skill} unitId={unitId} skillId={skillId} />;
 }
