@@ -3,7 +3,7 @@
  * real name, the way the Alge Carts demo was. Everyone else keeps the games
  * page they had. Empty the gate (return true) to open the arcade to everyone.
  */
-const TESTERS = ["ivan dubovyi", "zach balan", "zack balan", "zachary balan", "shaurya sethi", "vivaan babbar", "kevin frijo"];
+const TESTERS = ["ivan dubovyi", "zach balan", "zack balan", "zachary balan", "shaurya sethi", "vivaan babbar", "kevin frijo", "sampreeth male"];
 function normalizeName(name: string | null | undefined): string {
   return (name ?? "")
     .normalize("NFD")
