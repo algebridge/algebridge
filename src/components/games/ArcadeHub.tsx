@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArcadeTile } from "@/components/games/ArcadeTile";
-import { ARCADE_GAMES, ARCADE_TAGS, type ArcadeTag } from "@/lib/arcade/games";
+import { useArcadeTester } from "@/components/games/HideForArcadeTesters";
+import { ARCADE_GAMES as ALL_GAMES, ARCADE_TAGS, type ArcadeTag } from "@/lib/arcade/games";
 
 export const ARCADE_RECENT_KEY = "algebridge:arcade:recent";
 
@@ -25,6 +26,9 @@ export function ArcadeHub() {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   useEffect(() => setRecent(readRecent()), []);
+  // Testers get the arcade in place of Alge Carts, so its tile is left off their board.
+  const tester = useArcadeTester();
+  const ARCADE_GAMES = useMemo(() => (tester ? ALL_GAMES.filter((g) => g.slug !== "carts") : ALL_GAMES), [tester]);
 
   const q = query.trim().toLowerCase();
   const narrowed = tag !== "all" || q !== "";
@@ -33,9 +37,9 @@ export function ArcadeHub() {
       ARCADE_GAMES.filter(
         (g) => (tag === "all" || g.tags.includes(tag)) && (!q || `${g.name} ${g.blurb} ${g.math} ${g.tags.join(" ")}`.toLowerCase().includes(q))
       ),
-    [tag, q]
+    [tag, q, ARCADE_GAMES]
   );
-  const again = recent.map((s) => ARCADE_GAMES.find((g) => g.slug === s)).filter((g): g is (typeof ARCADE_GAMES)[number] => !!g);
+  const again = recent.map((s) => ARCADE_GAMES.find((g) => g.slug === s)).filter((g): g is (typeof ALL_GAMES)[number] => !!g);
 
   return (
     <section aria-label="Games" className="space-y-5">

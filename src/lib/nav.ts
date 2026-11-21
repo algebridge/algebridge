@@ -25,6 +25,8 @@ interface NavContext {
   /** The course the student is in. Each course is its own space: the menu
    *  only ever shows the one you are in, the switch top left changes it. */
   course?: CourseId;
+  /** An arcade tester (lib/arcade/testers.ts): the arcade board stands in for Alge Carts and the Live Arena. */
+  arcadeTester?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function buildNav({
   reviewCount,
   unreadCount,
   course = "algebra-1",
+  arcadeTester = false,
 }: NavContext): NavSection[] {
   const isTeacher = role === "teacher";
   const isTutor = role === "tutor";
@@ -48,7 +51,7 @@ export function buildNav({
   const learn: NavItem[] = [
     { href: course === "algebra-2" ? "/algebra-2" : "/", label: "Course", icon: "course" },
     { href: "/games", label: "Games", icon: "play" },
-    { href: "/arena", label: "Live Arena", icon: "versus" },
+    ...(arcadeTester ? [] : [{ href: "/arena", label: "Live Arena", icon: "versus" } as NavItem]),
     { href: "/review", label: "Review", icon: "review", badge: reviewCount },
     { href: "/test-review", label: "Test review", icon: "check", tag: "New" },
   ];
@@ -85,7 +88,7 @@ export function buildNav({
 
   const sections: NavSection[] = [
     { title: "Learn", items: learn },
-    { title: "Play", items: play },
+    ...(arcadeTester ? [] : [{ title: "Play", items: play }]),
     { title: "Rewards", items: rewards },
     { title: "Classroom", items: classroom },
     { title: "More", items: more },

@@ -1,5 +1,6 @@
 "use client";
 
+import { isArcadeTester } from "@/lib/arcade/testers";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useProgress } from "@/hooks/useProgress";
@@ -60,6 +61,7 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
+  const arcadeTester = configured && isArcadeTester(profile?.displayName);
   const sections = useMemo(
     () =>
       buildNav({
@@ -69,8 +71,9 @@ export function AppNavProvider({ children }: { children: React.ReactNode }) {
         reviewCount,
         unreadCount: unread,
         course,
+        arcadeTester,
       }),
-    [user, profile?.role, profile?.isAdmin, reviewCount, unread, course]
+    [user, profile?.role, profile?.isAdmin, reviewCount, unread, course, arcadeTester]
   );
 
   // "Continue" drops the student straight into a lesson, and lessons sit behind

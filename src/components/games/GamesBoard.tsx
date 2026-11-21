@@ -21,6 +21,7 @@ import { RINK, RINK_DAILY_CAP, rinkRemainingToday } from "@/lib/rink";
 import type { UserProgress } from "@/types";
 import { prefersReducedMotion } from "@/lib/display";
 import Link from "next/link";
+import { HideForArcadeTesters } from "@/components/games/HideForArcadeTesters";
 import { Icon } from "@/components/Icon";
 import { useSeason } from "@/lib/use-season";
 import { trackInsight } from "@/lib/insights-client";
@@ -193,7 +194,9 @@ export function GamesBoard({ demo }: { demo?: GamesDemoStore }) {
       </header>
 
       {/* The team: pick who to play with. */}
-      <ArenaCard />
+      <HideForArcadeTesters>
+        <ArenaCard />
+      </HideForArcadeTesters>
       <nav aria-label="Pick a game" data-tour="games" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-6 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0">
         {GAME_CARDS.map((g) => (
           <TeamTile key={g.id} card={g} active={g.id === picked} best={g.id === "rink" ? (progress?.rink?.best ?? 0) : (progress?.gameBest?.[g.id] ?? 0)} onPick={() => pick(g.id)} />

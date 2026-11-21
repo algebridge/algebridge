@@ -8,6 +8,7 @@ import { TestReviewCard } from "@/components/TestReviewCard";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { CartsBanner } from "@/components/CartsBanner";
+import { HideForArcadeTesters } from "@/components/games/HideForArcadeTesters";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { VisualizeIt } from "@/components/VisualizeIt";
 
@@ -67,7 +68,9 @@ export default function Algebra2Page() {
 
       <TestReviewCard />
 
-      <CartsBanner />
+      <HideForArcadeTesters>
+        <CartsBanner />
+      </HideForArcadeTesters>
 
       <VisualizeIt />
 

@@ -6,6 +6,7 @@ import { CourseGate } from "@/components/CourseGate";
 import { ProgressOverview } from "@/components/ProgressOverview";
 import { UnitCard } from "@/components/UnitCard";
 import { CartsBanner } from "@/components/CartsBanner";
+import { HideForArcadeTesters } from "@/components/games/HideForArcadeTesters";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { VisualizeIt } from "@/components/VisualizeIt";
 import { QuoteCard } from "@/components/QuoteCard";
@@ -82,7 +83,9 @@ export default function HomePage() {
         <ProgressOverview />
       </CourseGate>
 
-      <CartsBanner />
+      <HideForArcadeTesters>
+        <CartsBanner />
+      </HideForArcadeTesters>
 
       {/* Why the course is worth the work, in the words of people who built
           the subject. Every quote is real and carries its source. */}

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArcadeTile } from "@/components/games/ArcadeTile";
 import { ARCADE_RECENT_KEY, readRecent } from "@/components/games/ArcadeHub";
-import { ARCADE_GAMES, type ArcadeGame } from "@/lib/arcade/games";
+import { useArcadeTester } from "@/components/games/HideForArcadeTesters";
+import { ARCADE_GAMES as ALL_GAMES, type ArcadeGame } from "@/lib/arcade/games";
 
 /**
  * One arcade game on its stage. The game is a static page under
@@ -13,6 +14,8 @@ import { ARCADE_GAMES, type ArcadeGame } from "@/lib/arcade/games";
  */
 export function ArcadePlayer({ game }: { game: ArcadeGame }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const tester = useArcadeTester();
+  const ARCADE_GAMES = tester ? ALL_GAMES.filter((g) => g.slug !== "carts") : ALL_GAMES;
 
   useEffect(() => {
     try {
