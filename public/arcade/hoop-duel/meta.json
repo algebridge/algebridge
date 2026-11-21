@@ -1,0 +1,11 @@
+{
+  "slug": "hoop-duel",
+  "name": "Hoop Duel",
+  "tagline": "Three on three. Full court. Get the hot hand.",
+  "genre": "sports",
+  "math": "Quick math for the hot hand",
+  "players": "1-2",
+  "is3d": false,
+  "color": "#f97316",
+  "controls": "Arrows + S D. 2 players: WASD + F G, arrows + K L"
+}

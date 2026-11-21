@@ -1,0 +1,11 @@
+{
+  "slug": "bridge-run",
+  "name": "Bridge Run",
+  "tagline": "Sprint the sunrise bridge. Run through the right arch.",
+  "genre": "runner",
+  "math": "Algebra mix",
+  "players": "1",
+  "is3d": true,
+  "color": "#f59e0b",
+  "controls": "Arrow keys or swipe"
+}

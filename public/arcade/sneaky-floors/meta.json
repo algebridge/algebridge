@@ -1,0 +1,11 @@
+{
+  "slug": "sneaky-floors",
+  "name": "Sneaky Floors",
+  "tagline": "The level lies. The math does not.",
+  "genre": "platformer",
+  "math": "Primes, multiples, equations",
+  "players": "1",
+  "is3d": false,
+  "color": "#23513f",
+  "controls": "Arrows or WASD, Space"
+}

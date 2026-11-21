@@ -1,0 +1,11 @@
+{
+  "slug": "number-snake",
+  "name": "Number Snake",
+  "tagline": "Eat the right number. Grow the longest snake.",
+  "genre": "arena",
+  "math": "Mixed arithmetic and algebra",
+  "players": "1",
+  "is3d": false,
+  "color": "#8b5cf6",
+  "controls": "Mouse or arrow keys"
+}

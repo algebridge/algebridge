@@ -39,7 +39,7 @@ export function WelcomeModal() {
   const { user, configured, loading } = useAuth();
   const pathname = usePathname();
   useEffect(() => {
-    if (loading || (configured && !user) || isBareRoute(pathname) || isFocusRoute(pathname)) return;
+    if (loading || (configured && !user) || isBareRoute(pathname) || isFocusRoute(pathname) || pathname.startsWith("/games/play")) return; // a game is no place for the intro
     if (!getProgress().onboarded) setVisible(true);
   }, [user, configured, loading, pathname]);
 

@@ -1,0 +1,11 @@
+{
+  "slug": "roll-on",
+  "name": "Roll On",
+  "tagline": "Roll, jump and unlock the number gates.",
+  "genre": "platformer",
+  "math": "Algebra mix",
+  "players": "1",
+  "is3d": false,
+  "color": "#10b981",
+  "controls": "Arrow keys or A D, Space to jump"
+}

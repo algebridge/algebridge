@@ -1,0 +1,62 @@
+/* Shared look for the daily puzzle games. Sizes are in em from --fs, set by shell.js. */
+.dz { font-size: var(--fs, 16px); font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", system-ui, -apple-system, "Segoe UI", sans-serif; }
+.dz-layer { position: absolute; inset: 0; display: flex; flex-direction: column; color: #0f172a; pointer-events: auto; overflow: hidden; }
+.dz-layer *, .dz-result *, .dz-pick * { box-sizing: border-box; }
+.dz-head { flex: 0 0 auto; height: 3.3em; display: flex; align-items: center; gap: 0.6em; padding: 0 9.4em 0 1em; }
+.portrait .dz-head { padding: 0 7.6em 0 0.8em; }
+.dz-title { font-weight: 900; font-size: 1.3em; letter-spacing: -0.02em; color: #1e3a8a; white-space: nowrap; }
+.dz-chip { font-weight: 800; font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.07em; background: #1e3a8a; color: #fff; border-radius: 99em; padding: 0.25em 0.8em; white-space: nowrap; }
+.dz-chip.soft { background: rgb(30 58 138 / 0.12); color: #1e3a8a; }
+.dz-grow { flex: 1 1 auto; }
+.dz-b { font: inherit; font-weight: 900; color: #fff; background: #2563eb; border: 0; border-bottom: 0.26em solid #1e3a8a; border-radius: 99em; padding: 0.5em 1.3em; cursor: pointer; touch-action: manipulation; }
+.dz-b:hover { background: #1d4ed8; }
+.dz-b:active { transform: translateY(0.12em); border-bottom-width: 0.14em; }
+.dz-b:disabled { opacity: 0.45; cursor: default; }
+.dz-b.quiet { background: #e2e8f0; color: #1e3a8a; border-bottom-color: #94a3b8; }
+.dz-b.quiet:hover { background: #cbd5e1; }
+.dz-b.ok { background: #10b981; border-bottom-color: #047857; color: #fff; }
+.dz-bubble { position: relative; background: #fff; border: 0.16em solid #1e3a8a; border-radius: 1.1em; padding: 0.55em 0.9em; font-weight: 700; line-height: 1.3; color: #0f172a; box-shadow: 0 0.22em 0 rgb(30 58 138 / 0.22); }
+.dz-archie svg { display: block; width: 100%; height: auto; }
+
+/* menu pickers */
+.dz-pick { display: flex; flex-direction: column; align-items: center; gap: 0.45em; margin: 0.2em 0 0.5em; }
+.dz-seg { display: inline-flex; background: #e2e8f0; border-radius: 99em; padding: 0.2em; gap: 0.15em; flex-wrap: wrap; justify-content: center; }
+.dz-seg button { font: inherit; font-weight: 800; font-size: 0.95em; border: 0; background: transparent; color: #475569; border-radius: 99em; padding: 0.35em 1em; cursor: pointer; }
+.dz-seg button.on { background: #1e3a8a; color: #fff; }
+.dz-status { margin: 0; min-height: 1.3em; font-weight: 700; font-size: 0.88em; color: #64748b; }
+.dz-status b { color: #b45309; }
+.ak-menu .ak-best { display: none; }
+.ak-menu .ak-how { margin-bottom: 0.5em; }
+
+/* result card */
+.ak-card.dz-card { text-align: center; }
+.portrait .ak-card, .portrait .ak-card.ak-small, .portrait .ak-card.ak-wide { width: 94%; }
+.portrait .ak-archie { height: calc(var(--fs) * 4.6); }
+.portrait .ak-archie svg { height: calc(var(--fs) * 4.6); width: auto; }
+.portrait .ak-card h1 { font-size: calc(var(--fs) * 1.9); }
+.portrait .ak-card .ak-tag { font-size: calc(var(--fs) * 0.95); }
+.portrait .ak-card .ak-how { font-size: calc(var(--fs) * 0.88); }
+.portrait .ak-card .ak-btn { font-size: calc(var(--fs) * 1.2); }
+.portrait .ak-card .ak-q { font-size: calc(var(--fs) * 2.2); }
+.portrait .ak-card .ak-choice { font-size: calc(var(--fs) * 1.5); }
+.portrait .ak-card.ak-ask { width: 92%; }
+.dz-result h2 { margin: 0.1em 0 0.15em; font-size: 1.75em; font-weight: 900; color: #1e3a8a; letter-spacing: -0.02em; }
+.dz-result .dz-sub { margin: 0 0 0.6em; color: #475569; font-weight: 700; }
+.dz-top { display: flex; align-items: center; justify-content: center; gap: 1em; }
+.dz-top .dz-archie { width: 4.6em; flex: 0 0 auto; }
+.dz-big { font-size: 2.9em; font-weight: 900; line-height: 1; color: #0f172a; font-variant-numeric: tabular-nums; }
+.dz-big small { font-size: 0.42em; color: #64748b; font-weight: 800; }
+.dz-stats { display: flex; justify-content: center; gap: 0.6em; flex-wrap: wrap; margin: 0.6em 0; }
+.dz-stat { background: #f1f5f9; border-radius: 0.9em; padding: 0.35em 0.9em; font-weight: 800; color: #334155; font-size: 0.9em; }
+.dz-stat b { color: #1e3a8a; font-size: 1.15em; }
+.dz-share { display: flex; align-items: stretch; gap: 0.6em; margin: 0.7em auto 0.2em; max-width: 34em; text-align: left; }
+.dz-share pre { flex: 1 1 auto; margin: 0; background: #0f172a; color: #e2e8f0; border-radius: 0.8em; padding: 0.6em 0.8em; font: 600 0.8em/1.35 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; -webkit-user-select: text; user-select: text; overflow: hidden; }
+.dz-share .dz-b { flex: 0 0 auto; align-self: center; font-size: 0.95em; }
+.portrait .dz-share { flex-direction: column; }
+.portrait .dz-share .dz-b { align-self: stretch; }
+.dz-actions { display: flex; justify-content: center; gap: 0.6em; flex-wrap: wrap; margin-top: 0.8em; }
+.dz-actions .dz-b { font-size: 1.05em; }
+.dz-note { margin: 0.5em 0 0; color: #64748b; font-weight: 700; font-size: 0.85em; }
+@keyframes dz-in { from { transform: translateY(0.5em); opacity: 0; } }
+@keyframes dz-shake { 20% { transform: translateX(-0.4em); } 40% { transform: translateX(0.4em); } 60% { transform: translateX(-0.25em); } 80% { transform: translateX(0.25em); } }
+@media (prefers-reduced-motion: reduce) { .dz * { animation: none !important; transition: none !important; } }

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hop Across · AlgeBridge Arcade</title>
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.ha-rule { position: absolute; left: 50%; top: 1.3cqw; transform: translate(-50%, -160%); transition: transform 0.28s cubic-bezier(.3,1.4,.5,1); pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; background: #fff; color: #0f172a; border-radius: 1.6cqw; padding: 0.6cqw 2.4cqw 0.8cqw;
+  box-shadow: 0 0.5cqw 0 rgb(15 23 42 / 0.22); border: 0.35cqw solid #1e3a8a; white-space: nowrap; font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif; }
+.ha-rule.on { transform: translate(-50%, 0); }
+.ha-rule small { font-size: clamp(8px, 1.25cqw, 14px); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #2563eb; }
+.ha-rule b { font-size: clamp(13px, 2.7cqw, 30px); font-weight: 900; line-height: 1.1; }
+.ak-stage:not([data-state="playing"]) .ha-rule { transform: translate(-50%, -160%); }
+.ha-warn { position: absolute; left: 0; right: 0; bottom: 0; height: 26%; opacity: 0; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 1.6cqw;
+  background: linear-gradient(to top, rgb(239 68 68 / 0.6), rgb(239 68 68 / 0)); font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif; }
+.ha-warn b { background: #ef4444; color: #fff; font-weight: 900; font-size: clamp(13px, 2.6cqw, 30px); padding: 0.4cqw 2cqw; border-radius: 99cqw; border: 0.3cqw solid #fff; }
+.ak-stage:not([data-state="playing"]) .ha-warn { display: none; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

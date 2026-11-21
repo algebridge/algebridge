@@ -1,0 +1,11 @@
+{
+  "slug": "_template",
+  "name": "Catch It",
+  "tagline": "Catch the right answer.",
+  "genre": "arcade",
+  "math": "Arithmetic",
+  "players": "1",
+  "is3d": false,
+  "color": "#2563eb",
+  "controls": "Arrow keys"
+}

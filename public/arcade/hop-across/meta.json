@@ -1,0 +1,11 @@
+{
+  "slug": "hop-across",
+  "name": "Hop Across",
+  "tagline": "Hop far. Land only on the pads that fit the rule.",
+  "genre": "hopper",
+  "math": "Multiples, factors, primes, equations",
+  "players": "1",
+  "is3d": true,
+  "color": "#10b981",
+  "controls": "Arrow keys or swipe"
+}

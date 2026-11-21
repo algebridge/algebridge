@@ -1,0 +1,11 @@
+{
+  "slug": "six-guess",
+  "name": "Six Guess",
+  "tagline": "Find the hidden equation in six tries.",
+  "genre": "daily puzzle",
+  "math": "Order of operations, one-step equations",
+  "players": "1",
+  "is3d": false,
+  "color": "#2563eb",
+  "controls": "Keyboard or the on-screen keypad"
+}

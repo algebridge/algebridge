@@ -1,0 +1,11 @@
+{
+  "slug": "swing-line",
+  "name": "Swing Line",
+  "tagline": "Hook a ring. Swing. Let go. Fly.",
+  "genre": "swing",
+  "math": "Algebra mix",
+  "players": "1",
+  "is3d": false,
+  "color": "#0ea5e9",
+  "controls": "Hold Space, click or touch"
+}

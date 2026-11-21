@@ -1,0 +1,11 @@
+{
+  "slug": "twin-bridge",
+  "name": "Twin Bridge",
+  "tagline": "Two twins, one keyboard, one broken bridge.",
+  "genre": "puzzle platformer",
+  "math": "Equations",
+  "players": "2",
+  "is3d": false,
+  "color": "#f59e0b",
+  "controls": "WASD and arrow keys"
+}

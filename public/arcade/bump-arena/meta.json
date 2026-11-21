@@ -1,0 +1,11 @@
+{
+  "slug": "bump-arena",
+  "name": "Bump Arena",
+  "tagline": "Bump everyone off. Last one standing wins the round.",
+  "genre": "party",
+  "math": "Arithmetic",
+  "players": "1-2",
+  "is3d": false,
+  "color": "#8b5cf6",
+  "controls": "Arrows or WASD, Space to go heavy"
+}

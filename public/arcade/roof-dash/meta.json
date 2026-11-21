@@ -1,0 +1,11 @@
+{
+  "slug": "roof-dash",
+  "name": "Roof Dash",
+  "tagline": "Run the roofs. Slide, dive and wall-jump to beat the clock.",
+  "genre": "platformer",
+  "math": "Quick math doors",
+  "players": "1",
+  "is3d": false,
+  "color": "#f97316",
+  "controls": "Arrows to run, Up or Space to jump, Down to slide and dive, R to restart"
+}

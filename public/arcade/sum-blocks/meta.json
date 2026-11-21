@@ -1,0 +1,11 @@
+{
+  "slug": "sum-blocks",
+  "name": "Sum Blocks",
+  "tagline": "Fit the blocks. Clear the lines. Solve the magic rule.",
+  "genre": "puzzle",
+  "math": "Addition, multiples, equations with n and x",
+  "players": "1",
+  "is3d": false,
+  "color": "#1e3a8a",
+  "controls": "Drag and drop, or 1 2 3 with arrow keys and Space"
+}

@@ -1,0 +1,11 @@
+{
+  "slug": "drift-line",
+  "name": "Drift Line",
+  "tagline": "One button. One narrow road in the sky.",
+  "genre": "drift",
+  "math": "Algebra mix",
+  "players": "1",
+  "is3d": true,
+  "color": "#38bdf8",
+  "controls": "Space, click or touch"
+}

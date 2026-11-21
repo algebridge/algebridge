@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bump Arena · AlgeBridge Arcade</title>
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.ba-row { display: flex; justify-content: center; gap: 0.5em; margin: 0 0 0.4em; }
+.ba-seg { font: inherit; font-weight: 800; font-size: clamp(12px, 1.7cqw, 18px); color: #1e3a8a; background: #eff6ff; border: 2px solid #bfdbfe; border-bottom-width: 4px; border-radius: 999px; padding: 0.3em 1em; cursor: pointer; }
+.ba-seg.on { background: #2563eb; border-color: #1e3a8a; color: #fff; }
+.ba-note { margin: 0 0 0.5em; color: #64748b; font-weight: 700; font-size: clamp(11px, 1.4cqw, 15px); }
+.ak-menu .ak-how, .ak-menu .ak-tag { margin-bottom: 0.5em; }
+.ak-menu .ak-controls { margin-bottom: 0.7em; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "slug": "rare-find",
+  "name": "Rare Find",
+  "tagline": "Right answers score more when they are hard to spot.",
+  "genre": "daily puzzle",
+  "math": "Factors, primes, fractions, math words, plus science, space, geography and more",
+  "players": "1",
+  "is3d": false,
+  "color": "#141c52",
+  "controls": "Type an answer and press Enter"
+}

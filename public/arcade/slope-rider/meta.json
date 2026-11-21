@@ -1,0 +1,11 @@
+{
+  "slug": "slope-rider",
+  "name": "Slope Rider",
+  "tagline": "Hold the gas, brake at the stop signs, pick the ramp that fits.",
+  "genre": "physics driving",
+  "math": "Slope and intercept",
+  "players": "1",
+  "is3d": true,
+  "color": "#f59e0b",
+  "controls": "Right arrow or D for gas, left arrow or A for back, 1 2 3 or tap to pick a ramp, R to retry"
+}

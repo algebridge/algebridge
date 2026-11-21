@@ -1,0 +1,11 @@
+{
+  "slug": "wobble-league",
+  "name": "Wobble League",
+  "tagline": "Floppy one-button sports. First to 5 wins.",
+  "genre": "sports",
+  "math": "Arithmetic",
+  "players": "1-2",
+  "is3d": false,
+  "color": "#2563eb",
+  "controls": "W and Up arrow, or tap"
+}

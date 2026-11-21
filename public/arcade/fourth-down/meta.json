@@ -1,0 +1,11 @@
+{
+  "slug": "fourth-down",
+  "name": "Fourth Down",
+  "tagline": "Real football rules. Read the defense, pick a play, score.",
+  "genre": "sports",
+  "math": "Football arithmetic and algebra",
+  "players": "1",
+  "is3d": false,
+  "color": "#16a34a",
+  "controls": "Mouse or 1 2 3, arrows + Space"
+}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sneaky Floors · AlgeBridge Arcade</title>
+<link rel="stylesheet" href="../kit/kit.css">
+<style>
+.sf-mini { font: inherit; font-weight: 800; font-size: clamp(11px, 1.7cqw, 18px); margin: 0.5em 0.3em 0; padding: 0.3em 1em; border-radius: 999px; border: 2px solid #f4f1e6; background: rgb(20 51 39 / 0.75); color: #f4f1e6; cursor: pointer; }
+.sf-mini:hover { background: #2f6650; }
+.sf-rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35em 1.6em; margin: 0.3em 0 0.5em; }
+.sf-room { display: flex; align-items: center; gap: 0.6em; }
+.sf-room { min-width: 0; }
+.sf-room > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: 800; color: #475569; font-size: clamp(7px, 1.45cqw, 15px); white-space: nowrap; }
+.sf-room > div { display: flex; gap: clamp(3px, 0.5cqw, 7px); }
+.sf-lv { font: inherit; font-weight: 900; font-size: clamp(8px, 1.6cqw, 17px); width: 1.9em; padding: 0.2em 0; border-radius: 8px; border: 2px solid #1b4333; border-bottom-width: 4px; background: #23513f; color: #f4f1e6; cursor: pointer; }
+.sf-lv:hover:not(:disabled) { background: #2d6650; }
+.sf-lv.sf-done { color: #ffe27a; }
+.sf-lv.sf-clean { border-color: #c79a1e; }
+.sf-lv:disabled { opacity: 0.3; cursor: default; }
+.sf-picks { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4em; margin: 0.2em 0 0.5em; }
+.ak-card:has(.sf-picks), .ak-card:has(.sf-rooms) { max-height: 96%; overflow-y: auto; padding-top: 0.6em; padding-bottom: 0.6em; }
+.ak-card:has(.sf-picks) h2, .ak-card:has(.sf-rooms) h2 { margin: 0 0 0.1em; font-size: clamp(13px, 2.4cqw, 26px); }
+.ak-card:has(.sf-picks) .ak-line { margin: 0.1em 0; font-size: clamp(8px, 1.5cqw, 15px); }
+.ak-card:has(.sf-picks) .ak-btn, .ak-card:has(.sf-rooms) .ak-btn { font-size: clamp(10px, 1.8cqw, 18px); padding: 0.3em 1.4em; margin-top: 0.2em; }
+.sf-pick { font: inherit; font-weight: 800; font-size: clamp(8px, 1.5cqw, 16px); padding: 0.3em 0.8em; border-radius: 10px; border: 2px solid #1b4333; background: #f4f1e6; color: #1b4333; cursor: pointer; }
+.sf-pick.on { background: #23513f; color: #ffe27a; }
+.sf-pick:disabled { opacity: 0.45; cursor: default; }
+.sf-pick small { margin-left: 0.5em; font-weight: 700; opacity: 0.8; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
