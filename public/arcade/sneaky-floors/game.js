@@ -134,6 +134,7 @@ function onDeath(why) {
   if (kind === "lie") { faceT = 2.4; for (let i = 0; i < 4; i++) sfx.tone(620 - i * 40, 0.06, { type: "square", vol: 0.22, delay: 0.25 + i * 0.11 }); }   // the snicker
   const L = LINES[kind] || LINES.any, n = (kindDeaths[kind] = (kindDeaths[kind] || 0) + 1);
   comment = n <= L.length ? L[n - 1] : LINES.any[(deaths + stageDeaths) % LINES.any.length];
+  if (STAGES[cur].quip && stageDeaths === 1) comment = STAGES[cur].quip;   // a stage that teaches a new trick names it on the first fall
   lastKind = kind;
   commentT = 2.4;
   mode = "dead"; modeT = 0.3;
