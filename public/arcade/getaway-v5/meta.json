@@ -1,0 +1,11 @@
+{
+  "slug": "getaway-v5",
+  "name": "Getaway",
+  "tagline": "Find x before the Sweepers catch up.",
+  "genre": "strategy chase",
+  "math": "Solving for x, from x + a = b up to x on both sides",
+  "players": "1",
+  "is3d": false,
+  "color": "#facc15",
+  "controls": "1 2 3 or click to pick x, T scanner"
+}

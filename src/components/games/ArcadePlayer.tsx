@@ -7,7 +7,6 @@ import { ARCADE_RECENT_KEY, readRecent } from "@/components/games/ArcadeHub";
 import { useArcadeTester } from "@/components/games/HideForArcadeTesters";
 import { ARCADE_GAMES as ALL_GAMES, type ArcadeGame } from "@/lib/arcade/games";
 import { restoreArcade, snapshotArcade } from "@/lib/arcade/saves";
-import { PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
 /**
  * One arcade game on its stage. The game is a static page under
@@ -16,9 +15,9 @@ import { PROGRESS_UPDATED_EVENT } from "@/lib/progress";
  */
 export function ArcadePlayer({ game }: { game: ArcadeGame }) {
   const frame = useRef<HTMLIFrameElement>(null);
-  // The account's saves come in before the game opens, and the game's saves go back out as it plays.
+  // The account's saves come in once, before the game opens, and the game's saves go back out as it plays.
+  // The game is never reloaded while it is open: newer saves from another device apply the next time it opens.
   const [ready, setReady] = useState(false);
-  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     restoreArcade();
     setReady(true);
@@ -30,11 +29,6 @@ export function ArcadePlayer({ game }: { game: ArcadeGame }) {
     const onMessage = (e: MessageEvent) => {
       if (e.origin === window.location.origin && e.data?.source === "algebridge-arcade") later();
     };
-    // The account's copy can land after the page opened (sign-in loads it): when it brings newer saves, the game restarts on them.
-    const onProgress = () => {
-      if (restoreArcade()) setReloads((n) => n + 1);
-    };
-    window.addEventListener(PROGRESS_UPDATED_EVENT, onProgress);
     const onHide = () => document.visibilityState === "hidden" && snapshotArcade();
     window.addEventListener("message", onMessage);
     document.addEventListener("visibilitychange", onHide);
@@ -42,7 +36,6 @@ export function ArcadePlayer({ game }: { game: ArcadeGame }) {
     return () => {
       window.clearTimeout(t);
       window.removeEventListener("message", onMessage);
-      window.removeEventListener(PROGRESS_UPDATED_EVENT, onProgress);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", snapshotArcade);
       snapshotArcade();
@@ -88,7 +81,6 @@ export function ArcadePlayer({ game }: { game: ArcadeGame }) {
       <div className="mx-auto overflow-hidden rounded-2xl bg-ink-950 shadow-raised" style={{ width: "min(100%, calc((100dvh - 13rem) * 16 / 9))" }}>
         {ready ? (
         <iframe
-          key={reloads}
           ref={frame}
           src={`/arcade/${game.slug}/index.html`}
           title={game.name}

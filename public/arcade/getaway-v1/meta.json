@@ -1,0 +1,11 @@
+{
+  "slug": "getaway-v1",
+  "name": "Getaway",
+  "tagline": "Free x before the Sweepers catch up.",
+  "genre": "strategy chase",
+  "math": "Solving linear equations in the fewest moves",
+  "players": "1",
+  "is3d": false,
+  "color": "#facc15",
+  "controls": "1 to 5 or click cards, S smoke, T scanner"
+}

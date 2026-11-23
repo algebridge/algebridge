@@ -1,13 +1,17 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 import { isArcadeTester } from "@/lib/arcade/testers";
 
 /** True for a signed-in arcade tester (lib/arcade/testers.ts). Never on a local-only deployment. */
 export function useArcadeTester(): boolean {
-  const { profile, configured } = useAuth();
-  return configured && isArcadeTester(profile?.displayName);
+  const { user, profile, configured } = useAuth();
+  // Same latch as ArcadeGate: a profile re-fetch on tab focus must not flip the page back and forth.
+  const allowedFor = useRef<string | null>(null);
+  if (!configured || !user) return false;
+  if (isArcadeTester(profile?.displayName)) allowedFor.current = user.id;
+  return allowedFor.current === user.id;
 }
 
 /**
