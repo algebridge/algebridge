@@ -105,6 +105,15 @@ export default function TutorHubPage() {
         </Link>
       </div>
 
+      <Link href="/tutor-test" className="card flex items-center gap-3 hover:ring-2 hover:ring-bridge-200">
+        <Icon name="check" size={20} />
+        <div className="flex-1">
+          <p className="font-semibold text-slate-900">Algebra 1 tutor check</p>
+          <p className="text-sm text-slate-500">The test every tutor passes before helping students.</p>
+        </div>
+        <span className="text-sm font-semibold text-bridge-700">Open</span>
+      </Link>
+
       <NotificationsCard who="a student" />
 
       <AnnouncementComposer myId={user.id} isAdmin={profile?.isAdmin ?? false} />
