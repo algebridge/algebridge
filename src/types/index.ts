@@ -196,6 +196,8 @@ export interface UserProgress {
   daily?: { day: string; right: number; paid: boolean; /** Bridgeys today's answers paid, toward ANSWER_PAY_CAP. */ coins?: number };
   /** The days the daily goal was reached (YYYY-MM-DD, the latest 30): the house's plants grow with them. */
   goalDays?: string[];
+  /** Arcade saves (lib/arcade/saves.ts): every public/arcade game's localStorage entries, copied here so they follow the account. */
+  arcade?: { at: string; saves: Record<string, string> };
   /** The unit arena (lib/arena.ts): bosses beaten (unit ids) and best scores by "unitId:mode". */
   arena?: { beaten: string[]; best: Record<string, number> };
   /** The week (its Monday) a bed's rest day was last used to keep the streak. */

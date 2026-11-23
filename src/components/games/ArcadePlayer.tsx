@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArcadeTile } from "@/components/games/ArcadeTile";
 import { ARCADE_RECENT_KEY, readRecent } from "@/components/games/ArcadeHub";
 import { useArcadeTester } from "@/components/games/HideForArcadeTesters";
 import { ARCADE_GAMES as ALL_GAMES, type ArcadeGame } from "@/lib/arcade/games";
+import { restoreArcade, snapshotArcade } from "@/lib/arcade/saves";
+import { PROGRESS_UPDATED_EVENT } from "@/lib/progress";
 
 /**
  * One arcade game on its stage. The game is a static page under
@@ -14,6 +16,39 @@ import { ARCADE_GAMES as ALL_GAMES, type ArcadeGame } from "@/lib/arcade/games";
  */
 export function ArcadePlayer({ game }: { game: ArcadeGame }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  // The account's saves come in before the game opens, and the game's saves go back out as it plays.
+  const [ready, setReady] = useState(false);
+  const [reloads, setReloads] = useState(0);
+  useEffect(() => {
+    restoreArcade();
+    setReady(true);
+    let t = 0;
+    const later = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(snapshotArcade, 800);
+    };
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.source === "algebridge-arcade") later();
+    };
+    // The account's copy can land after the page opened (sign-in loads it): when it brings newer saves, the game restarts on them.
+    const onProgress = () => {
+      if (restoreArcade()) setReloads((n) => n + 1);
+    };
+    window.addEventListener(PROGRESS_UPDATED_EVENT, onProgress);
+    const onHide = () => document.visibilityState === "hidden" && snapshotArcade();
+    window.addEventListener("message", onMessage);
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", snapshotArcade);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener(PROGRESS_UPDATED_EVENT, onProgress);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", snapshotArcade);
+      snapshotArcade();
+    };
+  }, [game.slug]);
+
   const tester = useArcadeTester();
   const ARCADE_GAMES = tester ? ALL_GAMES.filter((g) => g.slug !== "carts") : ALL_GAMES;
 
@@ -51,7 +86,9 @@ export function ArcadePlayer({ game }: { game: ArcadeGame }) {
       </nav>
 
       <div className="mx-auto overflow-hidden rounded-2xl bg-ink-950 shadow-raised" style={{ width: "min(100%, calc((100dvh - 13rem) * 16 / 9))" }}>
+        {ready ? (
         <iframe
+          key={reloads}
           ref={frame}
           src={`/arcade/${game.slug}/index.html`}
           title={game.name}
@@ -59,6 +96,9 @@ export function ArcadePlayer({ game }: { game: ArcadeGame }) {
           className="block aspect-video w-full border-0"
           onLoad={() => frame.current?.focus()}
         />
+        ) : (
+          <div className="aspect-video w-full" />
+        )}
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-surface p-4 shadow-panel">

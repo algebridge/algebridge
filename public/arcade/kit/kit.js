@@ -154,7 +154,7 @@ export function createGame(opts) {
   // ----- saves -----
   const key = (k) => `arcade:${opts.slug}:${k}`;
   g.load = (k, fallback = null) => { try { const v = localStorage.getItem(key(k)); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } };
-  g.save = (k, v) => { try { localStorage.setItem(key(k), JSON.stringify(v)); } catch {} };
+  g.save = (k, v) => { try { localStorage.setItem(key(k), JSON.stringify(v)); } catch {} saved(); };
   Object.defineProperty(g, "best", { get: () => g.load("best", 0), set: (v) => g.save("best", v) });
   /** Coins are shared by every arcade game. */
   Object.defineProperty(g, "coins", { get: () => { try { return Number(localStorage.getItem("arcade:coins")) || 0; } catch { return 0; } } });
@@ -185,6 +185,9 @@ export function createGame(opts) {
     return `<div class="ak-unlock"><span>Next: <b>${esc(next.name)}</b></span><i><em style="width:${(f * 100).toFixed(0)}%"></em></i></div>`;
   };
   const tell = (type, data = {}) => { try { if (parent !== window) parent.postMessage({ source: "algebridge-arcade", type, slug: opts.slug, ...data }, location.origin); } catch {} };
+  // Tells the page around the game that something was saved, at most twice a second, so it can copy saves to the account.
+  let saveT = 0;
+  const saved = () => { if (saveT) return; saveT = setTimeout(() => { saveT = 0; tell("save"); }, 500); };
 
   // ----- canvases -----
   /** A 2D canvas with a fixed logical size (w x h) scaled to the stage. Returns { canvas, ctx, w, h }. Draw in logical units. */
