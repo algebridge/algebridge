@@ -61,6 +61,7 @@ export type IconName =
   | "video-off"
   | "phone"
   | "flag"
+  | "megaphone"
   | "shield"
   | "search"
   | "keyboard"
@@ -423,6 +424,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   phone: (
     <path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 5.3 5.3l1.4-2.2L19 14.5V18a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+  ),
+  megaphone: (
+    <>
+      <path d="M3.5 10v4a1 1 0 0 0 1 1h2.5l7.5 4.5v-15L7 9H4.5a1 1 0 0 0-1 1Z" />
+      <path d="M7.5 15.25 9 20.5h2.25" />
+      <path d="M18 9.5a3.5 3.5 0 0 1 0 5" />
+    </>
   ),
   flag: (
     <>
